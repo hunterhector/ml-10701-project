@@ -15,14 +15,16 @@ import it.unimi.dsi.fastutil.doubles.DoubleArrayList
  * Time: 4:37 PM
  */
 class AanGraph (rootFolder:File) {
-    val LOG = LogFactory.getLog(this.getClass)
-    val networkFolder = "networks"
-    val paperIdFile = new File(rootFolder.getAbsolutePath + "/" + "paper_ids.txt")
-    val citationNetworkFile = new File(rootFolder.getAbsolutePath + "/" + networkFolder + "/" + "paper-citation-network.txt")
+    private val LOG = LogFactory.getLog(this.getClass)
+    private val networkFolder = "networks"
+    private val paperIdFile = new File(rootFolder.getAbsolutePath + "/" + "paper_ids.txt")
+    private val citationNetworkFile = new File(rootFolder.getAbsolutePath + "/" + networkFolder + "/" + "paper-citation-network.txt")
 
   if (! isValid) {
     throw new IllegalArgumentException("Should use the AAN 2011 release folder as input!")
   }
+
+  LOG.info("Initialization successful!")
 
   private def buildGraph() = {
     val conv = new PaperIdConverter(rootFolder)
@@ -60,7 +62,7 @@ class AanGraph (rootFolder:File) {
    * @return
    */
   private def l1Norm (a: DoubleArrayList): Double ={
-    a.toDoubleArray.foldLeft(0.0)((norm,v)=>{
+    a.toDoubleArray().foldLeft(0.0)((norm,v)=>{
       norm + math.abs(v)
     })
   }
@@ -100,8 +102,14 @@ class AanGraph (rootFolder:File) {
     true
   }
 
-  def main(args: Array[String]){
-    if(args.length != 1) LOG.error("Please specify the AAN data folder.")
+
+}
+
+object AanGraph{
+  private val LOG = LogFactory.getLog(this.getClass)
+
+  def main(args: Array[String]) {
+    if(args.length != 1) LOG.error("Please locate AAN data release folder  (2011 release preferable).")
 
     val aanFolder = args(0)
     val ag = new AanGraph(new File(aanFolder))

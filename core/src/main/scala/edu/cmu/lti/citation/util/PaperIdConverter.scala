@@ -3,6 +3,7 @@ package edu.cmu.lti.citation.util
 import java.io.File
 import io.Source
 import collection.immutable.HashMap
+import org.apache.commons.logging.LogFactory
 
 /**
  * Created with IntelliJ IDEA.
@@ -11,8 +12,9 @@ import collection.immutable.HashMap
  * Time: 5:23 PM
  */
 class PaperIdConverter(rootFolder:File) {
+  private val LOG = LogFactory.getLog(this.getClass)
 
-    val paperIdFile = new File(rootFolder.getAbsolutePath + "/" + "paper_ids.txt")
+  val paperIdFile = new File(rootFolder.getAbsolutePath + "/" + "paper_ids.txt")
 
     val headPointers = Source.fromFile(paperIdFile).getLines().filterNot(_.trim() == "").map(_.split("-")).zipWithIndex.foldLeft( (HashMap[String,(Int,Int)](),-1)){
       case ((heads,lastTail), (fields,graphIndex)) => {
@@ -23,8 +25,10 @@ class PaperIdConverter(rootFolder:File) {
           val tailOffset = graphIndex - tailVal
           (heads + (head -> (graphIndex,tailOffset)) , tailVal)
         }else{
-          if (!(tailVal == lastTail + 1 || lastTail == -1))
+          if (!(tailVal == lastTail + 1 || lastTail == -1)){
+            LOG.error(String.format("Head is %s, Previous is %s, current is %s",head,tailVal.toString,lastTail.toString))
             throw new Exception("Paper Id tails are not continous.")
+          }
           (heads, tailVal)
         }
       }

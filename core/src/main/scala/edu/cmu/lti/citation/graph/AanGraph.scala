@@ -26,7 +26,7 @@ class AanGraph (rootFolder:File) {
 
   LOG.info("Initialization successful!")
 
-  private def buildGraph() = {
+  private def buildGraph():ArcLabelledImmutableGraph = {
     val conv = new PaperIdConverter(rootFolder)
     val tripleList = Source.fromFile(citationNetworkFile).getLines().filterNot(_.trim()=="").map(_.split(" ==> ")).map(fields => ((conv.toGraphIndex(fields(0)),conv.toGraphIndex(fields(1)),1.0.toFloat))).toList
     GraphUtils.buildWeightedGraphFromTriples(tripleList)

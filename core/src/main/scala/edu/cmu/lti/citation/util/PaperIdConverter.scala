@@ -29,23 +29,23 @@ class PaperIdConverter(rootFolder:File) {
 
   LOG.debug(String.format("Lines read: %s",maxIndex.toString))
 
-  private var indexCount = -1
+  private var indexCount = 0
 
   //reading the paper id file does not work, let's read the network file directly
   private val paperIdMap = lines.filterNot(_.trim()=="").map(_.split(" ==> ")).
     map(fields => (fields(0),fields(1))).foldLeft((HashMap[String,Int]())){
-      case(paperIdMap,(id1,id2)) =>{
+      case(idMap,(id1,id2)) =>{
          //LOG.debug(String.format("Reading paper id %s %s",id1.toString,id2.toString))
         var p = new HashMap[String,Int]()
-        p = paperIdMap
+        p = idMap
 
-        if (! paperIdMap.contains(id1)){
+        if (! idMap.contains(id1)){
           p += (id1 -> indexCount)
           indexCount += 1
 
         }
 
-        if(! paperIdMap.contains(id2)){
+        if(! idMap.contains(id2)){
           p += (id2 -> indexCount)
           indexCount += 1
         }
@@ -67,16 +67,16 @@ class PaperIdConverter(rootFolder:File) {
 
   LOG.debug(String.format("%s or %s paper Id loaded",paperIdMap.size.toString,graphIdMap.size.toString))
 
-  def getNumberOfPaper():Int ={
-    return paperIdMap.size
+  def getNumberOfPaper:Int ={
+    paperIdMap.size
   }
 
   def fromGraphIndex(graphIndex:Int):String = {
-    return graphIdMap(graphIndex)
+    graphIdMap(graphIndex)
   }
 
   def toGraphIndex(paperId:String):Int = {
-    return paperIdMap(paperId)
+    paperIdMap(paperId)
   }
 
 

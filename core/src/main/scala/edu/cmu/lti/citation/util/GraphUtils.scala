@@ -163,13 +163,14 @@ object GraphUtils {
     while (nodeIterator.hasNext) {
       val curr = nodeIterator.nextInt
       val out = nodeIterator.outdegree()
+      LOG.debug(String.format("Current node is %s, out degree is %s",curr.toString,out.toString))
       val suc = nodeIterator.successorArray
       val lab = nodeIterator.labelArray
-      (0 to out).foreach(i => LOG.debug(curr + "\t" + suc(i).toString() + "\t" + lab(i).getFloat.toString()))
+      (0 to out-1).foreach(i => LOG.debug(curr + "\t" + suc(i).toString() + "\t" + lab(i).getFloat.toString()))
       count +=1
     }
 
-    LOG.debug(String.format("Finished Dumping %s",count.toString))
+    LOG.debug(String.format("Finished Dumping %s nodes",count.toString))
   }
 
   /**
@@ -185,12 +186,13 @@ object GraphUtils {
     while (nodeIterator.hasNext) {
       val curr = nodeIterator.nextInt
       val out = nodeIterator.outdegree()
+      LOG.debug(String.format("Out degree is %s",out.toString))
       val suc = nodeIterator.successorArray
-      (0 to out).foreach(i => LOG.debug(curr + "\t" + suc(i).toString()))
+      (0 to out-1).foreach(i => LOG.debug(curr + "\t" + suc(i).toString))
       count +=1
     }
 
-    LOG.debug(String.format("Finished Dumping %s",count.toString))
+    LOG.debug(String.format("Finished Dumping %s nodes",count.toString))
   }
 
 

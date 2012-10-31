@@ -7,6 +7,8 @@ import io.Source
 import it.unimi.dsi.webgraph.labelling.ArcLabelledImmutableGraph
 import es.yrbcn.graph.weighted.WeightedPageRank
 import it.unimi.dsi.fastutil.doubles.DoubleArrayList
+import collection.mutable.ListBuffer
+import util.Random
 
 /**
  * Created with IntelliJ IDEA.
@@ -27,24 +29,40 @@ class AanGraph (rootFolder:File) {
 
   LOG.info("Initialization successful!")
 
-  private def buildGraph(targetIndex:Int):ArcLabelledImmutableGraph = {
-    val numPaper = conv.getNumberOfPaper()
+  /**
+   * This one build a full graph with everything
+   * @return The resulting graph
+   */
+  private def buildGraph():ArcLabelledImmutableGraph = {
+    //val numPaper = conv.getNumberOfPaper
     val tripleList = Source.fromFile(citationNetworkFile).getLines().filterNot(_.trim()=="").map(_.split(" ==> ")).map(fields => ((conv.toGraphIndex(fields(0)),conv.toGraphIndex(fields(1)),1.0.toFloat))).toList
-    GraphUtils.buildWeightedGraphFromTriples(tripleList,numPaper)
+    //tripleList.foreach(LOG.debug)
+    GraphUtils.buildWeightedGraphFromTriples(tripleList)
   }
 
-  def predict(targetIndex:Int,k:Int) {
-    val graph = buildGraph(targetIndex)
-    GraphUtils.dumpLabelledGraphSuccessorOnly(graph)
+  private def buildGraphWithMissingLink(targetIndex:Int):ArcLabelledImmutableGraph = {
+    var missingLinks = new ListBuffer[Int]()
+    val tripleList = Source.fromFile(citationNetworkFile).getLines().filterNot(_.trim()=="").
+      map(_.split(" ==> ")).map(fields => ((conv.toGraphIndex(fields(0)),conv.toGraphIndex(fields(1)),1.0.toFloat))).
+      filterNot({case (idx1,idx2,w)=>{if (idx1 == targetIndex) {if (Random.nextBoolean()) {missingLinks += idx2; true} else false} else false}}).toList
+
+    LOG.info("Missing links are :")
+    missingLinks.foreach(l => LOG.info(conv.fromGraphIndex(l)))
+    GraphUtils.buildWeightedGraphFromTriples(tripleList)
+  }
+
+  def prPredict(targetIndex:Int,k:Int) {
+    val graph = buildGraphWithMissingLink(targetIndex)
+
     val ranks = runPageRankWithRestart(graph,targetIndex)
     val tops = ranks.zipWithIndex.sortBy(_._1).reverse.take(k).map{ case (rank,index)=>(rank,conv.fromGraphIndex(index))}
     LOG.info(String.format("Outputing top %s results for Paper: %s",k.toString,conv.fromGraphIndex(targetIndex)))
     tops.foreach(LOG.info)
   }
 
-  def predictByPaperId(paperId:String,k:Int){
+  def prPredictByPaperId(paperId:String,k:Int){
     val idx = conv.toGraphIndex(paperId)
-    predict(idx,k)
+    prPredict(idx,k)
   }
 
   /**
@@ -125,9 +143,9 @@ object AanGraph{
     val ag = new AanGraph(new File(aanFolder))
 
     //make a test prediction on a file and get the top 5 results
-    ag.predict(0,5)
+    ag.prPredict(0,5)
 
-    ag.predictByPaperId("C00-2128",5)
+    ag.prPredictByPaperId("C00-2128",25)
   }
 
 }

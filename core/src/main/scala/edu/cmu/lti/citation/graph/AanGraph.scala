@@ -44,7 +44,8 @@ class AanGraph (rootFolder:File) {
     var missingLinks = new ListBuffer[Int]()
     val tripleList = Source.fromFile(citationNetworkFile).getLines().filterNot(_.trim()=="").
       map(_.split(" ==> ")).map(fields => ((conv.toGraphIndex(fields(0)),conv.toGraphIndex(fields(1)),1.0.toFloat))).
-      filterNot({case (idx1,idx2,w)=>{if (idx1 == targetIndex) {if (Random.nextBoolean()) {missingLinks += idx2; true} else false} else false}}).toList
+      //use double random to make the prob 25% -> filter less links out
+      filterNot({case (idx1,idx2,w)=>{if (idx1 == targetIndex) {if (Random.nextBoolean()&&Random.nextBoolean()) {missingLinks += idx2; true} else false} else false}}).toList
 
     LOG.info("Missing links are :")
     missingLinks.foreach(l => LOG.info(conv.fromGraphIndex(l)))
@@ -145,7 +146,7 @@ object AanGraph{
     //make a test prediction on a file and get the top 5 results
     ag.prPredict(0,5)
 
-    ag.prPredictByPaperId("C00-2128",25)
+    ag.prPredictByPaperId("C00-2128",50)
   }
 
 }

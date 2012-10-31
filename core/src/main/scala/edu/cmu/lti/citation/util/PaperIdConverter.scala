@@ -67,6 +67,10 @@ class PaperIdConverter(rootFolder:File) {
 
   LOG.debug(String.format("%s or %s paper Id loaded",paperIdMap.size.toString,graphIdMap.size.toString))
 
+  def getNumberOfPaper():Int ={
+    return paperIdMap.size
+  }
+
   def fromGraphIndex(graphIndex:Int):String = {
     return graphIdMap(graphIndex)
   }

@@ -19,6 +19,7 @@ class AanGraph (rootFolder:File) {
     private val networkFolder = "networks"
     private val paperIdFile = new File(rootFolder.getAbsolutePath + "/" + "paper_ids.txt")
     private val citationNetworkFile = new File(rootFolder.getAbsolutePath + "/" + networkFolder + "/" + "paper-citation-network.txt")
+    private val conv = new PaperIdConverter(rootFolder)
 
   if (! isValid) {
     throw new IllegalArgumentException("Should use the AAN 2011 release folder as input!")
@@ -26,16 +27,24 @@ class AanGraph (rootFolder:File) {
 
   LOG.info("Initialization successful!")
 
-  private def buildGraph():ArcLabelledImmutableGraph = {
-    val conv = new PaperIdConverter(rootFolder)
+  private def buildGraph(targetIndex:Int):ArcLabelledImmutableGraph = {
+    val numPaper = conv.getNumberOfPaper()
     val tripleList = Source.fromFile(citationNetworkFile).getLines().filterNot(_.trim()=="").map(_.split(" ==> ")).map(fields => ((conv.toGraphIndex(fields(0)),conv.toGraphIndex(fields(1)),1.0.toFloat))).toList
-    GraphUtils.buildWeightedGraphFromTriples(tripleList)
-
+    GraphUtils.buildWeightedGraphFromTriples(tripleList,numPaper)
   }
 
-  def predict(targetIndex:Int) {
-    val graph = buildGraph()
-    runPageRankWithRestart(graph,targetIndex)
+  def predict(targetIndex:Int,k:Int) {
+    val graph = buildGraph(targetIndex)
+    GraphUtils.dumpLabelledGraphSuccessorOnly(graph)
+    val ranks = runPageRankWithRestart(graph,targetIndex)
+    val tops = ranks.zipWithIndex.sortBy(_._1).reverse.take(k).map{ case (rank,index)=>(rank,conv.fromGraphIndex(index))}
+    LOG.info(String.format("Outputing top %s results for Paper: %s",k.toString,conv.fromGraphIndex(targetIndex)))
+    tops.foreach(LOG.info)
+  }
+
+  def predictByPaperId(paperId:String,k:Int){
+    val idx = conv.toGraphIndex(paperId)
+    predict(idx,k)
   }
 
   /**
@@ -46,12 +55,13 @@ class AanGraph (rootFolder:File) {
    * @return the resulted stochatic vector
    */
   private def makeStochastic(vector:DoubleArrayList):DoubleArrayList = {
-    val l1Sum = l1Norm(vector)
-    if (l1Sum == 0) return vector //if the l1 norm is 0 than actually it can't be stochastic. It will be simply returned
+    val l1 = l1Norm(vector)
+    LOG.debug("L1 was "+l1)
+    if (l1 == 0) return vector //if the l1 norm is 0 than actually it can't be stochastic. It will be simply returned
 
     (0 to vector.size-1)foreach(idx => {
       val ori = vector.get(idx)
-      vector.set(idx,ori/l1Sum)
+      vector.set(idx,ori/l1)
     })
     vector
   }
@@ -73,7 +83,7 @@ class AanGraph (rootFolder:File) {
 
     val nodeNumber = g.numNodes()
 
-    val uniformArray = Array.fill[Double](nodeNumber)(1/nodeNumber)       //actually already stochastic
+    val uniformArray = Array.fill[Double](nodeNumber)(1.0/nodeNumber)       //actually already stochastic
 
     val initialVector: DoubleArrayList = new DoubleArrayList(uniformArray)
 
@@ -114,7 +124,10 @@ object AanGraph{
     val aanFolder = args(0)
     val ag = new AanGraph(new File(aanFolder))
 
-    ag.predict(0)
+    //make a test prediction on a file and get the top 5 results
+    ag.predict(0,5)
+
+    ag.predictByPaperId("C00-2128",5)
   }
 
 }

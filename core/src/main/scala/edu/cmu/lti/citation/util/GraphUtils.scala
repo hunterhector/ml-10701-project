@@ -159,13 +159,40 @@ object GraphUtils {
 
     val nodeIterator: ArcLabelledNodeIterator = g.nodeIterator
 
+    var count = 0
     while (nodeIterator.hasNext) {
       val curr = nodeIterator.nextInt
+      val out = nodeIterator.outdegree()
       val suc = nodeIterator.successorArray
       val lab = nodeIterator.labelArray
-      (suc, lab).zipped.foreach((s, l) => println(curr + "\t" + s + "\t" + l.getFloat))
+      (0 to out).foreach(i => LOG.debug(curr + "\t" + suc(i).toString() + "\t" + lab(i).getFloat.toString()))
+      count +=1
     }
+
+    LOG.debug(String.format("Finished Dumping %s",count.toString))
   }
+
+  /**
+   * Dump a labelled graph, for debugging purpose
+   * @param g The graph to be dumped
+   */
+  def dumpLabelledGraphSuccessorOnly(g: ArcLabelledImmutableGraph) {
+    LOG.debug("Dumping the labelled graph for debug purposes")
+
+    val nodeIterator: ArcLabelledNodeIterator = g.nodeIterator
+
+    var count = 0
+    while (nodeIterator.hasNext) {
+      val curr = nodeIterator.nextInt
+      val out = nodeIterator.outdegree()
+      val suc = nodeIterator.successorArray
+      (0 to out).foreach(i => LOG.debug(curr + "\t" + suc(i).toString()))
+      count +=1
+    }
+
+    LOG.debug(String.format("Finished Dumping %s",count.toString))
+  }
+
 
   /**
    * Store the immutable graph as BVGraph

@@ -65,10 +65,14 @@ class PaperIdConverter(rootFolder:File) {
 //    }
 //  }
 
-  LOG.debug(String.format("%s or %s paper Id loaded",paperIdMap.size.toString,graphIdMap.size.toString))
+  LOG.debug(String.format("From the network file, %s or %s paper Id loaded",paperIdMap.size.toString,graphIdMap.size.toString))
 
   def getNumberOfPaper:Int ={
     paperIdMap.size
+  }
+
+  def containsPaper(paperId:String):Boolean = {
+    paperIdMap.contains(paperId)
   }
 
   def fromGraphIndex(graphIndex:Int):String = {

@@ -16,54 +16,25 @@ import util.Random
  * Date: 10/23/12
  * Time: 4:37 PM
  */
-class AanGraph (rootFolder:File) {
+object AanGraph {
     private val LOG = LogFactory.getLog(this.getClass)
-    private val networkFolder = "networks"
-    private val paperIdFile = new File(rootFolder.getAbsolutePath + "/" + "paper_ids.txt")
-    private val citationNetworkFile = new File(rootFolder.getAbsolutePath + "/" + networkFolder + "/" + "paper-citation-network.txt")
-    private val conv = new PaperIdConverter(rootFolder)
-
-  if (! isValid) {
-    throw new IllegalArgumentException("Should use the AAN 2011 release folder as input!")
-  }
-
-  LOG.info("Initialization successful!")
 
   /**
-   * This one build a full graph with everything
-   * @return The resulting graph
+   * Return the top k predictions, if k <=0, then return everything
+   * @param g
+   * @param targetIndex
+   * @param k
+   * @return
    */
-  private def buildGraph():ArcLabelledImmutableGraph = {
-    //val numPaper = conv.getNumberOfPaper
-    val tripleList = Source.fromFile(citationNetworkFile).getLines().filterNot(_.trim()=="").map(_.split(" ==> ")).map(fields => ((conv.toGraphIndex(fields(0)),conv.toGraphIndex(fields(1)),1.0.toFloat))).toList
-    //tripleList.foreach(LOG.debug)
-    GraphUtils.buildWeightedGraphFromTriples(tripleList)
-  }
-
-  private def buildGraphWithMissingLink(targetIndex:Int):ArcLabelledImmutableGraph = {
-    var missingLinks = new ListBuffer[Int]()
-    val tripleList = Source.fromFile(citationNetworkFile).getLines().filterNot(_.trim()=="").
-      map(_.split(" ==> ")).map(fields => ((conv.toGraphIndex(fields(0)),conv.toGraphIndex(fields(1)),1.0.toFloat))).
-      //use double random to make the prob 25% -> filter less links out
-      filterNot({case (idx1,idx2,w)=>{if (idx1 == targetIndex) {if (Random.nextBoolean()&&Random.nextBoolean()) {missingLinks += idx2; true} else false} else false}}).toList
-
-    LOG.info("Missing links are :")
-    missingLinks.foreach(l => LOG.info(conv.fromGraphIndex(l)))
-    GraphUtils.buildWeightedGraphFromTriples(tripleList)
-  }
-
-  def prPredict(targetIndex:Int,k:Int) {
-    val graph = buildGraphWithMissingLink(targetIndex)
-
-    val ranks = runPageRankWithRestart(graph,targetIndex)
-    val tops = ranks.zipWithIndex.sortBy(_._1).reverse.take(k).map{ case (rank,index)=>(rank,conv.fromGraphIndex(index))}
-    LOG.info(String.format("Outputing top %s results for Paper: %s",k.toString,conv.fromGraphIndex(targetIndex)))
-    tops.foreach(LOG.info)
-  }
-
-  def prPredictByPaperId(paperId:String,k:Int){
-    val idx = conv.toGraphIndex(paperId)
-    prPredict(idx,k)
+  def prPredict(g:ArcLabelledImmutableGraph,targetIndex:Int,k:Int):Array[(Double,Int)] = {
+    val ranks = runPageRankWithRestart(g,targetIndex)
+    if (k > 0){
+      val tops = ranks.zipWithIndex.sortBy(_._1).reverse.take(k)
+      tops
+    }else{
+      val tops = ranks.zipWithIndex.sortBy(_._1).reverse
+      tops
+    }
   }
 
   /**
@@ -121,32 +92,21 @@ class AanGraph (rootFolder:File) {
     WeightedPageRankWrapper.run(g,WeightedPageRank.DEFAULT_ALPHA,false,WeightedPageRank.DEFAULT_THRESHOLD,maxIter,makeStochastic(initialVector),preferenceVector)
   }
 
-  def isValid : Boolean = {
-    if (! rootFolder.isDirectory)  return false
-
-    if (! paperIdFile.exists())    return false
-
-    if (! citationNetworkFile.exists()) return false
-
-    true
-  }
-
-
 }
-
-object AanGraph{
-  private val LOG = LogFactory.getLog(this.getClass)
-
-  def main(args: Array[String]) {
-    if(args.length != 1) LOG.error("Please locate AAN data release folder  (2011 release preferable).")
-
-    val aanFolder = args(0)
-    val ag = new AanGraph(new File(aanFolder))
-
-    //make a test prediction on a file and get the top 5 results
-    ag.prPredict(0,5)
-
-    ag.prPredictByPaperId("C00-2128",50)
-  }
-
-}
+//
+//object AanGraph{
+//  private val LOG = LogFactory.getLog(this.getClass)
+//
+//  def main(args: Array[String]) {
+//    if(args.length != 1) LOG.error("Please locate AAN data release folder  (2011 release preferable).")
+//
+//    val aanFolder = args(0)
+//    val ag = new AanGraph(new File(aanFolder))
+//
+//    //make a test prediction on a file and get the top 5 results
+//    ag.prPredict(0,5)
+//
+//    ag.prPredictByPaperId("C00-2128",50)
+//  }
+//
+//}

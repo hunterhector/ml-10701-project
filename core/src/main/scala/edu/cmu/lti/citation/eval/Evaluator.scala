@@ -16,7 +16,7 @@ import collection.mutable
  * Date: 10/31/12
  * Time: 3:40 PM
  */
-class Evaluator (rootFolder: File){
+abstract class Evaluator (rootFolder: File){
   private val LOG = LogFactory.getLog(this.getClass)
   private val networkFolder = "networks"
   private val paperIdFile = new File(rootFolder.getAbsolutePath + "/" + "paper_ids.txt")
@@ -128,9 +128,10 @@ class Evaluator (rootFolder: File){
 
   /**
    * Random hide some links and store them in golden standard
-   * @return Graph for testing
+   * @param s the source paper index that you wanna test for
+   * @return Return a citation network with some links randomly missed from source paper
    */
-  private def buildGraphForTesting(s: Int) = {
+  private def buildListForTesting(s: Int) = {
     LOG.debug(String.format("Buiding testing graph for node %s",s.toString))
     val gold = new mutable.HashSet[Int]()
     var numPreservedLinks = 0
@@ -152,8 +153,18 @@ class Evaluator (rootFolder: File){
       )}.toList
 
    // LOG.debug("Pruned list length: "+tripleList.length)
-     (GraphUtils.buildWeightedGraphFromTriples(tripleList),gold.toSet,numPreservedLinks)
+    // (GraphUtils.buildWeightedGraphFromTriples(tripleList),gold.toSet,numPreservedLinks)
+     (tripleList,gold.toSet,numPreservedLinks)
   }
+
+  /**
+   *
+   * @param t A triple list, every element is a (source paper index, target paper index, weight) triple
+   * @param s The source paper index that you want to predict
+   * @param k Top k number of paper to be returned
+   * @return
+   */
+  def predict(t:List[(Int,Int,Float)],s:Int,k:Int = -1)  :List[(Double,Int)]
 
 
   def train(){
@@ -165,13 +176,15 @@ class Evaluator (rootFolder: File){
     var averRKF = 0.0
     var actualTest = 0
     sTest.foreach(s => {
-      val t = buildGraphForTesting(s)
-      val g = t._1
+      val t = buildListForTesting(s)
+      val tripleList = t._1
+
       val gold = t._2
       val numPreservedLinks = t._3
       //we might further restrict the number of preserved links for experiments
       if (gold.size != 0 && numPreservedLinks > 0 ){ //make sure 2 things: 1)Some links are removed 2)Not all links are removed
-        val fullRankedList = AanGraph.prPredict(g,s,-1)
+//        val fullRankedList = AanGraph.prPredict(g,s,-1)
+        val fullRankedList = predict(tripleList,s,-1)
         val result = calRankMetrics(fullRankedList,gold)
         val subRkl = result._1
         val subRkf = result._2
@@ -188,7 +201,7 @@ class Evaluator (rootFolder: File){
 
   }
 
-  private def calRankMetrics(prediction:Array[(Double,Int)],gold:Set[Int]):(Int,Int) = {
+  private def calRankMetrics(prediction:List[(Double,Int)],gold:Set[Int]):(Int,Int) = {
     val numMissingLink = gold.size
     var subRkf = -1
 
@@ -227,17 +240,3 @@ class Evaluator (rootFolder: File){
 
 }
 
-object Evaluator{
-  private val LOG = LogFactory.getLog(this.getClass)
-
-    def main(args: Array[String]) {
-      if(args.length != 1) LOG.error("Please locate AAN data release folder  (2011 release preferable).")
-
-      val aanFolder = args(0)
-      val ag = new Evaluator(new File(aanFolder))
-
-      ag.train()
-      ag.test()
-      //ag.prPredictByPaperId("C00-2128",50)
-    }
-}

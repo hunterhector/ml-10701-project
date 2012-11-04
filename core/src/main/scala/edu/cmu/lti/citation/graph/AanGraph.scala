@@ -46,7 +46,7 @@ object AanGraph {
    */
   private def makeStochastic(vector:DoubleArrayList):DoubleArrayList = {
     val l1 = l1Norm(vector)
-    LOG.debug("L1 was "+l1)
+    //LOG.debug("L1 was "+l1)
     if (l1 == 0) return vector //if the l1 norm is 0 than actually it can't be stochastic. It will be simply returned
 
     (0 to vector.size-1)foreach(idx => {

@@ -9,6 +9,7 @@ import collection.mutable.ListBuffer
 import util.Random
 import edu.cmu.lti.citation.graph.AanGraph
 import collection.mutable
+import edu.cmu.lti.citation.predict.{LDAWeightedRandomWalkPredictor, LDAPairwisePredictor, Predictor, RandomWalkPredictor}
 
 /**
  * Created with IntelliJ IDEA.
@@ -16,11 +17,11 @@ import collection.mutable
  * Date: 10/31/12
  * Time: 3:40 PM
  */
-abstract class Evaluator (rootFolder: File){
+class Evaluator (rootFolder: File,outputFolder:File) {
   private val LOG = LogFactory.getLog(this.getClass)
   private val networkFolder = "networks"
   private val paperIdFile = new File(rootFolder.getAbsolutePath + "/" + "paper_ids.txt")
-  private val citationNetworkFile = new File(rootFolder.getAbsolutePath + "/" + networkFolder + "/" + "paper-citation-network.txt")
+  private val citationNetworkFile = new File(rootFolder.getAbsolutePath + "/" + networkFolder + "/" + "paper-citation-network_fixed.txt")
 
   private val aclMetadataFile = new File(rootFolder.getAbsolutePath + "/" + "acl-metadata.txt")
   private val conv = new PaperIdConverter(rootFolder)
@@ -121,7 +122,7 @@ abstract class Evaluator (rootFolder: File){
    * Remove all links from test source
    * @return  Graph without links from test source
    */
-  private def buildGraphForTraining() = {
+  def buildGraphForTraining() = {
     val tripleList = citationNetworkContent.filterNot(i => {sTest.contains(i._1)}).toList
     GraphUtils.buildWeightedGraphFromTriples(tripleList)
   }
@@ -131,8 +132,8 @@ abstract class Evaluator (rootFolder: File){
    * @param s the source paper index that you wanna test for
    * @return Return a citation network with some links randomly missed from source paper
    */
-  private def buildListForTesting(s: Int) = {
-    LOG.debug(String.format("Buiding testing graph for node %s",s.toString))
+  def buildListForTesting(s: Int) = {
+    //LOG.debug(String.format("Buiding testing graph for node %s",s.toString))
     val gold = new mutable.HashSet[Int]()
     var numPreservedLinks = 0
     val tripleList = citationNetworkContent.filterNot{
@@ -141,7 +142,7 @@ abstract class Evaluator (rootFolder: File){
             if (Random.nextBoolean()&&Random.nextBoolean())
               {
                 gold += idx2
-                LOG.debug(String.format("Arc %s -> %s is filtered",idx1.toString,idx2.toString))
+               // LOG.debug(String.format("Arc %s -> %s is filtered",idx1.toString,idx2.toString))
                 true   //with some probability, this link is filtered, so it is missing
               }
             else{
@@ -157,43 +158,80 @@ abstract class Evaluator (rootFolder: File){
      (tripleList,gold.toSet,numPreservedLinks)
   }
 
-  /**
-   *
-   * @param t A triple list, every element is a (source paper index, target paper index, weight) triple
-   * @param s The source paper index that you want to predict
-   * @param k Top k number of paper to be returned
-   * @return
-   */
-  def predict(t:List[(Int,Int,Float)],s:Int,k:Int = -1)  :List[(Double,Int)]
+//  /**
+//   *
+//   * @param t A triple list, every element is a (source paper index, target paper index, weight) triple
+//   * @param s The source paper index that you want to predict
+//   * @param k Top k number of paper to be returned
+//   * @return
+//   */
+//  def predict(t:List[(Int,Int,Float)],s:Int,k:Int = -1)  :List[(Double,Int)]
 
+  def train(predictors:List[Predictor]){
+    predictors.foreach {
+      p =>
+      LOG.info(String.format("Training [%s], please wait...",p.getName))
 
-  def train(){
-
+    }
   }
 
-  def test() {
+  def test(predictors:List[Predictor]) {
     var averRKL = 0.0
     var averRKF = 0.0
     var actualTest = 0
-    sTest.foreach(s => {
+
+    //create a test set with golden
+    val testWithGolden = sTest.foldLeft(List[(Int,List[(Int,Int,Float)],Set[Int])]())((tg,s)=>{
       val t = buildListForTesting(s)
       val tripleList = t._1
-
       val gold = t._2
       val numPreservedLinks = t._3
-      //we might further restrict the number of preserved links for experiments
-      if (gold.size != 0 && numPreservedLinks > 0 ){ //make sure 2 things: 1)Some links are removed 2)Not all links are removed
-//        val fullRankedList = AanGraph.prPredict(g,s,-1)
-        val fullRankedList = predict(tripleList,s,-1)
-        val result = calRankMetrics(fullRankedList,gold)
-        val subRkl = result._1
-        val subRkf = result._2
-        LOG.debug(String.format("For %s: RKL  is %s, RKF is %s",s.toString,subRkl.toString, subRkf.toString))
-        averRKL += subRkl
-        averRKF += subRkf
-        actualTest += 1
+
+      if (gold.size !=0 && numPreservedLinks > 0){
+        tg ::: List((s,tripleList,gold))   //make sure 2 things: 1)Some links are removed 2)Not all links are removed
+      }else{
+        tg
       }
     })
+
+    predictors.foreach(p =>{
+      LOG.info(String.format("Evaluating [%s], please wait...",p.getName))
+
+      testWithGolden.foreach{
+        case (s,triples,gold) => {
+          val fullRankedList = p.predict(triples,s,-1,conv)
+          val result = calRankMetrics(fullRankedList,gold)
+          val subRkl = result._1
+          val subRkf = result._2
+          //LOG.debug(String.format("For %s: RKL  is %s, RKF is %s",s.toString,subRkl.toString, subRkf.toString))
+
+          averRKF += subRkf
+          averRKL += subRkl
+          actualTest += 1
+        }
+      }
+    })
+
+//    sTest.foreach(s => {
+//      val t = buildListForTesting(s)
+//      val tripleList = t._1
+//
+//      val gold = t._2
+//      val numPreservedLinks = t._3
+//
+//        //we might further restrict the number of preserved links for experiments
+//      if (gold.size != 0 && numPreservedLinks > 0 ){ //make sure 2 things: 1)Some links are removed 2)Not all links are removed
+////        val fullRankedList = AanGraph.prPredict(g,s,-1)
+//        val fullRankedList = predict(tripleList,s,-1)
+//        val result = calRankMetrics(fullRankedList,gold)
+//        val subRkl = result._1
+//        val subRkf = result._2
+//        LOG.debug(String.format("For %s: RKL  is %s, RKF is %s",s.toString,subRkl.toString, subRkf.toString))
+//        averRKL += subRkl
+//        averRKF += subRkf
+//        actualTest += 1
+//      }
+//    })
     averRKL /= sTest.size
     averRKF /= sTest.size
 
@@ -215,7 +253,7 @@ abstract class Evaluator (rootFolder: File){
           return (rank,subRkf)
         }
         if (gold.contains(idx)){
-          LOG.debug(String.format("Found paper %s at position: %s",idx.toString,rank.toString))
+          //LOG.debug(String.format("Found paper %s at position: %s",idx.toString,rank.toString))
           predictCount += 1
           if (subRkf == -1) subRkf = rank + 1
         }
@@ -236,7 +274,23 @@ abstract class Evaluator (rootFolder: File){
     tops.map{ case (rank,index)=>(rank,conv.fromGraphIndex(index))}
     LOG.info(String.format("Outputing top %s results for Paper: %s",k.toString,conv.fromGraphIndex(targetIndex)))
   }
+}
 
+object Evaluator{
+  val LOG = LogFactory.getLog(this.getClass)
 
+  def main(args:Array[String]){
+
+    if(args.length != 1) LOG.error("Please locate AAN data release folder  (2011 release preferable).")
+
+    val aanFolder = args(0)
+    val outputFolder = args(1)
+    val e = new Evaluator(new File(aanFolder),new File(outputFolder))
+
+    val rp = new RandomWalkPredictor()
+    val ldaCos = new LDAWeightedRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/ldasimilarityfiles/sim_all_3k"),"cosine")
+
+    e.test(List(ldaCos))
+  }
 }
 

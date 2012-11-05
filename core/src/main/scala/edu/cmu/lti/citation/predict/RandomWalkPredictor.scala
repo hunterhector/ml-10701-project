@@ -9,13 +9,13 @@ import edu.cmu.lti.citation.graph.AanGraph
  * Date: 11/1/12
  * Time: 11:48 AM
  */
-class RandomWalkPredictor extends Predictor{
+class RandomWalkPredictor (alpha:Double) extends Predictor{
 //class RandomWalkPredictor (rootFolder:File, outputFolder:File){
   override def getName = "Random Walk Predictor"
 
-  def predict(t: List[(Int, Int, Float)], s: Int, k: Int, conv:PaperIdConverter):List[(Double,Int)]  = {
+  def predict(t: List[(Int, Int, Float)], s: Int, k: Int):List[(Double,Int)]  = {
     val g= GraphUtils.buildWeightedGraphFromTriples(t)
-    val fullRankedList = AanGraph.prPredict(g,s,k)
+    val fullRankedList = AanGraph.prPredict(g,s,k,alpha)
     fullRankedList.toList
   }
 

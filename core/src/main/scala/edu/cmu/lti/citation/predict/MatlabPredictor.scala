@@ -23,7 +23,7 @@ class MatlabPredictor (outputFolder:File) extends Predictor{
    * @param k Top k number of paper to be returned
    * @return
    */
-  def predict(t: List[(Int, Int, Float)], s: Int, k: Int, conv:PaperIdConverter) = {
+  def predict(t: List[(Int, Int, Float)], s: Int, k: Int) = {
     val f = new File(outputFolder.getCanonicalPath + "/t-matrix")
     toMatrixFile(t,f)
     null

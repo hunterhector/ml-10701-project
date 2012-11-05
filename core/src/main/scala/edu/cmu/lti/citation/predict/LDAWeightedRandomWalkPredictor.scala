@@ -12,12 +12,12 @@ import org.apache.commons.logging.LogFactory
  * Date: 11/3/12
  * Time: 4:06 PM
  */
-class LDAWeightedRandomWalkPredictor(ldaNetworkFile:File,measure:String) extends Predictor{
+class LDAWeightedRandomWalkPredictor(ldaNetworkFile:File,measure:String,conv: PaperIdConverter) extends Predictor{
   val LOG = LogFactory.getLog(this.getClass)
 
   override def getName = "LDA Weighted Random Walk Predictor"
 
-  def predict(t: List[(Int, Int, Float)], s: Int, k: Int, conv: PaperIdConverter) = {
+  def predict(t: List[(Int, Int, Float)], s: Int, k: Int) = {
     val simWithSource = Source.fromFile(ldaNetworkFile).getLines().filterNot(_.trim()=="").map(_.split("_")).filter(_.length == 4).
       map(fields => (conv.toGraphIndex(fields(0)),conv.toGraphIndex(fields(1)),fields(2).toFloat,fields(3).toFloat)).toList
 
@@ -38,7 +38,7 @@ class LDAWeightedRandomWalkPredictor(ldaNetworkFile:File,measure:String) extends
 
     val g= GraphUtils.buildWeightedGraphFromTriples(weightedList)
 
-    val fullRankedList = AanGraph.prPredict(g,s,k)
+    val fullRankedList = AanGraph.prPredict(g,s,k,0.2)
     fullRankedList.toList
   }
 }

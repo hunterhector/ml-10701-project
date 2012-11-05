@@ -11,5 +11,5 @@ import edu.cmu.lti.citation.util.PaperIdConverter
 abstract class Predictor {
   def getName = "Abstract Predictor"
 
-  def predict(t: List[(Int, Int, Float)], s: Int, k: Int, conv:PaperIdConverter):List[(Double,Int)]
+  def predict(t: List[(Int, Int, Float)], s: Int, k: Int):List[(Double,Int)]
 }

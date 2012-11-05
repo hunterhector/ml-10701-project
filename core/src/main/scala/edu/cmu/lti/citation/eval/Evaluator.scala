@@ -9,7 +9,7 @@ import collection.mutable.ListBuffer
 import util.Random
 import edu.cmu.lti.citation.graph.AanGraph
 import collection.mutable
-import edu.cmu.lti.citation.predict.{LDAWeightedRandomWalkPredictor, LDAPairwisePredictor, Predictor, RandomWalkPredictor}
+import edu.cmu.lti.citation.predict._
 
 /**
  * Created with IntelliJ IDEA.
@@ -118,11 +118,15 @@ class Evaluator (rootFolder: File,outputFolder:File) {
     GraphUtils.buildWeightedGraphFromTriples(tripleList)
   }
 
+  private def getConverter = {
+    conv
+  }
+
   /**
    * Remove all links from test source
    * @return  Graph without links from test source
    */
-  def buildGraphForTraining() = {
+  private def buildGraphForTraining() = {
     val tripleList = citationNetworkContent.filterNot(i => {sTest.contains(i._1)}).toList
     GraphUtils.buildWeightedGraphFromTriples(tripleList)
   }
@@ -132,7 +136,7 @@ class Evaluator (rootFolder: File,outputFolder:File) {
    * @param s the source paper index that you wanna test for
    * @return Return a citation network with some links randomly missed from source paper
    */
-  def buildListForTesting(s: Int) = {
+  private def buildListForTesting(s: Int) = {
     //LOG.debug(String.format("Buiding testing graph for node %s",s.toString))
     val gold = new mutable.HashSet[Int]()
     var numPreservedLinks = 0
@@ -175,7 +179,9 @@ class Evaluator (rootFolder: File,outputFolder:File) {
     }
   }
 
-  def test(predictors:List[Predictor]) {
+  def test(predictors:List[Predictor],output:File) {
+    val out = new java.io.FileWriter(output)
+
     var averRKL = 0.0
     var averRKF = 0.0
     var actualTest = 0
@@ -199,43 +205,27 @@ class Evaluator (rootFolder: File,outputFolder:File) {
 
       testWithGolden.foreach{
         case (s,triples,gold) => {
-          val fullRankedList = p.predict(triples,s,-1,conv)
+          LOG.debug("Evaluating "+conv.fromGraphIndex(s))
+          val fullRankedList = p.predict(triples,s,-1)
           val result = calRankMetrics(fullRankedList,gold)
           val subRkl = result._1
           val subRkf = result._2
-          //LOG.debug(String.format("For %s: RKL  is %s, RKF is %s",s.toString,subRkl.toString, subRkf.toString))
+          LOG.debug(String.format("For %s: RKL  is %s, RKF is %s",s.toString,subRkl.toString, subRkf.toString))
 
           averRKF += subRkf
           averRKL += subRkl
           actualTest += 1
         }
       }
+
+
+      averRKL /= sTest.size
+      averRKF /= sTest.size
+
+      out.write(String.format("%s\t%s",averRKF.toString,averRKL.toString))
+
+      LOG.info(String.format("For %s papers actually tested. Overall average RKF is %s, overall average RKL is %s",actualTest.toString,averRKF.toString,averRKL.toString))
     })
-
-//    sTest.foreach(s => {
-//      val t = buildListForTesting(s)
-//      val tripleList = t._1
-//
-//      val gold = t._2
-//      val numPreservedLinks = t._3
-//
-//        //we might further restrict the number of preserved links for experiments
-//      if (gold.size != 0 && numPreservedLinks > 0 ){ //make sure 2 things: 1)Some links are removed 2)Not all links are removed
-////        val fullRankedList = AanGraph.prPredict(g,s,-1)
-//        val fullRankedList = predict(tripleList,s,-1)
-//        val result = calRankMetrics(fullRankedList,gold)
-//        val subRkl = result._1
-//        val subRkf = result._2
-//        LOG.debug(String.format("For %s: RKL  is %s, RKF is %s",s.toString,subRkl.toString, subRkf.toString))
-//        averRKL += subRkl
-//        averRKF += subRkf
-//        actualTest += 1
-//      }
-//    })
-    averRKL /= sTest.size
-    averRKF /= sTest.size
-
-    LOG.info(String.format("For %s papers actually tested. Overall average RKF is %s, overall average RKL is %s",actualTest.toString,averRKF.toString,averRKL.toString))
 
   }
 
@@ -259,20 +249,12 @@ class Evaluator (rootFolder: File,outputFolder:File) {
         }
       }
     }
-    throw new IllegalArgumentException("Rank list is not complete, does not cover golden standard!") //in case something goes wrong
-  }
 
-  /**
-   * A toy prediction, might not be playable
-   * @param paperId
-   * @param k
-   */
-  def prPredictByPaperId(paperId:String,k:Int){
-    val targetIndex = conv.toGraphIndex(paperId)
-    val g = buildGraphWithMissingLink(targetIndex)
-    val tops = AanGraph.prPredict(g,targetIndex,k)
-    tops.map{ case (rank,index)=>(rank,conv.fromGraphIndex(index))}
-    LOG.info(String.format("Outputing top %s results for Paper: %s",k.toString,conv.fromGraphIndex(targetIndex)))
+    LOG.error("Golden standard includes:")
+    gold.foreach(g => LOG.error(conv.fromGraphIndex(g)))
+    LOG.error("Predicts only contains:")
+    prediction.take(10).foreach{case (score,index) => LOG.error(String.format("Paper Id: %s, Rank score: %s",conv.fromGraphIndex(index),score.toString))}
+    throw new IllegalArgumentException("Rank list is not complete, does not cover golden standard!") //in case something goes wrong
   }
 }
 
@@ -287,10 +269,16 @@ object Evaluator{
     val outputFolder = args(1)
     val e = new Evaluator(new File(aanFolder),new File(outputFolder))
 
-    val rp = new RandomWalkPredictor()
-    val ldaCos = new LDAWeightedRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/ldasimilarityfiles/sim_all_3k"),"cosine")
+    val rwAlphaFile = new File(outputFolder+"/evalRandomWalkAlpha")
 
-    e.test(List(ldaCos))
+    List(0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0).foreach(a => {
+      val rp = new RandomWalkPredictor(a)
+      //val ldaWeightRW = new LDAWeightedRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/ldasimilarityfiles/sim_all_3k"),"cosine",e.getConverter)
+      //val ldaPair = new LDAPairwisePredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),"cosine",e.getConverter)
+      //val ldaPreferRW = new LDAPreferredRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),"cosine",e.getConverter)
+
+      e.test(List(rp),rwAlphaFile)
+    })
   }
 }
 

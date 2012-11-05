@@ -26,8 +26,23 @@ object AanGraph {
    * @param k
    * @return
    */
-  def prPredict(g:ArcLabelledImmutableGraph,targetIndex:Int,k:Int):Array[(Double,Int)] = {
-    val ranks = runPageRankWithRestart(g,targetIndex)
+  def prPredict(g:ArcLabelledImmutableGraph,targetIndex:Int,k:Int,alpha:Double):Array[(Double,Int)] = {
+    val nodeNumber = g.numNodes()
+
+    val zeroArray = Array.fill[Double](nodeNumber)(0)
+
+    val preferenceVector: DoubleArrayList = new DoubleArrayList(zeroArray) //initial with no preference
+
+    preferenceVector.set(targetIndex,1.0) //set jump probability for the restart node
+
+    LOG.debug("Running page ranks...")
+
+    //max number of iteration
+    val maxIter = 1000
+
+    //use the Java Wrapper to run the WeightedPageRank, running it direactly from scala generate unexpected errors
+    val ranks = WeightedPageRankWrapper.run(g,1-alpha,false,WeightedPageRank.DEFAULT_THRESHOLD,maxIter,null,preferenceVector)
+
     if (k > 0){
       val tops = ranks.zipWithIndex.sortBy(_._1).reverse.take(k)
       tops
@@ -38,6 +53,37 @@ object AanGraph {
   }
 
   /**
+   * A fully configurable runner
+   * @param g
+   * @param targetIndex
+   * @param k
+   * @param alpha
+   * @param preferenceVector
+   * @param initialVector
+   * @return
+   */
+
+  def prPredict(g:ArcLabelledImmutableGraph, targetIndex:Int, k:Int, alpha:Double, preferenceVector:DoubleArrayList, initialVector: DoubleArrayList): Array[(Double,Int)] ={
+    LOG.debug("Running page ranks...")
+
+    //max number of iteration
+    val maxIter = 1000
+
+    //use the Java Wrapper to run the WeightedPageRank, running it direactly from scala generate unexpected errors
+    val ranks = WeightedPageRankWrapper.run(g,1-alpha,false,WeightedPageRank.DEFAULT_THRESHOLD,maxIter,makeStochastic(initialVector),preferenceVector)
+
+    if (k > 0){
+      val tops = ranks.zipWithIndex.sortBy(_._1).reverse.take(k)
+      tops
+    }else{
+      val tops = ranks.zipWithIndex.sortBy(_._1).reverse
+      tops
+    }
+
+  }
+
+
+  /**
    * make the vector Stochastic (L1 norm equal to 1) so that the WeightedPageRank method will accept it
    *
    *
@@ -45,6 +91,8 @@ object AanGraph {
    * @return the resulted stochatic vector
    */
   private def makeStochastic(vector:DoubleArrayList):DoubleArrayList = {
+    if (vector == null) return null
+
     val l1 = l1Norm(vector)
     //LOG.debug("L1 was "+l1)
     if (l1 == 0) return vector //if the l1 norm is 0 than actually it can't be stochastic. It will be simply returned
@@ -67,46 +115,4 @@ object AanGraph {
     })
   }
 
-
-  private def runPageRankWithRestart(g: ArcLabelledImmutableGraph, restartIndex: Int) : Array[Double] = {
-    LOG.debug("Preparing page rank...")
-
-    val nodeNumber = g.numNodes()
-
-    val uniformArray = Array.fill[Double](nodeNumber)(1.0/nodeNumber)       //actually already stochastic
-
-    val initialVector: DoubleArrayList = new DoubleArrayList(uniformArray)
-
-    val zeroArray = Array.fill[Double](nodeNumber)(0)
-
-    val preferenceVector: DoubleArrayList = new DoubleArrayList(zeroArray) //initial with no preference
-
-    preferenceVector.set(restartIndex,1.0) //set jump probability for the restart node
-
-    LOG.debug("Running page ranks...")
-
-    //max number of iteration
-    val maxIter = 1000
-
-    //use the Java Wrapper to run the WeightedPageRank, running it direactly from scala generate unexpected errors
-    WeightedPageRankWrapper.run(g,WeightedPageRank.DEFAULT_ALPHA,false,WeightedPageRank.DEFAULT_THRESHOLD,maxIter,makeStochastic(initialVector),preferenceVector)
-  }
-
 }
-//
-//object AanGraph{
-//  private val LOG = LogFactory.getLog(this.getClass)
-//
-//  def main(args: Array[String]) {
-//    if(args.length != 1) LOG.error("Please locate AAN data release folder  (2011 release preferable).")
-//
-//    val aanFolder = args(0)
-//    val ag = new AanGraph(new File(aanFolder))
-//
-//    //make a test prediction on a file and get the top 5 results
-//    ag.prPredict(0,5)
-//
-//    ag.prPredictByPaperId("C00-2128",50)
-//  }
-//
-//}

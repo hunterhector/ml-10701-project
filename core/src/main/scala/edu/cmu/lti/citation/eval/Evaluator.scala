@@ -1,6 +1,6 @@
 package edu.cmu.lti.citation.eval
 
-import java.io.File
+import java.io.{FileWriter, File}
 import org.apache.commons.logging.LogFactory
 import edu.cmu.lti.citation.util.{GraphUtils, PaperIdConverter,AclUtils}
 import it.unimi.dsi.webgraph.labelling.ArcLabelledImmutableGraph
@@ -179,9 +179,7 @@ class Evaluator (rootFolder: File,outputFolder:File) {
     }
   }
 
-  def test(predictors:List[Predictor],output:File) {
-    val out = new java.io.FileWriter(output)
-
+  def test(predictors:List[Predictor],out:FileWriter) {
     var averRKL = 0.0
     var averRKF = 0.0
     var actualTest = 0
@@ -222,11 +220,12 @@ class Evaluator (rootFolder: File,outputFolder:File) {
       averRKL /= sTest.size
       averRKF /= sTest.size
 
-      out.write(String.format("%s\t%s",averRKF.toString,averRKL.toString))
+      out.write(String.format("%s\t%s\n",averRKF.toString,averRKL.toString))
 
       LOG.info(String.format("For %s papers actually tested. Overall average RKF is %s, overall average RKL is %s",actualTest.toString,averRKF.toString,averRKL.toString))
     })
 
+    out.close()
   }
 
   private def calRankMetrics(prediction:List[(Double,Int)],gold:Set[Int]):(Int,Int) = {
@@ -270,14 +269,15 @@ object Evaluator{
     val e = new Evaluator(new File(aanFolder),new File(outputFolder))
 
     val rwAlphaFile = new File(outputFolder+"/evalRandomWalkAlpha")
+    val out = new java.io.FileWriter(rwAlphaFile)
 
     List(0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0).foreach(a => {
       val rp = new RandomWalkPredictor(a)
       //val ldaWeightRW = new LDAWeightedRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/ldasimilarityfiles/sim_all_3k"),"cosine",e.getConverter)
       //val ldaPair = new LDAPairwisePredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),"cosine",e.getConverter)
       //val ldaPreferRW = new LDAPreferredRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),"cosine",e.getConverter)
-
-      e.test(List(rp),rwAlphaFile)
+      out.write(a.toString+"\t")
+      e.test(List(rp),out)
     })
   }
 }

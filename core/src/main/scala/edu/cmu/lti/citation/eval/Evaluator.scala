@@ -7,7 +7,7 @@ import it.unimi.dsi.webgraph.labelling.ArcLabelledImmutableGraph
 import io.Source
 import collection.mutable.ListBuffer
 import util.Random
-import edu.cmu.lti.citation.graph.AanGraph
+import edu.cmu.lti.citation.io.AanCitationNetworkReader
 import collection.mutable
 import edu.cmu.lti.citation.predict._
 
@@ -19,117 +19,14 @@ import edu.cmu.lti.citation.predict._
  */
 class Evaluator (rootFolder: File,outputFolder:File) {
   private val LOG = LogFactory.getLog(this.getClass)
-  private val networkFolder = "networks"
-  private val paperIdFile = new File(rootFolder.getAbsolutePath + "/" + "paper_ids.txt")
-  private val citationNetworkFile = new File(rootFolder.getAbsolutePath + "/" + networkFolder + "/" + "paper-citation-network_fixed.txt")
-
-  private val aclMetadataFile = new File(rootFolder.getAbsolutePath + "/" + "acl-metadata.txt")
-  private val conv = new PaperIdConverter(rootFolder)
-
-  private val citationNetworkContent =  Source.fromFile(citationNetworkFile).getLines().filterNot(_.trim()=="").map(_.split(" ==> ")).
-    map(fields => ((conv.toGraphIndex(fields(0)),conv.toGraphIndex(fields(1)),1.0.toFloat))).toList
 
   private val kTop = 20
 
-  if (! isValid) {
-    throw new IllegalArgumentException("Should use the AAN 2011 release folder as input!")
-  }
+  private val sTest = reader.testData
+  private val conv = reader.getConverter
 
-  private val sources = splitTrainData()
-  private val sTrain = sources._1
-  private val sTest = sources._2
-
-  LOG.info("Initialization successful!")
-
-  def isValid : Boolean = {
-    if (! rootFolder.isDirectory)  return false
-
-    if (! paperIdFile.exists())    return false
-
-    if (! citationNetworkFile.exists()) return false
-
-    true
-  }
-
-  private def splitTrainData():(Set[Int],Set[Int]) = {
-    LOG.info("Preparing training and testing data")
-     val id2YearMap = AclUtils.getIdYearMapping(aclMetadataFile)
-
-     val sourcePapersForTest = new mutable.HashSet[Int]()
-
-     val paperPoolForTest = new mutable.HashSet[Int]()
-
-     val sourcePapersForTraining = new mutable.HashSet[Int]()
-
-     val paperPoolForTraining = new mutable.HashSet[Int]()
-
-     id2YearMap.foreach{
-       case (id,year) =>{
-           if (conv.containsPaper(id)) //some paper exists in meta data are not in network, currently omitted
-           {
-             if (year == 2011)  {
-               sourcePapersForTest += conv.toGraphIndex(id)
-             }else{
-               paperPoolForTest += conv.toGraphIndex(id)
-             }
-
-             if (year == 2010) {
-               sourcePapersForTraining += conv.toGraphIndex(id)
-             }else if (year < 2010){
-               paperPoolForTraining += conv.toGraphIndex(id)
-             }
-           }
-       }
-     }
-
-
-    LOG.info(String.format("From acl meta data. Totally %s papers, %s from year 2011 (some will be chosen for test), %s from year 2010 (some will be chosen for training), %s from the rest",
-      id2YearMap.size.toString,sourcePapersForTest.size.toString,sourcePapersForTraining.size.toString, paperPoolForTraining.size.toString))
-
-    val training = sourcePapersForTraining.toSet
-    val testing = sourcePapersForTest.toSet
-
-    (training,testing)
-  }
-
-  /**
-   * This one build a full graph with everything, not really useful though
-   * @return The resulting graph
-   */
-  private def buildGraph():ArcLabelledImmutableGraph = {
-    //val numPaper = conv.getNumberOfPaper
-    //tripleList.foreach(LOG.debug)
-    GraphUtils.buildWeightedGraphFromTriples(citationNetworkContent)
-  }
-
-  /**
-   * Build a graph with some random missing links for one index
-   * @param targetIndex
-   * @return
-   */
-  private def buildGraphWithMissingLink(targetIndex:Int):ArcLabelledImmutableGraph = {
-    var missingLinks = new ListBuffer[Int]()
-    val tripleList = citationNetworkContent.
-      //use double random to make the prob 25% -> filter less links out
-      filterNot({case (idx1,idx2,w)=>{if (idx1 == targetIndex) {if (Random.nextBoolean()&&Random.nextBoolean()) {missingLinks += idx2; true} else false} else false}}).toList
-
-    LOG.info("Missing links are :")
-    missingLinks.foreach(l => LOG.info(conv.fromGraphIndex(l)))
-    GraphUtils.buildWeightedGraphFromTriples(tripleList)
-  }
-
-  private def getConverter = {
-    conv
-  }
-
-  /**
-   * Remove all links from test source
-   * @return  Graph without links from test source
-   */
-  private def buildGraphForTraining() = {
-    val tripleList = citationNetworkContent.filterNot(i => {sTest.contains(i._1)}).toList
-    GraphUtils.buildWeightedGraphFromTriples(tripleList)
-  }
+  val reader = new AanCitationNetworkReader(rootFolder)
+  val citationNetworkContent = reader.getCitationContent
 
   /**
    * Random hide some links and store them in golden standard
@@ -143,7 +40,7 @@ class Evaluator (rootFolder: File,outputFolder:File) {
     val tripleList = citationNetworkContent.filterNot{
         case (idx1, idx2, w)=>(
           if (idx1 == s){
-            if (Random.nextBoolean()&&Random.nextBoolean())
+            if (Random.nextBoolean()&&Random.nextBoolean())  //double random boolean gives 25% chance
               {
                 gold += idx2
                // LOG.debug(String.format("Arc %s -> %s is filtered",idx1.toString,idx2.toString))
@@ -160,23 +57,6 @@ class Evaluator (rootFolder: File,outputFolder:File) {
    // LOG.debug("Pruned list length: "+tripleList.length)
     // (GraphUtils.buildWeightedGraphFromTriples(tripleList),gold.toSet,numPreservedLinks)
      (tripleList,gold.toSet,numPreservedLinks)
-  }
-
-//  /**
-//   *
-//   * @param t A triple list, every element is a (source paper index, target paper index, weight) triple
-//   * @param s The source paper index that you want to predict
-//   * @param k Top k number of paper to be returned
-//   * @return
-//   */
-//  def predict(t:List[(Int,Int,Float)],s:Int,k:Int = -1)  :List[(Double,Int)]
-
-  def train(predictors:List[Predictor]){
-    predictors.foreach {
-      p =>
-      LOG.info(String.format("Training [%s], please wait...",p.getName))
-
-    }
   }
 
   def test(predictors:List[Predictor],out:FileWriter) {
@@ -273,9 +153,9 @@ object Evaluator{
 
     List(0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0).foreach(a => {
       val rp = new RandomWalkPredictor(a)
-      //val ldaWeightRW = new LDAWeightedRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/ldasimilarityfiles/sim_all_3k"),"cosine",e.getConverter)
-      //val ldaPair = new LDAPairwisePredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),"cosine",e.getConverter)
-      //val ldaPreferRW = new LDAPreferredRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),"cosine",e.getConverter)
+      val ldaWeightRW = new LDAWeightedRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/ldasimilarityfiles/sim_all_3k"),"cosine",e.conv)
+      val ldaPair = new LDAPairwisePredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),"cosine",e.conv)
+      val ldaPreferRW = new LDAPreferredRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),"cosine",e.conv)
       out.write(a.toString+"\t")
       e.test(List(rp),out)
     })

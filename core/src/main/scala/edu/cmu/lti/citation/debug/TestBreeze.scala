@@ -12,5 +12,7 @@ object TestBreeze {
   def main(args:Array[String]){
     val x = DenseVector.zeros[Double](5)
     println(x)
+
+
   }
 }

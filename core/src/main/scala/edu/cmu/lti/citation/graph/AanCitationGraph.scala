@@ -16,7 +16,7 @@ import util.Random
  * Date: 10/23/12
  * Time: 4:37 PM
  */
-object AanGraph {
+object AanCitationGraph {
     private val LOG = LogFactory.getLog(this.getClass)
 
   /**

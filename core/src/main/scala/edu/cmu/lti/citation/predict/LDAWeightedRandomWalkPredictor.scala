@@ -3,7 +3,7 @@ package edu.cmu.lti.citation.predict
 import edu.cmu.lti.citation.util.{GraphUtils, PaperIdConverter}
 import java.io.File
 import io.Source
-import edu.cmu.lti.citation.graph.AanGraph
+import edu.cmu.lti.citation.graph.AanCitationGraph
 import org.apache.commons.logging.LogFactory
 
 /**
@@ -38,7 +38,7 @@ class LDAWeightedRandomWalkPredictor(ldaNetworkFile:File,measure:String,conv: Pa
 
     val g= GraphUtils.buildWeightedGraphFromTriples(weightedList)
 
-    val fullRankedList = AanGraph.prPredict(g,s,k,0.2)
+    val fullRankedList = AanCitationGraph.prPredict(g,s,k,0.2)
     fullRankedList.toList
   }
 }

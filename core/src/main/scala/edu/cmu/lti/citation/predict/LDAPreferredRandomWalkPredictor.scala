@@ -3,7 +3,7 @@ package edu.cmu.lti.citation.predict
 import org.apache.commons.logging.LogFactory
 import io.Source
 import edu.cmu.lti.citation.util.{PaperIdConverter, GraphUtils}
-import edu.cmu.lti.citation.graph.AanGraph
+import edu.cmu.lti.citation.graph.AanCitationGraph
 import java.io.File
 import collection.mutable
 import it.unimi.dsi.fastutil.doubles.DoubleArrayList
@@ -82,7 +82,7 @@ class LDAPreferredRandomWalkPredictor (ldaPairwiseFile:File,measure:String,conv:
       }
     }
 
-    val fullRankedList = AanGraph.prPredict(g,s,k,alpha,preferenceVector,null)
+    val fullRankedList = AanCitationGraph.prPredict(g,s,k,alpha,preferenceVector,null)
     fullRankedList.toList
   }
 }

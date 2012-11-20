@@ -1,7 +1,7 @@
 package edu.cmu.lti.citation.predict
 
 import edu.cmu.lti.citation.util.{PaperIdConverter, GraphUtils}
-import edu.cmu.lti.citation.graph.AanGraph
+import edu.cmu.lti.citation.graph.AanCitationGraph
 
 /**
  * Created with IntelliJ IDEA.
@@ -15,7 +15,7 @@ class RandomWalkPredictor (alpha:Double) extends Predictor{
 
   def predict(t: List[(Int, Int, Float)], s: Int, k: Int):List[(Double,Int)]  = {
     val g= GraphUtils.buildWeightedGraphFromTriples(t)
-    val fullRankedList = AanGraph.prPredict(g,s,k,alpha)
+    val fullRankedList = AanCitationGraph.prPredict(g,s,k,alpha)
     fullRankedList.toList
   }
 

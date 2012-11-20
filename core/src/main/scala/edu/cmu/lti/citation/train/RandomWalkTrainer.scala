@@ -1,4 +1,4 @@
-package edu.cmu.lti.citation.learn
+package edu.cmu.lti.citation.train
 
 import breeze.linalg._
 import edu.cmu.lti.citation.predict.Predictor
@@ -15,7 +15,7 @@ import util.Random
  * Date: 11/18/12
  * Time: 10:02 PM
  */
-class RandomWalkLearner (rootFolder:File) {
+class RandomWalkTrainer (rootFolder:File) {
   private val LOG = LogFactory.getLog(this.getClass)
 
   private val reader = new AanCitationNetworkReader(rootFolder)

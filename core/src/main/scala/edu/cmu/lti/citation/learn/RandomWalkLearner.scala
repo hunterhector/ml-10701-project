@@ -6,6 +6,8 @@ import org.apache.commons.logging.LogFactory
 import edu.cmu.lti.citation.util.GraphUtils
 import edu.cmu.lti.citation.io.AanCitationNetworkReader
 import java.io.File
+import collection.mutable
+import util.Random
 
 /**
  * Created with IntelliJ IDEA.
@@ -17,26 +19,32 @@ class RandomWalkLearner (rootFolder:File) {
   private val LOG = LogFactory.getLog(this.getClass)
 
   private val reader = new AanCitationNetworkReader(rootFolder)
+  private val conv = reader.getConverter
 
   val x = DenseVector.zeros[Double](5)
 
   private val sTrain = reader.trainData
-  private val citationNetworkContent = reader.getCitationContent
-
-  /**
-   * Remove all links from test source
-   * @return  Graph without links from test source
-   */
-  private def buildGraphForTraining() = {
-    val tripleList = citationNetworkContent.filterNot(i => {sTrain.contains(i._1)}).toList
-    GraphUtils.buildWeightedGraphFromTriples(tripleList)
-  }
 
   def train(predictors:List[Predictor]){
-    predictors.foreach {
-      p =>
-        LOG.info(String.format("Training [%s], please wait...",p.getName))
+    //create a test set with golden
+    val trainWithGolden = sTrain.foldLeft(List[(Int,List[(Int,Int,Float)],Set[Int])]())((tg,s)=>{
+      val t = reader.buildListWithHiddenLinks(s)
+      val tripleList = t._1
+      val gold = t._2
+      val numPreservedLinks = t._3
 
+      if (gold.size !=0 && numPreservedLinks > 0){
+        tg ::: List((s,tripleList,gold))   //make sure 2 things: 1)Some links are removed 2)Not all links are removed
+      }else{
+        tg
+      }
+    })
+
+    trainWithGolden.foreach{
+      case (s,triples,gold) => {     // foreach of these training instances
+        LOG.debug("Training from "+conv.fromGraphIndex(s))
+
+      }
     }
   }
 }

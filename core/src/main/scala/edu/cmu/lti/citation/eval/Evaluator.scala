@@ -26,38 +26,6 @@ class Evaluator (rootFolder: File,outputFolder:File) {
   private val conv = reader.getConverter
 
   val reader = new AanCitationNetworkReader(rootFolder)
-  val citationNetworkContent = reader.getCitationContent
-
-  /**
-   * Random hide some links and store them in golden standard
-   * @param s the source paper index that you wanna test for
-   * @return Return a citation network with some links randomly missed from source paper
-   */
-  private def buildListForTesting(s: Int) = {
-    //LOG.debug(String.format("Buiding testing graph for node %s",s.toString))
-    val gold = new mutable.HashSet[Int]()
-    var numPreservedLinks = 0
-    val tripleList = citationNetworkContent.filterNot{
-        case (idx1, idx2, w)=>(
-          if (idx1 == s){
-            if (Random.nextBoolean()&&Random.nextBoolean())  //double random boolean gives 25% chance
-              {
-                gold += idx2
-               // LOG.debug(String.format("Arc %s -> %s is filtered",idx1.toString,idx2.toString))
-                true   //with some probability, this link is filtered, so it is missing
-              }
-            else{
-              numPreservedLinks += 1
-              false // some links could still preserve
-            }
-          }
-          else false //all other links are not filtered
-      )}.toList
-
-   // LOG.debug("Pruned list length: "+tripleList.length)
-    // (GraphUtils.buildWeightedGraphFromTriples(tripleList),gold.toSet,numPreservedLinks)
-     (tripleList,gold.toSet,numPreservedLinks)
-  }
 
   def test(predictors:List[Predictor],out:FileWriter) {
     var averRKL = 0.0
@@ -66,7 +34,7 @@ class Evaluator (rootFolder: File,outputFolder:File) {
 
     //create a test set with golden
     val testWithGolden = sTest.foldLeft(List[(Int,List[(Int,Int,Float)],Set[Int])]())((tg,s)=>{
-      val t = buildListForTesting(s)
+      val t = reader.buildListWithHiddenLinks(s)
       val tripleList = t._1
       val gold = t._2
       val numPreservedLinks = t._3

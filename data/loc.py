@@ -38,5 +38,5 @@ for f in os.listdir("summaries"):
 		i=i+2
 
 	for key, value in dic.items():
-		print "%s,%d,%d,%d" % (key[0], value[0], value[1], value[2])
+		print "%s,%d,%d,%d" % (key, value[0], value[1], value[2])
 

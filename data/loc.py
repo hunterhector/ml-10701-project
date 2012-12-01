@@ -5,9 +5,14 @@ from collections import defaultdict
 
 print 'Citing,Cited,F3,S3,L3'
 for f in os.listdir("summaries"):
+	g=""
 
 	dic=defaultdict(lambda: [0,0,0])
-	g= open('cleaned/'+str(f).replace('.cs','.txt')).read()
+	try:
+		g= open('cleaned/'+str(f).replace('.cs','.txt')).read()
+	except :
+		print'Failed!'
+		continue
 	l = len(g)
 	lines= open('summaries/'+f,'r+').readlines()
 	if (len(lines)<2):
@@ -32,6 +37,6 @@ for f in os.listdir("summaries"):
 			dic[str(f).strip('.cs')+','+cited][2] += l3
 		i=i+2
 
-	for key, value in dic:
-		print "%s,%d,%d,%d" % (key[0], value[0], value[1], value[2])
- 
+	for key, value in dic.items():
+		print "%s,%d,%d,%d" % (key, value[0], value[1], value[2])
+

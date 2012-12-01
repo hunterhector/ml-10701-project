@@ -11,7 +11,7 @@ for f in os.listdir("summaries"):
 	try:
 		g= open('cleaned/'+str(f).replace('.cs','.txt')).read()
 	except :
-		print'Fuck you assholes!'
+		print'Failed!'
 		continue
 	l = len(g)
 	lines= open('summaries/'+f,'r+').readlines()

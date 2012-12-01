@@ -11,7 +11,6 @@ for f in os.listdir("summaries"):
 	try:
 		g= open('cleaned/'+str(f).replace('.cs','.txt')).read()
 	except :
-		print'Failed!'
 		continue
 	l = len(g)
 	lines= open('summaries/'+f,'r+').readlines()
@@ -31,7 +30,7 @@ for f in os.listdir("summaries"):
 				l3 +=1
 			else:
 				s3 +=1
-		for cited in lines[i+1].split():
+		for cited in list(set(lines[i+1].split())):
 			dic[str(f).strip('.cs')+','+cited][0] += f3
 			dic[str(f).strip('.cs')+','+cited][1] += s3
 			dic[str(f).strip('.cs')+','+cited][2] += l3

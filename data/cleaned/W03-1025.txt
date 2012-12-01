@@ -1,0 +1,266 @@
+A Maximum Entropy Chinese Character-Based Parser Xiaoqiang Luo 1101 Kitchawan Road, 23-121 IBM T.J.
+Watson Research Center Yorktown Heights, NY 10598 xiaoluo@us.ibm.com Abstract The paper presents a maximum entropy Chinese character-based parser trained on the Chinese Treebank ( CTB henceforth).
+Word-based parse trees in CTB are rst converted into characterbased trees, where word-level part-ofspeech (POS) tags become constituent labels and character-level tags are derived from word-level POS tags.
+A maximum entropy parser is then trained on the character-based corpus.
+The parser does word-segmentation, POStagging and parsing in a uni ed framework.
+An average label F-measure a0a2a1a4a3a6a5a8a7 and word-segmentation F-measure a9a11a10 a3a13a12a14a7 are achieved by the parser.
+Our results show that word-level POS tags can improve signi cantly word-segmentation, but higher-level syntactic strutures are of little use to word segmentation in the maximum entropy parser.
+A word-dictionary helps to improve both word-segmentation and parsing accuracy.
+1 Introduction: Why Parsing Characters?
+After Linguistic Data Consortium (LDC) released the Chinese Treebank (CTB) developed at UPenn (Xia et al., 2000), various statistical Chinese parsers (Bikel and Chiang, 2000; Xu et al., 2002) have been built.
+Techniques used in parsing English have been shown working fairly well when applied to parsing Chinese text.
+As there is no word boundary in written Chinese text, CTB is manually segmented into words and then labeled.
+Parsers described in (Bikel and Chiang, 2000) and (Xu et al., 2002) operate at word-level with the assumption that input sentences are pre-segmented.
+The paper studies the problem of parsing Chinese unsegmented sentences.
+The rst motivation is that a character-based parser can be used directly in natural language applications that operate at character level, whereas a word-based parser requires a separate word-segmenter.
+The second and more important reason is that the availability of CTB, a large corpus with high quality syntactic annotations, provides us with an opportunity to create a highly-accurate word-segmenter.
+It is widely known that Chinese word-segmentation is a hard problem.
+There are multiple studies (Wu and Fung, 1994; Sproat et al., 1996; Luo and Roukos, 1996) showing that the agreement between two (untrained) native speakers is about upper a15 a12a14a7 to lower a0a4a12a14a7. The agreement between multiple human subjects is even lower (Wu and Fung, 1994).
+The reason is that human subjects may differ in segmenting things like personal names (whether family and given names should be one or two words), number and measure units and compound words, although these ambiguities do not change a human being’s understanding of a sentence.
+Low agreement between humans affects directly evaluation of machines’ performance (Wu and Fung, 1994) as it is hard to de ne a gold standard.
+It does not necessarily imply that machines cannot do better than humans.
+Indeed, if we train a model with consistently segmented data, a machine may do a better job in remembering word segmentations.
+As will be shown shortly, it is straightforward to encode word-segmentation information in a characterbased parse tree.
+Parsing Chinese character streams therefore does effectively word-segmentation, partof-speech (POS) tagging and constituent labeling at the same time.
+Since syntactical information in uences directly word-segmentation in the proposed character-based parser, CTB allows us to test whether or not syntactic information is useful for word-segmentation.
+A third advantage of parsing Chinese character streams is that Chinese words are more or less an open concept and the out-ofvocabulary (OOV) word rate is high.
+As morphology of the Chinese language is limited, extra care is needed to model unknown words when building a word-based model.
+Xu et al.(2002), for example, uses an independent corpus to derive word classes so that unknown words can be parsed reliably.
+Chinese characters, on the other hand, are almost closed.
+To demonstrate the OOV problem, we collect a word and character vocabulary from the rst a9 a12a14a7 sentences of CTB, and compute their coverages on the corresponding word and character tokenization of the last a1a16a12a14a7 of the corpus.
+The word-based OOV rate is a17 a3a10 a1a18a7 while the character-based OOV rate is onlya12a2a3a19a1a20a0a21a7 . The rst step of training a character-based parser is to convert word-based parse trees into characterbased trees.
+We derive character-level tags from word-level POS tags and encode word-boundary information with a positional tag.
+Word-level POSs become a constituent label in character-based trees.
+A maximum entropy parser (Ratnaparkhi, 1997) parser is then built and tested.
+Many languageindependent feature templates in the English parser can be reused.
+Lexical features, which are languagedependent, are used to further improve the baseline models trained with language-independent features only.
+Word-segmentation results will be presented and it will be shown that POSs are very helpful while higher-level syntactic structures are of little use to word-segmentation at least in the way they are used in the parser.
+2 Word-Tree to Character-Tree CTB is manually segmented and is tokenized at word level.
+To build a Chinese character parser, we rst need to convert word-based parse trees into character trees.
+A few simple rules are employed in this conversion to encode word boundary information: 1.
+Word-level POS tags become labels in character trees.
+2. Character-level tags are inherited from wordlevel POS tags after appending a positional tag; 3.
+For single-character words, the positional tag is s ; for multiple-character words, the rst character is appended with a positional tag b, last character with a positional tag e, and all middle characters with a positional tag m . An example will clarify any ambiguity of the rules.
+For example, a word-parse tree (IP (NP (NP a22a24a23a26a25 /NR ) (NP a27a29a28 /NN a30a32a31 /NN ) ) (VP a33 a30 /VV ) a34 /PU ) would become (IP (NP (NP (NRa22 /nrba23 /nrma25 /nre ) ) (NP (NN a27 /nnb a28 /nne ) (NN a30 /nnb a31 /nne ) ) ) (VP (VV a33 /vvb a30 /vve ) ) (PU a34 /pus ) ).
+(1) Note that the word-level POS NR becomes a label of the constituent spanning the three characters a22a35a23a35a25 . The character-level tags of the constituent a22a36a23a36a25 are the lower-cased word-level POS tag plus a positional letter.
+Thus, the rst character a22 is assigned the tag nrb where nr is from the word-level POS tag and b denotes the beginning character; the second (middle) character a23 gets the positional letter m, signifying that it is in the middle, and the last character a25 gets the positional letter e, denoting the end of the word.
+Other words in the sentence are mapped similarly.
+After the mapping, the number of terminal tokens of the character tree is larger than that of the word tree.
+It is clear that character-level tags encode word boundary information, and chunk-level1 labels are word-level POS tags.
+Therefore, parsing a Chinese character sentence is effectively doing wordsegmentation, POS-tagging and constructing syntactic structure at the same time.
+3 Model
+and Features The maximum entropy parser (Ratnaparkhi, 1997) is used in this study, for it offers the exibility of integrating multiple sources of knowledge into a model.
+The maximum entropy model decomposes a37a39a38a41a40a43a42a6a44a46a45, the probability of a parse treea40 given a sentence a44, into the product of probabilities of individual parse 1A chunk is here de ned as a constituent whose children are all preterminals.
+actions, i.e., a47a32a48a50a49a51a19a52a54a53 a37a55a38a57a56 a51a42a6a44a59a58a60a56a62a61 a51a64a63a65a53a67a66 a53 a45 . The parse actionsa56 a48a50a49a53 are an ordered sequence, wherea68a43a69 is the number of actions associated with the parse a40 . The mapping from a parse tree to its unique sequence of actions is 1-to-1.
+Each parse action is either tagginga word, chunkingtagged words, extending an existing constituent to another constituent, or checking whether an open constituent should be closed.
+Each component model takes the exponential form: a37a55a38a57a56 a51 a42a6a44a59a58a60a56 a61 a51a64a63a65a53a67a66 a53 a45a46a70 a71a16a72a21a73a75a74a77a76a79a78a81a80 a78a16a82a11a78 a38a83a44a59a58a60a56a84a61 a51a64a63a65a53a67a66 a53 a58a60a56 a51 a45a86a85 a87 a38a83a44a59a58a60a56a84a61 a51a64a63a65a53a67a66 a53 a45 a58 (2) where a87 a38a83a44a59a58a60a56 a61 a51a41a63a65a53a67a66 a53 a45 is a normalization term to ensure that a37a55a38a57a56 a51a42a6a44a88a58a60a56a62a61 a51a41a63a65a53a67a66 a53 a45 is a probability, a82a11a78 a38a83a44a59a58a60a56 a61 a51a64a63a65a53a67a66 a53 a58a60a56 a51 a45 is a feature function (often binary) and a80 a78 is the weight ofa82a21a78 . Given a set of features and a corpus of training data, there exist ef cient training algorithms (Darroch and Ratcliff, 1972; Berger et al., 1996) to nd the optimal parameters a89 a80 a78a14a90 . The art of building a maximum entropy parser then reduces to choosing good features.
+We break features used in this study into two categories.
+The rst set of features are derived from prede ned templates.
+When these templates are applied to training data, features are generated automatically.
+Since these templates can be used in any language, features generated this way are referred to language-independent features.
+The second category of features incorporate lexical information into the model and are primarily designed to improve word-segmentation.
+This set of features are language-dependent since a Chinese word dictionary is required.
+3.1 Language-Independent Feature Templates The maximum entropy parser (Ratnaparkhi, 1997) parses a sentence in three phases: (1) it rst tags the input sentence.
+Multiple tag sequences are kept in the search heap for processing in later stages; (2) Tagged tokens are grouped into chunks.
+It is possible that a tagged token is not in any chunk; (3) A chunked sentence, consisting of a forest of many subtrees, is then used to extend a subtree to a new constituent or join an existing constituent.
+Eachextending action is followed by a checking action which decides whether or not to close the extended constituent.
+In general, when a parse action a56 a51 is carried out, the context information, i.e., the input sentence a44 and preceding parse actions a56 a61 a51a64a63a65a53a67a66 a53, is represented by a forest of subtrees.
+Feature functions operate on the forest context and the next parse action.
+They are all of the form: a82a11a78a50a91 a38a83a44a88a58a60a56a62a61 a51a41a63a65a53a67a66 a53 a45a92a58a60a56 a51 a45a94a93a95a70a97a96 a78 a38a83a44a88a58a60a56a62a61 a51a41a63a65a53a67a66 a53 a45a99a98a100a38a57a56 a51 a70a79a56 a78 a45a92a58 (3) where a96 a78 a38a83a44a59a58a60a56a84a61 a51a64a63a65a53a67a66 a53 a45 is a binary function on the context.
+Some notations are needed to present features.
+We use a101a103a102 to denote an input terminal token, a104a60a102 its tag (preterminal), a105a102 a chunk, and a71a102 a constituent label, where the index a106 is relative to the current subtree: the subtree immediately left to the current is indexed as a107 a1, the second left to the current subtree is indexed as a107a109a108, the subtree immediately to the right is indexed as a1, so on and so forth.
+a110 a102a14a111a112 represents the root label of thea113a115a114a19a116 -child of thea106a50a114a19a116 subtree.
+Ifa113a88a117 a12, the child is counted from right.
+With these notations, we are ready to introduce language-independent features, which are broken down as follows: Tag Features In the tag model, the context consists of a window of ve tokens the token being tagged and two tokens to its left and right and two tags on the left of the current word.
+The feature templates are tabulated in Table 1 (to save space, templates are grouped).
+At training time, feature templates are instantiated by the training data.
+For example, when the template a101 a63a65a53a58a118a104a99a119 is applied to the rst character of the sample sentence, (IP (NP (NP (NRa22 /nrba23 /nrma25 /nre ) ) (NP (NN a27 /nnb a28 /nne ) (NN a30 /nnb a31 /nne ) ) ) (VP (VV a33 /vvb a30 /vve ) ) (PU a34 /pus ) ), a feature a82 a38a64a101 a63a65a53 a70 *BOUNDARY*a58a118a104a118a119a120a70a121a106a65a122a21a123a124a45 is generated.
+Note that a101 a63a65a53 is the token on the left and in this case, the boundary of the sentence.
+The template a101a109a119a4a58a118a104a94a119 is instantiated similarly asa82 a38a64a101a125a119a109a70 a22a126a58a118a104a119 a70a127a106a65a122a21a123a124a45 . Chunk Features As character-level tags have encoded the chunk label information and the uncertainly about a chunk action is low given character-level tags, we limit the chunk context to a window of three subtrees the current one plus its left and right subtree.
+a105a102 in Table 2 denotes the label of the a106 a114a19a116 subtree if it is not Index Template (context,future) 1 a101a103a102a84a58a118a104a99a119a125a38a64a106a128a70a129a107a109a108a100a58a20a107 a1 a58a12 a58a1 a58a130a108a21a45 2 a101a103a102a14a101a103a102a11a131 a53a58a118a104a94a119a132a38a64a106a128a70a133a107 a1 a58a12 a45 3 a101a103a102a14a101a103a102a11a131 a53a101a103a102a4a131a135a134a4a58a118a104a99a119a136a38a64a106a128a70a133a107a136a108a100a58a20a107 a1 a58a12 a45 4 a104a63a65a53a58a118a104a99a119 5 a104a63 a134a104a63a65a53a58a118a104a119 Table 1: Tag feature templates: a101 a102 a38a64a106 a70 a107a109a108a100a58 a1 a58 a12 a58 a1 a58a130a108a21a45 : current token (if a106a120a70 a12 ) or a42a106a137a42a114a19a116 token on the left (if a106a97a117 a12 ) or right (if a106 a12 ).
+a104a102 a38a64a106a120a70 a107a109a108a100a58a20a107 a1 a58 a12 a58 a1 a58a130a108a21a45 : tag.
+a chunk, or the chunk label plus the tag of its rightmost child if it is a chunk.
+Index Template (context,future) 1 a105a138a102a139a58a60a56a100a119a136a38a64a106a140a70a129a107 a1 a58a12 a58a1a45 2 a105a102 a105a102a11a131 a53a58a60a56 a119 a38a64a106a128a70a133a107 a1 a58a12 a45 Table 2: Chunk feature templates: a105a102 a38a64a106a140a70a129a107 a1 a58a12 a58a1a45 is the chunk label plus the tag of its right most child if the a106a50a114a19a116 tree is a chunk; Otherwise a105a20a102 is the constituent label of thea106 a114a19a116 tree.
+Again, we use the sentence (1) as an example.
+Assume that the current forest of subtrees is (NR a22 /nrb a23 /nrm a25 /nre ) a27 /nnb a28 /nne a30 /nnb a31 /nne a33 /vvb a30 /vve a34 /pus, and the current subtree is a27 /nnb, then instantiating the template a105 a63a65a53a58a60a56a8a119 would result in a feature a82 a38a57a105 a63a65a53 a70a79a68a140a141a133a142a11a106a65a122 a71 a58a60a56a100a119a109a70a79a105a16a96a144a143a139a106a146a145a2a68a128a68a32a45 . Extend Features Extend features depend on previous subtree and the two following subtrees.
+Some features uses child labels of the previous subtree.
+For example, the interpretation of the template on line 4 of Table 3 is that a71 a63a65a53 is the root label of the previous subtree, a110 a61 a63a65a53 a111 a63a65a53a67a66 is the label of the right-most child of the previous tree, and a71a119 is the root label of the current subtree.
+Check Features Most of check feature templates again use constituent labels of the surrounding subtrees.
+The template on line 1 of Table 4 is unique to the check model.
+It essentially looks at children of the current constituent, which is intuitively a strong indication whether or not the current constituent should be closed.
+Index Template (context,future) 1 a71 a63a65a53a71a102a139a58a60a56a8a119a132a38a64a106a128a70 a12 a58a1 a58a130a108a21a45 2 a71 a63a65a53a110 a61 a63a65a53 a111 a63 a102 a66 a58a60a56a8a119a125a38a64a106a128a70 a1 a58a130a108a21a45 3 a71 a63a65a53a71a119a71 a53 4 a71 a63a65a53a110 a61 a63a65a53 a111 a63a65a53a67a66 a71 a119a4a58a60a56a8a119 5 a71 a63a65a53a110 a61 a63a65a53 a111 a63a65a53a67a66 a71 a119 a71 a53 a58a60a56a100a119 6 a71 a63a65a53a110 a61 a63a65a53 a111 a63a65a53a67a66 a110 a61 a63a65a53 a111 a63 a134 a66 a58a60a56a100a119 Table 3: Extend feature templates: a71a102a65a38a64a106 a70 a107 a1 a58 a12 a58 a1 a58a130a108a21a45 is the root constituent label of the a106 a114a19a116 subtree (relative to the current one); a110 a61 a63a65a53 a111 a63 a102 a66 a38a64a106a147a70 a1 a58a130a108a21a45 is the label of the a106 a114a19a116 rightmost child of the previous subtree.
+Index Template (context,future) 1 a71a119a109a148a149a110a8a119a138a111a53a50a150a16a150a16a150a110a14a119a138a111a102a152a151a11a58a60a56a8a119 2 a71a119a138a111a63a65a53a58a60a56a8a119 3 a71a119a16a110a14a119a138a111a51a58a60a56a100a119a125a38a64a153a81a70 a1 a58a130a108a100a58a150a16a150a16a150 a58a118a106a50a154a18a45 4 a71 a63a65a53a58a60a56 a119 5 a71 a53a58a60a56a100a119 6 a71 a63 a134a71 a63a65a53a58a60a56 a119 7 a71 a53a71a134a152a58a60a56a100a119 Table 4: Check feature templates: a71a102a135a38a64a106 a70 a107 a1 a58 a12 a58 a1 a58a130a108a21a45 is the constituent label of thea106a54a114a19a116 subtree (relative to the current one).
+a110 a61 a119a138a111 a51a19a66 is the a153a114a19a116 child label of the current constituent.
+3.2 Language-Dependent Features The model described so far does not depend on any Chinese word dictionary.
+All features derived from templates in Section 3.1 are extracted from training data.
+A problem is that words not seen in training data may not have good features associated with them.
+Fortunately, the maximum entropy framework makes it relatively easy to incorporate other sources of knowledge into the model.
+We present a set of language-dependent features in this section, primarily for Chinese word segmentation.
+The language-dependent features are computed from a word list and training data.
+Formerly, leta155 be a list of Chinese words, where characters are separated by spaces.
+At the time of tagging characters (recall word-segmentation information is encoded in character-level tags), we test characters within a window of ve (that is, two characters to the left and two to the right) and see if a character either starts, occurs in any position of, or ends any word on the lista155 . This feature templates are summarized in Table 5.
+a123a4a38a64a101a156a102a84a58a60a155a157a45 tests if the character a101a109a102 starts any word on the list a155 . Similarly, a158a159a38a64a101a109a102a139a58a60a155a160a45 tests if the character a101a156a102 occurs in any position of any word on the list a155, and a71 a38a64a101 a102 a58a60a155a160a45 tests if the character a101 a102 is the last position of any word on the lista155 . Index Template (context,future) 1 a123a152a38a64a101a156a102a139a58a60a155a157a45a92a58a118a104a94a119a132a38a64a106a128a70a133a107a109a108a100a58a20a107 a1 a58a12 a58a1 a58a130a108a21a45 2 a158a159a38a64a101a103a102a84a58a60a155a157a45a92a58a118a104a94a119a132a38a64a106a140a70a161a107a109a108a100a58a20a107 a1 a58a12 a58a1 a58a130a108a21a45 3 a71 a38a64a101a103a102a162a58a60a155a160a45a92a58a118a104a99a119a125a38a64a106a128a70a129a107a109a108a100a58a20a107 a1 a58a12 a58a1 a58a130a108a21a45 Table 5: Language-dependent lexical features.
+A word list can be collected to encode different semantic or syntactic information.
+For example, a list of location names or personal names may help the model to identify unseen city or personal names; Or a closed list of functional words can be collected to represent a particular set of words sharing a POS.
+This type of features would improve the model robustness since unseen words will share features red for seen words.
+We will show shortly that even a relatively small word-list improves signi cantly the word-segmentation accuracy.
+4 Experiments
+All experiments reported here are conducted on the latest LDC release of the Chinese Treebank, which consists of about a108a11a17 a12a11a163 words.
+Word parse trees are converted to character trees using the procedure described in Section 2.
+All traces and functional tags are stripped in training and testing.
+Two results are reported for the character-based parsers: the F-measure of word segmentation and F-measure of constituent labels.
+Formally, leta164a35a165a11a38a64a153a94a45a92a58a92a164a167a166a84a38a64a153a99a45 be the number of words of thea153a114a19a116 reference sentence and its parser output, respectively, and a168a169a38a64a153a94a45 be the number of common words in thea153a67a114a19a116 sentence of test set, then the word segmentation F-measure is a170a59a171a67a172a67a173 a70 a108 a76 a51 a168a169a38a64a153a94a45 a76 a51 a91 a164 a165 a38a64a153a94a45a146a174a175a164 a166 a38a64a153a94a45a93 a3 (4) The F-measure of constituent labels is computed similarly: a170 a112a177a176a130a178 a70 a108 a76 a51 a68a179a38a64a153a94a45 a76 a51 a91 a155a46a165a11a38a64a153a94a45a50a174a36a155a146a166a62a38a64a153a94a45a94a93 a58 (5) where a155 a165 a38a64a153a94a45 and a155 a166 a38a64a153a94a45 are the number of constituents in the a153a114a19a116 reference parse tree and parser output, respectively, and a68a180a38a64a153a99a45 is the number of common constituents.
+Chunk-level labels converted from POS tags (e.g., NR, NN and VV etc in (1)) are included in computing label F-measures for character-based parsers.
+4.1 Impact
+of Training Data The rst question we have is whether CTB is large enough in the sense that the performance saturates.
+The rst set of experiments are intended to answer this question.
+In these experiments, the rst a9 a12a14a7 CTB is used as the training set and the rest a1a16a12a14a7 as the test set.
+We start with a1a16a12a14a7 of the training set and increase the training set each time by a1a16a12a14a7 . Only language-independent features are used in these experiments.
+Figure 1 shows the word segmentation F-measure and label F-measure versus the amount of training data.
+As can be seen, F-measures of both word segmentation and constituent label increase monotonically as the amount of training data increases.
+If all training data is used, the word segmentation F-measure is a9a11a17 a3a182a181a21a7 and label F-measure a0a2a1a4a3a15 a7 . These results show that language-independent features work fairly well a major advantage of datadriven statistical approach.
+The learning curve also shows that the current training size has not reached a saturating point.
+This indicates that there is room to improve our model by getting more training data.
+0 20 40 60 80 1000.65 0.7 0.75 0.8 0.85 0.9 0.95 1 Word seg F−measure and Label F−measure vs.
+training size Percent of training data F−measure Segmentation Label Figure 1: Learning curves: word-segmentation Fmeasure and parsing label F-measure vs.
+percentage of training data.
+4.2 Effect
+of Lexical Features In this section, we present the main parsing results.
+As it has not been long since the second release of CTB and there is no commonly-agreed training and test set, we divide the entire corpus into 10 equal partitions and hold each partition as a test set while the rest are used for training.
+For each training-test conguration, a baseline model is trained with only language independent features.
+Baseline word segmentation and label F-measures are plotted with dottedline in Figure 2.
+We then add extra lexical features described in Section 3.1 to the model.
+Lexical questions are derived from a 58K-entry word list.
+The word list is broken into 4 sub-lists based on word length, ranging from 2 to 5 characters.
+Lexical features are computed by answering one of the three questions in Table 5.
+Intuitively, these questions would help the model to identify word boundaries, which in turn ought to improve the parser.
+This is con rmed by results shown in Figure 2.
+The solid two lines represent results with enhanced lexical questions.
+As can be seen, lexical questions improve signi cantly both word segmentation and parsing across all experiments.
+This is not surprising as lexical features derived from the word list are complementary to language-independent features computed from training sentences.
+1 2 3 4 5 6 7 8 9 100.7 0.75 0.8 0.85 0.9 0.95 1 Experiment Number F−measure Results of 10 experiments Segmentation (with LexFeat) Segmentation (baseline) Label (with LexFeat) Label (baseline) Figure 2: Parsing and word segmentation Fmeasures vs.
+the experiment numbers.
+Lines with triangles: segmentation; Lines with circles: label; Dotted-lines: language-independent features only; Solid lines: plus lexical features.
+Another observation is that results vary greatly across experiment con gurations: for the model trained with lexical features, the second experiment has a label F-measure a0a11a181a100a3a182a0a21a7 and wordsegmentation F-measure a9a21a15 a3a6a5a8a7, while the sixth experiment has a label F-measure a15a11a15 a3a19a1a18a7 and wordsegmentation F-measurea9 a5a144a3a15 a7 . The large variances justify multiple experiment runs.
+To reduce the variances, we report numbers averaged over the 10 experiments in Table 6.
+Numbers on the row starting with WS are word-segmentation results, while numbers on the last row are F-measures of constituent labels.
+The second column are average Fmeasures for the baseline model trained with only language-independent features.
+The third column contains F-measures for the model trained with extra lexical features.
+The last column are releative error reduction.
+The best average word-segmentation Fmeasure isa9a11a10 a3a13a12a14a7 and label F-measure isa0a2a1a4a3a6a5a8a7 . F-measure baseline LexFeat Relative(%) WS(%) 94.6 96.0 26 Label(%) 80.0 81.4 7 Table 6: WS: word-segmentation.
+Baseline: language-independent features.
+LexFeat: plus lexical features.
+Numbers are averaged over the 10 experiments in Figure 2.
+4.3 Effect
+of Syntactic Information on Word-segmentation Since CTB provides us with full parse trees, we want to know how syntactic information affects wordsegmentation.
+To this end, we devise two sets of experiments: 1.
+We strip all POS tags and labels in the Chinese Treebank and retain only word boundary information.
+To use the same maximum entropy parser, we represent word boundary by dummy constituent label W . For example, the sample sentence (1) in Section 2 is represented as: (Wa22 /wba23 /wma25 /we ) (Wa27 /wba28 /we ) (W a30 /wb a31 /we ) (W a33 /wb a30 /we ) (W a34 /ws ).
+2. We remove all labels but retain word-level POS information.
+The sample sentence above is represented as: (NRa22 /nrb a23 /nrm a25 /nre ) (NN a27 /nnba28 /nne ) (NNa30 /nnba31 /nne ) (VVa33 /vvba30 /vve ) (PU a34 /pus ).
+Note that positional tags are used in both setups.
+1 2 3 4 5 6 7 8 9 100.93 0.935 0.94 0.945 0.95 0.955 0.96 0.965 0.97 0.975 Effect of Syntactic Info on Word Segmentation Experiment Number Word−seg F−measure Word−boundary POS Full Tree Figure 3: Usefulness of syntactic information: (black) dash-dotted line word boundaries only, (red) dashed line POS info, and (blue) solid line full parse trees.
+With these two representations of CTB, we repeat the 10 experiments of Section 4.2 using the same lexical features.
+Word-segmentation results are plotted in Figure 3.
+The model trained with word boundary information has the worst performance, which is not surprising as we would expect information such as POS tags to help disambiguate word boundaries.
+What is surprising is that syntactic information beyond POS tags has little effect on wordsegmentation there is practically no difference between the solid line (for the model trained with full parse trees) and the dashed-line (for the model trained with POS information) in Figure 3.
+This result suggests that most ambiguities of Chinese word boundaries can be resolved at lexical level, and highlevel syntactic information does not help much to word segmentation in the current parser.
+5 Related
+Work Bikel and Chiang (2000) and Xu et al.(2002) construct word-based statistical parsers on the rst release of Chinese Treebank, which has about 100K words, roughly half of the training data used in this study.
+Bikel and Chiang (2000) in fact contains two parsers: one is a lexicalized probabilistic contextfree grammar (PCFG) similar to (Collins, 1997); the other is based on statistical TAG (Chiang, 2000).
+Abouta15 a181a21a7 F-measure is reported in (Bikel and Chiang, 2000).
+Xu et al.(2002) is also based on PCFG, but enhanced with lexical features derived from the ASBC corpus2.
+Xu et al.(2002) reports an overall F-measure a15a4a17 a3a108 a7 when the same training and test set as (Bikel and Chiang, 2000) are used.
+Since our parser operates at character level, and more training data is used, the best results are not directly comparable.
+The middle point of the learning curve in Figure 1, which is trained with roughly 100K words, is at the same ballpark of (Xu et al., 2002).
+The contribution of this work is that the proposed characterbased parser does word-segmentation, POS tagging and parsing in a uni ed framework.
+It is the rst attempt to our knowledge that syntactic information is used in word-segmentation.
+Chinese word segmentation is a well-known problem that has been studied extensively (Wu and Fung, 1994; Sproat et al., 1996; Luo and Roukos, 1996) and it is known that human agreement is relatively low.
+Without knowing and controlling testing conditions, it is nearly impossible to compare results in a meaningful way.
+Therefore, we will compare our approach with some related work only without commenting on segmentation accuracy.
+Wu and Tseng (1993) contains a good problem statement of Chinese wordsegmentation and also outlines a few segmentation algorithms.
+Our method is supervised in that the training data is manually labeled.
+Palmer (1997) uses transform-based learning (TBL) to correct an initial segmentation.
+Sproat et al.(1996) employs stochastic nite state machines to nd word boundaries.
+Luo and Roukos (1996) proposes to use a language model to select from ambiguous wordsegmentations.
+All these work assume that a lexicon or some manually segmented data or both are available.
+There are numerous work exploring semisupervised or unsupervised algorithms to segment Chinese text.
+Ando and Lee (2003) uses a heuristic method that does not require segmented training data.
+Peng and Schuurmans (2001) learns a lexicon and its unigram probability distribution.
+The automatically learned lexicon is pruned using a mutual information criterion.
+Peng and Schuurmans (2001) requires a validation set and is therefore semisupervised.
+2Seehttp://godel.iis.sinica.edu.tw/ROCLING. 6 Conclusions We present a maximum entropy Chinese characterbased parser which does word-segmentation, POS tagging and parsing in a uni ed framework.
+The exibility of maximum entropy model allows us to integrate into the model knowledge from other sources, together with features derived automatically from training corpus.
+We have shown that a relatively small word-list can reduce wordsegmentation error by as much as a108a11a10 a7, and a wordsegmentation F-measurea9a11a10 a3a13a12a14a7 and label F-measure a0a2a1a4a3a6a5a8a7 are obtained by the character-based parser.
+Our results also show that POS information is very useful for Chinese word-segmentation, but higherlevel syntactic information bene ts little to wordsegmentation.
+Acknowledgments Special thanks go to Hongyan Jing and Judith Hochberg who proofread the paper and corrected many typos and ungrammatical errors.
+The author is also grateful to the anonymous reviewers for their insightful comments and suggestions.
+This work was partially supported by the Defense Advanced Research Projects Agency and monitored by SPAWAR under contract No.
+N66001-99-2-8916. The views and ndings contained in this material are those of the authors and do not necessarily re ect the position of policy of the Government and no of cial endorsement should be inferred.
+References Rie Kubota Ando and Lillian Lee.
+2003. Mostlyunsupervised statistical segmentation of Japanese Kanji.
+Natural Language Engineering.
+Adam L.
+Berger, Stephen A.
+Della Pietra, and Vincent J.
+Della Pietra.
+1996. A maximum entropy approach to natural language processing.
+Computational Linguistics, 22(1):39 71, March.
+Daniel M.
+Bikel and David Chiang.
+2000. Two statistical parsing models applied to the chinese treebank.
+In Proceedings of the Second Chinese Language Processing Workshop, pages 1 6.
+David Chiang.
+2000. Statistical parsing with an automatically-extracted tree adjoining grammar.
+In Proc.
+Annual Meeting of ACL, pages 1 6.
+Michael Collins.
+1997. Three generative, lexicalised models for statistical parsing.
+In Proc.
+Annual Meeting of ACL, pages 16 23.
+J. N.
+Darroch and D.
+Ratcliff. 1972.
+Generalized iterative scaling for log-linear model.
+Ann. Math.
+Statist., 43:1470 1480.
+Xiaoqiang Luo and Salim Roukos.
+1996. An iterative algorithm to build chinese language models.
+In Proc.
+of the 34th Annual Meeting of the Association for Computational Linguistics, pages 139 143.
+David Palmer.
+1997. A trainable rule-based algorithm for word segmentation.
+In Proc.
+Annual Meeting of ACL, Madrid.
+Fuchun Peng and Dale Schuurmans.
+2001. Selfsupervised Chinese word segmentation.
+In Advances in Intelligent Data Analysis, pages 238 247.
+Adwait Ratnaparkhi.
+1997. A Linear Observed Time Statistical Parser Based on Maximum Entropy Models.
+In Second Conference on Empirical Methods in Natural Language Processing, pages 1 10.
+Richard Sproat, Chilin Shih, William Gale, and Nancy Chang.
+1996. A stochastic nite-state wordsegmentation algorithm for Chinese.
+Computational Linguistics, 22(3):377 404.
+Dekai Wu and Pascale Fung.
+1994. Improving chinese tokenization with linguistic lters on statistical lexical acquisition.
+In Fourth Conference on Applied Natural Language Processing, pages 180 181, Stuttgart.
+Zimin Wu and Gwyneth Tseng.
+1993. Chinese text segmentation for text retrieval: Achievements and problems.
+Journal of The American Society for Information Science, 44(9):532 542.
+F. Xia, M.
+Palmer, N.
+Xue, M.E.
+Okurowski, J.
+Kovarik, F.D.
+Chiou, S.
+Huang, T.
+Kroch, and M.
+Marcus. 2000.
+Developing guidelines and ensuring consistency for Chinese text annotation.
+In Proc of the 2nd Intl.
+Conf. on Language Resources and Evaluation (LREC 2000).
+Jinxi Xu, Scott Miller, and Ralph Weischedel.
+2002. A statistical parser for Chinese.
+In Proc.
+Human Language Technology Workshop .
+

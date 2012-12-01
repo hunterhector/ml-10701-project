@@ -1,0 +1,357 @@
+Transductive Pattern Learning for Information Extraction Brian McLernon Nicholas Kushmerick School of Computer Science and Informatics University College Dublin, Ireland {brian.mclernon,nick}@ucd.ie Abstract The requirement for large labelled training corpora is widely recognized as a key bottleneck in the use of learning algorithms for information extraction.
+We present TPLEX, a semi-supervised learning algorithm for information extraction that can acquire extraction patterns from a small amount of labelled text in conjunction with a large amount of unlabelled text.
+Compared to previous work, TPLEX has two novel features.
+First, the algorithm does not require redundancy in the fragmentstobeextracted, butonlyredundancy of the extraction patterns themselves.
+Second, most bootstrapping methods identify the highestqualityfragmentsintheunlabelleddataand then assume that they are as reliable as manually labelled data in subsequent iterations.
+In contrast, TPLEX’s scoring mechanism prevents errors from snowballing by recording the reliability of fragments extracted from unlabelled data.
+Our experiments with several benchmarks demonstrate that TPLEX is usually competitive with various fully-supervised algorithms when very little labelled training data is available.
+1 Introduction
+Information extraction is a form of shallow text analysis that involves identifying domain-specific fragments within natural language text.
+Most recent research has focused on learning algorithms that automatically acquire extraction patterns from manually labelled training data (e.g., (Riloff, 1993; Califf and Mooney, 1999; Soderland, 1999; Freitag and Kushmerick, 2000; Ciravegna, 2001; Finn and Kushmerick, 2004)).
+This training data takes the form of the original text, annotated with the fragments to be extracted.
+Due to the expense and tedious nature of this labelling process, it is widely recognized that a key bottleneck in deploying such algorithms is the need to create a sufficiently large training corpus for each new domain.
+In response to this challenge, many researchers have investigated semi-supervised learning algorithms that learn from a (relatively small) set of labelled texts in conjunction with a (relatively large) set of unlabelled texts (e.g., (Riloff, 1996; Brin, 1998; Yangarber et al., 2002)).
+In this paper, we present TPLEX, a semi-supervised algorithm for learning information extraction patterns.
+Thekeyideaistoexploitthefollowingrecursivedefinitions: good patterns extract good fragments, and good fragments are extracted by good patterns.
+To operationalize this recursive definition, we initialize the pattern and fragment scores with labelled data, and then iterate until the scores have converged.
+Most prior semi-supervised approaches to information extraction assume that fragments are essentially named entities, so that there will be many occurrences of any given fragment.
+For example, for the task of discovering diseases (“influenza”, “Ebola”, etc), prior algorithms assume that each disease will be mentioned many times, and that every occurrence of such a disease in unlabelled text should be extracted.
+However, it may not be the case that fragments to be extracted occur more than once in the corpus, or that every occurrence of a labelled fragment should be extracted.
+For example, in the well-known CMU Seminars corpus, any given person usually gives just one seminar, and a fragment such as “3pm” sometimes indicates the start time, other occurrences indicate the end time, and some occurrence should not be extracted at all.
+Rather than relying on redundancy of the fragments, TPLEX exploits redundancy of the learned extraction patterns.
+TPLEX isatransductivealgorithm(Vapnik, 1998), in that the goal is to perform extraction from a given unlabelled corpus, given a labelled corpus.
+This is in contrast to the typical machine learning framework, where the goal is a set of extraction patterns (which can of course then be applied to new unlabelled text).
+As a side-effect, TPLEX does generate a set of extraction patterns which may be a useful in their own right, depending on the application.
+We have compared TPLEX with various competitors on a variety of real-world extraction tasks.
+We have observed that TPLEX’s performance matches or exceeds theseinseveralbenchmarktasks.
+Theremainderofthis paper is organized as follows.
+After describing related work in more detail (Sec.
+2), we describe the TPLEX algorithm (Sec.
+3). We then discuss a series of experiments to compare TPLEX with various supervised al25 gorithms (Sec.
+4). We conclude with a summary of observations made during the evaluation, and a discussion of future work (Sec.
+5). 2 Related work A review of machine learning for information extraction is beyond the scope of this paper; see e.g.
+(Cardie, 1997; Kushmerick and Thomas, 2003).
+A number of researchers have previously developed bootstrapping or semi-supervised approaches to information extraction, named entity recognition, and related tasks (Riloff, 1996; Brin, 1998; Riloff and Jones, 1999; Agichtein et al., 2001; Yangarber et al., 2002; Stevenson and Greenwood, 2005; Etzioni et al., 2005).
+Several approaches for learning from both labeled and unlabeled data have been proposed (Yarowsky, 1995; Blum and Mitchell, 1998; Collins and Singer, 1999) where the unlabeled data is utilised to boost the performance of the algorithm.
+In (Collins and Singer, 1999) Collins and Singer show that unlabeled data can be used to reduce the level of supervision required for named entity classification.
+However, their approach is reliant on the presence of redundancy in the named entities to be identified.
+TPLEX is most closely related to the NOMEN algorithm (Yangarber et al., 2002).
+NOMEN has a very simple iterative structure: at each step, a very small number of high-quality new fragments are extracted, which are treated in the next step as equivalent to seeds from the labeled documents.
+NOMEN has a number of parameters which must be carefully tuned to ensure that it does not over-generalise.
+Erroneous additions to the set of trusted fragments can lead to a snowballing of errors.
+Also, NOMEN uses a binary scoring mechanism, which works well in dense corpora with substantial redundancy.
+However, manyinformationextractiontasks feature sparse corpora with little or no redundancy.
+We have extended NOMEN by allowing it to make finergrained(asopposedtobinary)scoringdecisionsateach iteration.
+Instead of definitively assigning a position to a given field, we calculate the likelihood that it belongs to the field over multiple iterations.
+3 The
+TPLEX algorithm The goal of the algorithm is to identify the members of the target fields within unlabelled texts by generalizing from seed examples in labelled training texts.
+We achieve this by generalizing boundary detecting patterns and scoring them with a recursive scoring function.
+As shown in Fig.
+1, TPLEX bootstraps the learning process from a seed set of labelled examples.
+The examples are used to populate initial pattern sets for each target field, with patterns that match the start and end positions of the seed fragments.
+Each pattern is then generalised to produce more patterns, which are in turn g86g70g82g85g72 g14g20g11 g12g3g32g3 g20g11g94g86g70g82g85g72 g11 g12g3g95g3 g111 g96g3g12 g86g70g82g85g72 g14g20g11 g12g3g32g3 g21g11g94g86g70g82g85g72 g11 g12g3g95g3 g111 g96g3g12 Figure 1: An overview of TPLEX.
+A key idea of the algorithm is the following recursive scoring method: pattern scores are a function of the scores of the positions they extract, and position scores are a function of the scores of the patterns that extract them.
+applied to the corpus in order to identify more base patterns.
+This process iterates until no more patterns can be learned.
+TPLEX employs a recursive scoring metric in which good patterns reinforce good positions, and good positionsreinforcegoodpatterns.
+Specifically, wecalculate confidence scores for positions and patterns.
+Our scoring mechanism calculates the score of a pattern as a function of the scores of the positions that it matches, and the score of a position as a function of the scores of the patterns that extract it.
+TPLEX is a multi-field extraction algorithm in that it extracts multiple fields simultaneously.
+By doing this, information learned for one field can be used to constrainpatternslearnedforothers.
+Specifically, ourscoring mechanism ensures that if a pattern scores highly for one field, its score for all other fields is reduced.
+In the remainder of this section, we describe the algorithm by formalizing the space of learned patterns, and then describing TPLEX’s scoring mechanism.
+3.1 Boundary
+detection patterns TPLEX extracts fragments of text by identifying probable fragment start and end positions, which are then assembled into complete fragments.
+TPLEX’s patterns are therefore boundary detectors which identify one end of a fragment or the other.
+TPLEX learns patterns to identify the start and end of target occurrences independently of each other.
+This strategy has previously been employed successfully (Freitag and Kushmerick, 2000; Ciravegna, 2001; Yangarber et al., 2002; Finn and Kushmerick, 2004).
+TPLEX’s boundary detectors are similar to those learned by BWI (Freitag and Kushmerick, 2000).
+A boundary detector has two parts, a left pattern and a right pattern.
+Each of these patterns is a sequence of tokens, where each is either a literal or a generalized token.
+For example, the boundary detector 26 [will be <punc>][<caps> <fname>] would correctly find the start of a name in an utterance such as “will be: Dr Robert Boyle” and “will be, Sandra Frederick”, but it will fail to identify the start of the name in “will be Dr.
+Robert Boyle”.
+The boundary detectors that find the beginnings of fragments are called the pre-patterns, and the detectors that find the ends of fragments are called the post-patterns.
+3.2 Pattern
+generation As input, TPLEX requires a set of tagged seed documents for training, and an untagged corpus for learning.
+The seed documents are used to initialize the pre-pattern and post-pattern sets for each of the target fields.
+Within the seed documents each occurrence of a fragment belonging to any of the target categories is surrounded by a set of special tags that denote the field to which it belongs.
+The algorithm parses the seed documents and identifies the tagged fragments in each document.
+It then generates patterns for the start and end positions of each fragment based on the surrounding tokens.
+Each pattern varies in length from 2 to n tokens.
+For a given pattern length lscript, the patterns can then overlap the position by zero to lscript tokens.
+For example, a pre-pattern of length four with an overlap of one will match the three tokens immediately preceeding the start position of a fragment, and the one token immediately following that position.
+In this way, we generatesummationtext n i=2(i + 1) patterns from each seed position.
+In ourexperiments, we set the maximum pattern length to be n = 4.
+TPLEX then grows these initial sets for each field by generalizing the initial patterns generated for each seed position.
+We employ eight different generalization tokens when generalizing the literal tokens of the initial patterns.
+The wildcard token <*> matches every literal.
+The second type of generalization is <punc>, which matches punctuation such as commas and periods.
+Similarly, the token<caps>matches literals with an initial capital letter, <num> matches a sequence of digits, <alpha num> matches a literal consisting of letters followed by digits, and <num alpha> matches a literal consisting of digits followed by letters.
+The final two generalisations are <fname> and <lname>, which match literals that appear in a list of first and last names (respectively) taken from US Census data.
+All patterns are then applied to the entire corpus, including the seed documents.
+When a pattern matches a new position, the tokens at that position are converted into a maximally-specialized pattern, which is added to the pattern set.
+Patterns are repeatedly generalized until only one literal token remains.
+This whole process iterates until no new patterns are discovered.
+We do not generalize the new maximally-specialized patterns discovered in the unlabelled data.
+This ensures that all patterns are closely related to the seed data.
+(We experimented with generalizing patterns from the unlabelled data, but this rapidly leads to overgeneralization.) The locations in the corpus where the patterns match are regarded as potential target positions.
+Pre-patterns indicate potential start positions for target fragments while post-patterns indicate end positions.
+When all of thepatternshavebeenmatchedagainstthecorpus, each field will have a corresponding set of potential start and end positions.
+3.3 Notation
+& problem statement Positions are denoted by r, and patterns are denoted by p.
+Formally, a pattern is equivalent to the set of positions that it extracts.The notation p → r indicates that pattern p matches position r.
+Fields are denoted by f, and F is the set of all fields.
+The labelled training data consists of a set of positions R = {...,r,...}, and a labelling function T : R → F ∪{X} for each such position.
+T(r) = f indicates that position r is labelled with field f in the training data.
+T(r) = X means that r is not labelled in the training data (i.e.
+r is a negative example for all fields).
+The unlabelled test data consists of an additional set of positions U.
+Given this notation, the learning task can be stated concisely as follows: extend the domain of T to U, i.e. generalize from T(r) for r ∈ R, to T(r) for r ∈ U.
+3.4 Pattern
+and position scoring Whenthepatternsandpositionsforthefieldshavebeen identified we must score them.
+Below we will describeindetailtherecursivemannerinwhichwedefine scoref(r) in terms of scoref(p), and vice versa.
+Given that definition, we want to find fixed-point values for scoref(p) and scoref(r).
+To achieve this, we initialize the scores, and then iterate through the scoring process (i.e.
+calculate scores at step t+1 from scores at step t).
+This process repeats until convergence.
+Initialization. As the scores of the patterns and positions of a field are recursively dependant, we must assign initial scores to one or the other.
+Initially the only elementsthatwecanclassifywithcertaintyaretheseed fragments.
+We initialise the scoring function by assigning scores to the positions for each of the fields.
+In this way it is then possible to score the patterns based on these initial scores.
+From the labelled training data, we derive the prior probability pi(f) that a randomly selected position belongs to field f ∈ F: pi(f) = |{r ∈ R|T(r) = f}|/|R|.
+Note that 1 − summationtextf pi(f) is simply the prior probability that a randomly selected position should not be extracted at all; typically this value is close to 1.
+Given the priors pi(f), we score each potential posi27 tion r in field f: score0f(r) =   pi(f) if r ∈ U, 1 if r ∈ R∧T(r) = f, and 0 if r ∈ R∧T(r) negationslash= f.
+The first case handles positions in the unlabelled documents; atthispointwedon’tknowanythingaboutthem and so fall back to the prior probabilities.
+The second and third cases handle positions in the seed documents, for which we have complete information.
+Iteration. After initializing the scores of the positions, we begin the iterative process of scoring the patterns and the positions.
+To compute the score of a pattern p for field f we compute a positive score, posf(p); a negative score, negf(p); and an unknown score, unk(p).
+posf(p) can be thought of as a measure of the benefit of p to f, while negf(p) measures the harm of p to f, and unk(p) measures the uncertainty about the field with which p is associated.
+These quantities are defined as follows: posf(p) is the average score for field f of positions extracted by p.
+We first compute: posf(p) = 1Z p summationdisplay p→r scoretf(r), where Zp = summationtextf summationtextp→r scoretf(r) is a normalizing constant to ensure thatsummationtextf posf(p) = 1.
+For each field f and pattern p, negf(p) is the extent to which p extracts positions whose field is not f: negf(p) = 1−posf(p).
+Finally, unk(p) measures the degree to which p extract positions whose field is unknown: unk(p) = 1|{p → r}| summationdisplay p→r unk(r), where unk(r) measures the degree to which position r is unknown.
+To be completely ignorant of a position’s field is to fall back on the prior field probabilities pi(f).
+Therefore, we calculate unk(r) by computing the sum of squared differences between scoretf(r) and pi(f): unk(r) = 1− 1ZSSD(r), SSD(r) = summationdisplay f parenleftbigscoret f(r)−pi(f) parenrightbig2, Z = maxr SSD(r).
+The normalization constant Z ensures that unk(r) = 0 for the position r whose scores are the most different from the priors—ie, r is the “least unknown” position.
+For each field f and pattern p, scoretf(p) is defined in terms of posf(p), negf(p) and unk(p) as follows: scoret+1f (p) = posf(p) posf(p)+negf(p)+unk(p) ·posf(p) = posf(p) 2 1+unk(p) This definition penalizes patterns that are either inaccurate or have low coverage.
+Finally, we complete the iterative step by calculating a revised score for each position: scoret+1f (r) = braceleftBigg scoret f(r) if r ∈ Rsummationtext p→r score t f(p)−min max−min if r ∈ U, where min = minf,p→r summationtextp→r scoretf(p) and max = maxf,p→r summationtextp→r scoretf(p), are used to normalize the scores to ensure that the scores of unlabelled positions never exceed the scores of labelled positions.
+The first case in the function for scoret+1f (r) handles positive and negative seeds (i.e.
+positions in labelled texts), the second case is for unlabelled positions.
+We iterate this procedure until the scores of the patterns and positions converge.
+Specifically, we stop when summationdisplay f parenleftbigg summationtext p |score t f(p)−score t−1 f (p)| 2 + summationtext r |score t f(r)−score t−1 f (r)| 2 parenrightbigg < θ.
+In our experiments, we fixed θ = 1.
+3.5 Position
+filtering & fragment identification Due to the nature of the pattern generation strategy, many more candidate positions will be identified than there are targets in the corpus.
+Before we can proceed with matching start and end positions to form fragments, wefilterthepositionstoremovetheweakercandidates.
+We rank all of positions for each field according to their score.
+We then select positions with a score above a threshold β as potential positions.
+In this way we reduce the number of candidate positions from tens of thousands to a few hundred.
+The next step in the process is to identify complete fragments within the corpus by matching pre-positions with post-positions.
+To do this we compute the length probabilities for the fragments of field f based on the lengths of the seed fragments of f.
+Suppose that positionr1 has been identified as a possible start for fieldf, and position r2 has been identified as a possible field f end, and let Pf(lscript) be the fraction of field f seed fragments with length lscript.
+Then the fragment e = (r1,r2) is assigned a score scoref(e) = scoref(r1)·scoref(r2)·Pf(r2−r1 +1).
+Despite these measures, overlapping fragments still occur.
+Since the correct fragments can not overlap, we know that if two extracted fragments overlap, at least one must be wrong.
+We resolve overlapping fragments by calculating the set of non-overlapping fragments that maximises the total score while also accounting for the expected rate of occurrence of fragments from each field in a given document.
+In more detail, let E be the set of all fragments extracted from some particular document D.
+We are interested in the score of some subset G ⊆ E of D’s 28 fragments.
+Let score(G) be the chance that G is the correct set of fragments for D.
+Assuming that the correctness of the fragments can be determined independently given that the correct number of fragments have been identified for each field, then score(G) can be defined zero if ∃ (r1,r1),(s2,r2) ∈ G such that (s1,r1) overlaps (s2,r2), and score(G) = producttextf score(Gf) otherwise, where Gf ⊆ G is the fragments in G for field f.
+The score of Gf = {e1,e2,...} is defined as score(Gf) = Pr(|Gf|)·producttextj score(ej), wherePr(|Gf|) is the fraction of training documents that have |Gf| instances of field f.
+It is infeasible to enumerate all subsets G ⊆ E, so we perform a heuristic search.
+The states in the search space are pairs of the form (G,P), where G is a list of good fragments (i.e.
+fragments that have been accepted), and P is a list of pending fragments (i.e.
+fragments that haven’t yet been accepted or rejected).
+The search starts in the state ({},E), and states of the form (G,{}) are terminal states.
+The children of state (G,P) are all ways to move a single fragment from P to G.
+When forming a child’s pending set, the moved fragment along with all fragments that it overlaps are removed (meaning that the moved fragment is selected and all fragments with which it overlaps are rejected).
+More precisely, the children of state (G,P) are: braceleftbigg (Gprime,Pprime) vextendsinglevextendsingle vextendsinglevextendsingle e∈P ∧ Gprime=G∪{e} ∧ Pprime={eprime∈P |eprime doesnprimet overlap e} bracerightbigg. The search proceeds as follows.
+We maintain a set S of the best K non-terminal states that are to be expanded, and the best terminal state B encountered so far.
+Initially, S contains just the initial state.
+Then, the children of each state in S are generated.
+If there are no such children, the search halts and B is returned as the best set of fragments.
+Otherwise, B is updated if appropriate, and S is set to the best K of the new children.
+Note that K = ∞ corresponds to an exhaustive search.
+In our experiments, we used K = 5.
+4 Experiments
+To evaluate the performance of our algorithm we conducted experiments with four widely used corpora: the CMU seminar set, the Austin jobs set, the Reuters acquisition set [www.isi.edu/info-agents/RISE], and the MUC-7 named entity corpus [www.ldc.upenn.edu].
+We randomly partitioned each of the datasets into two evenly sized subsets.
+We then used these as labeled and unlabeled sets.
+In each experiment the algorithm was presented with a document set comprised of the test set and a randomly selected percentage of the documents from the training set.
+For example, if an experiment involved providing the algorithm with a 5% seed set, then 5% of the documents in the training set (2.5% of the documents in the entire dataset) would be selected at random and used in conjunction with the documents in the test set.
+For each training set size, we ran five iterations with a randomly selected subset of the documents used for training.
+Since we are mainly motivated by scenarios with very little training data, we varied the size of the training set from 1–10% (1–16% for MUC-7NE) of the available documents.
+Precision, recall and F1 were calculated using the BWI (Freitag and Kushmerick, 2000) scorer.
+We used all occurrences mode, which records a match in the case where we extract all of the valid fragments in a given document, but we get no credit for partially correct extractions.
+We compared TPLEX to BWI (Freitag and Kushmerick, 2000), LP2 (Ciravegna, 2001), ELIE (Finn and Kushmerick, 2004), and an approach based on conditional random fields (Lafferty et al., 2001).
+The data for BWI was obtained using the TIES implementation [tcc.itc.it/research/textec/toolsresources/ties.html].
+The data for the LP2 learning curve was obtained from (Ciravegna, 2003).
+The results for ELIE were generated by the current implementation [http://smi.ucd.ie/aidan/Software.html].
+For the CRF results, we used MALLET’s SimpleTagger (McCallum, 2002), with each token encoded with a set of binary features (one for each observed literal, as well as the eight token generalizations).
+Our results in Fig.
+2 indicate that in Acquisitions dataset, our algorithm substantially outperforms the competitors at all points on the learning curve.
+For the other datasets, the results are mixed.
+For SA and Jobs, TPLEX is the second best algorithm at the low end of the learning curve, and steadily loses ground as more labelled data is available.
+TPLEX is the least accurate algorithm for the MUC data.
+In Sec.
+5, we discuss a variety of modifications to the TPLEX algorithm that we anticipate may improve its performance.
+Finally, the graph in Fig.
+3 compares TPLEX for the SA dataset, in two configurations: with a combination oflabelledandunlabelleddocumentsasusual,andwith only labelled documents.
+In both instances the algorithm was given the same seed and testing documents.
+In the first case the algorithm learned patterns using both the labeled and unlabeled documents.
+However, in the second case, only the labeled documents were used to generate the patterns.
+These data confirm that TPLEX isindeedabletoimproveperformancefromunlabelled data.
+5 Discussion
+We have described TPLEX, a semi-supervised algorithm for learning information extraction patterns.
+The key idea is to exploit the following recursive definition: good patterns are those that extract good fragments, andgoodfragmentsarethosethatareextractedbygood patterns.
+This definition allows TPLEX to perform well withverylittletrainingdataindomainswhereotherapproaches that assume fragment redundancy would fail.
+29 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0 2 4 6 8 10 F1 Percentage of data used for training Tplex a51 a51 a51 a51 a51 a51 a51 Elie + + + + + + + BWI a50 a50 a50 a50 a50 a50 a50 CRF × × × × × LP2 triangle triangle triangle triangle triangle triangle triangle 0 0.05 0.1 0.15 0.2 0.25 0.3 0.35 0.4 0 2 4 6 8 10 F1 Percentage of data used for training Tplex a51 a51 a51 a51 a51 a51 a51 Elie+ + + + + + + BWIa50 a50 a50 a50 a50 a50 a50 CRF × × × × × 0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0 2 4 6 8 10 F1 Percentage of data used for training Tplexa51 a51 a51 a51 a51 a51 a51 Elie + + + + + + + BWI a50 a50 a50 a50 a50 a50 a50 CRF × × × × × 0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0 2 4 6 8 10 12 14 16 F1 Percentage of data used for training Tplexa51 a51 a51 a51 a51 a51 a51 Elie + + + + + + BWI a50 a50 a50 a50 a50 a50 a50 CRF × × × × × Figure 2: F1 averaged across all fields, for the Seminar (top), Acquisitions(second), Jobs(third)andMUC-NE (bottom) corpora.
+Conclusions. From our experiments we have observed that our algorithm is particularly competitive in scenarios where very little labelled training data is available.
+We contend that this is a result of our algorithm’s ability to use the unlabelled test data to validate the patterns learned from the training data.
+We have also observed that the number of fields that are being extracted in the given domain affects the performance of our algorithm.
+TPLEX extracts all fields simultaneously and uses the scores from each of the 0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0 2 4 6 8 10 F1 Percentage of data used for training Trained with unlabeled data a51 a51 a51 a51 a51 a51 a51 Trained with only labeled data + + + + + + + Figure 3: F1 averaged across all fields, for the Seminar dataset trained on only labeled data and trained on labeled and unlabeled data patterns that extract a given position to determine the most likely field for that position.
+With more fields in the problem domain there is potentially more information on each of the candidate positions to constrain these decisions.
+Future work.
+We are currently extending TPLEX in several directions.
+First, position filtering is currently performed as a distinct post-processing step.
+It would be more elegant (and perhaps more effective) to incorporate the filtering heuristics directly into the position scoring mechanism.
+Second, so far we have focused on a BWI-like pattern language, but we speculate that richer patterns permitting (for example) optional or reordered tokens may well deliver substantial increases in accuracy.
+We are also exploring ideas for semi-supervised learning from the machine learning community.
+Specifically, probabilistic finite-state methods such hidden Markov models and conditional random fields have been shown to be competitive with more traditional pattern-based approaches to information extraction (Fuchun and McCallum, 2004), and these methods can exploit the Expectation Maximization algorithm to learn from a mixture of labelled and unlabelled data (Lafferty et al., 2004).
+It remains to be seen whether this approach would be effective for information extraction.
+Another possibility is to explore semi-supervised extensions to boosting (d’Alch´e Buc et al., 2002).
+Boosting is a highly effective ensemble learning technique, and BWI uses boosting to tune the weights of the learned patterns, so if we generalize boosting to handle unlabelled data, then the learned weights may well be more effective than those calculated by TPLEX.
+Acknowledgements. This research was supported by grants SFI/01/F.1/C015 from Science Foundation Ireland, and N00014-03-1-0274 from the US Office of Naval Research.
+30 References E.
+Agichtein, L.
+Gravano, J.
+Pavel, V.
+Sokolova, and A.
+Voskoboynik. 2001.
+Snowball: A prototype system for extracting relations from large text collections.
+In Proc.
+Int. Conf.
+Management of Data.
+A. Blum and T.
+Mitchell. 1998.
+Combining labeled and unlabeled data with co-training.
+In Proc.
+11th Annual Conference on Computational Learning Theory, pages 92–100.
+S. Brin.
+1998. Extracting patterns and relations from the World Wide Web.
+In WebDB Workshop at the Int.
+Conf. Extending Database Technology.
+M. E.
+Califf and R.
+Mooney. 1999.
+Relational learning of pattern-match rules for information extraction.
+In Proc.
+American Nat.
+Conf. Artificial Intelligence.
+C. Cardie.
+1997. Empirical methods in information extraction.
+AI Magazine, 18(4).
+F. Ciravegna.
+2001. Adaptive information extraction from text by rule induction and generalisation.
+In Proc.
+Int. J.
+Conf. Artificial Intelligence.
+F. Ciravegna.
+2003. LP2: Rule induction for information extraction using linguistic constraints.
+Technical report, Department of Computer Science, University of Sheffield.
+M. Collins and Y.
+Singer. 1999.
+Unsupervised models for named entity classification.
+In Proc.
+joint SIGDAT Conference on Empirical Methods in Natural Language Processing and Very Large Corpora, pages 100–110.
+F.d’Alch´eBuc, Y.Grandvalet, andC.Ambroise. 2002.
+Semi-supervised MarginBoost.
+In Proc.
+Neural Information Processing Systems.
+O. Etzioni, M.
+Cafarella, D.
+Downey, A.
+Popescu, T.
+Shaked, S.
+Soderland, D.
+Weld, and A.
+Yates. 2005.
+Unsupervised named-entity extraction from the Web: An experimental study.
+Artificial Intelligence.
+In press.
+A. Finn and N.
+Kushmerick. 2004.
+Multi-level boundary classification for information extraction.
+In Proc.
+European Conf.
+Machine Learning.
+D. Freitag and N . Kushmerick.
+2000. Boosted wrapper induction.
+In Proc.
+American Nat.
+Conf. Artificial Intelligence.
+P. Fuchun and A.
+McCallum. 2004.
+Accurate information extraction from research papers using conditional random fields.
+In Proc.
+Human Language Technology Conf.
+N. Kushmerick and B.
+Thomas. 2003.
+Adaptive information extraction: Core technologies for information agents.
+Lecture Notes in Computer Science, 2586.
+J. Lafferty, A.
+McCallum, and F.
+Pereira. 2001.
+Conditional random fields: Probabilistic models for segmenting and labeling sequence data.
+In Proc.
+Int. Conf.
+Machine Learning.
+J. Lafferty, X.
+Zhu, and Y.
+Liu. 2004.
+Kernel conditional random fields: Representation, clique selection, and semi-supervised learning.
+In Proc.
+Int. Conf.
+Machine Learning.
+A. McCallum.
+2002. Mallet: A machine learning for language toolkit.
+http://mallet.cs.umass.edu. E.
+Riloff and R.
+Jones. 1999.
+Learning dictionaries for information extraction by multi-level bootstrapping.
+In Proc.
+American Nat.
+Conf. Artificial Intelligence.
+E. Riloff.
+1993. Automatically constructing a dictionaryforinformationextractiontasks.
+InProc.American Nat.
+Conf. Artificial Intelligence.
+E. Riloff.
+1996. Automatically generating extraction patterns from untagged text.
+In Proc.
+American Nat.
+Conf. Artificial Intelligence.
+S. Soderland.
+1999. Learning information extraction rules for semi-structured and free text.
+Machine Learning, 34(1-3):233–272.
+M. Stevenson and M.
+Greenwood. 2005.
+Automatic learning of information extraction patterns.
+In Proc.
+19th Int.
+J. Conf.
+on Artificial Intelligence.
+V. Vapnik.
+1998. Statistical learning theory.
+Wiley. R.
+Yangarber, W.
+Lin, and R.
+Grishman. 2002.
+Unsupervised learning of generalised names.
+In Proc.
+Int. Conf.
+Computational Linguistics.
+D. Yarowsky.
+1995. Unsupervised word sense disambiguation rivaling supervised methods.
+In MeetingoftheAssociationforComputationalLinguistics, pages 189–196 .
+

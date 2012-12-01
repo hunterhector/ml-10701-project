@@ -1,0 +1,653 @@
+Analyzing Chinese Synthetic Words with Tree-based Information
+and a Survey on Chinese Morphologically Derived Words
+Jia Lu
+NaraInstituteof
+ScienceandTechnology
+jia-l@is.naist.jp
+Masayuki Asahara
+NaraInstituteof
+ScienceandTechnology
+masayu-a@is.naist.jp
+Yuji Matsumoto
+NaraInstituteof
+ScienceandTechnology
+matsu@is.naist.jp
+Abstract
+The lack of internal information of Chinese
+synthetic words has become a crucial prob-
+lemforChinesemorphologicalanalysissys-
+tems which will face various needs of seg-
+mentationstandardsforupperNLPapplica-
+tions in the future. In this paper, we first
+categorizeChinesesyntheticwordsintosev-
+eraltypesaccordingtotheirinsidesemantic
+and syntactic structure, and then propose a
+methodtorepresenttheseinsideinformation
+of word by applying a tree-based structure.
+Thenwetrytoautomaticallyidentifythein-
+ner morphological structure of 3-character
+syntheticwordsbyusingalargecorpusand
+try to add syntactic tags to their internal
+structure. We believe that this tree-based
+word internal information could be useful
+in specifying a Chinese synthetic word seg-
+mentationstandard.
+1 Introduction
+Chinesewordsegmentationhasalwaysbeenadiffi-
+cult and challenging task in Chinese language pro-
+cessing. Several Chinese morphological analysis
+systems have been developed by different research
+groups and they all have quite good performance
+when doing segmentation of written Chinese. But
+therestillremainsomeproblems. Thebiggestoneis
+that each research group has its own segmentation
+standard for their system, which means that there
+is no single segmentation standard for all tagged
+corpora which can be agreeable across different re-
+search groups. And we believe that this situation
+slowsdowntheprogressofChineseNLPresearch.
+Among all the differences of segmentation stan-
+dards, the segmentation method for Chinese syn-
+thetic words is the most controversial part because
+Chinesesyntheticwordshaveaquitecomplexstruc-
+ture and should be represented by several segmen-
+tion levels according to the needs of upper applica-
+tionssuchasMT,IRandIME.
+For instance, a long(upper level) segmentation
+unit may simplify syntactic analysis and IME ap-
+plicationbutasmall(lowerlevel)segmentationunit
+might be better for information retrieval or word-
+based statistical summarization. But for now, no
+Chinese morphological analysis system can do all
+kindsoftheseworkwithonlyonesegmentationstan-
+dard.
+Furthermore,althougheverysegmentationsystem
+has goodperformance, intheanalysisofrealworld
+text, there are still many out-of-vocabulary words
+whichcouldnotbeeasilyrecognizedbecauseofthe
+flexibility of Chinese synthetic word construction,
+especiallypropernamesthatcouldalwaysappearas
+syntheticwords.
+InordertomakeourChinesemorphologicalanal-
+ysis system to recognize more out-of-vocabulary
+wordsandtofitdifferentkindsofNLPapplications,
+we try to analyze the structure of the internal infor-
+mationofChinesesyntheticwords,categorizethem
+intosemanticandsyntactictypesandstorethesein-
+formationintoasyntheticworddictionarybyrepre-
+sentingthemwithakindoftreestructurebuiltonour
+systemdictionary.
+Inthispaper,wefirstmakethedefinitionofChi-
+53
+Sixth SIGHAN Workshop on Chinese Language Processing
+nese synthetic words and classify them into several
+categories in Section 2. In Section 3, two previous
+researchesonChinesesyntheticwordswillbeintro-
+duced. Then we propose a tree-based method for
+analyzing Chinese synthetic words and make a sur-
+vey focused on 3-character morphological derived
+wordstogetthefeaturesforfuturemachinelearning
+process. In Section 4, we do an experiment by us-
+ingSVMclassifiertoannotate3-charactermorpho-
+logically derived words. Finally, Section 5 shows
+howthismethodcouldbenefitChinesemorphologi-
+calanalysisandourfuturework.
+2 Detailed
+study of Chinese synthetic
+words
+2.1 Definition
+of Chinese words
+There has always been a common belief that Chi-
+nese 'doesn't have words', but instead has 'charac-
+ters', or that Chinese 'has no morphology' and so is
+'morphologicallyimpoverished',becauseinChinese
+a'word'isbynomeansaclearandintuitivenotion.
+ButactuallyfornativeChinesespeakers,theyknow
+that words are those lexical entries which represent
+acompleteconceptandoccurinnatelyintheformof
+specificlanguagerulesbasedonthespeaker'smental
+lexicon.
+ThoughtherearealotofwaystoclassifyChinese
+words,webelievethatChinesewordsshouldbefirst
+divided into single-morpheme words and synthetic
+words according to the way of construction of their
+internalparts.
+Single-morpheme words are those that could not
+be divided into smaller parts when representing as
+thewholeconcept. Inotherwords,ifwedividesin-
+gle morpheme words into characters or parts, the
+meaningofindividualpartsbecomeindependentand
+doesnotindicateanyconnectionwiththemeaningof
+the original word. Following are the three different
+typesofsingle-morphemewords:
+ one-characterwords:
+人[human],马[horse],车[vehicle]
+`one-morphemewords:
+鹌鹑[quail],翡翠[jadeite]
+鸳鸯[mandarinduck]
+´transliterationwords:
+比萨[pizza],肯德基[Kentucky]
+阿司匹林[aspirin]
+The first kind is obvious single words in that an
+ordinarycharacterinChinesestandsforanindepen-
+dentmorphemewithoneorseveralsenses. Thesec-
+ondkindshowsthosewordswhicharecomposedof
+several characters and always used as a whole. For
+the last kind, as can be seen from the above exam-
+ples, if we divide肯德基[Kentucky] into '肯[can]',
+'德[moral]' and '基[base]', it definitely can not indi-
+cate the meaning of the well-known fried chicken
+restaurant chain from those three characters. So
+thesethreekindsofsingle-morphemewordsshould
+be segmented as one word in any morphological
+analysissystems.
+However, it becomes much more complicated
+whendealingwithsyntheticwords. Generally,syn-
+thetic words are the type of words which are com-
+posed of single-morpheme words and represent a
+newentityormeaningwhichcanbeindicatedfrom
+the internal constituents. According to this defini-
+tion,ifwedividesyntheticwordsintosmallerparts,
+we could still somehow guess the original meaning
+from the meaning of internal parts despite the fact
+thatitmaynotbeaverypreciseone. Forexamplethe
+word司机[driver]. Ifwedon'tknowthemeaningof
+'司机',butwedoknowthemeaningof'司'is'control'
+and the meaning of '机' is 'machine'. Then we can
+guessthemeaningof'司机'maybeconnectedwith
+'control'and'machine',andactuallytherealmeaning
+isthepersonwhodrives(controls)acar(machine).
+In Chinese language, according to the encoding
+standard of GB2312, there are about 6,763 com-
+monlyusedcharacters. Andinourownsystemdic-
+tionary which has about 129,440 word entries, the
+numberofone-characterwordsisonly6,188(about
+4.78%). Fromthesefigures,weknowthatmostChi-
+nese words belong to synthetic words and a deep
+analysisforsyntheticwordsisnecessaryforChinese
+languageprocessing.
+2.2 Classification
+of Chinese synthetic words
+The Synthetic words may be understood as the re-
+sult or 'output' of a word-formation rule in Chi-
+neselanguage. ClassificationoftheseChinesesyn-
+theticwordsisadifficulttaskbecausethe'formation
+rule' is not so obvious and sometimes even a native
+speaker can not determine which category a word
+54
+Sixth SIGHAN Workshop on Chinese Language Processing
+Figure1: TypesofChinesesyntheticwords
+should belong to. However, since it is quite impor-
+tant to understand the structure of Chinese words,
+there have been a lot of research on classification
+ofChinesesyntheticwordsfrombothlinguisticand
+computational points of view until now. Each of
+themhasdividedsyntheticwordsintodifferentcat-
+egories according to their own criteria. In our re-
+search,basedonourexperienceonChinesemorpho-
+logicalanalysisandunknownworddetection,wedi-
+vide Chinese synthetic words into the categories as
+shown in Figure 1 to help us understand the inner
+constituentsofthem.
+2.3 Compound
+words
+Compoundwords,whoseinternalconstituentshave
+some syntactic relations with each other, can be
+divided into the following six kinds according to
+(YuanjianHe,2004 ).
+• Subject-predicate[主谓式]
+words that only have subject and predicate
+parts. This type is subdivided into two types:
+SVandVS.
+VS:搬运/工[porter],裁判/员[referee]
+SV:胃/下垂[gastroptosia],地/震[earthquake]
+• Verb-object[动宾式]
+words that have verb and object parts, which
+containstwotypes: VOandOV.
+OV:党/代表[representativeofparty]
+VO:理/发[haircut],反/政府[anti-government]
+• Verb-modification[动词偏正式]
+wordsthathaveaverbpartandanadjunctpart
+whichareneithersubjectnorobjectoftheverb.
+The adjunct part always shows the property of
+the verb part or be the media of the verb's ac-
+tion.ThistypecontainsVXandXV.
+VX:放大/器[amplifier],冲印/店[printshop]
+XV:自动/控制[automaticcontrol]
+批/发[wholesale]
+• Predicate-complement[述补式]
+words that have a verb part and a complement
+part,whichshowstheresult,directionoraspect
+of the action. This type also have two kinds:
+VVandVA.
+VV:跑/出来[runningoutof]
+打发/掉[getridof]
+VA:染/红[dyeingred]
+• Parallel-combination[联合式]
+words that have a coordinate structure where
+themeaningsofconstituentsaresame,similar,
+relatedoropposite.
+Example:开/关[switch],学/习[learning]
+国/家[nation],兄/弟[brother]
+中/日/韩[China,JapanandKorea]
+• Noun-modification[名词偏正式]
+wordsthathaveanounpartwhichistherootof
+theword,andamodificationpartwhichshows
+thepropertyofthenounpart.
+Example:电/脑[computer],书/架[bookshelf]
+汽车/站[busstop]
+Herewehavemadesomecompromiseswiththese
+categories mentioned above based on the simplic-
+ity of machine learning process and our experience
+on tagging compund words. For example, we only
+55
+Sixth SIGHAN Workshop on Chinese Language Processing
+define SV and VS as the subject-predicate type be-
+cause it will make machine learning process much
+easier when it comes to those words with a struc-
+turelikeSVOorSVX.Futhermore, inthecasethat
+a word with an internal constituent which has both
+NN and VV parts of speech, even human annota-
+tors can not easily tell which type this word should
+be categarized into between noun-modification and
+verb-modification. So we tagged all these words to
+verb-modification when they have an internal part
+withbothNNandVVpartsofspeech.
+2.4 Morphologically
+derived words
+Morphologically derived words are those which
+have specific word formation. It can be categoried
+intothefollowingtypes:
+• Merging
+words that are composed of two adjacent and
+semantically related words, which have some
+characters in common. It could be seen as a
+kindofabbreviation.
+Example:中学+小学 中小学
+[middleandpreliminaryschool]
+上文+下文 上下文[context]
+北京市+市长 北京市长
+[mayerofBeijingcity]
+• Reduplication
+words that contain some reduplicated charac-
+ters. There are eight main patterns of redu-
+plication: AA, ABAB, AABB, AXA, AXAY,
+XAYA,AABandABB.
+Example:听/听[listen],雄/赳赳[valiantly]
+研究/研究[research]
+• Affixation
+words that are composed of a word and an af-
+fix(eitheraprefix,asuffixoraninfix).
+Example:副主席[vicepresident]
+总工程师[ExecutiveEngineer]
+看不到[can'tsee]
+听得见[canhear]
+调查局[bureauofinvestigation]
+安全厅[securityagency]
+2.5 Exceptions
+Apart from compound words and morphologically
+derivedwords,therestillexistsometypesofwords
+which need discussion about whether they belong
+to synthetic words or not. However, we can use
+someothermethodsliketimeexpressionextraction
+ornamedentityrecognitiontodealwiththesekinds
+ofwords.
+• Abbreviations
+expressions that have a short appearance, but
+standforalongterm.
+Example:中共 中国共产党
+[CommunistPartyofChina]
+• Factoids
+expressions that indicate date, time, number,
+money,scoreorrange. Thiskindofexpressions
+havealargevariationintheirappearance.
+Example: 2007.1.30
+五点半[fivethirty]
+三块五毛六[3.56yuan]
+• Idioms,proverbs,sayingsandpoems
+expressions that usually consist of more than
+three characters and always have a special
+meaning.
+Example:门可罗雀[sparselyvisited]
+先天下之忧而忧
+[betheFirsttobearhardships]
+3 Previous
+research and tree-based
+method
+3.1 Previous
+research
+Until now, there is little specific research on Chi-
+nesesyntheticwords. However,everyinstitutionhas
+itsownwayofdealingwithsyntheticwordsintheir
+segmentationstandardwhendoingChinesemorpho-
+logical analysis. There are two main previous re-
+searchesontheanalysisofChinesesyntheticwords.
+The first one is done by Microsoft ( Andi Wu,
+2003 )bycreatingacustomizablesegmentationsys-
+temofChinesemorphologicallyderivedwords. This
+system uses a parameter driven method which can
+divide synthetic words into different levels of word
+56
+Sixth SIGHAN Workshop on Chinese Language Processing
+components based on some pre-defined rules, ac-
+cording to the needs of different NLP application.
+For instance, in machine translation, we will trans-
+late '烤面包器' into 'toaster' if our system dictio-
+nary has this kind of information. But if we do
+not have this entry in our dictionary, we have to
+split '烤面包器[toaster]' into lower level such as
+'烤[bake] /面包[bread] /器[machine]', the transla-
+tionofwhichwillprobablygiveussomeinformation
+about the original meaning of the whole word. Al-
+thoughthissystemachieveshigherscorethanother
+systems that do not have synthetic analysis, it only
+takes morphologically derived words into account,
+which means it does not contain information about
+internalsyntacticrelations.
+The second one ( C. Huang, 1997 ) is actually a
+proposal of segmentation standard rather than a de-
+tailed synthetic word analysis research. It is first
+used by Sinica when doing the tagging task of Chi-
+nese word segmentation. If the tagging object is
+a synthetic word, one tag among w0, w1 and w2,
+whichstandfor'faithful','truthful'and'graceful',will
+be selected for it. For example, if we have a syn-
+thetic word '北京市安全厅[security agency of Bei-
+jingcity]',thistaggingmethodwilldividetheword
+asfollows:
+<w2 >
+<w1 ><w0 >北京</w0 ><w0 >市</w0 ></w1 >
+<w1 ><w0 >安全</w0 ><w0 >厅</w0 ></w1 >
+</w2 >
+Again,thiskindofmethoddoesnottakewordin-
+ternal syntactic relations into account either. Fur-
+thermore,itevendoesnothavethePOSinformation
+of different levels of word, thus can not be used to
+constructacustomizablesystem.
+3.2 Synthetic
+word analysis with tree-based
+structure information
+For specifying consistent Chinese segmentation
+standardforourmorphologicalanalysissystemand
+fertilizingtheinformationofourdictionary,wepro-
+pose a synthetic word analysis method with tree-
+basedstructureinformation.
+We assume that words which are already in our
+currentsystemdictionarycouldbewordcomponents
+of other out-of-vocabulary synthetic words. So the
+first thing to do is to classify all synthetic words
+inourcurrentdictionaryintothecategoriesdefined
+insection2.2. Becauseintuitivelymost2-character
+words,thoughtheycouldhaveinternalsyntacticre-
+lations, are often used as single words by native
+speakersandhavealreadybeenregisteredaslexical
+entries in our Chinese dictionary, we can first clas-
+sify all 3-character words into those categories and
+link their internal components to 1-character words
+and2-characterwordswhicharealreadyinourdic-
+tionary.
+After finishing the internal structure annotation
+for 3-character words, we can easily construct 4-
+character or 5-character words' structure by using
+3-character and 2-character words' information and
+storethesestructureinformationintosyntheticword
+dictionary.
+Finally, when we get a long synthetic word, we
+can build a tree structure recursively like in Figure
+2 byusingtheconstituentwords'internalstructures,
+whichhavealreadybeenstoredinoursyntheticword
+dictionary.
+Figure 2: Synthetic word tree of '副国务院发言人
+[vicespokesmanofStateDepartment]'
+When constructing this kind of tree, we can use
+someruleswhichhavethefollowingform:
+A+B Category
+or A+B+C  Category
+where A, B and C are parts of speech, affixation
+orotherpropertiesofwordcomponents.
+3.3 Annotation
+of morphologically derived
+words in system dictionary
+Usually, in Chinese, 2-character words are thought
+and used as single words by native speakers. And
+words which have more than two characters are of-
+ten synthetic words which can be categorized into
+57
+Sixth SIGHAN Workshop on Chinese Language Processing
+compoundwordsormorphologicallyderivedwords.
+So during our work of analyzing Chinese synthetic
+words,wefirstchoose3-characterwordsasourmain
+target in that starting from 3-character words will
+give us a good chain effect when analyzing words
+whichhavemorethanthreecharacters.
+At first, there is no other resource at hand ex-
+cept for the morphological analysis system dictio-
+nary with 129440 entries. Because a standard set
+with all category information of Chinese synthetic
+words is needed in further research, we first ex-
+tracted 1000 3-character words from our dictionary
+and annotated them by hand according to the cate-
+gories introduced in section 2. As the result of hu-
+subject-predicate 4.8%
+verb-object 2.0%
+verb-modification 21.3%
+predicate-complement 3.2%
+parallel-combination 0.2%
+noun-modification 62.9%
+single-morphemeword 5.4%
+Table1: Compoundwordsin1000words
+manannotation,Table 1 and 2 showthedistribution
+of compound words and morphologically derived
+words. In Table 1 , although about 6% of the 1000
+words are single-morpheme words, we still can see
+thatnoun-modificationwordsoccupythelargestpart
+(62.9%)insyntheticwordsfromasyntacticpointof
+view. Table 2 givesustheinformationthatmostsyn-
+prefix infix suffix merging reduplication
+9.0% 0.5% 83.0% 1.5% 0.2%
+Table 2: Morphologically derived words in 1000
+words
+theticwords(83%)haveaninternalstructurewitha
+suffix.
+Since most 3-character Chinese words have the
+structure such as 'two+one' or 'one+two' character
+formation, it is obvious that we should first look at
+noun-modification words with frequently used suf-
+fixesasthebeginningofouranalysis. Wecouldget
+a list of characters of possible affixation from this
+processtoo. Furthermore,wealsofindthatparallel-
+combinationwordsandreduplicationwordstendto
+have some fixed structures which makes them easy
+torecognize.
+4 Experiment
+on Morphologically derived
+words
+In order to apply our proposed tree-based analysis
+method, we first have to annotate all 3-character
+words in our dictionary with their internal parts
+linked to 2-character and 1-character words. Be-
+causemostChinese3-characterwordshaveprefixor
+suffixstructure,weassumethatitwillbemucheffi-
+cientforustoannotate3-characterwordsifwecan
+classifythemfromtheaspectofmorphologicallyde-
+rivedwords.
+Becausewedon'thaveanyotherusefulresources
+exceptChineseGigaword(CGW),Wefirstcomputed
+mutualinformationforall3-characterwordsintwo
+ways by referencing the CGW. For example, if we
+haveawordABCandweassumethatA,C,ABand
+BCareallindependententriesinourdictionary,we
+compute the mutual information Mi-pre for A and
+BC, and the mutual information Mi-suf for AB and
+C.
+SinceA,C,ABandBCareallindependentwords,
+iftheresultshowsMi-pre <Mi-suf,wecouldsaythat
+therelationbetweenAandBCismoreindependent
+thantherelationbetweenABandC,whichmeansit
+is more possible that A and some other 2-character
+word XY cound form the word AXY. So the possi-
+bilityofAbeingaprefixisgreaterthanthepossibil-
+ityofCbeingasuffix. Thenwecouldconcludethat
+thewordABChasaprefixinternalstructure. Other-
+wise,wecouldsayithassuffixinternalstructure.
+Afterthisprocess,wegotaMi(Mi-preorMi-suf)
+andapossibleinternalstructure(prefixorsuffix)for
+every 3-character word in system dictionary. By
+comparingtheseresultstothe1000extractedwords
+whoseinternalstructurehasbeenalreadyknown,we
+caneasilygetthecorrectoneswhosepossibleinter-
+nal structure is the same as the ones annotated by
+hand.
+Except for the ones which have infix, merging
+or redplicationstructure, thereare920wordsinthe
+1000 extracted words which are tagged as prefix or
+suffix structure by hand. After comparing, we got
+58
+Sixth SIGHAN Workshop on Chinese Language Processing
+676 out of 920 words(73.48%), which was divided
+correctly by only looking at the internal mutual in-
+formationinalargecorpus(ChineseGigaword).
+The above result shows that overall accuracy is
+quitelowbyonlytakingaccounttheinternalmutual
+informationwhenclassifyingprefixandsuffixstruc-
+ture. Someexamplesofwronglyclassifiedwordsare
+showninTable 3 .
+words Mi-pre Mi-suf result
+个体户7.024e-07 9.981e-07个/体户
+水彩画1.084e-06 1.171e-05水/彩画
+宝莲灯1.384e-05 1.978e-05宝/莲灯
+交响曲1.993e-06 2.440e-06交/响曲
+大批量8.971e-08 6.762e-08大批/量
+Table3: Examplesofwronglydividedwordsbyonly
+usingmutualinformation
+As shown in Table 3 , most uncorrect ones are
+words having suffix internal structure but wrongly
+classified to have prefix internal structure. This is
+becauseweonlycountedthefrequenciesofinternal
+partsofwordswithoutconsiderringtheirproperties
+such as parts of speech and the frequencies that the
+internalpartsshowoutataparticularposition,etc.
+Inordertoimprovethewholeaccuracywhenrec-
+ognizingprefixorsuffixinternalstructureautomati-
+cally,weusedanSVMclassifierwiththefollowing
+features(inthecaseof3-characterstringABC):
+1.internalpart: A,C,BC,AB,ABC
+2.posofeachinternalpart:
+pos(A),pos(C),pos(BC),pos(AB),pos(ABC)
+3.frequencyofeachpartinChineseGigaword:
+fre(A),fre(C),fre(BC),fre(AB),fre(ABC)
+4.mutualinformationofinternalpart:
+Mi-pre(A-BC),Mi-suf(AB-C)
+(In the actual classification process, we set the fre-
+quency range by 2000 and the mutual information
+rangebylog 10)
+Afterdividing80%of920wordsintotraningset
+and20%intotestingset,theaccuracyofSVMclas-
+sifieris94.02%. Theprecisionandrecallareshown
+in the first row of Table 4 . Because the above ex-
+periment(A)didnottaketheexistenceof2-character
+wordsinsystemdictionaryintoaccount,wethenadd
+thesefeaturesandruntheSVMclassifieragain. Fi-
+Exp Acc. F Prefix(%) Suffix(%)
+(%) Rec. Pre. Rec. Pre.
+A 94.02 0.56 38.89 100.0 100.0 93.79
+B 94.57 0.67 55.56 83.33 98.80 95.35
+Table 4: Results of Recall and Precision for words
+whichhaveprefixorsuffixstructure
+nallywegettheresultofexperiment(B)showninthe
+secondrowofTable 4 .
+This result is quite unbalanced because there
+are only a few intances of prefixes both in
+training(72/736=9.78%)andtesting(18/184=9.78%)
+sets. This is the reason of low recall in classifying
+instances of prefixes. The following words are the
+oneswhichwerewronglyclassified.
+主色调，土坷垃，大批量，小卖部，山大王
+市中心，菲军方，零备件，学联会，罗影剧
+It turns out that these words contains mainly two
+types: the first type contains word like '大批量', a
+prefixstructurewordwhoselastcharacterhasaquite
+highprobabilitytobeasuffix. Thismakesitdifficult
+forSVMtodeterminetowhichclassthewholeword
+shouldbeclassified; anexampleofthesecondtype
+is suffix structure word like '罗影剧', whose front
+part'罗影'doesnotappearintheChineseGigaword
+independently, which in the end make it unsure for
+SVMtoclassifyitintosuffixstructureword.
+Though there are some words that were wrongly
+categorized, we still got a overall accuracy of
+94.57% which would be much higher if we recur-
+sivelyuseSVMsforclassification. Webelievethat
+this method could classify morphologically derived
+wordsquiteefficientlyifweaddsomemorerulesfor
+recognizing merging and reduplication words. And
+byapplyingthetree-basedmethod,wecouldusethis
+methodonwordswithmorethan3charactersinfu-
+ture.
+5 Conclusion
+and future work
+Thispaperproposedatree-basedmethodforanalyz-
+ing Chinese synthetic words by constructing a Chi-
+nesesyntheticworddictionary. Thismethodisbased
+ontheclassificationofChinesesyntheticwordsboth
+fromsyntacticandmorphologicalways. Afteranno-
+tatingandinvestigatingthedistributionofonethou-
+sand 3-character words, we used frequencies and
+59
+Sixth SIGHAN Workshop on Chinese Language Processing
+mutual information as features from Chinese Giga-
+wordformachinelearning. Withthesefeatures,we
+triedtoclassifymorphologicallyderivedwordsinto
+prefixorsuffixinternalstructurebyusingSVMclas-
+sifier.
+Forfuturework,wehavetotakeothermorpholog-
+ical internal structures into account and try to clas-
+sifyallsyntheticwordsintomorphologicallyderived
+word categories. Then, we should also find some
+thesaurusthatcontainsyntacticinformationofwords
+orcharacterstohelpusanalyzethecompoundwords'
+internal structure. Finally, after gathering the infor-
+mation of Chinese synthetic words from both syn-
+tacticandmorphologicalaspect,wewillbuildaChi-
+nesesyntheticworddictionaryandtrytouseittoim-
+provetheperformanceofourmorphologicalanalysis
+systemandunknownwordextraction.
+References
+[AndiWu2003] Andi Wu. 2003. Customizable Segmen-
+tation of Morphologically Derived Words in Chinese.
+Vol.8, No.1, February 2003, pp. 1-28 Computational
+LinguisticsandChineseLanguageProcessing
+[C.Huang1997] C. Huang, K.ChenandL.Chang 1997.
+Segmentation standard for Chinese natural language
+processing. International Journal of Computational
+LinguisticsandChineseLanguageProcessing
+[Chooi-LingGoh2006] Chooi-LingGoh,JiaLu,Yuchang
+Cheng,MasayukiAsaharaandYujiMatsumoto 2006.
+The Construction of a Dictionary for a Two-layer Chi-
+nese Morphological Analyzer. PACLIC2006
+[HiroshiNakagawa,HiroyukiKojima,AkiraMaeda2004]
+Hiroshi Nakagawa, Hiroyuki Kojima, Akira Maeda
+2004. ChineseTermExtractionfromWebPagesBased
+on Compound word Productivity. Third SIGHAN
+Workshop on Chinese Language Processing, ACL
+2004
+[HuihsinTsengandKeh-JiannChen2002] Huihsin Tseng
+and Keh-Jiann Chen 2002. Design of Chinese Mor-
+phological Analyzer. FirstSIGHANWorkshop2002
+[JeromeL.Packard2000] Jerome L. Packard 2000. The
+Morphology of Chinese-A Linguistic and Cognitive
+Approach.
+[Keh-JiannChen,Chao-janChen2000] Keh-Jiann Chen,
+Chao-jan Chen 2000. Automatic Semantic Classifi-
+cation for Chinese Unknown Compound Nouns. ACL
+2000
+[ShengfenLuoandMaosongSun2003] Shengfen Luo
+and Maosong Sun 2003. Two-character Chinese
+Word Extraction Based on Hybrid of Internal and
+Contextual Measures. ACL2003
+[YuanjianHe2004] YuanjianHe 2004.汉语真假复合词
+-从普遍语法原则看汉语复合词的语序、类型及结构.
+TheChineseUniversityofHongKong
+60
+Sixth SIGHAN Workshop on Chinese Language Processing
+

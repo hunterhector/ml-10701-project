@@ -1,0 +1,855 @@
+Proceedings of the Workshop on BioNLP, pages 133–141,
+Boulder, Colorado, June 2009. c 2009 Association for Computational Linguistics
+IdentifyingInteractionSentencesfrom BiologicalLiterature Using
+AutomaticallyExtractedPatterns
+HaibinLiu
+Facultyof ComputerScience
+DalhousieUniversity
+Halifax, NS, Canada
+haibin@cs.dal.ca
+ChristianBlouin
+Facultyof ComputerScience
+DalhousieUniversity
+Halifax, NS, Canada
+cblouin@cs.dal.ca
+VladoKeˇselj
+Facultyof ComputerScience
+DalhousieUniversity
+Halifax, NS, Canada
+vlado@cs.dal.ca
+Abstract
+An important task in information retrieval is to
+identifysentencesthatcontainimportantrelation-
+ships between key concepts. In this work, we
+proposea novel approachto automaticallyextract
+sentencepatternsthat containinteractionsinvolv-
+ing concepts of molecular biology. A pattern is
+definedin this work as a sequenceof specialized
+Part-of-Speech(POS) tags that capturethe struc-
+ture of key sentences in the scientific literature.
+Eachcandidatesentencefor the classificationtask
+is encoded as a POS array and then aligned to
+a collectionof pre-extracted patterns. The qual-
+ity of the alignment is expressed as a pairwise
+alignmentscore. The mostinnovative component
+of this work is the use of a Genetic Algorithm
+(GA) to maximizethe classificationperformance
+of the alignment scoring scheme. The system
+achieves an F-score of 0.834 in identifyingsen-
+tences which describe interactionsbetween bio-
+logical entities. This performanceis mostly af-
+fected by the quality of the preprocessingsteps
+such as term identificationand POS tagging.
+1 Introduction
+Recent research in informationextraction (IE) in bio-
+logical science has focused on extracting information
+about interactionsbetweenbiologicalentities from re-
+search communications.The type of interactionof in-
+terestincludesprotein-protein,protein-DNA, gene reg-
+ulations and other interactions between macromole-
+cules. This work broadens the definition of the term
+“interaction” to include other types of concepts that
+are semantically related to cellular components and
+processes. This contrasts with the past efforts focus-
+ing strictly on molecularinteractions(Blaschke et al.,
+1999; Ono et al., 2001). We anticipatethat identifying
+the relationshipsbetween concepts of molecular biol-
+ogy will facilitate the building of knowledge models,
+improve the sensitivity of IE tasks and ultimatelyfacil-
+itate the formulationof new hypothesisby experimen-
+talists.
+The extractionof interactionsis based on the heuris-
+tic premise that interacting concepts co-occur within
+a given section of text. The challenge is that co-
+occurrencecertainlydoes not guaranteethat a passage
+contains an interaction(Janget al., 2006; Skusa et al.,
+2005). Co-occurrenceis highly dependent on the de-
+finition of the section of text within which the target
+terms are expected to be found. A thorough compari-
+son on the predictionof protein-proteininteractionbe-
+tween abstract-level co-occurrenceand sentence-level
+co-occurrencewas undertaken (Raychaudhuri,2006).
+It is demonstratedthat abstract co-occurrenceis more
+sensitive but less specific for interactions. At the cost
+of widecoverage,sentenceco-occurrenceincreasesthe
+accuracy of interactionprediction. Since the ultimate
+goal of IE is to extract knowledge and accuracy is the
+most important aspect in evaluating the performance
+of such systems, it makes sense to focus the effort
+in seeking interaction sentences rather than passages
+or abstracts. Not every co-occurrence in sentences
+implies a relationship that expresses a fact. In the
+2005 GenomicsTrack dataset,50% of all sentenceco-
+occurrencesof entities correspondto definite relation-
+ships while the rest of the co-occurrencesonly convey
+some possible relationshipsor contain no relationship
+of interest (Li et al., 2005). Therefore,more sophisti-
+catedtext miningstrategies are requiredto classifysen-
+tences that describe interactionsbetween co-occurring
+concepts.
+In the BioCreative II challenge1, teams were asked
+to determinewhethera given passageof text contained
+informationaboutthe interactionbetweentwo proteins.
+This classificationtask worked at the abstractlevel and
+the interactingproteinpairs were not requiredto be ex-
+tracted. The task for the Learning Languagein Logic
+1http://biocreative.sourceforge.net/
+133
+(LLL’05) challenge 2 was to build systems that ex-
+tract interactionsbetween genes or proteins from bio-
+logical literature. From individual sentencesannotated
+withagent-target relations,patternsor modelshad to be
+learned to extract these interactions. The task focused
+on extractingonly the interactingpartners.The context
+of an interactionmay also be critical to the validity of
+the extractedknowledgesince not all statementsfound
+in the literatureare always true.
+In this work, we propose an approach to automati-
+callyextractpatternscontainingrelevant interactionbe-
+tween biologicalconcepts. This extractionis based on
+the assumptionthat biological interactionsare articu-
+lated by a limited number of POS patterns embedded
+in sentences where entities/conceptsare co-occurring.
+Theextractedpatternsare thenappliedto identifyinter-
+action sentences which describe interactions between
+biological entities. Our work aims to identify precise
+sentencesrather than passages. Because of the nature
+of the patterns,we hope that some of the contextual in-
+formation present in interaction sentences also play a
+role in the classificationtask.
+The rest of the paperis organizedas follows: In Sec-
+tion2, we review recentresearchadvancesin extracting
+biologicalinteractions. Section 3 describesan experi-
+mental system designed for our work. Sections 4, 5
+and 6 elaborate the approaches and algorithms. Per-
+formanceis evaluated in Section 7. Finally, Section 8
+summarizesthe paper and introducesfuture work.
+2 Relatedwork
+Early on, Blaschke (Blaschke et al., 1999) employed
+patternsto predictthe presenceof a protein-proteinin-
+teraction. A series of patterns was developed manu-
+ally to cover the most obvious descriptionsof protein
+functions. This process was based on a set of key-
+words, includinginteractionverbs, that are commonly
+usedto describethis type of interaction.A sentenceex-
+tractionsystemBioIE (Divoli and Attwood, 2005) also
+uses patternsto extract entire sentencesrelated to pro-
+tein families,proteinstructures,functionsand diseases.
+The patterns were manually defined and consisted of
+singlewords, word pairs, and small phrases.
+Although systems relying on hand-coded patterns
+have achieved somesuccessin extractingbiologicalin-
+teractions, the strict requirement of dedicated expert
+work is problematic. Moreover, each type of interac-
+tion may requirea definitionof many differentpatterns
+includingdifferent arrangementsand different variants
+2http://genome.jouy.inra.fr/texte/LLLchallenge/
+of the same keyword. Manuallyencoding all patterns
+encounteredin a corpus is time-consumingand poten-
+tially impracticalin real applications. Thus, automati-
+cally learningsuch patternsis an attractive solution.
+An approach which combines dynamic program-
+ming and sequence alignment algorithmsas normally
+used for the comparisonbetweennucleotidesequences
+was introducedby Huang et al. (Huang et al., 2004).
+This approach is designed to generate patterns useful
+for extracting protein-proteininteractions. The main
+problemwith this approachis that the scoring scheme
+thatis requiredto implementthe alignmentalgorithmis
+difficult to defineand containsa potentiallylarge num-
+ber of free parameters. We propose a method based
+on GeneticAlgorithm(GA) heuristicsto maximizethe
+alignment procedure for the purpose of classification.
+GAs were also used as a learningstrategy to train finite
+state automata for finding biological relation patterns
+in texts(Plake et al., 2005). It was reported(Bunescuet
+al., 2005; Hakenberg et al., 2005) that automatically
+learned patterns identify biological interactions even
+more accuratelythan hand-codedpatterns.
+3 Overview
+of systemdesign
+In this work, we have designed an experimentalsys-
+tem to facilitate the automaticextraction of biological
+interactionpatternsand the identificationof interaction
+sentences. It consists of three major modules: biolog-
+ical text preprocessing,interaction pattern extraction,
+and interactionsentenceidentification.
+Biologicaltext preprocessingreformatsthe original
+biological texts into candidate sentences. A pattern
+learning method is then proposedto automaticallyex-
+tract the representative patterns of biological interac-
+tions. The obtained patterns are further used to iden-
+tify instances that evidently describe biological inter-
+actions. Poor performanceduring preprocessingwill
+have detrimentaleffects on later stages. In the follow-
+ing sections,we will describeeach component.
+4 Biologicaltext
+preprocessing
+4.1 Sentencepreparation
+A heuristic method is implementedto detect sentence
+boundaries(Mikheev, 2002) based on the assumption
+that sentencesare usually demarcatedby some indica-
+tive delimitingpunctuationmarks in order to segment
+the biological texts into sentence units. Captions and
+headingsthat are not grammaticallyvalid sentencesare
+thereforedetectedand furthereliminatedfor our work.
+134
+4.2 Part-of-Speechtagging
+POS tagging is then performedto associateeach word
+in a sentence with its most likely POS tag. Because
+subsequent processing steps typically depend on the
+tagger’s output, high performanceat this level is cru-
+cial for successin later stages. A statisticaltaggerLin-
+gua::EN::Tagger 3 is used to performthis task.
+4.3 Biologicalterm
+annotation
+A learning-based biological term annotation system,
+ABTA (Jiampojamarnet al., 2005),is embeddedin our
+system. The type of terms includes molecules, such
+as genes, proteins and cell lines, and also biological
+processes.Examplesof biologicalprocessesas entities
+are: “T cell activation” and “IL-2 gene transcription”.
+We considerthat a broaderdefinitionof biologicalterm
+will include more facts from literature,thus leading to
+more generaluse of interactionpatternsfor IE tasks.
+ABTA considersthe longest expressionand ignores
+embedded entities. Further, instead of distinguishing
+terms from their relevant biology concepts, a unified
+tag “BIO” is assigned to all the identified terms. We
+aim to discover patternsof the generalinteractionsbe-
+tweenbiologicalconcepts,not only the interactionsbe-
+tweenmolecules,e.g., protein-proteininteraction.
+Tags like NN(noun)and VB(verb)are typicallyused
+to define entities and the action type of interactions,
+and thus they are indispensable. However, tags such
+as JJ(adjective) and RB(adverb) could occur at differ-
+ent positionsin a sentence.We decidedto remove these
+tagsto prevent the combinatorialeffectthatthesewould
+inducewithinthe set of extractedpatterns.
+4.4 Text
+chunking
+Next, a rule-based text chunker (Ramshaw and Mar-
+cus, 1995) is applied on the tagged sentences to fur-
+ther identify phrasal units, such as base noun phrases
+NP and verbal units VB. This allows us to focus on the
+holisticstructureof eachsentence.Text chunkingis not
+applied on the identified biologicalterms. In order to
+achieve moregeneralizedinteractionpatterns,a unified
+tag “VB” is used to representevery verbal unit instead
+of employing different tags for varioustensesof verbs.
+As a result of preprocessing,every sentence is rep-
+resented by its generalizedform as a sequenceof cor-
+respondingtags consistingof POS tags and predefined
+tags. Table 1 summarizesthe main tags in the system.
+A biologicalinteractiontendsto involve at leastthree
+objects: a pair of co-occurringbiologicalentities con-
+3http://search.cpan.org/˜acoburn
+Tag name Tag description Tag type
+BIO Biologicalentity Predefined
+NP Base noun phrase Predefined
+VB Verbal unit Predefined
+IN Preposition POS
+CC Coordinatingconjunction POS
+TO to POS
+PPC Punctuationcomma POS
+PRP Possessive 2nd determiner POS
+DET Determiner POS
+POS Possessive POS
+Table 1: Main tags used in the system
+nected by a verb which specifiesthe action type of the
+interaction.Thus, a constraintis appliedthat only sen-
+tences satisfying form “BioEntityA – Verb – BioEn-
+tity B” will be preserved as candidatesentencesto be
+further processedin the system. It is possible that the
+presenceof two entitiesin differentsentencestructures
+impliesa relationship.However, this work assumesthe
+underlyingco-occurrenceof two conceptsand a verb in
+the interestof improving the classificationaccuracy.
+The obtainedcandidatesentencesare split into train-
+ing and testing sets. The training set is used to ex-
+tract the representative patterns of biological interac-
+tions. The testing set is prepared for identifyingsen-
+tencesthat evidentlydescribebiologicalinteractions.
+5 Interactionpattern
+extraction
+5.1 PATRICIAtrees
+The method we propose to extract interactionpatterns
+fromcandidatesentencesis basedon the use of PATRI-
+CIA trees (Morrison, 1968). A PATRICIA tree uses
+path compressionby groupingcommonsequencesinto
+nodes. This structureprovides an efficient way of stor-
+ing values while maintainingthe lookuptime for a key
+of O(N). It has been appliedto many large information
+retrieval problems(Chien,1997; Chen et al., 1998).
+In our work, a PATRICIA tree is used for the first
+time to facilitatethe automaticextractionof interaction
+patterns. All trainingsentencesare insertedand stored
+in a generic PATRICIA tree from which the common
+patterns of POS tags can be efficiently stored and the
+tree structureused to computerelevant usage statistics.
+5.2 Potentialpattern
+extraction
+Patterns of straightforward biological interactions are
+frequentlyencounteredin a range of actual sentences.
+Conversely, vague relationships or complex interac-
+tions patterns are seldom repeated. Therefore, the
+135
+premiseof this work is that there is a set of frequently
+occurring interactionpatterns that matches a majority
+of stated facts about molecularbiology. In this work, a
+biological interactionpatternis definedas follows:
+Definition5.1. A biologicalinteractionpatternbip
+is a sequenceof tags definedin Table 1 that capturesan
+aggregate view of the descriptionof certaintypesof bi-
+ologicalinteractionsbasedon the consistentlyrepeated
+occurrencesof this sequenceof tags in different inter-
+action sentences. BIP = {bip1,bip2,···,bipk} repre-
+sents the set of biologicalinteractionpatterns.
+We first extract potential interaction patterns by
+populatinga PATRICIA tree using training sentences.
+Every node in the tree contains one or more system
+tags, whichis the precedingtag sequenceof its descen-
+dant nodes in each sentence. Every sentence is com-
+posed of a path of system tags from the root to a leaf.
+Hence, we propose that the sequence of system tags
+that can be formedfromtraversingthe nodesof the tree
+is a potentialpattern of biologicalinteractions. At the
+same time, the occurrencefrequency of each patternis
+also retrieved from the traversal of tree nodes.
+A predefined frequency threshold fmin is used as
+a constraint to filter out patterns that occur less than
+fmin times. It has been demonstratedthat if an interac-
+tion is well recognized,it will be consistentlyrepeated
+(Blaschke et al., 1999; Ono et al., 2001). The general-
+izationandthe usabilityof patternscanbe controlledby
+tuning fmin. Further, some filtering rules are adapted
+to controlthe form of a patternand enhancethe quality
+of the discoveredpatterns,suchas if a patternendswith
+a tag IN, VB, CC or TO, the pattern will be rejected.
+Flexibility in setting this threshold can be applied to
+meet special demands. Algorithm1 shows our pattern
+learningmethodwhich has a time complexity of O(n)
+in the size of candidatesentences,n.
+Algorithm1 Patricia-Tree-basedExtractionof Biolog-
+ical InteractionPatterns
+Input: CandidateSentencesCS ∈Biologicaltext; a prede-
+fined thresholdfmin; a set of filteringrulesFR
+Output: BIP : Set of biologicalinteractionpatterns
+BIP ←∅; PT ←∅ //PT : PatriciaTrie
+for all sentencess∈CS do
+PT ←Insert(s) //PopulatingPatriciaTree
+for all nodesni ∈PT do
+bipi ←Pattern(ni) //Concatenatingtags in nodes
+from root to ni, whichis a potentialpattern
+if Count(bipi) ≥ fmin and bipi does not meet FR
+then
+//Count(bipi) returnsNo. of occurrencesof bipi;
+BIP ←bipi
+5.3 Interactionverb
+mining
+Although the obtained patterns are derived from the
+candidatesentencespossessingthe form “BioEntityA
+– Verb – BioEntityB”, some of them may not contain
+facts about biological interactions. This is possible if
+the action verbs do not describean interaction.Quite a
+few verbs, such as “report”,“believe”, and “discover”,
+only serve a narrative discourse purpose. Therefore,
+miningthe correctinteractionverbs becomesan impor-
+tant step in the automaticdiscovery of patterns. We de-
+cided to perform the method applied in (Huang et al.,
+2004) to mine a list of interactionverbs. This will be
+used to further improve the relevance of achieved pat-
+terns by filtering out patterns formed by the sentences
+in whichthe actionverbs are not on the list.
+6 Interactionsentenceidentification
+Once the biological interaction patterns are obtained,
+we perform interactionsentence identificationon test-
+ing sentences. For our work, they are partitionedinto
+two sets: interactionsentenceswhichexplicitlydiscuss
+interactionsbetween entities, and non-interactionsen-
+tences which do not describe interactions, or merely
+imply some vague relationshipsbetween entities. The
+task of interactionsentenceidentificationis treatedas a
+classificationproblemto differentiatebetweeninterac-
+tion sentencesand non-interactionsentences.
+6.1 Pattern
+matchingscoring
+We first performpatternmatchingby iteratively apply-
+ing the interaction patterns to each testing sentence.
+Thisis doneusingsequencealignmentwhichcalculates
+the degree of the similarity of a sentence to an inter-
+action pattern. Since patterns capture various ways of
+expressinginteractionsamong sentences,a high simi-
+larity between an interactionsentence and a pattern is
+expected. Therefore,we conjecturethat the alignment
+scores can be used to discriminatesome type of inter-
+actionsentencesfrom other types of sentences.
+The scoring scheme involved in the pattern match-
+ing consistsof penaltiesfor introducinggaps, matchre-
+wards and mismatchpenaltiesfor different system tag
+pairs. Table 2 presentsan examplescoringschemefor
+main tags. Penalties and rewards are denoted respec-
+tively by negative and positive values.
+As a variationof globalalignment,an end-spacefree
+alignment algorithm is implemented to facilitate the
+alignmentbetweenpatternsand testing sentences. The
+shortest pattern is always preferred for a sentence in
+case that same alignmentscore is achieved by multiple
+136
+Tag Gap Match Mismatch
+BIO -10 +8 -3
+NP -8 +6 -3
+VB -7 +7 -3
+IN -6 +5 -1
+CC -6 +5 -1
+TO -1 +5 -1
+PPC -1 +3 -1
+PRP -1 +3 -1
+DET -1 +3 -1
+POS -1 +3 -1
+Table 2: An alignmentscoringschemefor systemtags
+patterns. As a result, each sentence is assigned to its
+most appropriatepatternalong with a maximumalign-
+ment score. Therefore,an interactionsentencewill be
+highlighted with a high alignment score by its most
+similarinteractionpattern,whilea non-interactionsen-
+tence will be characterizedby a low alignment score
+indicating rejections by all patterns. Essentially, this
+procedurecan be seen as a variationof the well-known
+k NearestNeighborsclassificationmethod,withk = 1.
+6.2 Performanceevaluation
+We then evaluate whether the alignmentscores can be
+used to classify the testing sentences. We have pro-
+posed two independentevaluationmeasures:statistical
+analysis(SA) and classificationaccuracy (AC).
+SA measures whether the scoring difference be-
+tween the mean of interactionsentencesand the mean
+of non-interactionsentencesis statisticallysignificant.
+If the differenceis significant,there will be a tendency
+that interactionsentencesoutscorenon-interactionsen-
+tences in alignment. Hence, it would be reliable to
+use alignmentscores to classify testing sentences. Al-
+though non-interactionsentencescould come from the
+same documents as interaction sentences and discuss
+concepts that are associated with the target interac-
+tions, we assume that interaction sentences and non-
+interactionsentencesare two independentsamples.
+The statistical two-sample z test (Freund and Per-
+les, 2006) is performed with the null hypothesis that
+there is no scoring difference between the means of
+interactionand non-interactionsentences. A compar-
+atively large z will lead to the rejection of the null
+hypothesis. Naturally, the increase of z value will in-
+crease the difference betweenthe means and therefore
+conceptuallykeep pushing the overall scoring distrib-
+utions of two samples further away from each other.
+Consequently, interaction sentences can be separated
+from non-interactionsentencesaccordingto alignment
+scores. In reality, the distinction between interaction
+and non-interactionsentences is not absolute. Thus,
+the scoring distributions of two samples can only be
+distancedby a certain maximumvalue of z depending
+on the scoringschemeappliedin patternmatching.
+Conversely, AC measuresthe proportionof correctly
+classified testing sentences, including both interaction
+and non-interactionsentences,to the total testing sen-
+tences. An appropriatethresholdT is determinedfor
+obtained alignmentscores to differentiatebetween in-
+teraction and non-interactionsentences, and to facili-
+tate the calculationof classificationaccuracy.
+It is not possibleto evaluatethe performancewithout
+correctlypre-labeledtesting sentences. We decided to
+manually classify the testing sentences in advance by
+assigning each sentence an appropriatelabel of inter-
+action or non-interaction.This work was done by two
+independentexperts, both with Ph.D. degrees in mole-
+cular biologyor a relateddiscipline.
+6.3 Scoringschemeoptimization
+The scoring scheme applied in pattern matchinghas a
+crucial impact on the performanceof interaction sen-
+tence identification.An interestingproblemis whether
+there exists an optimal scoring scheme covering the
+costs of gap, match and mismatch for different sys-
+tem tags in the pattern matching alignment, which is
+destined to achieve the best performanceon classify-
+ing testing sentences. To the best of our knowledge,
+no efforts have been made to investigate this problem.
+Instead, an empirical or arbitrary scoring scheme was
+adopted in previous research for the pairwise align-
+ments(Huanget al., 2004;Hakenberg et al., 2005). We
+have proved that the problemis NP-hardby reducinga
+well-known NP-hardproblem3-SAT to this problem.
+The proof is not presentedin this work.
+A genetic algorithm (GA) is used as a heuristic
+method to optimize parametersof the scoring scheme
+for sentence classification. The costs of penalties and
+rewards for different system tags are encoded by inte-
+ger values within two predefinedranges: [-50, 0) and
+(0, 50], and assembledas a potential solution of scor-
+ing scheme, which consists of 30 parameterscovering
+the costs for tags in the alignmentas listed in Table 2.
+The two evaluation measuresSA and AC are used as
+the fitness function for GA respectively with the goal
+of maximizingz value or classificationaccuracy.
+GA is set up to evolve for 100 generations,each of
+which consists of a population of 100 potential solu-
+tions of scoring scheme. GA starts with a randomly
+137
+generated population of 100 potential solutions and
+proceedsuntil 100 generationsare reached. The num-
+ber of generationsand the populationsize are decided
+with considerationof the runtimecost of evaluatingthe
+fitnessfunction,which requiresrunningthe scoringal-
+gorithmwith each sentence. A large numberof gener-
+ations or a large populationsize would incur an expen-
+sive runtimecost of evaluation.
+In addition,we further divide the labeledset of can-
+didate sentences into two subsets: The first dataset is
+used to optimize parameters of the scoring scheme,
+while the second dataset, testing set, is used to test the
+achieved schemeon the task of sentenceclassification.
+7 Resultsand
+evaluation
+7.1 Dataset
+Our experiments have been conducted on Genia cor-
+pus (v3.02) 4, the largest, publicly available corpus in
+molecularbiologydomain. It consistsof 2,000 biolog-
+ical research paper abstracts and is intended to cover
+biologicalreactionsconcerningtranscriptionfactors in
+human blood cells. The informationof sentence seg-
+mentation,word tokenization,POStaggingand biolog-
+ical term annotationis also encodedin the corpus.
+7.2 Biologicaltext
+preprocessingresults
+Evaluatedusing the inherentlyequippedannotationin-
+formation, our system achieves nearly 99% accuracy
+on segmentingsentences. Further, it obtainsan overall
+POS tagging accuracy of 91.0% on 364,208 individ-
+ual words. We noticedthat the tagginginformationen-
+codedin Geniacorpusis not always consistentthrough-
+out the whole corpus, thus introducingdetrimentalef-
+fects on the tagging performance. Also, considering
+that the tagger is parameterizedaccording to the gen-
+eral Englishdomain,porting this tagger to the biology
+domainis accompaniedby some loss in performance.
+The system reaches an F-score of 0.705 on annotat-
+ing all biologicalterms includingboth multi-word and
+singleword terms. After performingtext chunking,the
+system producesa set of candidatesentences. We fur-
+ther perform text chunking on Genia corpus based on
+its encodedannotationsand use the resultingset of sen-
+tencesfor the subsequentexperimentsto providea gold
+standardto whichresultsproducedbasedon our system
+annotationscan be compared. Table 3 presents some
+statisticsof the preprocesseddataset. For each type of
+annotations,we randomizedthe candidatesentenceset
+4http://www-tsujii.is.s.u-tokyo.ac.jp/GENIA/
+and chose 12,525 candidate sentences as the training
+set to extract biological interactionpatterns. The rest
+of candidatesentencesare preparedas the testingset.
+Attributes Genia Our system
+Total preprocessedsentences 18,545 18,355
+Candidatesentences 16,272 17,525
+Trainingset sentences 12,525 12,525
+Testingset sentences 6,020 5,000
+Table 3: Statisticsof experimentaldataset
+7.3 Interactionpattern
+extractionresults
+fmin = 5 is used to filter out the potential patterns
+that appear less than 5 times in the training set. Eval-
+uated by domain experts, lists of 300 interactionverbs
+and700non-interactionverbsare obtainedfrom12,525
+trainingsentenceswith Genia annotations.Inflectional
+variantsof the verbs are also added into the lists.
+Refined by the filtering rules and the interaction
+verbs, a final set of representative patternsof biological
+interactionsare obtained from Algorithm 1. We per-
+formedour proposedpatternlearningmethodon train-
+ing sentences of both the GENIA and our own anno-
+tations. There are respectively 241 and 329 potential
+patterns. Of these, 209 and 302 were extracted. Inter-
+estingly, only97 extractedpatternsare commonto both
+annotationschemes.
+Table4 lists the 10 mostfrequentinteractionpatterns
+based on Genia annotations. For instance, a training
+sentenceconformingto the second pattern is “The ex-
+pression of the QR gene is regulated by the transcrip-
+tion factor AP-1.” (MEDLINE:96146856).
+Pattern count Pattern
+264 BIO VB BIO IN BIO
+261 NP IN BIO VB IN BIO
+182 NP IN BIO VB BIO
+162 BIO IN BIO VB IN BIO
+160 BIO VB IN BIO IN BIO
+143 NP IN BIO VB IN NP IN BIO
+142 NP VB IN BIO VB BIO
+138 PRP VB IN BIO VB BIO
+126 BIO VB NP IN BIO IN BIO
+121 NP IN BIO VB NP IN BIO
+Table 4: ExtractedBiologicalInteractionPatterns
+7.4 Interactionsentenceidentificationresults
+Since the total testingsentenceset is large, we decided
+to randomlyextract 400 sentencesfrom it as the sam-
+ple set for our task. The 400 sentences were manu-
+138
+Figure1: AC comparisonbetweentwo measures
+ally pre-labeledinto two classes: interactionand non-
+interaction. Further, a subset of 300 testing sentences
+was used by GA to optimize parameters of the scor-
+ing scheme, while the remaining 100 sentences were
+preparedto test the achieved schemeon sentenceclas-
+sification.The distributionof classlabelsof the sample
+sentencesis shown in Table 5.
+Class label 300 sentences 100 sentences
+No. % No. %
+Interaction 158 52.67 53 53
+Non-interaction 142 47.33 47 47
+Table 5: Class distribution of samplesentences
+7.4.1 Comparisonbetweentwo
+measures
+We applied the evaluation measures, SA and AC,
+respectively to the subset of 300 testing sentences as
+the fitness function for GA, and recorded the scoring
+schemeof every generationresultedfromGA. Figure1
+presents the distribution of achieved classificationac-
+curacy in terms of each scoring scheme optimized by
+GA. This comparisonis done with respectto the gener-
+ation and evaluated on 300 testing sentencesusing the
+annotationsfrom the Genia corpus.
+The achieved classification accuracy for AC gen-
+erally outperformsthe classificationaccuracy derived
+by SA. It reaches its highest classificationaccuracy
+80.33% from the 91th generation. Therefore, AC is
+consideredmoreefficientwith the systemand becomes
+our final choiceof fitnessfunctionfor GA.
+7.4.2 Resultsof
+sentenceidentification
+GA results in an optimizedperformanceon the 300
+sentences. It also results in an optimized scoring
+scheme along with its associatedscoring thresholdT,
+which are then applied together to the other 100 test-
+ing sentences.Table 6 and 7 presentthe systemperfor-
+manceon the two sets respectively to both annotations.
+Experimental Genia Our system
+Results Interaction Non Interaction Non
+Precision 0.757 0.887 0.704 0.702
+Recall 0.928 0.665 0.761 0.640
+F-score 0.834 0.750 0.731 0.670
+OverallAC(%) 80.33 70.33
+Table 6: Performanceon 300 testingsentences
+Experimental Genia Our system
+Results Interaction Non Interaction Non
+Precision 0.739 0.762 0.676 0.697
+Recall 0.792 0.723 0.755 0.638
+F-score 0.765 0.742 0.713 0.666
+OverallAC(%) 75.96 70.00
+Table 7: Performanceon 100 testingsentences
+Table 6 shows that when using the Genia annota-
+tions the system achieves an 0.834 F-scorein identify-
+ing interactionsentencesand an overallAC of 80.33%,
+which is much higher than the proportionof either in-
+teraction or non-interactionsentences in the 300 sen-
+tence subset. This indicates that the system performs
+well on both classes. In 100 generationsGA is not able
+to evolve a scoring scheme that leads to an AC above
+80.33%. Moreover, our system annotations achieve
+a lower performancethan Genia annotations. We at-
+tribute the differenceto the accuracy loss of our system
+annotationsin the preprocessingstepsas inaccuratean-
+notationswill leadto inappropriatepatterns,thusharm-
+ing the performanceof sentenceidentification.For Ge-
+nia annotations,the performanceon the 100testingsen-
+tencessuggestsan overfittingproblem.
+Thereare a numberof preprocessingstepsthat affect
+the final classificationperformance.However, even as-
+sumingan ideal preprocessingof the unstructuredtext,
+our method relies on the assumption that all interac-
+tion sentencesare articulatedby a set of POS patterns
+that are distinct to all other types of sentences. The
+manualannotationof the training/testingset was a dif-
+ficult task, so it is reasonableto assume that this will
+also be difficult for the classifier. The use of passive
+voice and the common use of comma splicing within
+patterns makes sentence-level classification an espe-
+cially difficult task. Anothersourceof interactionsthat
+our system cannot identify are implied and assume a
+deeper semantic understandingof the concepts them-
+139
+selves. Other sentencesare long enoughthat the inter-
+action itself is merely a secondarypurpose to another
+idea. All of these factors pose interesting challenges
+for future developmentof this work.
+Moreover, we also experimentedwith 10 empirical
+scoringschemesderived from previousexperimentson
+the 300 sentencesrespectively, includingthe schemein
+the Table2. Severalfixed thresholdswereattemptedfor
+obtained alignmentscores to differentiatebetween in-
+teractionand non-interactionsentences. Without using
+GA to optimizeparametersof the scoring scheme, the
+best performanceof 10 empiricalschemesis an overall
+AC of 65.67%, which is outperformedat the 3rd gen-
+erationof the GA optimizationwith Geniaannotations.
+7.5 Systemperformancecomparison
+Within the framework of our system, we further con-
+ducted experiments on the same dataset for sentence
+identification using interaction patterns generated by
+anotherpattern generatingalgorithm(PGA) (Huanget
+al., 2004) in order to comparewith the performanceof
+patternsobtainedby our patternlearningmethod.
+In our implementation,PGA iterates over all pairs
+of candidatesentencesin the trainingset and calculates
+the best alignment for each pair in terms of the cost
+schemeof gap penaltiesproposed(Huanget al., 2004).
+Each consensussequence from the optimal alignment
+of each pair forms a pattern. The filter rules proposed
+are also applied. PGA has a time complexity of O(n2)
+in the size of candidatesentences,n. Hence, our pro-
+posed pattern learning method is much more efficient
+when dealingwith large collectionsof biologicaltexts.
+PGA produces a large number of patterns, even with
+fmin = 5 and other filteringcriteria. There are 37,319
+commonpatternsbetweentwo types of annotations.
+Attributes Genia Our system
+Potentialpatterns(fmin = 5) 476,600 387,302
+Extractedpatterns(fmin = 5) 176,082 88,800
+Table 8: Pattern extractionresultsof PGA
+In order to make a direct comparison,we decidedto
+experiment with the same number of interaction pat-
+terns. For Genia annotations,we chose the most fre-
+quent 209 patternsgeneratedby PGA to comparewith
+the 209 patternsby our method. For our systemannota-
+tions,two sets of 302 patternsare employed. Further, it
+is foundthat thereare 96 commonpatternsbetweenthe
+two sets of 209 patternsfor Geniaannotations,and 153
+commonpatternsbetweenthe two sets of 302 patterns
+for our system annotations.Table 9 and 10 presentthe
+results of sentence identificationof PGA. The results
+show that patterns generated by PGA do not perform
+as well as patternsobtainedby our method.
+Experimental Genia Our system
+Results Interaction Non Interaction Non
+Precision 0.721 0.869 0.663 0.699
+Recall 0.918 0.606 0.785 0.556
+F-score 0.808 0.714 0.719 0.619
+OverallAC(%) 77.00 67.67
+Table 9: Performanceof PGA on 300 testingsentences
+Experimental Genia Our system
+Results Interaction Non Interaction Non
+Precision 0.664 0.796 0.698 0.635
+Recall 0.849 0.574 0.566 0.766
+F-score 0.745 0.667 0.625 0.694
+OverallAC(%) 71.98 66.00
+Table 10: Performanceof PGA on 100 testingsentences
+8 Conclusionand
+future work
+In this paper, a novel approach is presented to auto-
+maticallyextract the representative patternsof biologi-
+cal interactions,whichare used to detectsentencesthat
+describebiologicalinteractions. We conductedthe ex-
+periments on our designed system based on the Ge-
+nia corpus. By means of a genetic algorithm,the sys-
+tem achieves an 0.834F-scoreusing Geniaannotations
+and an 0.731 F-score using our system annotationsin
+identifyinginteractionsentencesby evaluating300sen-
+tences. By applying the optimized scoring scheme to
+anotherset of 100 sentences,the systemachieves com-
+parable results for both types of annotations. Further-
+more,by comparingwithanotherpatterngeneratingal-
+gorithm,we infer that our proposedmethodis more ef-
+ficientin producingpatternsto identifyinteractionsen-
+tences.
+In our future work, we would like to employ the ob-
+tained interaction patterns to guide the extraction of
+specific interactions. The matching between patterns
+and sentenceswill be performedand the matchedparts
+of each sentencewill be extractedas candidateinterac-
+tions. Further reasoning processes can be performed
+by means of available biological ontologies, such as
+UMLS Semantic Network (Mccray and Bodenreider,
+2002) and Gene Ontology (Consortium,2001), to in-
+fer new relations from the initial interactions. Such
+processescan be employed to derive additionalbiolog-
+ical knowledgefrom existingknowledge,or test for bi-
+ologicalconsistency of the newly entereddata.
+140
+References
+ChristianBlaschke, MiguelA. Andrade,ChristosOuzounis,
+and AlfonsoValencia. 1999. Automaticextractionof bi-
+ological informationfrom scientifictext: Protein-protein
+interactions. In Proceedingsof the Seventh International
+Conference on Intelligent Systemsfor MolecularBiology,
+pages 60–67.AAAIPress.
+Razvan Bunescu,Ruifang Ge, RohitJ Kate,Edward M Mar-
+cotte, RaymondJ Mooney, Arun K Ramani, and Yuk W
+Wong. 2005. Comparative experimentson learninginfor-
+mationextractorsfor proteinsand their interactions.Arti-
+ficial Intelligence in Medicine, 33(2):139–155.
+Keh-Jiann Chen, Wen Tsuei, and Lee-Feng Chien. 1998.
+Pat-treeswith the deletionfunctionas the learningdevice
+for linguistic patterns. In Proceedingsof the 17th inter-
+national conference on Computationallinguistics, pages
+244–250,Morristown, NJ, USA. Associationfor Compu-
+tationalLinguistics.
+Lee-Feng Chien. 1997. Pat-tree-based keyword extrac-
+tion for chinese information retrieval. SIGIR Forum,
+31(SI):50–58.
+Gene OntologyConsortium.2001. Creatingthe gene ontol-
+ogy resource: design and implementation. Genome Re-
+search, 11(8):1425–1433.
+Anna Divoli and Teresa K. Attwood. 2005. Bioie: extract-
+ing informative sentencesfrom the biomedicalliterature.
+Bioinformatics, 21(9):2138–2139.
+John E. Freund and Benjamin M. Perles. 2006. Modern
+ElementaryStatistics. PrenticeHall.
+Jorg Hakenberg, Conrad Plake, Ulf Leser, Harald Kirsch,
+and Dietrich Rebholz-Schuhmann. 2005. Lll’05 chal-
+lenge: Genic interactionextraction with alignmentsand
+finite state automata. In Proceedings of Learning Lan-
+guage in Logic Workshop(LLL’05)at ICML, page38C45,
+Bonn,Germany.
+Minlie Huang, Xiaoyan Zhu, Yu Hao, Donald G. Payan,
+Kunbin Qu, and Ming Li. 2004. Discovering patternsto
+extract protein-proteininteractionsfrom full texts. Bioin-
+formatics, 20:3604–3612.
+Hyunchul Jang, Jaesoo Lim, Joon-Ho Lim, Soo-Jun Park,
+Kyu-ChulLee,andSeon-HeePark. 2006. Findingthe ev-
+idence for protein-proteininteractionsfrom pubmed ab-
+stracts. Bioinformatics, 22(14):e220–e226.
+Sittichai Jiampojamarn, Nick Cercone, and Vlado Keˇselj.
+2005. Biological Named Entity Recognition using N-
+grams and ClassificationMethods. In Proceedingsof the
+Conference Pacific Association for ComputationalLin-
+guistics,PACLING’05, Tokyo, Japan.
+Jiao Li, Xian Zhang, Yu Hao, Minlie Huang, and Xiaoyan
+Zhu. 2005. Learning domain-specificknowledge from
+context–thuir at trec2005 genomics track. In Proceed-
+ings of 14th Text Retrireval Conference (TREC2005),
+Gaithersburg, USA.
+Alexa T. Mccrayand Olivier Bodenreider. 2002. A concep-
+tual framework for the biomedicaldomain. In Semantics
+of Relationships,Kluwer, pages 181–198.Kluwer Acad-
+emic Publishers.
+Andrei Mikheev. 2002. Periods, capitalized words, etc.
+Comput.Linguist., 28(3):289–318.
+DonaldR. Morrison. 1968. Patricia — PracticalAlgorithm
+To Retrieve InformationCoded in Alphanumeric. Jour-
+nal of the ACM, 15(4):514–534.
+Toshihide Ono, Haretsugu Hishigaki, Akira Tanigami, and
+Toshihisa Takagi. 2001. Automatedextraction of infor-
+mationon protein-proteininteractionsfromthe biological
+literature. Bioinformatics, 17(2):155–161.
+ConradPlake, Jorg Hakenberg, and Ulf Leser. 2005. Learn-
+ing patterns for informationextractionfrom free text. In
+Proceedingsof AKKD2005, Karlsruhe,Germany.
+Lance Ramshaw and Mitch Marcus. 1995. Text chunking
+using transformation-basedlearning. In Proceedings of
+the Third Workshopon Very Large Corpora, pages82–94,
+Somerset,New Jersey.
+Soumya Raychaudhuri. 2006. ComputationalText Analy-
+sis: For FunctionalGenomics and Bioinformatics. Ox-
+ford University Press.
+Andre Skusa, Alexander Ruegg, and Jacob Kohler. 2005.
+Extractionof biologicalinteractionnetworks from scien-
+tific literature. Brief Bioinform, 6(3):263–276.
+141
+

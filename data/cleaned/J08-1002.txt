@@ -1,0 +1,2562 @@
+FeatureForestModelsforProbabilistic
+HPSGParsing
+YusukeMiyao
+∗
+University ofTokyo
+Jun’ichiTsujii
+∗∗
+University ofTokyo
+University ofManchester
+Probabilisticmodelingoflexicalizedgrammarsisdifﬁcultbecausethesegrammarsexploitcom-
+plicated data structures, such as typed feature structures. This prevents us from applying
+commonmethodsofprobabilisticmodelinginwhichacompletestructureisdividedintosub-
+structuresundertheassumptionofstatisticalindependenceamongsub-structures.Forexample,
+part-of-speechtaggingofasentenceisdecomposedintotaggingofeachword,andCFGparsing
+issplitintoapplicationsofCFGrules.Thesemethodshavereliedonthestructureofthetarget
+problem,namelylatticesortrees,andcannotbeappliedtographstructuresincludingtypedfea-
+turestructures.
+Thisarticleproposesthefeatureforestmodelasasolutiontotheproblemofprobabilistic
+modelingofcomplexdatastructuresincludingtypedfeaturestructures.Thefeatureforestmodel
+providesamethodforprobabilisticmodelingwithouttheindependenceassumptionwhenprob-
+abilisticeventsarerepresentedwithfeatureforests.Featureforestsaregenericdatastructures
+thatrepresentambiguoustreesinapackedforeststructure.Featureforestmodelsaremaximum
+entropymodelsdeﬁnedoverfeatureforests.Adynamicprogrammingalgorithmisproposedfor
+maximumentropyestimationwithoutunpackingfeatureforests.Thusprobabilisticmodelingof
+anydatastructuresispossiblewhentheyarerepresentedbyfeatureforests.
+This article also describes methods for representing HPSGsyntactic structures and
+predicate–argumentstructureswithfeatureforests.Hence,wedescribeacompletestrategyfor
+developingprobabilisticmodelsforHPSGparsing.Theeffectivenessoftheproposedmethodsis
+empiricallyevaluatedthroughparsingexperimentsonthePennTreebank,andthepromiseof
+applicabilitytoparsingofreal-worldsentencesisdiscussed.
+1.Introduction
+Following the successful development of wide-coverage lexicalized grammars (Riezler
+et al. 2000; Hockenmaier and Steedman 2002; Burke et al. 2004; Miyao, Ninomiya, and
+∗ Department ofComputerScience, University ofTokyo,Hongo 7-3-1,Bunkyo-ku, Tokyo113-0033Japan.
+E-mail:yusuke@is.s.u-tokyo.ac.jp.
+∗∗ Department ofComputerScience, University ofTokyo,Hongo 7-3-1,Bunkyo-ku, Tokyo113-0033Japan.
+E-mail:tsujii@is.s.u-tokyo.ac.jp.
+Submission received: 11 June 2006; revised submission received: 2 March 2007; accepted for publication:
+5May2007.
+©2008AssociationforComputationalLinguistics
+ComputationalLinguistics Volume34,Number1
+Tsujii 2005), statistical modeling of these grammars is attracting considerable attention.
+Thisisbecausenaturallanguageprocessingapplicationsusuallyrequiredisambiguated
+orrankedparseresults,andstatisticalmodelingofsyntactic/semanticpreferenceisone
+of the most promising methods for disambiguation.
+The focus of this article is the problem of probabilistic modeling of wide-coverage
+HPSG parsing. Although previous studies have proposed maximum entropy mod-
+els (Berger, Della Pietra, and Della Pietra 1996) of HPSG-style parse trees (Oepen,
+Toutanova, et al. 2002b; Toutanova and Manning 2002; Baldridge and Osborne 2003;
+Malouf and van Noord 2004), the straightforward application of maximum entropy
+models to wide-coverage HPSG parsing is infeasible because estimation of maximum
+entropymodelsiscomputationallyexpensive,especiallywhentargetingwide-coverage
+parsing.Ingeneral,completestructures,suchastransitionsequencesinMarkovmodels
+andparsetrees,haveanexponentialnumberofambiguities.Thiscausesanexponential
+explosion when estimating the parameters of maximum entropy models. We therefore
+require solutions to make model estimation tractable.
+This article ﬁrst proposes feature forest models, which are a general solution to
+the problem of maximum entropy modeling of tree structures (Miyao and Tsujii 2002).
+Our algorithm avoids exponential explosion by representing probabilistic events with
+feature forests, which are packed representations of tree structures. When complete
+structures are represented with feature forests of a tractable size, the parameters of
+maximum entropy models are efﬁciently estimated without unpacking the feature
+forests. This is due to dynamic programming similar to the algorithm for computing
+inside/outside probabilities in PCFG parsing.
+The latter half of this article (Section 4) is on the application of feature forest
+models to disambiguation in wide-coverage HPSG parsing. We describe methods for
+representingHPSGparsetreesandpredicate–argumentstructuresusingfeatureforests
+(Miyao, Ninomiya, and Tsujii 2003; Miyao and Tsujii 2003, 2005). Together with the
+parameter estimation algorithm for feature forest models, these methods constitute a
+complete procedure for the probabilistic modeling ofwide-coverage HPSG parsing.
+ThemethodsweproposeherewereappliedtoanEnglishHPSGparser,Enju(Tsujii
+Laboratory 2004). We report on an extensive evaluation of the parser through parsing
+experimentsontheWallStreetJournalportionofthePennTreebank(Marcusetal.1994).
+The content of this article is an extended version of our earlier work reported
+in Miyao and Tsujii (2002, 2003, 2005) and Miyao, Ninomiya, and Tsujii (2003). The
+major contribution of this article is a strict mathematical deﬁnition of the feature forest
+model and the parameter estimation algorithm, which are substantially reﬁned and
+extended from Miyao and Tsujii (2002). Another contribution is that this article thor-
+oughly discusses the relationships between the feature forest model and its application
+to HPSG parsing. We also provide an extensive empirical evaluation of the resulting
+HPSGparsing approach using real-world text.
+Section 2 discusses a problem of conventional probabilistic models for lexicalized
+grammars. Section 3 proposes feature forest models for solving this problem. Section 4
+describes the application of feature forest models to probabilistic HPSG parsing. Sec-
+tion 5 presents an empirical evaluation of probabilistic HPSG parsing, and Section 6
+introduces research related to our proposals. Section 7 concludes.
+2.Problem
+Maximum entropy models (Berger, Della Pietra, and Della Pietra 1996) are now be-
+coming the de facto standard approach for disambiguation models for lexicalized or
+36
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing
+feature structure grammars (Johnson et al. 1999; Riezler et al. 2000, 2002; Geman and
+Johnson 2002; Clark and Curran 2003, 2004b; Kaplan et al. 2004; Carroll and Oepen
+2005).PreviousstudiesonprobabilisticmodelsforHPSG(Oepen,Toutanovaetal.2002;
+Toutanova and Manning 2002; Baldridge and Osborne 2003; Malouf and van Noord
+2004) have also adopted log-linear models. This is because these grammar formalisms
+exploitfeaturestructurestorepresentlinguisticconstraints.Suchconstraintsareknown
+to introduce inconsistencies in probabilistic models estimated using simple relative
+frequency, as discussed in Abney (1997). The maximum entropy model is a reasonable
+choice for credible probabilistic models. It also allows various overlapping features to
+be incorporated, and we can expect higher accuracy in disambiguation.
+A maximum entropy model gives a probabilistic distribution that maximizes the
+likelihood of training data under given feature functions. Given training data E=
+{〈x,y〉}, amaximum entropy model gives conditional probabilityp(y|x) as follows.
+Deﬁnition1(Maximumentropymodel)
+A maximum entropy model is deﬁned as the solution of the following optimization
+problem.
+p
+M
+(y|x) =argmax
+p
+
+
+
+−
+summationdisplay
+〈x,y〉∈E
+˜p(x,y)logp(y|x)
+
+
+
+where:
+p(y|x) =
+1
+Z(x)
+exp
+parenleftBigg
+summationdisplay
+i
+λ
+i
+f
+i
+(x,y)
+parenrightBigg
+Z(x)=
+summationdisplay
+y∈Y(x)
+exp
+parenleftBigg
+summationdisplay
+i
+λ
+i
+f
+i
+(x,y)
+parenrightBigg
+In this deﬁnition, ˜p(x,y) is the relative frequency of 〈x,y〉 in the training data. f
+i
+is a
+feature function, which represents a characteristic of probabilistic events by mapping
+aneventintoarealvalue.λ
+i
+isthemodelparameterofacorrespondingfeaturefunction
+f
+i, and is determined so as to maximize the likelihood of the training data (i.e., the
+optimizationinthisdeﬁnition).Y(x)isasetofyforgivenx;forexample,inparsing,xis
+a given sentence and Y(x) is a parse forest for x. An advantage of maximum entropy
+models is that feature functions can represent any characteristics of events. That is,
+independence assumptions are unnecessary for the design of feature functions. Hence,
+thismethodprovidesaprincipledsolutionfortheestimationofconsistentprobabilistic
+distributions over feature structure grammars.
+The remaining issue is how to estimate parameters. Several numerical algorithms,
+such as Generalized Iterative Scaling (GIS) (Darroch and Ratcliff 1972), Improved
+Iterative Scaling (IIS) (Della Pietra, Della Pietra, and Lafferty 1997), and the Limited-
+memory Broyden-Fletcher-Goldfarb-Shanno method (L-BFGS) (Nocedal and Wright
+1999),havebeenproposed forparameter estimation.Althoughthealgorithmproposed
+in the present article is applicable to all of the above algorithms, we used L-BFGS for
+experiments.
+However, a computational problem arises in these parameter estimation algo-
+rithms. The size of Y(x) (i.e., the number of parse trees for a sentence) is generally
+37
+ComputationalLinguistics Volume34,Number1
+verylarge.Thisisbecauselocalambiguitiesinparsetreespotentiallycauseexponential
+growth in the number of structures assigned to sub-sequences of words, resulting in
+billions of structures for whole sentences. For example, when we apply rewriting rule
+S → NP VP, and the left NP and the right VP, respectively, have n and m ambiguous
+subtrees, the result of the rule application generatesn×mtrees.
+Thisisproblematicbecause thecomplexityofparameter estimationisproportional
+to the size of Y(x). The cost of the parameter estimation algorithms is bound by the
+computation ofmodelexpectation, µ
+i,given as (Malouf 2002):
+µ
+i
+=
+summationdisplay
+x∈X
+˜p(x)
+summationdisplay
+y∈Y(x)
+f
+i
+(x,y)p(y|x)
+=
+summationdisplay
+x∈X
+˜p(x)
+summationdisplay
+y∈Y(x)
+f
+i
+(x,y)
+1
+Z(x)
+exp
+
+
+summationdisplay
+j
+λ
+j
+f
+j
+(x,y)
+
+
+(1)
+Asshowninthisdeﬁnition,thecomputationofmodelexpectationrequiresthesumma-
+tion overY(x) for everyxin the training data. The complexity of the overall estimation
+algorithm isO(
+˜
+|Y|
+˜
+|F||E|), where
+˜
+|Y| and
+˜
+|F| are the average numbers ofyand activated
+features for an event, respectively, and |E| is the number of events. When Y(x)grows
+exponentially, the parameter estimation becomes intractable.
+InPCFGs,theproblemofcomputingprobabilitiesofparsetreesisavoidedbyusing
+a dynamic programming algorithm for computing inside/outside probabilities (Baker
+1979). With the algorithm, the computation becomes tractable. We can expect that the
+same approach would be effective for maximum entropy models as well.
+This notion yields a novel algorithm for parameter estimation for maximum en-
+tropy models, as described in the next section.
+3.FeatureForestModel
+Our solution to the problem is a dynamic programming algorithm for computing
+inside/outside α-products. Inside/outside α-products roughly correspond to inside/
+outside probabilities in PCFGs. In maximum entropy models, a probability is deﬁned
+asanormalizedproductofα
+f
+j
+j
+(=exp(λ
+j
+f
+j
+)).Hence,similartothealgorithmofcomputing
+inside/outside probabilities, we can compute exp
+parenleftBig
+summationtext
+j
+λ
+j
+f
+j
+parenrightBig, which we deﬁne as the
+α-product,foreachnodeinatreestructure.Ifwecancomputeα-productsatatractable
+cost, the model expectation µ
+i
+is also computed at atractable cost.
+We ﬁrst deﬁne the notion of a feature forest, a packed representation of a set
+of an exponential number of tree structures. Feature forests correspond to packed
+charts in CFG parsing. Because feature forests are generalized representations of forest
+structures, the notion is not only applicable to syntactic parsing but also to sequence
+tagging,suchasPOStaggingandnamedentityrecognition(whichwillbediscussedin
+Section 6). We then deﬁne inside/outside α-products that represent the α-products of
+partialstructuresofafeatureforest.Insideα-productscorrespondtoinsideprobabilities
+inPCFG,andrepresentthesummationofα-productsofthedaughtersub-trees.Outside
+α-products correspond to outside probabilities in PCFG, and represent the summation
+of α-products in the upper part of the feature forest. Both can be computed incre-
+mentallybyadynamicprogrammingalgorithmsimilartothealgorithmforcomputing
+38
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing
+inside/outside probabilities in PCFG. Given inside/outside α-products of all nodes in
+a feature forest, the model expectation µ
+i
+is easily computed by multiplying them for
+each node.
+3.1FeatureForest
+To describe the algorithm, we ﬁrst deﬁne the notion of a feature forest, the generalized
+representation of features in a packed forest structure. Feature forests are used for
+enumeratingpossiblestructuresofevents,thatis,theycorrespondtoY(x)inEquation1.
+Deﬁnition2(Featureforest)
+A feature forestΦis atuple〈C,D,r,γ,δ〉, where:
+a114
+Cis a set of conjunctive nodes,
+a114
+Dis aset of disjunctive nodes,
+a114
+ris the root node:r∈C,
+a114
+γ :Dmapsto→ 2
+C
+is a conjunctive daughter function,
+a114
+δ :Cmapsto→ 2
+D
+is adisjunctive daughter function.
+We denote a feature forest for x as Φ(x). For example, Φ(x) can represent the set of all
+possible tag sequences of a given sentencex, or the set of all parse trees ofx. A feature
+forest is an acyclic graph, and unpacked structures extracted from a feature forest are
+trees.Wealso assume thatterminalnodes offeature forestsareconjunctive nodes. That
+is, disjunctive nodes must have daughters (i.e., γ(d) negationslash=∅for alld∈D).
+A feature forest represents a set of trees of conjunctive nodes in a packed structure.
+Conjunctive nodes correspond to entities such as states in Markov chains and nodes
+in CFG trees. Feature functions are assigned to conjunctive nodes and express their
+characteristics.Disjunctivenodesareforenumeratingalternativechoices.Conjunctive/
+disjunctive daughter functions represent immediate relations of conjunctive and dis-
+junctive nodes. By selecting a conjunctive node as a child of each disjunctive node, we
+can extract atree consisting ofconjunctive nodes from afeature forest.
+Figure 1 shows an example of a feature forest. Each disjunctive node enumerates
+alternative nodes, which are conjunctive nodes. Each conjunctive node has disjunctive
+Figure1
+Afeatureforest.
+39
+ComputationalLinguistics Volume34,Number1
+Figure2
+Unpacked trees.
+nodes as its daughters. The feature forest in Figure 1 represents a set of 2×2×2=8
+unpacked trees shown in Figure 2. For example, by selecting the left-most conjunctive
+node at each disjunctive node, we extract an unpacked tree (c
+1,c
+2,c
+4,c
+6
+). An unpacked
+tree is represented as a set of conjunctive nodes. Generally, a feature forest represents
+an exponential number of trees with a polynomial number of nodes. Thus, complete
+structures, such as tag sequences and parse trees with ambiguities, can be represented
+in a tractable form.
+Feature functions are deﬁned over conjunctive nodes.
+1
+Deﬁnition3(Featurefunctionforfeatureforests)
+A feature function for afeature forest is:
+f
+i
+:Cmapsto→ R
+Hence, together with feature functions, a feature forest represents a set of trees of
+features.
+FeatureforestsmayberegardedasapackedchartinCFGparsing.Althoughfeature
+forests have the same structure as PCFG parse forests, nodes in feature forests do not
+necessarilycorrespondtonodesinPCFGparseforests.Infact,inSections4.2and4.3,we
+will demonstrate that syntactic structures and predicate–argument structures in HPSG
+canberepresentedwithtractable-sizefeatureforests.Theactualinterpretationofanode
+in a feature forest may thus be ignored in the following discussion. Our algorithm is
+applicable whenever feature forests are of a tractable size. The descriptive power of
+feature forests will be discussed again in Section 6.
+Asmentioned,afeatureforestisapackedrepresentationoftreesoffeatures.Weﬁrst
+deﬁne model expectations, µ
+i, on a set of unpacked trees, and then show that they can
+be computed without unpacking feature forests. We denote an unpacked tree as a set,
+c ⊆C,ofconjunctivenodes.Ourconcernisonlythesetoffeaturesassociatedwitheach
+conjunctive node, and theshape ofthetree structure isirrelevant tothe computation of
+probabilities of unpacked trees. Hence, we do not distinguish an unpacked tree from a
+set of conjunctive nodes.
+Thecollectionofunpackedtreesrepresentedbyafeatureforestisdeﬁnedasamulti-
+set of unpacked trees because we allow multiple occurrences of equivalent unpacked
+1 Featurefunctions
+mayalsobeconditionedonx. In this case, featurefunctions can bewrittenasf
+i
+(c,x).
+Forsimplicity,weomitxin thefollowingdiscussion.
+40
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing
+trees in a feature forest.
+2
+Given multisets of unpacked trees, A,B, we deﬁne the union
+and the product as follows.
+A⊕B≡A∪B
+A⊗B≡{a∪b|a ∈A,b ∈B}
+Intuitively, the ﬁrst operation is a collection of trees, and the second lists all combina-
+tions of trees in A and B. It is trivial that they satisfy commutative, associative, and
+distributive laws.
+A⊕B=B⊕A
+A⊗B=B⊗A
+A⊕(B⊕C) = (A⊕B)⊕C
+A⊗(B⊗C) = (A⊗B)⊗C
+A⊗(B⊕C) = (A⊗B)⊕(A⊗C)
+We denote a set of unpacked trees rooted at node n∈C∪D as Ω(n). Ω(n)isde-
+ﬁned recursively. For a terminal node c∈C, obviously Ω(c)={{c}}. For an internal
+conjunctive node c∈C, an unpacked tree is a combination of trees, each of which is
+selected from a disjunctive daughter. Hence, a set of all unpacked trees is represented
+as aproduct of trees fromdisjunctive daughters.
+Ω(c)={{c}}⊗
+circlemultiplydisplay
+d∈δ(c)
+Ω(d)
+A disjunctive node d∈D represents alternatives of packed trees, and obviously a set
+of its unpacked trees is represented as a union of the daughter trees, that is, Ω(d)=
+circleplustext
+c∈γ(d)
+Ω(c).
+To summarize, aset of unpacked trees is deﬁned formally as follows.
+Deﬁnition4(Unpackedtree)
+Given a feature forest Φ=〈C,D,r,γ,δ〉,asetΩ(n) of unpacked trees rooted at node
+n∈C∪Dis deﬁned recursively as follows.
+a114
+Ifn∈Cis aterminal, that is, δ(n)=∅,
+Ω(n) ≡{{n}}
+a114
+Ifn∈C,
+Ω(n) ≡{{n}}⊗
+circlemultiplydisplay
+d∈δ(n)
+Ω(d)
+2 In
+fact, no featureforestsinclude equivalentunpacked trees ifno disjunctive nodes have identical
+daughter nodes. Thus wemay deﬁne aset ofunpacked trees as anordinaryset, althoughthe details
+areomittedhere forsimplicity.
+41
+ComputationalLinguistics Volume34,Number1
+a114
+Ifn∈D,
+Ω(n) ≡
+circleplusdisplay
+c∈γ(n)
+Ω(c)
+Feature forests are directed acyclic graphs and, as such, this deﬁnition does not include
+a loop. Hence,Ω(n)is properly deﬁned.
+A set of all unpacked trees is then represented byΩ(r); henceforth, we denoteΩ(r)
+asΩ(Φ),orjustΩwhenitisnotconfusingincontext.Figure3showsΩ(Φ)ofthefeature
+forest in Figure 1. Following Deﬁnition 4, the ﬁrst element of each set is the root node,
+c
+1, and the rest are elements of the product of {c
+2,c
+3
+}, {c
+4,c
+5
+},and{c
+6,c
+7
+}. Each set in
+Figure 3 corresponds to a tree in Figure 2.
+Given this formalization, the feature function for an unpacked tree is deﬁned as
+follows.
+Deﬁnition5(Featurefunctionforunpackedtree)
+The feature functionf
+i
+for an unpacked tree,c ∈Ω(Φ)is deﬁned as:
+f
+i
+(c)=
+summationdisplay
+c∈c
+f
+i
+(c)
+Because c ∈Ω(Φ) corresponds to y of the conventional maximum entropy model, this
+function substitutes for f
+i
+(x,y) in the conventional model. Once a feature function for
+an unpacked tree is given, amodel expectation is deﬁned as in the traditional model.
+Deﬁnition6(Modelexpectationoffeatureforests)
+The model expectation µ
+i
+for aset of feature forests{Φ(x)}is deﬁned as:
+µ
+i
+=
+summationdisplay
+x∈X
+˜p(x)
+summationdisplay
+c∈Ω(Φ(x))
+f
+i
+(c)p(c|x)
+=
+summationdisplay
+x∈X
+˜p(x)
+summationdisplay
+c∈Ω(Φ(x))
+f
+i
+(c)
+1
+Z(x)
+exp
+
+
+summationdisplay
+j
+λ
+j
+f
+j
+(c)
+
+
+where Z(x) =
+summationdisplay
+c∈Ω(Φ(x))
+exp
+
+
+summationdisplay
+j
+λ
+j
+f
+j
+(c)
+
+
+It is evident that the naive computation of model expectations requires exponential
+time complexity because the number of unpacked trees (i.e., |Ω(Φ)|) is exponentially
+related to the number of nodes in the feature forest Φ. We therefore need an algorithm
+for computing model expectations without unpacking afeature forest.
+Figure3
+Unpacked treesrepresented as setsof conjunctivenodes.
+42
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing
+Figure4
+Inside/outsideat nodec
+2
+inafeatureforest.
+3.2DynamicProgramming
+To efﬁciently compute model expectations, we incorporate an approach similar to the
+dynamicprogrammingalgorithmforcomputinginside/outsideprobabilitiesinPCFGs.
+We ﬁrst deﬁne the notion of inside/outside of a feature forest. Figure 4 illustrates this
+concept, which is similar to the analogous concept in PCFGs.
+3
+Inside denotes a set of
+partial trees (sets of conjunctive nodes) derived from nodec
+2
+. Outside denotes a set of
+partial trees that derive nodec
+2
+. That is, outside trees are partial trees of complements
+ofinside trees.
+We denote aset ofinside trees at nodenas ι(n),and that of outside trees aso(n).
+Deﬁnition7(Insidetrees)
+We deﬁne a set ι(n) of inside trees rooted at noden∈C∪Das a set of unpacked trees
+rooted atn.
+ι(n) ≡Ω(n)
+Deﬁnition8(Outsidetrees)
+We deﬁne aseto(n) ofoutside trees rooted at noden∈C∪Das follows.
+o(r) ≡ {∅}
+o(c) ≡
+circleplusdisplay
+d∈γ
+−1
+(c)
+o(d)
+o(d) ≡
+circleplusdisplay
+c∈δ
+−1
+(d)
+
+
+
+{{c}}⊗o(c)⊗
+circlemultiplydisplay
+d
+prime
+∈δ(c),d
+prime
+negationslash=d
+ι(d
+prime
+)
+
+
+
+3 Anode
+mayhave multipleoutsidetrees ingeneral as inthe case ofCFGs, althoughFigure 4shows only
+oneoutsidetree ofc
+2
+forsimplicity.
+43
+ComputationalLinguistics Volume34,Number1
+In the deﬁnition, γ
+−1
+and δ
+−1
+denote mothers of conjunctive and disjunctive nodes,
+respectively. Formally,
+γ
+−1
+(c) ≡{d|c∈ γ(d)}
+δ
+−1
+(d) ≡{c|d∈ δ(c)}
+Next,inside/outsideα-productsaredeﬁnedforconjunctiveanddisjunctivenodes.
+Theinside(oroutside)α-products are the summation of exp
+parenleftBig
+summationtext
+j
+λ
+j
+f
+j
+(c)
+parenrightBig
+of all inside (or
+outside) treesc.
+Deﬁnition9(Inside/outsideα-product)
+An inside α-product at conjunctive nodec∈Cis
+ϕ
+c
+=
+summationdisplay
+c∈ι(c)
+exp
+
+
+summationdisplay
+j
+λ
+j
+f
+j
+(c)
+
+
+An outside α-product is
+ψ
+c
+=
+summationdisplay
+c∈o(c)
+exp
+
+
+summationdisplay
+j
+λ
+j
+f
+j
+(c)
+
+
+Similarly, inside/outside α-products at disjunctive noded∈Dare deﬁned as follows:
+ϕ
+d
+=
+summationdisplay
+c∈ι(d)
+exp
+
+
+summationdisplay
+j
+λ
+j
+f
+j
+(c)
+
+
+ψ
+d
+=
+summationdisplay
+c∈o(d)
+exp
+
+
+summationdisplay
+j
+λ
+j
+f
+j
+(c)
+
+
+We can derive that the model expectations of a feature forest are computed as the
+product of the inside and outside α-products.
+Theorem1(Modelexpectationoffeatureforests)
+Themodelexpectationµ
+i
+ofafeatureforestΦ(x)=〈C
+x,D
+x,r
+x,γ
+x,δ
+x
+〉iscomputedasthe
+product of inside and outside α-products as follows:
+µ
+i
+=
+summationdisplay
+x∈X
+˜p(x)
+1
+Z(x)
+summationdisplay
+c∈C
+x
+f
+i
+(c)ϕ
+c
+ψ
+c
+where Z(x) = ϕ
+r
+x
+44
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing
+Figure5
+Incrementalcomputationof inside α-productsat conjunctivenodec
+2
+.
+Figure6
+Incrementalcomputationof inside α-productsat disjunctivenoded
+4
+.
+This equation shows a method for efﬁciently computing model expectations by
+traversing conjunctive nodes without unpacking the forest, if the inside/outside
+α-productsaregiven.Theremainingissueishowtoefﬁcientlycomputeinside/outside
+α-products.
+Fortunately,inside/outsideα-productscanbeincrementallycomputedbydynamic
+programming without unpacking feature forests. Figure 5 shows the process of com-
+puting the inside α-product at a conjunctive node from the inside α-products of its
+daughternodes.Becausetheinsideofaconjunctivenodeisasetofthecombinationsof
+all of its descendants, the α-product is computed by multiplying the α-products of the
+daughter trees. The following equation is derived.
+ϕ
+c
+=
+
+
+productdisplay
+d∈δ(c)
+ϕ
+d
+
+
+exp
+
+
+summationdisplay
+j
+λ
+j
+f
+j
+(c)
+
+
+Theinsideofadisjunctivenodeisthecollectionoftheinsidetreesofitsdaughternodes.
+Hence,theinsideα-productatdisjunctivenoded∈Discomputedasfollows(Figure6).
+ϕ
+d
+=
+summationdisplay
+c∈γ(d)
+ϕ
+c
+45
+ComputationalLinguistics Volume34,Number1
+Theorem2(Insideα-product)
+The inside α-product ϕ
+c
+at a conjunctive nodecis computed bythe following equation
+if ϕ
+d
+is given for all daughter disjunctive nodesd∈ δ(c).
+ϕ
+c
+=
+
+
+productdisplay
+d∈δ(c)
+ϕ
+d
+
+
+exp
+
+
+summationdisplay
+j
+λ
+j
+f
+j
+(c)
+
+
+The inside α-product ϕ
+d
+at a disjunctive nodedis computed by the following equation
+if ϕ
+c
+is given for all daughter conjunctive nodesc∈ γ(d).
+ϕ
+d
+=
+summationdisplay
+c∈γ(d)
+ϕ
+c
+Theoutsideofadisjunctivenodeisequivalenttotheoutsideofitsdaughternodes.
+Hence, the outside α-product of a disjunctive node is propagated to its daughter con-
+junctive nodes (Figure 7).
+ψ
+c
+=
+summationdisplay
+{d|c∈γ(d)}
+ψ
+d
+The computation of the outside α-product of a disjunctive node is somewhat com-
+plicated. As shown in Figure 8, the outside trees of a disjunctive node are all com-
+binations of
+a114
+the outside trees ofthe mother nodes, and
+a114
+the inside trees of the sister nodes.
+Figure7
+Incrementalcomputationof outside α-productsat conjunctivenodec
+2
+.
+46
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing
+Figure8
+Incrementalcomputationof outside α-productsat disjunctivenoded
+4
+.
+From this, we ﬁnd:
+ψ
+d
+=
+summationdisplay
+{c|d∈δ(c)}
+
+
+
+
+
+
+
+ψ
+c
+exp
+
+
+summationdisplay
+j
+λ
+j
+f
+j
+(c)
+
+
+productdisplay
+d
+prime
+∈δ(c)
+d
+prime
+negationslash=d
+ϕ
+d
+prime
+
+
+
+
+
+
+
+We ﬁnally ﬁnd the following theorem for the computation of outside α-products.
+Theorem3(Outsideα-product)
+The outside α-product ψ
+c
+at conjunctive nodecis computed by the following equation
+if ψ
+d
+is given for all mother disjunctive nodes, that is, alldsuch thatc∈ γ(d).
+ψ
+c
+=
+summationdisplay
+{d|c∈γ(d)}
+ψ
+d
+The outside α-product ψ
+d
+at disjunctive nodedis computed by the following equation
+if ψ
+c
+is given for all mother conjunctive nodes, that is, allcsuch thatd∈ δ(c), and ϕ
+d
+prime
+for all sibling disjunctive nodesd
+prime
+.
+ψ
+d
+=
+summationdisplay
+{c|d∈δ(c)}
+
+
+
+
+
+
+
+ψ
+c
+exp
+
+
+summationdisplay
+j
+λ
+j
+f
+j
+(c)
+
+
+productdisplay
+d
+prime
+∈δ(c)
+d
+prime
+negationslash=d
+ϕ
+d
+prime
+
+
+
+
+
+
+
+Figure 9 shows the overall algorithm for estimating the parameters, given a set
+of feature forests. The key point of the algorithm is to compute inside α-products ϕ
+and outside α-products ψ for each node inC, and not for all unpacked trees. The func-
+tions inside product and outside product compute ϕ and ψ efﬁciently by dynamic
+programming.
+Notethattheorder inwhich nodes aretraversed isimportant forincremental com-
+putation, although it is not shown in Figure 9. The computation for the daughter
+nodes and mother nodes must be completed before computing the inside and outside
+47
+ComputationalLinguistics Volume34,Number1
+Figure9
+Algorithmforcomputingmodel expectationsof featureforests.
+α-products, respectively. This constraint is easily solved using any topological sort
+algorithm. A topological sort is applied once at the beginning. The result of the sorting
+does not affect the cost and the result of estimation. In our implementation, we assume
+thatconjunctive/disjunctivenodesarealreadyorderedfromtherootnodeininputdata.
+The complexity of this algorithm is O((
+˜
+|C|+
+˜
+|D|)
+˜
+|F||E|), where
+˜
+|C| and
+˜
+|D| are the
+average numbers of conjunctive and disjunctive nodes, respectively. This is tractable
+when
+˜
+|C| and
+˜
+|D| are of a reasonable size. As noted in this section, the number of
+48
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing
+nodes in a feature forest is usually polynomial even when that of the unpacked trees
+is exponential. Thus we can efﬁciently compute model expectations with polynomial
+computational complexity.
+4.ProbabilisticHPSGParsing
+FollowingpreviousstudiesonprobabilisticmodelsforHPSG(Oepen,Toutanova,etal.
+2002; Toutanova and Manning 2002; Baldridge and Osborne 2003; Malouf and van
+Noord2004),weapplyamaximumentropymodeltoHPSGparsedisambiguation.The
+probability,p(t|w),of producing parse resulttof agiven sentencewis deﬁned as
+p(t|w)=
+1
+Z
+w
+p
+0
+(t|w)exp
+parenleftBigg
+summationdisplay
+i
+λ
+i
+f
+i
+(t,w)
+parenrightBigg
+where
+Z
+w
+=
+summationdisplay
+t
+prime
+∈T(w)
+p
+0
+(t
+prime
+|w)exp
+parenleftBigg
+summationdisplay
+i
+λ
+i
+f
+i
+(t
+prime,w)
+parenrightBigg
+wherep
+0
+(t|w)isareferencedistribution(usuallyassumedtobeauniformdistribution)
+and T(w) is a set of parse candidates assigned to w. The feature function f
+i
+(t,w)rep-
+resents the characteristics oftand w, and the corresponding model parameter λ
+i
+is its
+weight. Model parameters that maximize the log-likelihood of the training data are
+computed using a numerical optimization method (Malouf 2002).
+Estimation of the model requires a set of pairs 〈t
+w,T(w)〉, where t
+w
+is the correct
+parseforasentencew.Whereast
+w
+isprovidedbyatreebank,T(w)hastobecomputed
+by parsing each w in the treebank. Previous studies assumed T(w) could be enumer-
+ated; however, this assumption is impractical because the size ofT(w) is exponentially
+related to the length ofw.
+OursolutionhereistoapplythefeatureforestmodelofSection3totheprobabilistic
+modeling of HPSG parsing. Section 4.1 brieﬂy introduces HPSG. Section 4.2 and 4.3
+describe how to represent HPSG parse trees and predicate–argument structures by
+feature forests. Together with the parameter estimation algorithm in Section 3, these
+methods constitute a complete method for probabilistic disambiguation. We also ad-
+dress a method for accelerating the construction of feature forests for all treebank
+sentences in Section 4.4. The design of feature functions will be given in Section 4.5.
+4.1HPSG
+HPSG(PollardandSag1994;Sag,Wasow,andBender2003)isasyntactictheorythatfol-
+lows the lexicalist framework. In HPSG, linguistic entities, such as words and phrases,
+are denoted by signs, which are represented by typed feature structures (Carpenter
+1992). Signs are a formal representation of combinations of phonological forms and
+syntactic/semantic structures, and express which phonological form signiﬁes which
+syntactic/semantic structure. Figure 10 shows the lexical sign for loves. The geometry
+of signs follows Pollard and Sag: HEAD represents the part-of-speech of the head word,
+MOD denotes modiﬁee constraints, and SPR, SUBJ,andCOMPS describe constraints
+of a speciﬁer, a syntactic subject, and complements, respectively. CONT denotes the
+49
+ComputationalLinguistics Volume34,Number1
+Figure10
+Lexical entryforthetransitiveverbloves.
+Figure11
+Simpliﬁedrepresentationof thelexical entryinFigure10.
+predicate–argumentstructureofaphrase/sentence.ThenotationofCONTinthisarticle
+is borrowed from that of Minimal Recursion Semantics (Copestake et al. 2006): HOOK
+represents a structure accessed by other phrases, and RELS describes the remaining
+structure of the semantics. In what follows, we represent signs in a reduced form as
+showninFigure11,becauseofthelargesizeoftypicalHPSGsigns,whichofteninclude
+information not immediately relevant to the point being discussed. We will only show
+attributesthatarerelevanttoanexplanation,expectingthatreaderscanﬁllinthevalues
+of suppressed attributes.
+50
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing
+In our actual implementation of the HPSG grammar, lexical/phrasal signs contain
+additional attributes that are not deﬁned in the standard HPSG theory but are used
+by a disambiguation model. Examples include the surface form of lexical heads, and
+the type of lexical entry assigned to lexical heads, which are respectively used for
+computing the features WORD and LE introduced in Section 4.5. By incorporating ad-
+ditional attributes into signs, we can straightforwardly compute feature functions for
+eachsign.Thisallowsforasimplemappingbetweenaparsingchartandafeatureforest
+as described subsequently. However, this might increase the size of parse forests and
+therefore decrease parsing efﬁciency, because differences between additional attributes
+interfere with equivalence relations for ambiguity packing.
+4.2PackedRepresentationofHPSGParseTrees
+We represent an HPSG parse tree with a set of tuples 〈m,l,r〉, wherem,l,andrare the
+signs of the mother, left daughter, and right daughter, respectively.
+4
+In chart parsing,
+partial parse candidates are stored in achart, in which phrasal signs are identiﬁed and
+packed into equivalence classes if they are judged to be equivalent and dominate the
+samewordsequences.Asetofparsetreesisthenrepresentedasasetofrelationsamong
+equivalence classes.
+5
+Figure 12 shows a chart for parsinghesawagirlwithatelescope, where the modiﬁee
+ofwithisambiguous(saworgirl).Eachfeaturestructureexpressesanequivalenceclass,
+and the arrows represent immediate-dominance relations. The phrase, sawagirlwith
+atelescope, has two trees (A in the ﬁgure). Because the signs of the top-most nodes are
+equivalent, they are packed into an equivalence class. The ambiguity is represented as
+the two pairs of arrows leaving the node A.
+A set of HPSG parse trees is represented in a chart as a tuple〈E,E
+r,α〉, whereEis a
+set of equivalence classes,E
+r
+⊆Eis a set of root nodes, and α :E→ 2
+E×E
+is a function
+to represent immediate-dominance relations.
+Our representation of a chart can be interpreted as an instance of a feature forest.
+We map the tuple 〈e
+m,e
+l,e
+r
+〉, which corresponds to 〈m,l,r〉, into a conjunctive node.
+Figure 13 shows (a part of) the HPSG parse trees in Figure 12 represented as a feature
+forest. Square boxes (c
+i
+) are conjunctive nodes, andd
+i
+disjunctive nodes. A solid arrow
+represents a disjunctive daughter function, and a dotted line expresses a conjunctive
+daughter function.
+Formally, a chart〈E,E
+r,α〉is mapped into afeature forest〈C,D,R,γ,δ〉as follows.
+6
+a114
+C={〈e
+m,e
+l,e
+r
+〉|e
+m
+∈E∧(e
+l,e
+r
+) ∈ α(e
+m
+)}∪{w|w∈ w}
+a114
+D=E
+a114
+R={〈e
+m,e
+l,e
+r
+〉|e
+m
+∈E
+r
+∧〈e
+m,e
+l,e
+r
+〉∈C}
+4 Forsimplicity,only binarytreesare considered. Extension tounary andn-ary(n> 2)treesistrivial.
+5 Weassume
+that CONT and DTRS (afeatureused to represent daughter signs) arerestricted(Shieber1985),
+and wewilldiscuss amethodforencoding CONT inafeatureforestin Section4.3.Wealsoassume that
+parse trees arepacked accordingto equivalence relationsratherthansubsumption relations(Oepen and
+Carroll2000).Wecannotsimply map parseforests packed under subsumptionintofeatureforests,
+because they over-generate possibleunpacked trees.
+6 Forease
+ofexplanation,the deﬁnitionofthe rootnodeis differentfromthe originaldeﬁnitiongiven
+inSection3. In this section, wedeﬁneRas aset ofconjunctive nodes ratherthanasingle noder.The
+deﬁnitionhere istranslatedintothe originaldeﬁnitionbyintroducinga dummyrootnoder
+prime
+thathas
+no features andonly onedisjunctive daughterwhose daughters areR.
+51
+ComputationalLinguistics Volume34,Number1
+Figure12
+Chart forparsinghesawagirlwithatelescope.
+Figure13
+Featureforest representationof HPSGparsetrees inFigure12.
+52
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing
+a114
+γ(e
+m
+)=
+braceleftbigg
+{〈e
+m,e
+l,e
+r
+〉|(e
+l,e
+r
+) ∈ α(e
+m
+)} if α(e
+m
+) negationslash=∅
+{w|e
+m
+is a lexical entry forw} otherwise
+a114
+δ(c)=
+braceleftbigg
+{e
+l,e
+r
+} ifc=〈e
+m,e
+l,e
+r
+〉
+∅ ifc∈ w
+Onemayclaimthatrestrictingthedomainoffeaturefunctionsto〈e
+m,e
+l,e
+r
+〉limitsthe
+ﬂexibilityoffeaturedesign. Althoughthisistruetosome extent,itdoesnotnecessarily
+mean the impossibility of incorporating features on nonlocal dependencies into the
+model. This is because a feature forest model does not assume probabilistic indepen-
+denceofconjunctive nodes.Thismeans thatwecanunpack apartoftheforestwithout
+changing the model. Actually, we successfully developed a probabilistic model includ-
+ing features on nonlocal predicate–argument dependencies, as described subsequently.
+4.3PackedRepresentationofPredicate–ArgumentStructures
+With the method previously described, we can represent an HPSG parsing chart with
+a feature forest. However, equivalence classes in a chart might increase exponentially
+because predicate–argument structures in HPSG signs represent the semantic relations
+ofallwordsthatthephrasedominates.Forexample,Figure14showsphrasalsignswith
+predicate–argument structures for sawagirlwithatelescope. In the chart in Figure 12,
+these signs are packed into an equivalence class. However, Figure 14 shows that the
+values of CONT, that is, predicate–argument structures, have different values, and the
+signs as they are cannot be equivalent. As seen in this example, predicate–argument
+structures prevent us from packing signs into equivalence classes.
+Inthissection,weapplythefeatureforestmodeltopredicate–argumentstructures,
+which may include reentrant structures and non-local dependencies. It is theoretically
+difﬁcult to apply the feature forest model to predicate–argument structures; a feature
+forest cannot represent graph structures that include reentrant structures in a straight-
+forward manner. However, if predicate–argument structures are constructed as in the
+manner described subsequently, they can be represented by feature forests of a tracta-
+ble size.
+Feature forests can represent predicate–argument structures if we assume some
+locality and monotonicity in the composition of predicate–argument structures.
+Locality:In each step of composition of a predicate–argument structure, only a
+limited depth of the daughters’ predicate–argument structures are referred to.
+That is, local structures in the deep descendent phrases may be ignored to
+construct larger phrases. This assumption means that predicate–argument
+structures can be packed into conjunctive nodes by ignoring local structures.
+Figure14
+Signswithpredicate–argumentstructures.
+53
+ComputationalLinguistics Volume34,Number1
+Monotonicity:All relations in the daughters’ predicate–argument structures
+are percolated to the mother. That is, none ofthe predicate–argument
+relations in the daughter phrases disappear in the mother. Thus
+predicate–argument structures of descendent phrases can be located at
+lower nodes in afeature forest.
+Predicate–argumentstructuresusuallysatisfytheaboveconditions,evenwhenthey
+include non-local dependencies. For example, Figure 15 shows HPSG lexical entries
+for the wh-extraction of the object of love (left) and for the control construction of try
+(right). The ﬁrst condition is satisﬁed because both lexical entries refer to CONT|HOOK
+of argument signs in SUBJ, COMPS,andSLASH. None of the lexical entries directly
+accessARGXofthearguments.Thesecondconditionisalsosatisﬁedbecausethevalues
+of CONT|HOOK of all of the argument signs are percolated to ARGX of the mother. In
+addition,theelementsinCONT|RELSarepercolatedtothemotherbytheSemanticPrin-
+ciple. Compositional semantics usually satisﬁes the above conditions, including MRS
+(Copestake et al. 1995, 2006). The composition of MRS refers to HOOK, and no internal
+structures of daughters. The Semantic Principle of MRS also assures that all semantic
+relations in RELS are percolated to the mother. When these conditions are satisﬁed,
+semantics may include any constraints, such as selectional restrictions, although the
+grammarweusedintheexperimentsdoesnotincludesemanticrestrictionstoconstrain
+parse forests.
+Under these conditions, local structures of predicate–argument structures are en-
+coded into a conjunctive node when the values of all of its arguments have been
+instantiated. We introduce the notion of inactives to denote such local structures.
+Deﬁnition10(Inactives)
+An inactive is a subset of predicate–argument structures in which all arguments have
+been instantiated.
+Because inactive parts will not change during the rest of the parsing process, they can
+beplacedinaconjunctivenode.Byplacingnewlygeneratedinactivesintocorrespond-
+ing conjunctive nodes, a set of predicate–argument structures can be represented in a
+feature forest bypacking local ambiguities, and non-local dependencies are preserved.
+Figure16illustratesaprocessofparsingthesentenceSheignoredthefactthatIwanted
+todispute,wheredisputehasanambiguity(dispute1,intransitive,anddispute2,transitive)
+Figure15
+Lexical entriesincludingnon-localrelations.
+54
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing
+Figure16
+Processof composingpredicate–argumentstructures.
+Figure17
+Predicate–argumentstructuresofdispute.
+andfactmay optionally take acomplementizer phrase.
+7
+The predicate–argument struc-
+tures for dispute1 and dispute2 are shown in Figure 17. Curly braces express the am-
+biguities of partially constructed predicate–argument structures. The resulting feature
+forest is shown in Figure 18. The boxes denote conjunctive nodes and d
+x
+represent
+disjunctive nodes.
+The clauseIwantedtodisputehas two possible predicate–argument structures: one
+corresponding to dispute1 (α in Figure 16) and the other corresponding to dispute2 (β
+in Figure 16). The nodes of the predicate–argument structure α are all instantiated, that
+is, it contains only inactives. The corresponding conjunctive node (α
+prime
+in Figure 18) has
+two inactives, forwantanddispute1. The other structure β has an unﬁlled object in the
+argument (ARG2
+8
+)ofdispute2, which will be ﬁlled by the non-local dependency. Hence,
+the corresponding conjunctive node β
+prime
+has only one inactive corresponding to want,
+andtheremaining partthatcorresponds todispute2ispassed onforfurtherprocessing.
+WhenweprocessthephrasethefactthatIwantedtodispute,theobjectofdispute2isﬁlled
+byfact(γ in Figure 16), and the predicate–argument structure ofdispute2is then placed
+into aconjunctive node (γ
+prime
+in Figure 18).
+7 InFigure16,featurestructuresofdifferentnodesofparsetreesareassigneddistinctvariables,evenwhen
+they arefromthesame lexicalentries. This isbecause featurestructures arecopiedduring chartparsing.
+Althoughthese variablesarefromthe same lexicalentry, itis copiedtoseveral chart items,and hence
+there areno structuresharings among them.
+8 ⊥(bottom)represents anuninstantiated value(Carpenter1992).
+55
+ComputationalLinguistics Volume34,Number1
+Figure18
+Afeatureforest representationof predicate–argumentstructures.
+One of the beneﬁcial characteristics of this packed representation is that the rep-
+resentation is isomorphic to the parsing process, that is, a chart. Hence, we can assign
+featuresofHPSGparsetreestoaconjunctivenode,togetherwithfeaturesofpredicate–
+argument structures. In Section 5, we will investigate the contribution of features on
+parse trees and predicate–argument structures to thedisambiguation of HPSGparsing.
+4.4FilteringbyPreliminaryDistribution
+The method just described is the essence of our solution for the tractable estimation
+of maximum entropy models on exponentially many HPSG parse trees. However,
+the problem of computational cost remains. Construction of feature forests requires
+parsing of all of the sentences in a treebank. Despite the development of methods to
+improve HPSG parsing efﬁciency (Oepen, Flickinger, et al. 2002), exhaustive parsing of
+all sentences is still expensive.
+We assume that computation of parse trees with low probabilities can be omitted
+in the estimation stage because T(w) can be approximated by parse trees with high
+probabilities. To achieve this, we ﬁrst prepared apreliminaryprobabilisticmodel whose
+estimation did not require the parsing of a treebank. The preliminary model was used
+to reduce the search space for parsing a training treebank.
+The preliminary model in this study is a unigram model, ¯p(t|w)=
+producttext
+w∈w
+p(l|w),
+where w∈ w is a word in the sentence w,andl is a lexical entry assigned to w.This
+model is estimated by counting the relative frequencies of lexical entries used forwin
+thetrainingdata.Hence,theestimationdoesnotrequireparsingofatreebank.Actually,
+weuseamaximumentropymodeltocomputethisprobabilityasdescribedinSection5.
+56
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing
+Thepreliminarymodelisusedforﬁlteringlexicalentrieswhenweparseatreebank.
+Giventhismodel,werestrictthenumberoflexicalentriesusedtoparseatreebank.With
+a threshold n for the number of lexical entries and a threshold epsilon1 for the probability,
+lexical entries are assigned to a word in descending order of probability, until the
+number of assigned entries exceedsn, or the accumulated probability exceeds epsilon1.Ifthis
+procedure does not assign a lexical entry necessary to produce a correct parse (i.e., an
+oraclelexicalentry),itisaddedtothelistoflexicalentries.Itshouldbenotedthatoracle
+lexical entries are given by the HPSG treebank. This assures that the ﬁltering method
+does not exclude correct parse trees from parse forests.
+Figure19showsanexampleofﬁlteringthelexicalentriesassignedtosaw.Withepsilon1 =
+0.95,fourlexicalentriesareassigned.Althoughthelexiconincludesotherlexicalentries,
+such as a verbal entry taking a sentential complement (p=0.01 in the ﬁgure), they are
+ﬁlteredout.Althoughthismethodreducesthetimerequiredforparsingatreebank,this
+approximationcausesbiasinthetrainingdataandresultsinloweraccuracy.Thetrade-
+offbetween parsing cost and accuracy will be examined experimentally in Section 5.4.
+We have several ways to integrate ¯p with the estimated model p(t|T(w)). In the
+experiments, we will empirically compare the following methods in terms of accuracy
+and estimation time.
+Filteringonly:Theunigram probability ¯pis used only for ﬁltering in training.
+Product:The probability is deﬁned as the product of ¯pand the estimated modelp.
+Referencedistribution: ¯pis used as areference distribution ofp.
+Featurefunction:log ¯pis used as afeature function ofp. This method has been
+shown to be a generalization of the reference distribution method (Johnson
+and Riezler 2000).
+4.5Features
+Featurefunctionsinmaximumentropymodelsaredesigned tocapturethecharacteris-
+ticsof〈e
+m,e
+l,e
+r
+〉.Inthisarticle,weinvestigatecombinationsoftheatomicfeatureslisted
+Figure19
+Filteringoflexical entriesforsaw.
+57
+ComputationalLinguistics Volume34,Number1
+Table1
+Templatesfor atomicfeatures.
+RULE nameof theappliedschema
+DIST distancebetween thehead wordsof thedaughters
+COMMA whetheracommaexistsbetweendaughtersand/orinsideofdaughterphrases
+SPAN numberof wordsdominatedbythephrase
+SYM symbolof thephrasalcategory(e.g., NP, VP)
+WORD surfaceformof thehead word
+POS part-of-speechof thehead word
+LE lexical entryassigned tothehead word
+ARG argumentlabel of apredicate
+in Table 1. The following combinations are used for representing the characteristics of
+binary/unary schema applications.
+f
+binary
+=
+angbracketleftBigg
+RULE,DIST,COMMA,
+SPAN
+l,SYM
+l,WORD
+l,POS
+l,LE
+l,
+SPAN
+r,SYM
+r,WORD
+r,POS
+r,LE
+r
+angbracketrightBigg
+f
+unary
+=〈RULE,SYM,WORD,POS,LE〉
+where subscriptslandrdenote leftand right daughters.
+In addition, the following is used for expressing the condition of the root node of
+the parse tree.
+f
+root
+=〈SYM,WORD,POS,LE〉
+Feature functions to capture predicate–argument dependencies are represented as
+follows:
+f
+pa
+=
+angbracketleftbig
+ARG,DIST,WORD
+p,POS
+p,LE
+p,WORD
+a,POS
+a,LE
+a
+angbracketrightbig
+where subscriptspandarepresent predicate and argument, respectively.
+Figure 20 shows examples: f
+root
+is for the root node, in which the phrase symbol
+is S and the surface form, part-of-speech, and lexical entry of the lexical head aresaw,
+VBD, and atransitive verb, respectively.f
+binary
+is for the binary rule application tosawa
+girlandwithatelescope, in which the applied schema is the Head-Modiﬁer Schema, the
+left daughter is VP headed bysaw, and the right daughter is PP headed bywith, whose
+part-of-speech is IN and whose lexical entry is aVP-modifying preposition.
+Figure 21 shows example features for predicate–argument structures. The ﬁgure
+shows features assigned to the conjunctive node denoted as α
+prime
+in Figure 18. Because
+inactive structures in the node have three predicate–argument relations, three features
+areactivated.TheﬁrstoneisfortherelationofwantandI,wherethelabeloftherelation
+is ARG1, the distance between the head words is 1, the surface string and the POS of
+58
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing
+Figure20
+Examplefeaturesforbinaryschemaapplicationandroot condition.
+Figure21
+Examplefeaturesforpredicate–argumentstructures.
+the predicate are wantand VBD, and those of the argument areI and PRP. The second
+and the third features are for the other two relations. We may include features on more
+than two relations, such as the dependencies amongwant,I,anddispute, although such
+features are not incorporated currently.
+Inourimplementation,someoftheatomicfeaturesareabstracted(i.e.,ignored)for
+smoothing.Tables2,3,and4showthefullsetoftemplatesofcombinedfeaturesusedin
+the experiments. Each row represents the template for a feature function. A check indi-
+cates the atomic feature is incorporated, and ahyphen indicates the feature is ignored.
+59
+ComputationalLinguistics Volume34,Number1
+Table2
+Featuretemplatesforbinaryschema (left)and unaryschema (right).
+RULE DIST COMMA SPAN SYM WORD POS LE
+√√√
+––
+√√√
+–
+√√√
+––
+√
+–
+√
+–
+√√
+––
+√
+–
+√√
+–
+√√√
+√
+– – –
+√
+–
+√√
+–
+√
+–
+√
+√
+–
+√
+––
+√√√
+–––
+√√
+√
+–
+√√√
+––––
+√
+–
+√
+–––
+√
+–
+√√
+––
+√√
+√
+–
+√
+–
+√
+–
+√√
+–––
+√
+√
+–
+√
+–––
+RULE SYM WORD POS LE
+√
+–
+√√√
+√
+– –
+√
+–
+√
+–
+√
+√√
+––
+√
+––
+√√
+√ √
+–
+√
+–––
+√
+√√
+–––
+Table3
+Featuretemplatesforrootcondition.
+SYM WORD POS LE
+–
+√√√
+– –
+–
+√
+–
+√
+√√
+––
+––
+√√
+√
+–
+–––
+√
+√
+–––
+Table4
+Featuretemplatesforpredicate–argumentdependencies.
+ARG DIST WORD POS LE
+√√ √ √√
+√√ √
+–
+√
+√√
+–
+√√
+√
+–
+√√√
+√
+–
+√
+–
+√
+√
+––
+√√
+√√ √ √
+–
+√√ √
+––
+√√
+–
+√
+–
+√
+–
+√√
+–
+√
+–
+√
+––
+√
+––
+√
+–
+60
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing
+5.Experiments
+This section presents experimental results on the parsing accuracy attained by the
+feature forest models. In all of the following experiments, we use the HPSG grammar
+developed by the method of Miyao, Ninomiya, and Tsujii (2005). Section 5.1 describes
+howthisgrammarwasdeveloped.Section5.2explainsotheraspectsoftheexperimental
+settings. In Sections 5.3 to 5.7, we report results of the experiments on HPSGparsing.
+5.1TheHPSGGrammar
+Inthefollowingexperiments,weuseEnju2.1(TsujiiLaboratory2004),whichisawide-
+coverage HPSG grammar extracted from the Penn Treebank by the method of Miyao,
+Ninomiya, and Tsujii (2005). In this method, we convert the Penn Treebank into an
+HPSG treebank, and collect HPSG lexical entries from terminal nodes of the HPSG
+treebank.Figure22illustratestheprocessoftreebankconversionandlexiconcollection.
+We ﬁrst convert and fertilize parse trees of the Penn Treebank. This step identiﬁes
+syntactic constructions that require special treatment in HPSG, such as raising/control
+and long-distance dependencies. These constructions are then annotated with typed
+feature structures so that they conform to the HPSG analysis. Next, we apply HPSG
+schemas and principles, and obtain fully speciﬁed HPSG parse trees. This step solves
+featurestructureconstraintsgiveninthepreviousstep,andﬁllsunspeciﬁedconstraints.
+Failuresofschema/principleapplicationsindicatethattheannotatedconstraintsdonot
+Figure22
+ExtractingHPSGlexical entriesfromthePennTreebank.
+61
+ComputationalLinguistics Volume34,Number1
+conform to the HPSG analysis, and require revisions. Finally, we obtain lexical entries
+from the HPSG parse trees. The terminal nodes of HPSG parse trees are collected, and
+they are generalized by removing word-speciﬁc or context-speciﬁc constraints.
+An advantage of this method is that a wide-coverage HPSG lexicon is obtained
+because lexical entries are extracted from real-world sentences. Obtained lexical entries
+are guaranteed to construct well-formed HPSG parse trees because HPSG schemas
+and principles are successfully applied during the development of the HPSG treebank.
+Another notable feature is that we can additionally obtain an HPSG treebank, which
+can be used as training data for disambiguation models. In the following experiments,
+this HPSG treebank is used for the training of maximum entropy models.
+The lexicon used in the following experiments was extracted from Sections 02–21
+of the WallStreetJournal portion of the Penn Treebank. This lexicon can assign correct
+lexical entries to 99.09% of words in the HPSG treebank converted from Penn Treebank
+Section 23. This number expresses “lexical coverage” in the strong sense deﬁned by
+Hockenmaier and Steedman (2002). In this notion of “coverage,” this lexicon has 84.1%
+sentential coverage, where this means that the lexicon can assign correct lexical entries
+to all of the words in a sentence. Although the parser might produce parse results for
+uncovered sentences, these parse results cannot be completely correct.
+5.2ExperimentalSettings
+ThedataforthetrainingofthedisambiguationmodelswastheHPSGtreebankderived
+from Sections 02–21 of theWallStreetJournalportion of the Penn Treebank, that is, the
+same set used for lexicon extraction. For training of the disambiguation models, we
+eliminated sentences of 40 words or more and sentences for which the parser could not
+producethecorrectparses.Theresultingtrainingsetconsistsof33,604sentences(when
+n=10 and epsilon1 =0.95; see Section 5.4 for details). The treebanks derived from Sections
+22 and 23 were used as the development and ﬁnal test sets, respectively. Following
+previous studies on parsing with PCFG-based models (Collins 1997; Charniak 2000),
+accuracy is measured for sentences of less than 40 words and for those with less than
+100 words. Table 5shows the speciﬁcations of the test data.
+The measure for evaluating parsing accuracy is precision/recall of predicate–
+argument dependencies output by the parser. A predicate–argument dependency is
+deﬁned as a tuple 〈w
+h,w
+n,π,ρ〉, where w
+h
+is the head word of the predicate, w
+n
+is the
+head word of the argument, π is the type of the predicate (e.g., adjective, intransitive
+verb), and ρ is an argument label (MODARG, ARG1, ..., ARG4). For example, He tried
+runninghas three dependencies as follows:
+a114
+〈tried,he,transitive verb,ARG1〉
+Table5
+Speciﬁcation of test datafortheevaluation ofparsingaccuracy.
+No.ofSentences Avg.Length
+Test set (Section 23, < 40words) 2,144 20.52
+Test set (Section 23, < 100words) 2,299 22.23
+Development set (Section 22, < 40words) 1,525 20.69
+Development set (Section 22, < 100words) 1,641 22.43
+62
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing
+a114
+〈tried,running,transitive verb,ARG2〉
+a114
+〈running,he,intransitive verb,ARG1〉
+Labeledprecision/recall(LP/LR)istheratiooftuplescorrectlyidentiﬁedbytheparser,
+and unlabeled precision/recall (UP/UR) is the ratio of w
+h
+and w
+n
+correctly identiﬁed
+regardless of π and ρ. F-score is the harmonic mean of LP and LR. Sentence accuracy
+is the exact match accuracy of complete predicate–argument relations in a sentence.
+These measures correspond to those used in other studies measuring the accuracy of
+predicate–argumentdependenciesinCCGparsing(Clark,Hockenmaier,andSteedman
+2002; Hockenmaier 2003; Clark and Curran 2004b) and LFG parsing (Burke et al. 2004),
+although exact ﬁgures cannot be compared directly because the deﬁnitions of depen-
+dencies are different. All predicate–argument dependencies in a sentence are the target
+ofevaluationexceptquotationmarksandperiods.Theaccuracyismeasuredbyparsing
+test sentences with gold-standard part-of-speech tags from the Penn Treebank unless
+otherwise noted.
+The Gaussian prior was used for smoothing (Chen and Rosenfeld 1999a), and its
+hyper-parameter was tuned for each model to maximize F-score for the development
+set. The algorithm for parameter estimation was the limited-memory BFGS method
+(Nocedal 1980; Nocedal and Wright 1999). The parser was implemented in C++ with
+the LiLFeS library (Makino et al. 2002), and various speed-up techniques for HPSG
+parsingwereusedsuchasquickcheckanditerativebeamsearch(Tsuruoka,Miyao,and
+Tsujii 2004; Ninomiya et al. 2005). Other efﬁcient parsing techniques, including global
+thresholding,hybridparsingwithachunkparser,andlargeconstituentinhibition,were
+not used. The results obtained using these techniques are given in Ninomiya et al. A
+limit on the number of constituents was set for time-out; the parser stopped parsing
+when the number of constituents created during parsing exceeded 50,000. In such a
+case, the parser output nothing, and the recall was computed as zero.
+Features occurring more than twice were included in the probabilistic models. A
+method of ﬁltering lexical entries was applied to the parsing of training data (Sec-
+tion4.4).Unlessotherwisenoted,parametersforﬁlteringweren=10andepsilon1 =0.95,and
+areferencedistributionmethodwasapplied.Theunigrammodel,p
+0
+(t|s),forﬁlteringis
+a maximum entropy model with two feature templates, 〈WORD,POS,LE〉and〈POS,LE〉.
+Themodel includes 24,847 features.
+5.3EfﬁcacyofFeatureForestModels
+Tables 6 and 7 show parsing accuracy for the test set. In the tables, “Syntactic features”
+denotes a model with syntactic features, that is, f
+binary, f
+unary,andf
+root
+introduced
+Table6
+Accuracyof predicate–argumentrelations(test set, <40words).
+LP LR UP UR F-score Sentence acc.
+Baseline 78.10 77.39 82.83 82.08 77.74 18.3
+Syntacticfeatures 86.92 86.28 90.53 89.87 86.60 36.3
+Semanticfeatures 84.29 83.74 88.32 87.75 84.01 30.9
+All 86.54 86.02 90.32 89.78 86.28 36.0
+63
+ComputationalLinguistics Volume34,Number1
+Table7
+Accuracy ofpredicate–argumentrelations(test set, <100 words).
+LP LR UP UR F-score Sentenceacc.
+Baseline 77.58 76.84 82.22 81.43 77.21 17.1
+Syntacticfeatures 86.47 85.83 90.06 89.40 86.15 34.1
+Semanticfeatures 83.81 83.26 87.75 87.16 83.53 28.9
+All 86.13 85.59 89.85 89.29 85.86 33.8
+in Section 4.5. “Semantic features” represents a model with features on predicate–
+argument structures, that is, f
+pa
+given in Table 4. “All” is a model with both syntactic
+and semantic features. The “Baseline” row shows the results for the reference model,
+p
+0
+(t|s), used for lexical entry ﬁltering in the estimation of the other models. This model
+isconsideredasasimpleapplicationofatraditionalPCFG-stylemodel;thatis,p(r)=1
+for any rulerin the construction rules of the HPSGgrammar.
+The results demonstrate that feature forest models have signiﬁcantly higher ac-
+curacy than a baseline model. Comparing “Syntactic features” with “Semantic fea-
+tures,” we see that the former model attained signiﬁcantly higher accuracy than the
+latter. This indicates that syntactic features are more important for overall accuracy.
+We will examine the contributions of each atomic feature of the syntactic features in
+Section 5.5.
+Features on predicate–argument relations were generally considered as important
+for the accurate disambiguation of syntactic structures. For example, PP-attachment
+ambiguity cannot be resolved with only syntactic preferences. However, the results
+show that a model with only semantic features performs signiﬁcantly worse than one
+withsyntacticfeatures.Evenwhencombinedwithsyntacticfeatures,semanticfeatures
+do not improve accuracy. Obviously, semantic preferences are necessary for accurate
+parsing, but the features used in this work were not sufﬁcient to capture semantic pref-
+erences. A possible reason is that, as reported in Gildea (2001), bilexical dependencies
+may be too sparse to capture semantic preferences.
+For reference, our results are competitive with the best corresponding results re-
+ported in CCG parsing (LP/LR = 86.6/86.3) (Clark and Curran 2004b), although our
+results cannot be compared directly with other grammar formalisms because each
+formalismrepresentspredicate–argumentdependenciesdifferently.Incontrastwiththe
+results of CCG and PCFG (Collins 1997, 1999, 2003; Charniak 2000), the recall is clearly
+lower than precision. This may have resulted from the HPSG grammar having stricter
+feature constraints and the parser not being able to produce parse results for around
+1% of the sentences. To improve recall, we need techniques to deal with these 1% of
+sentences.
+Table 8 gives the computation/space costs of model estimation. “Estimation time”
+indicates user times required for running the parameter estimation algorithm. “No. of
+feature occurrences” denotes thetotalnumber ofoccurrences offeatures in thetraining
+data, and “Data size” gives the sizes of the compressed ﬁles of training data. We can
+conclude that feature forest models are estimated at a tractable computational cost and
+a reasonable data size, even when a model includes semantic features including non-
+local dependencies. The results reveal that feature forest models essentially solve the
+problem of the estimation of probabilistic models of sentence structures.
+64
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing
+Table8
+Computation/spacecosts of modelestimation.
+No.of features Estimation No.of feature Datasize
+time(sec.) occurrences (MB)
+Baseline 24,847 499 6,948,364 21
+Syntacticfeatures 599,104 511 127,497,615 727
+Semanticfeatures 334,821 278 176,534,753 375
+All 933,925 716 304,032,368 1,093
+Table9
+Estimationmethodvs.accuracy and estimationtime.
+LP LR F-score Estimationtime(sec.)
+Filteringonly 51.70 49.89 50.78 449
+Product 86.50 85.94 86.22 1,568
+Referencedistribution 86.92 86.28 86.60 511
+Featurefunction 84.81 84.09 84.45 945
+5.4ComparisonofFilteringMethods
+Table 9 compares the estimation methods introduced in Section 4.4. In all of the follow-
+ingexperiments,weshowtheaccuracyforthetestset(<40words)only.Table9reveals
+that our method achieves signiﬁcantly lower accuracy when it is used only for ﬁltering
+in the training phrase. One reason is that the feature forest model prefers lexical entries
+that are ﬁltered out in the training phase, because they are always oracle lexical entries
+in the training. This means that we must incorporate the preference of ﬁltering into the
+ﬁnal parse selection. As shown in Table 9, the models combined with a preliminary
+model achieved sufﬁcient accuracy. The reference distribution method achieved higher
+accuracy and lower cost. The feature function method achieved lower accuracy in our
+experiments.Apossiblereason forthisisthatahyper-parameter ofthepriorwassetto
+the same value for all the features including the feature of the log-probability given by
+the preliminary distribution.
+Tables 10 and 11 show the results of changing the ﬁltering threshold. We can
+determine the correlation between the estimation/parsing cost and accuracy. In our
+experiment,n≥ 10 and epsilon1 ≥ 0.90 seem necessary to preserve the F-score over 86.0.
+5.5ContributionofFeatures
+Table 12 shows the accuracy with different feature sets. Accuracy was measured for 15
+models with some atomic features removed from the ﬁnal model. The last row denotes
+the accuracy attained by the unigram model (i.e., the reference distribution). The num-
+bers in bold type represent a signiﬁcant difference from the ﬁnal model according to
+stratiﬁedshufﬂingtestswiththeBonferronicorrection(Cohen1995)withp-value <.05
+for 32 pairwise comparisons. The results indicate that DIST, COMMA, SPAN, WORD,and
+65
+ComputationalLinguistics Volume34,Number1
+Table10
+Filteringthresholdvs. accuracy.
+n,epsilon1 LP LR F-score Sentenceacc.
+5, 0.80 85.09 84.30 84.69 32.4
+5, 0.90 85.44 84.61 85.02 32.5
+5, 0.95 85.52 84.66 85.09 32.7
+5, 0.98 85.50 84.63 85.06 32.6
+10, 0.80 85.60 84.65 85.12 32.5
+10, 0.90 86.49 85.92 86.20 34.7
+10, 0.95 86.92 86.28 86.60 36.3
+10, 0.98 87.18 86.66 86.92 37.7
+15, 0.80 85.59 84.63 85.11 32.4
+15, 0.90 86.48 85.80 86.14 35.7
+15, 0.95 87.21 86.68 86.94 37.0
+15, 0.98 87.69 87.16 87.42 39.2
+Table11
+Filteringthresholdvs. estimationcost.
+n,epsilon1 Estimation time(sec.) Parsingtime(sec.) Datasize (MB)
+5, 0.80 108 5,103 341
+5, 0.90 150 6,242 407
+5, 0.95 190 7,724 469
+5, 0.98 259 9,604 549
+10, 0.80 130 6,003 370
+10, 0.90 268 8,855 511
+10, 0.95 511 15,393 727
+10, 0.98 1,395 36,009 1,230
+15, 0.80 123 6,298 372
+15, 0.90 259 9,543 526
+15, 0.95 735 20,508 854
+15, 0.98 3,777 86,844 2,031
+POS features contributed to the ﬁnal accuracy, although the differences were slight. In
+contrast, RULE, SYM,andLE features did not affect accuracy. However, when each was
+removedtogetherwithanotherfeature,theaccuracydecreaseddrastically.Thisimplies
+that such features carry overlapping information.
+5.6FactorsforParsingAccuracy
+Table 13 shows parsing accuracy for covered and uncovered sentences. As deﬁned in
+Section5.1,“covered”indicatesthattheHPSGlexiconhasallcorrectlexicalentriesfora
+sentence.Inotherwords,forcovered sentences,exactlycorrectparsetreesareobtained
+if the disambiguation model worked perfectly. The result reveals clear differences in
+accuracy between covered and uncovered sentences. The F-score for covered sentences
+is around 2.5 points higher than the overall F-score, whereas the F-score is more than
+10 points lower for uncovered sentences. This result indicates improvement of lexicon
+quality is an important factor for higher accuracy.
+66
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing
+Table12
+Accuracywith differentfeaturesets.
+Features LP LR F-score Sentence acc. No.of features
+All 86.92 86.28 86.60 36.3 599,104
+–RULE 86.83 86.19 86.51 36.3 596,446
+–DIST 86.52 85.96 86.24 35.7 579,666
+–COMMA 86.31 85.81 86.06 34.4 584,040
+–SPAN 86.32 85.75 86.03 35.5 559,490
+–SYM 86.74 86.16 86.45 35.4 406,545
+–WORD 86.39 85.77 86.08 35.3 91,004
+–POS 86.18 85.61 85.89 34.1 406,545
+–LE 86.91 86.32 86.61 36.8 387,938
+–DIST,SPAN 85.39 84.82 85.10 33.1 270,467
+–DIST,SPAN,COMMA 83.75 83.25 83.50 28.9 261,968
+–RULE,DIST,SPAN,COMMA 83.44 82.93 83.18 27.6 259,372
+–WORD,LE 86.40 85.81 86.10 34.7 25,429
+–WORD,POS 85.44 84.87 85.15 32.7 40,102
+–WORD,POS,LE 84.68 84.12 84.40 31.1 8,899
+–SYM,WORD,POS,LE 82.77 82.14 82.45 24.9 1,914
+None 78.10 77.39 77.74 18.3 0
+Table13
+Accuracyforcovered/uncoveredsentences.
+LP LR F-score Sentence acc. No.ofsentences
+covered sentences 89.36 88.96 89.16 42.2 1,825
+uncoveredsentences 75.57 74.04 74.80 2.5 319
+Figure 23 shows the learning curve. A feature set was ﬁxed, and the parameter of
+theGaussianpriorwasoptimizedforeachmodel.Highaccuracyisattainedevenwitha
+smalltrainingset,andtheaccuracyseemstobesaturated.Thisindicatesthatwecannot
+further improve the accuracy simply by increasing the size of the training data set. The
+exploration of new types of features is necessary for higher accuracy. It should also be
+noted that the upper bound of the accuracy is not 100%, because the grammar cannot
+produce completely correct parse results for uncovered sentences.
+Figure 24 shows the accuracy for each sentence length. It is apparent from this
+ﬁgure that the accuracy is signiﬁcantly higher for sentences with less than 10 words.
+This implies that experiments with only short sentences overestimate the performance
+of parsers. Sentences with at least 10 words are necessary to properly evaluate the
+performance of parsing real-world texts. The accuracies for the sentences with more
+than10wordsarenotverydifferent,althoughdatapointsforsentenceswithmorethan
+50words are not reliable.
+Table 14 shows the accuracies for predicate–argument relations when parts-
+of-speech tags are assigned automatically by a maximum-entropy-based parts-of-
+speech tagger (Tsuruoka and Tsujii 2005). The results indicate a drop of about three
+points in labeled precision/recall (a two-point drop in unlabeled precision/recall).
+A reason why we observed larger accuracy drops in labeled precision/recall is that
+67
+ComputationalLinguistics Volume34,Number1
+Figure23
+Corpussize vs.accuracy.
+Figure24
+Sentence lengthvs. accuracy.
+predicate–argument relations are fragile with respect to parts-of-speech errors because
+predicate types (e.g., adjective, intransitive verb) are determined depending on the
+parts-of-speechofpredicatewords.Althoughourcurrentparsingstrategyassumesthat
+parts-of-speech are given beforehand, for higher accuracy in real application contexts,
+we will need a method for determining parts-of-speech and parse trees jointly.
+Table14
+Accuracy withautomaticparts-of-speechtags(test set).
+LP LR UP UR F-score Sentenceacc.
+<40 words 83.88 82.84 88.83 87.73 83.36 30.1
+<100 words 83.45 82.40 88.37 87.26 82.92 28.2
+68
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing
+5.7AnalysisofDisambiguationErrors
+Table15showsamanualclassiﬁcationofthecausesofdisambiguationerrorsin100sen-
+tencesrandomlychosenfromSection00.Inourevaluation,oneerrorsourcemaycause
+multiple dependency errors. For example, if an incorrect lexical entry is assigned to a
+verb, all of the argument dependencies of the verb are counted as errors. The numbers
+inthetableincludesuchdouble-counting.Figure25showsexamplesofdisambiguation
+errors. The ﬁgure shows output fromthe parser.
+Major causes are classiﬁed into three types: attachment ambiguity, argument/
+modiﬁer distinction, and lexical ambiguity. As attachment ambiguities are well-known
+error sources, PP-attachment is the largest source of errors in our evaluation. Our
+disambiguation model cannot accurately resolve PP-attachment ambiguities because it
+does not include dependencies among a modiﬁee and the argument of the preposition.
+Because previous studies revealed that such dependencies are effective features for
+PP-attachment resolution, we should incorporate them into our model. Some of the
+attachment ambiguities, including adjective and adverb, should also be resolved
+with an extension of features. However, we cannot identify any effective features
+for the disambiguation of attachment of verbal phrases, including relative clauses,
+verb phrases, subordinate clauses, and to-inﬁnitives. For example, Figure 25 shows
+an example error of the attachment of a relative clause. The correct answer is that the
+Table15
+Classiﬁcation of disambiguationerrors.
+Errorcause No.oferrors
+Attachmentambiguity prepositionalphrase 32
+relativeclause 14
+adjective 7
+adverb 6
+verbphrase 5
+subordinateclause 3
+to-inﬁnitive 3
+others 6
+Argument/modiﬁerdistinction to-inﬁnitive 19
+nounphrase 7
+verbphrase 7
+subordinateclause 7
+others 9
+Lexicalambiguity preposition/modiﬁer 13
+verbsubcategorizationframe 13
+participle/adjective 12
+others 6
+Testseterrors errorsoftreebankconversion 18
+errorsofPennTreebank 4
+Comma 32
+Nounphraseidentiﬁcation 15
+Coordination/insertion 15
+Zero-pronounresolution 9
+Others 4
+69
+ComputationalLinguistics Volume34,Number1
+Figure25
+Examplesof disambiguationerrors.
+subjectofyieldedisacre,butthiscannotbedeterminedonlybytherelationamongyield,
+grapes,andacre.The resolution of these errors requires anovel type of feature function.
+Errors of argument/modiﬁer distinction are prominent in deep syntactic analysis,
+because arguments and modiﬁers are not explicitly distinguished in the evaluation of
+CFG parsers. Figure 25 shows an example of the argument/modiﬁer distinction of a
+to-inﬁnitive clause. In this case, the to-inﬁnitive clause is a complement of tempts.The
+subcategorization frame of tempts seems responsible for this problem. However, the
+disambiguation model wrongly assigned a lexical entry for a transitive verb because
+of the sparseness of the training data (tempts occurred only once in the training data).
+Theresolutionofthissortofambiguityrequiresthereﬁnementofaprobabilisticmodel
+of lexical entries. Errors of verb phrases and subordinate clauses are similar to this
+example.Errorsofargument/modiﬁerdistinctionofnounphrasesaremainlycausedby
+temporal nouns and cardinal numbers. The resolution of these errors seems to require
+the identiﬁcation of temporal expressions and usage of cardinal numbers.
+Errors of lexical ambiguities were mainly caused by idioms. For example, in Fig-
+ure 25, compared with is a compound preposition, but the parser recognized it as a
+verb phrase. This indicates that the grammar or the disambiguation model requires
+the special treatment of idioms. Errors of verb subcategorization frames were mainly
+caused by difﬁcult constructions such as insertions. Figure 25 shows that the parser
+could not identify the inserted clause (says John Siegel...) and a lexical entry for a
+declarative transitive verb was chosen.
+Attachment errors of commas are also signiﬁcant. It should be noted that commas
+were ignored in the evaluation of CFG parsers. We did not eliminate punctuation
+from the evaluation because punctuation sometimes contributes to semantics, as
+in coordination and insertion. In this error analysis, errors of commas representing
+coordination/insertion are classiﬁed into “coordination/insertion,” and “comma” in-
+dicates errors that do not contribute to the computation of semantics.
+Errors of noun phrase identiﬁcation mean that a noun phrase was split into two
+phrases. These errors were mainly caused bythe indirect effects of other errors.
+70
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing
+Errors of identifying coordination/insertion structures sometimes resulted in
+catastrophic analyses. While accurate analysis of such constructions is indispensable,
+it is also known to be difﬁcult because disambiguation of coordination/insertion
+requires the computation of preferences over global structures, such as the similarity
+of syntactic/semantic structure of coordinates. Incorporating features for representing
+the similarity ofglobal structures is difﬁcult for feature forest models.
+Zero-pronoun resolution is also a difﬁcult problem. However, we found that
+most were indirectly caused by errors of argument/modiﬁer distinction into-inﬁnitive
+clauses.
+A signiﬁcant portion of the errors discussed above cannot be resolved by the fea-
+tures we investigated in this study, and the design of other features will be necessary
+for improving parsing accuracy.
+6.Discussion
+6.1ProbabilisticModelingofCompleteStructures
+The model described in this article was ﬁrst published in Miyao and Tsujii (2002), and
+has been applied to probabilistic models for parsing with lexicalized grammars. Appli-
+cations to CCG parsing (Clark and Curran 2003, 2004b) and LFG parsing (Kaplan et al.2004; Riezler and Vasserman 2004) demonstrated that feature forest models attained
+higher accuracy than other models. These researchers applied feature forests to repre-
+sentationsofthepackedparseresultsofLFGandthedependency/derivationstructures
+of CCG. Their work demonstrated the applicability and effectiveness of feature forest
+models in parsing with wide-coverage lexicalized grammars. Feature forest models
+were also shown to be effective for wide-coverage sentence realization (Nakanishi,
+Miyao, and Tsujii 2005). This work demonstrated that feature forest models are generic
+enough to be applied to natural language processing tasks other than parsing.
+The work of Geman and Johnson (2002) independently developed a dynamic pro-
+gramming algorithm for maximum entropy models. The solution was similar to our
+approach, although their method was designed to traverse LFG parse results repre-
+sented with disjunctive feature structures as proposed by Maxwell and Kaplan (1995).
+The difference between the two approaches is that feature forests use a simpler generic
+data structure to represent packed forest structures. Therefore, without assuming what
+feature forests represent, our algorithm can be applied to various tasks, including
+theirs.
+Another approach to the probabilistic modeling of complete structures is a method
+of approximation. The work on whole sentence maximum entropy models (Rosenfeld
+1997; Chen and Rosenfeld 1999b) proposed an approximation algorithm to estimate
+parameters of maximum entropy models on whole sentence structures. However, the
+algorithm suffered from slow convergence, and the model was basically a sequence
+model. Itcould not produce a solution for complex structures as our model can.
+We should also mention Conditional Random Fields (CRFs) (Lafferty, McCallum,
+and Pereira 2001) for solving a similar problem in the context of maximum entropy
+Markov models. Their solution was an algorithm similar to the computation of
+forward/backwardprobabilitiesofhiddenMarkovmodels(HMMs).Theiralgorithmis
+a special case of our algorithm in which each conjunctive node has only one daughter.
+This is obvious because feature forests can represent Markov chains. In an analogy,
+CRFs correspond to HMMs, whereas feature forest models correspond to PCFGs.
+71
+ComputationalLinguistics Volume34,Number1
+Extensions of CRFs, such as semi-Markov CRFs (Sarawagi and Cohen 2004), are also
+regarded as instances of feature forest models. This fact implies that our algorithm is
+applicable to not only parsing but also to other tasks. CRFs are now widely used for
+sequence-based tasks, such as parts-of-speech tagging and named entity recognition,
+and have been shown to achieve the best performance in various tasks (McCallum and
+Li 2003; McCallum, Rohanimanesh, and Sutton 2003; Pinto et al. 2003; Sha and Pereira
+2003; Peng and McCallum 2004; Roark et al. 2004; Settles 2004; Sutton, Rohanimanesh,
+and McCallum 2004). These results suggest that the method proposed in the present
+article will achieve high accuracy when applied to various statistical models with
+tree structures. Dynamic CRFs (McCallum, Rohanimanesh, and Sutton 2003; Sutton,
+Rohanimanesh, and McCallum 2004) provide us with an interesting inspiration for
+extendingfeatureforestmodels.ThepurposeofdynamicCRFsistoincorporatefeature
+functions that are not represented locally, and the solution is to apply a variational
+method, which is an algorithm of numerical computation, to obtain approximate so-
+lutions. A similar method may be developed to overcome a bottleneck of feature forest
+models, that is, the fact that feature functions are localized to conjunctive nodes.
+The structure of feature forests is common in natural language processing and
+computational linguistics. As is easily seen, lattices, Markov chains, and CFG parse
+trees are represented by feature forests. Furthermore, because conjunctive nodes do
+not necessarily represent CFG nodes or rules and terminals of feature forests need
+not be words, feature forests can express any forest structures in which ambiguities
+are packed in local structures. Examples include the derivation trees of LTAG and
+CCG. Chiang (2003) proved that feature forests could be considered as the derivation
+forests of linearcontext-freerewritingsystems (LCFRSs) (Vijay-Shanker, Weir, and Joshi
+1987; Weir 1988). LCFRSs deﬁne a wide variety of grammars, including LTAG and
+CCG, while preserving polynomial-time complexity of parsing. This demonstrates that
+feature forest models are applicable to probabilistic models far beyond PCFGs. Feature
+forestsarealsoisomorphictosupportgraphs(orexplanationgraphs)usedinthegraphical
+EM algorithm (Kameya and Sato 2000). In their framework, a program in a logic pro-
+gramminglanguage,PRISM(SatoandKameya1997),isconvertedintosupportgraphs,
+and parameters of probabilistic models are automatically learned by an EM algorithm.
+Support graphs have been proved to represent various statistical structural models, in-
+cluding HMMs, PCFGs, Bayesian networks, and many other graphical structures (Sato
+and Kameya 2001; Sato 2005). Taken together, these results imply the high applicability
+of feature forest models to various real tasks.
+Because feature forests have a structure isomorphic to parse forests of PCFG, it
+might seem that they can represent only immediate dominance relations of CFG rules
+as in PCFG, resulting in only a slight, trivial extension of PCFG. As described herein,
+however,featureforestscanrepresentstructuresbeyondCFGparsetrees.Furthermore,
+because feature forests are a generalized representation of ambiguous structures, each
+node in a feature forest need not correspond to a node in a PCFG parse forest. That is,
+a node in a feature forest may represent any linguistic entity, including a fragment of a
+syntactic structure, asemantic relation, or other sentence-level information.
+The idea of feature forest models could be applied to non-probabilistic machine
+learning methods. Taskar et al. (2004) proposed a dynamic programming algorithm
+for the learning of large-margin classiﬁers including support vector machines (Vapnik
+1995),andpresenteditsapplicationtodisambiguationinCFGparsing.Theiralgorithm
+resembles feature forest models; an optimization function is computed by a dynamic
+programingalgorithmwithoutunpackingpackedforeststructures.Fromthediscussion
+in this article, it is evident that if the main part of an update formula is represented
+72
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing
+with(theexponentialof)linearcombinations,amethodsimilartofeatureforestmodels
+should be applicable.
+6.2ProbabilisticParsingwithLexicalizedGrammars
+Before the advent of feature forest models, studies on probabilistic models of HPSG
+adoptedconventionalmaximumentropymodelstoselectthemostprobableparsefrom
+parse candidates given by HPSG grammars (Oepen, Toutanova, et al. 2002; Toutanova
+and Manning 2002; Baldridge and Osborne 2003). The difference between these studies
+and our work is that we used feature forests to avoid the exponential increase in the
+number of structures that results from unpacked parse results. These studies ignored
+the problem of exponential explosion; in fact, training sets in these studies were very
+small and consisted only of short sentences. A possible approach to avoid this problem
+istodevelopafullyrestrictivegrammarthatnevercausesanexponentialexplosion,al-
+thoughthedevelopmentofsuchagrammarrequiresconsiderableeffortanditcannotbe
+acquiredfromtreebanksusingexistingapproaches.Wethinkthatexponentialexplosion
+is inevitable, particularly with the large-scale wide-coverage grammars required to an-
+alyzereal-worldtexts.Insuchcases,thesemethodsofmodelestimationareintractable.
+Another approach to estimating log-linear models for HPSG was to extract a small
+informative sample from the original set T(w) (Osborne 2000). The method was suc-
+cessfully applied to Dutch HPSG parsing (Malouf and van Noord 2004). A possible
+problemwiththismethodisintheapproximationofexponentiallymanyparsetreesby
+apolynomial-sizesample.However,theirmethodhasanadvantageinthatanyfeatures
+on parse results can be incorporated into a model, whereas our method forces feature
+functions to be deﬁned locally on conjunctive nodes. We will discuss the trade-off
+between the approximation solution and the locality of feature functions in Section 6.3.
+Non-probabilistic statistical classiﬁers have also been applied to disambiguation in
+HPSG parsing: voted perceptrons (Baldridge and Osborne 2003) and support vector
+machines (Toutanova, Markova, and Manning 2004). However, the problem of expo-
+nential explosion is also inevitable using their methods. As described in Section 6.1, an
+approach similar to ours may be applied, following the study of Taskar etal. (2004).
+A series of studies on parsing with LFG (Johnson et al. 1999; Riezler et al. 2000,
+2002)alsoproposedamaximumentropymodelforprobabilisticmodelingofLFGpars-
+ing. However, similarly to the previous studies on HPSG parsing, these groups had
+no solution to the problem of exponential explosion of unpacked parse results. As dis-
+cussed in Section 6.1, Geman and Johnson (2002) proposed an algorithm for maximum
+entropy estimation for packed representations of LFG parses.
+Recent studies on CCG have proposed probabilistic models of dependency struc-
+tures or predicate–argument dependencies, which are essentially the same as the
+predicate–argumentstructuresdescribedinthepresentarticle.Clark,Hockenmaier,and
+Steedman (2002) attempted the modeling of dependency structures, but the model was
+inconsistent because of the violation of the independence assumption. Hockenmaier
+(2003) proposed a consistent generative model of predicate–argument structures. The
+probability of a non-local dependency was conditioned on multiple words to preserve
+the consistency of the probability model; that is, probability p(I|want,dispute)inSec-
+tion 4.3 was directly estimated. The problem was that such probabilities could not be
+estimated directly from the data due to data sparseness, and a heuristic method had
+to be employed. Probabilities were therefore estimated as the average of individual
+probabilities conditioned on a single word. Another problem is that the model is no
+longer consistent when uniﬁcation constraints such as those in HPSG are introduced.
+73
+ComputationalLinguistics Volume34,Number1
+Our solution is free of these problems, and is applicable to various grammars, not only
+HPSGand CCG.
+Most of the state-of-the-art studies on parsing with lexicalized grammars have
+adoptedfeatureforestmodels(ClarkandCurran2003,2004b;Kaplanetal.2004;Riezler
+and Vasserman 2004). Their methods of translating parse results into feature forests are
+basically the same as our method described in Section 4, and details differ because
+different grammar theories represent syntactic structures differently. They reported
+higher accuracy in parsing the Penn Treebank than the previous methods introduced
+herein, and these results attest the effectiveness of feature forest models in practical
+deep parsing. A remaining problem is that no studies could provide empirical compar-
+isons across grammar theories. The above studies and our research evaluated parsing
+accuracy on their own test sets. The construction of theory-independent standard test
+sets requires enormous effort because we must establish theory-independent criteria
+such as agreed deﬁnitions of phrases and headedness. Although this issue is beyond
+thescope ofthepresent article,itisafundamental obstacle tothetransparency ofthese
+studies on parsing.
+Clark and Curran (2004a) described a method for reducing the cost of parsing a
+trainingtreebankwithoutsacriﬁcing accuracy inthecontext ofCCGparsing. Theyﬁrst
+assigned each word a small number of supertags, corresponding to lexical entries in
+our case, and parsedsupertaggedsentences. Because they did not use the probabilities of
+supertags in a parsing stage, their method corresponds to our “ﬁltering only” method.
+The difference from our approach is that they also applied the supertagger in a parsing
+stage. We suppose that this was crucial for high accuracy in their approach, although
+empirical investigation is necessary.
+6.3Trade-OffbetweenDynamicProgrammingandFeatureLocality
+Theproposedalgorithmisanessentialsolutiontotheproblemofestimatingprobabilis-
+tic models on exponentially many complete structures. However, the applicability of
+this algorithm relies on the constraint that features are deﬁned locally in conjunctive
+nodes. As discussed in Section 6.1, this does not necessarily mean that features in our
+model can represent only the immediate-dominance relations of CFG rules, because
+conjunctivenodesmayencodeanyfragmentsofcompletestructures.Infact,wedemon-
+stratedinSection4.3thatcertainassumptionsallowedustoencodenon-localpredicate–
+argument dependencies in tractable-size feature forests. In addition, although in the
+experiments we used only features on bilexical dependencies, the method described in
+Section4.3allowsustodeﬁneanyfeaturesonapredicateandallofitsarguments,such
+asaternaryrelationamongasubject,averb,andacomplement(e.g.,therelationamong
+I, want,anddispute1 in Figure 21), and a generalized relation among semantic classes
+of a predicate and its arguments. This is because a predicate and all of its arguments
+are included in a conjunctive node, and feature functions can represent any relations
+expressed within aconjunctive node.
+Whenwedeﬁnemoreglobalfeatures,suchasco-occurrencesofstructuresatdistant
+places in a sentence, conjunctive nodes must be expanded so that they include all
+structuresthatarenecessarytodeﬁnethesefeatures.However,thisobviouslyincreases
+the number of conjunctive nodes, and consequently, the cost of parameter estimation
+increases. In an extreme case, for example, if we deﬁne features on any co-occurrences
+of partial parse trees, the full unpacking of parse forests would be necessary, and pa-
+rameterestimationwouldbeintractable.Thisindicatesthatthereisatrade-offbetween
+the locality of features and the cost of estimation. That is, larger context features might
+74
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing
+contribute to higher accuracy, while they inﬂate the size of feature forests and increase
+the cost ofparameter estimation.
+Sampling techniques (Rosenfeld 1997; Chen and Rosenfeld 1999b; Osborne 2000;
+Malouf and van Noord 2004) allow us to deﬁne any features on complete structures
+without any constraints. However, they force us to employ approximation methods
+for tractable computation. The effectiveness of those techniques therefore relies on
+convergence speed and approximation errors, which may vary depending on the char-
+acteristics of target problems and features.
+It is an open research question whether dynamic programming or sampling can
+deliver a better balance of estimation efﬁciency and accuracy. The answer will differ in
+differentproblems.Whenmosteffectivefeaturescanberepresentedlocallyintractable-
+size feature forests, dynamic programming methods including ours are suitable.
+However, when global context features are indispensable for high accuracy, sampling
+methods might be better. We should also investigate compromise solutions such as
+dynamic CRFs (McCallum, Rohanimanesh, and Sutton 2003; Sutton, Rohanimanesh,
+and McCallum 2004) and reranking techniques (Collins 2000; Charniak and Johnson
+2005). There is no analytical way of predicting the best solution, and it must be
+investigated experimentally for each target task.
+7.Conclusion
+A dynamic programming algorithm was presented for maximum entropy modeling
+and shown to provide a solution to the parameter estimation of probabilistic models of
+complete structures without the independence assumption. We ﬁrst deﬁned the notion
+ofafeatureforest,whichisapackedrepresentationofanexponentialnumberoftreesof
+features. When training data is represented with feature forests, model parameters are
+estimatedatatractablecostwithoutunpackingtheforests.Themethodprovidesamore
+ﬂexible modeling scheme than previous methods of application of maximum entropy
+models to natural language processing. Furthermore, it is applicable to complex data
+structures where an event is difﬁcult to decompose into independent sub-events.
+Wealsodemonstratedthatfeatureforestmodelsareapplicabletoprobabilisticmod-
+eling of linguistic structures such as the syntactic structures of HPSG and predicate–
+argument structures including non-local dependencies. The presented approach can
+be regarded as a general solution to the probabilistic modeling of syntactic analysis
+with lexicalized grammars. Table 16 summarizes the best performance of the HPSG
+parser described in this article. The parser demonstrated impressively high coverage
+and accuracy for real-world texts. We therefore conclude that the HPSG parser for
+English is moving toward a practical level of use in real-world applications. Recently,
+the applicability of the HPSG parser to practical applications, such as information
+extraction and retrieval, has also been demonstrated (Miyao et al. 2006; Yakushiji et al.2006; Chun 2007).
+Table16
+Finalresults.
+ParsingaccuracyforSection23(<40words)
+#parsed sentences 2,137/2,144 (99.7%)
+Precision/recall 87.69%/87.16%
+Sentential accuracy 39.2%
+75
+ComputationalLinguistics Volume34,Number1
+From our extensive investigation of HPSG parsing, we observed that exploration
+of new types of features is indispensable to further improvement of parsing accuracy.
+A possible research direction is to encode larger contexts of parse trees, which has
+been shown to improve accuracy (Toutanova and Manning 2002; Toutanova, Markova,
+and Manning 2004). Future work includes not only the investigation of these features
+but also the abstraction of predicate–argument dependencies using semantic classes.
+Experimental results also suggest that an improvement in grammar coverage is crucial
+for higher accuracy. This indicates that an improvement in the quality of the grammar
+is a key factor for the improvement of parsing accuracy.
+The feature forest model provides new insight into the relationship between a
+linguistic structure and a unit of probability. Traditionally, a unit of probability was
+implicitly assumed to correspond to a meaningful linguistic structure; a tagging of a
+word or an application of a rewriting rule. One reason for the assumption is to enable
+dynamic programming algorithms, such as the Viterbi algorithm. The probability of a
+complete structure must be decomposed into atomic structures in which ambiguities
+are limited to a tractable size. Another reason is to estimate plausible probabilities.
+Because a probability is deﬁned over atomic structures, they should also be meaning-
+ful so as to be assigned a probability. In feature forest models, however, conjunctive
+nodes are responsible for the former, whereas feature functions are responsible for the
+latter. Although feature functions must be deﬁned locally in conjunctive nodes, they
+are not necessarily equivalent. Conjunctive nodes may represent any fragments of a
+complete structure, which are not necessarily linguistically meaningful. They should
+be designed to pack ambiguities and enable us to deﬁne useful features. Meanwhile,
+feature functions indicate an atomic unit of probability, and are designed to capture
+statistical regularity of the target problem. We expect the separation of a unit of prob-
+ability from linguistic structures to open up a new framework for flexible probabilistic
+modeling.
+Acknowledgments
+Theauthorswishtothanktheanonymous
+reviewersofComputationalLinguisticsfor
+theirhelpful commentsanddiscussions. We
+wouldalso liketothankTakashi Ninomiya
+and KenjiSagae fortheirprecioussupport.
+
+References
+
+Abney, Steven P.1997. Stochastic attribute-valuegrammars.Computational Linguistics,23(4):597–618.
+Baker,JamesK. 1979.Trainablegrammars
+for speech recognition.InJared J.Wolf
+and Dennis H.Klatt,editors,Speech
+CommunicationPapersPresentedatthe97th
+MeetingoftheAcousticalSocietyofAmerica.
+MITPress,Cambridge,MA,pages547–550.
+Baldridge,Jason and Miles Osborne.2003.
+Active learningforHPSGparseselection.
+InProceedingsoftheSeventhConferenceon
+NaturalLanguageLearningatHLT-NAACL
+2003, pages 17–24,Edmonton,Canada.
+Berger,AdamL.,StephenA.DellaPietra,and
+Vincent J.DellaPietra.1996. Amaximum
+entropyapproachtonaturallanguage
+processing.ComputationalLinguistics,
+22(1):39–71.
+Burke,Michael, AoifeCahill,Ruth
+O’Donovan,Josef van Genabith,
+and AndyWay. 2004. Treebank-based
+acquisition of wide-coverage,probabilistic
+LFGresources: Project overview,
+results andevaluation.InProceedings
+oftheIJCNLP-04Workshop“BeyondShallow
+Analyses”,Hainan Island.Available
+at www-tsujii.is.s.u-tokyo.ac.jp/bsa.
+Carpenter,Bob.1992.TheLogicofTyped
+FeatureStructures.CambridgeUniversity
+Press, Cambridge,England.
+Carroll,Johnand StephanOepen. 2005.
+High efﬁciencyrealization fora
+wide-coverageuniﬁcationgrammar.
+InProceedingsofthe2ndInternational
+JointConferenceonNaturalLanguage
+Processing(IJCNLP-05),pages165–176,
+Jeju Island.
+Charniak,Eugene.2000.Amaximum-
+entropy-inspiredparser.InProceedings
+oftheFirstConferenceonNorthAmerican
+ChapteroftheAssociationforComputational
+76
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing
+Linguistics(NAACL2000),pages 132–139,
+Seattle,WA.
+Charniak,Eugeneand MarkJohnson.
+2005. Coarse-to-ﬁnen-best parsing
+and MaxEnt discriminativereranking.
+InProceedingsofthe43rdAnnualMeetingof
+theAssociationforComputationalLinguistics
+(ACL2005), pages173–180, Ann Arbor,MI.
+Chen,Stanleyand Ronald Rosenfeld.
+1999a. AGaussian priorfor smoothing
+maximumentropymodels.Technical
+Report CMUCS-99-108, Carnegie
+Mellon University.
+Chen,StanleyF.and Ronald Rosenfeld.
+1999b.Efﬁcient samplingand feature
+selection in wholesentence maximum
+entropylanguagemodels.InProceedings
+ofthe1999IEEEInternationalConferenceon
+Acoustics,Speech,andSignalProcessing,
+pages549–552, Phoenix,AZ.
+Chiang,David.2003.Mildlycontextsensitive
+grammarsforestimatingmaximum
+entropyparsingmodels.InProceedingsof
+the8thConferenceonFormalGrammar,
+pages19–31, Vienna.
+Chun,Hong-Woo.2007.MiningLiteraturefor
+Disease-GeneRelations.Ph.D.thesis,
+Universityof Tokyo.
+Clark,Stephenand JamesR. Curran.2003.
+Log-linearmodelsforwide-coverage
+CCG parsing.InProceedingsofthe2003
+ConferenceonEmpiricalMethodsin
+NaturalLanguageProcessing(EMNLP2003),
+pages97–104, Sapporo.
+Clark,Stephenand JamesR. Curran.
+2004a. Theimportanceofsupertagging
+forwide-coverageCCG parsing.
+InProceedingsofthe20thInternational
+ConferenceonComputationalLinguistics
+(COLING2004), pages282–288, Geneva.
+Clark,Stephenand JamesR. Curran.2004b.
+ParsingtheWSJ usingCCG and log-linear
+models.InProceedingsofthe42ndAnnual
+MeetingoftheAssociationforComputational
+Linguistics(ACL2004),pages104–111,
+Barcelona.
+Clark,Stephen,JuliaHockenmaier,and
+MarkSteedman.2002.Buildingdeep
+dependencystructureswith awide-
+coverageCCG parser.InProceedingsofthe
+40thAnnualMeetingoftheAssociationfor
+ComputationalLinguistics(ACL2002),
+pages327–334, Philadephia.
+Cohen,PaulR. 1995.EmpiricalMethodsfor
+ArtiﬁcialIntelligence.TheMIT Press,
+Cambridge,MA.
+Collins,Michael. 1997. Threegenerative,
+lexicalised modelsforstatistical parsing.
+InProceedingsofthe35thAnnualMeeting
+oftheAssociationforComputational
+Linguistics(ACL’97),pages16–23,
+Madrid.
+Collins,Michael. 1999.Head-DrivenStatistical
+ModelsforNaturalLanguageParsing.
+Ph.D.thesis,Universityof Pennsylvania.
+Collins,Michael. 2000. Discriminative
+rerankingfornaturallanguage
+parsing.InProceedingsoftheSeventeenth
+InternationalConferenceonMachine
+Learning,pages 175–182, PaloAlto,CA.
+Collins,Michael.2003.Head-drivenstatistical
+modelsfornaturallanguageparsing.
+ComputationalLinguistics,29(4):589–637.
+Copestake,Ann,Dan Flickinger,
+RobMalouf,Susanne Riehemann,and
+Ivan Sag.1995.Translation usingminimal
+recursionsemantics. InProceedingsofthe
+SixthInternationalConferenceonTheoretical
+andMethodologicalIssuesinMachine
+Translation(TMI95),pages 15–32, Leuven. 
+
+Copestake,Ann,Dan Flickinger,Ivan A.Sag, and Carl Pollard.2006.Minimal recursion semantics: An introduction.Research onLanguageandComputation,3(4):281–332.
+
+Darroch,J.N.and D.Ratcliff.1972. Generalized iterativescaling forlog-linear models.TheAnnalsofMathematical Statistics,43(5):1470–1480.
+
+DellaPietra,Stephen,Vincent Della Pietra, and JohnLafferty.1997. Inducingfeatures of randomﬁelds.IEEETransactionson PatternAnalysisandMachineIntelligence, 19(4):380–393.
+
+Geman,StuartandMark Johnson.2002. Dynamicprogrammingforparsingand estimation ofstochastic uniﬁcation-based grammars.InProceedingsofthe40thAnnual MeetingoftheAssociationforComputational Linguistics(ACL2002),pages279–286, Philadelphia,PA.
+
+Gildea,Daniel.2001. Corpusvariationand parserperformance.InProceedingsofthe 2001ConferenceonEmpiricalMethodsin NaturalLanguageProcessing(EMNLP2001), pages167–202, Pittsburgh,PA.
+
+Hockenmaier,Julia.2003. Parsingwith generativemodelsof predicate-argument structure.InProceedingsofthe41stAnnual MeetingoftheAssociationforComputational Linguistics(ACL2003),pages359–366, Sapporo. 
+
+Hockenmaier,Juliaand MarkSteedman. 2002. Acquiringcompact lexicalized grammarsfromacleaner treebank. InProceedingsoftheThirdInternational ConferenceonLanguageResourcesand Evaluation(LREC-2002),pages1974–1981, LasPalmas.
+
+Johnson,Mark,StuartGeman,Stephen Canon, ZhiyiChi,and StefanRiezler. 1999.Estimatorsforstochastic“uniﬁcationbased” grammars.InProceedings ofthe37thAnnualMeetingoftheAssociation forComputationalLinguistics(ACL’99),pages 535–541, CollegePark,Maryland.
+
+Johnson,Markand StefanRiezler. 2000. Exploitingauxiliarydistributionsin stochastic uniﬁcation-based grammars. InProceedingsoftheFirstConference onNorthAmericanChapterofthe AssociationforComputationalLinguistics, pages 154–161, Seattle,WA.
+
+Kameya, YoshitakaandTaisuke Sato. 2000.  EfﬁcientEM learningwithtabulation for parameterizedlogicprograms. InProceedingsofthe1stInternational ConferenceonComputationalLogic (CL2000),volume1861 ofLectureNotes inArtiﬁcialIntelligence(LNAI), pages 269–294, ImperialCollege,London.
+
+Kaplan,Ronald M., Stefan Riezler, TracyH. King, JohnT.Maxwell, III,Alexander Vasserman, andRichard Crouch. 2004. Speed and accuracyin shallow and deep stochastic parsing.InProceedings oftheHumanLanguageTechnology ConferenceandtheNorthAmericanChapter oftheAssociationforComputational Linguistics(HLT-NAACL2004), pages 97–104, Boston,MA.
+
+Lafferty,John,AndrewMcCallum, and FernandoPereira.2001. Conditional randomﬁelds:Probabilisticmodelsfor segmentingand labelingsequence data. InProceedingsoftheInternationalConference onMachineLearning2001, pages282–289, Williams College,Williamstown,MA. 
+
+Makino, Takaki,YusukeMiyao,Kentaro Torisawa, andJun’ichiTsujii.2002.  Native-codecompilationof feature structures.In StephenOepen, Dan Flickinger,Jun’ichiTsujii, andHans Uszkoreit, editors,Collaborative LanguageEngineering:ACaseStudy inEfﬁcientGrammar-basedParsing.CSLI Publications,PaloAlto,CA,pages 49–80. 
+
+Malouf,Robert.2002. Acomparison of algorithmsfor maximumentropy parameterestimation.InProceedings oftheSixthConferenceonNatural LanguageLearning(CoNLL-2002), pages 1–7,Taipei.
+
+Malouf,Robert and GertjanvanNoord. 2004. Widecoverage parsingwith stochastic attributevaluegrammars. InProceedingsoftheIJCNLP-04Workshop “BeyondShallowAnalyses”,Hainan Island. Available at www.tsujii.is.s.u-tokyo. ac.jp/bsa.
+
+Marcus, Mitchell,Grace Kim,MaryAnn Marcinkiewicz, Robert MacIntyre, Ann Bies, MarkFerguson,Karen Katz, and BrittaSchasberger. 1994.ThePenn Treebank:Annotatingpredicate argumentstructure.InProceedings oftheWorkshoponHumanLanguage Technology, pages114–119, Plainsboro,NJ. 
+
+Maxwell JohnT.,III andRonald M. Kaplan. 1995. Amethodfor disjunctiveconstraint satisfaction. InMary Dalrymple,Ronald M. Kaplan,John T.Maxwell,III,and AnnieZaenen,editors,FormalIssuesin Lexical-FunctionalGrammar,number47 in CSLI LectureNotesSeries.CSLI Publications,PaloAlto,CA,chapter 14, pages 381–481.
+
+McCallum, Andrewand Wei Li.2003. Earlyresultsfornamed entityrecognition withconditionalrandomﬁelds,feature inductionand web-enhanced lexicons. InProceedingsofthe7thConference onNaturalLanguageLearning(CoNLL), pages 188–191, Edmonton.
+
+McCallum, Andrew,Khashayar Rohanimanesh, and CharlesSutton. 2003. Dynamicconditionalrandomﬁelds for jointlylabelingmultiplesequences. In ProceedingsoftheWorkshoponSyntax, Semantics,Statisticsatthe16thAnnual ConferenceonNeuralInformationProcessing Systems,Vancouver. Availableat www.cs.umasse.du/∼mccallum/papers/ derf-nips03.pdf.
+
+Miyao, Yusuke,Takashi Ninomiya,and Jun’ichiTsujii.2003. Probabilisticmodeling of argumentstructuresincluding non-local dependencies.InProceedings oftheInternationalConferenceonRecent AdvancesinNaturalLanguageProcessing (RANLP2003),pages 285–291, Borovets. 
+
+Miyao, Yusuke,Takashi Ninomiya, and Jun’ichiTsujii. 2005.Corpus-oriented grammardevelopmentfor acquiringa head-drivenphrasestructuregrammar from thePennTreebank.InNatural LanguageProcessing-IJCNLP2004, pages 684–693, Hainan Island.
+
+Miyao, Yusuke,TomokoOhta, Katsuya Masuda, YoshimasaTsuruoka, KazuhiroYoshida,Takashi Ninomiya, and Jun’ichiTsujii. 2006.Semanticretrieval for theaccurateidentiﬁcationof relational concepts in massive textbases. In ProceedingsoftheJointConferenceofthe21st InternationalConferenceonComputational Linguisticsandthe44thAnnualMeetingofthe
+
+Miyaoand Tsujii FeatureForest Models forProbabilisticHPSGParsing AssociationforComputationalLinguistics (COLING-ACL2006),pages 1017–1024, Sydney.
+
+Miyao,Yusukeand Jun’ichiTsujii.2002. Maximum entropyestimationfor feature forests.InProceedingsoftheHuman LanguageTechnologyConference(HLT-2002), pages292–297, San Diego, CA. 
+
+Miyao,Yusukeand Jun’ichiTsujii.2003. Amodel ofsyntactic disambiguation based on lexicalized grammars.In ProceedingsoftheSeventhConferenceon ComputationalNaturalLanguageLearning (CoNLL-2003),pages1–8, Edmonton.
+
+Miyao,Yusukeand Jun’ichiTsujii.2005. Probabilisticdisambiguationmodels forwide-coverageHPSGparsing.In Proceedingsofthe43rdAnnualMeetingof theAssociationforComputationalLinguistics (ACL2005), pages83–90, Ann Arbor,MI.
+
+Nakanishi,Hiroko,YusukeMiyao,and Jun’ichiTsujii.2005. Probabilisticmodels fordisambiguationof an HPSG-based chart generator.InProceedingsofthe 9thInternationalWorkshoponParsing Technologies(IWPT2005), pages93–102, Vancouver.
+
+Ninomiya,Takashi,Yoshimasa Tsuruoka, YusukeMiyao,and Jun’ichiTsujii. 2005. Efﬁcacyof beam thresholding,uniﬁcation ﬁlteringandhybridparsinginprobabilistic HPSGparsing.InProceedingsofthe9th InternationalWorkshoponParsing Technologies,pages103–114, Vancouver.
+
+Nocedal,Jorge.1980. Updating quasi-Newtonmatriceswithlimited storage.MathematicsofComputation, 35:773–782.
+
+Nocedal,Jorgeand StephenJ.Wright. 1999.NumericalOptimization. Springer, NewYork.
+
+Oepen,Stephanand JohnCarroll.2000. Ambiguitypackinginconstraint-based parsing:practical results.InProceedings oftheFirstConferenceoftheNorthAmerican ChapteroftheAssociationforComputational Linguistics(NAACL2000),pages 162–169, Seattle,WA.
+
+Oepen,Stephan,Dan Flickinger,Jun’ichi Tsujii,and HansUszkoreit,editors.2002. CollaborativeLanguageEngineering:ACase StudyinEfﬁcientGrammar-BasedProcessing. CSLI Publications,PaloAlto,CA.
+
+Oepen,Stephan,KristinaToutanova, StuartShieber,ChristopherManning,Dan Flickinger,andThorsten Brants.2002. The LinGORedwoodstreebankmotivationand preliminaryapplications.InProceedings ofthe19thInternationalConferenceon ComputationalLinguistics(COLING2002), volume2, pages1–5, Taipei.
+
+Osborne,Miles. 2000.Estimationof stochastic attribute-valuegrammarusing aninformativesample. InProceedings ofthe18thInternationalConferenceon ComputationalLinguistics(COLING2000), volume1, pages586–592, Saarbr¨ucken.
+
+Peng,Fuchun and AndrewMcCallum. 2004. Accurateinformationextractionfrom research papersusingconditional randomﬁelds.InProceedingsofHuman LanguageTechnologyConferenceand NorthAmericanChapteroftheAssociation forComputationalLinguistics(HLT/ NAACL-04),pages329–336, Boston,MA.
+
+Pinto,David,AndrewMcCallum, XenLee, and W.BruceCroft.2003.Tableextraction usingconditionalrandomﬁelds.In Proceedingsofthe26thAnnualInternational ACMSIGIRConferenceonResearch andDevelopmentinInformationRetrieval (SIGIR2003),pages 235–242, Toronto.
+
+Pollard,Carl andIvan A.Sag.1994. Head-DrivenPhraseStructureGrammar. Universityof Chicago Press,Chicago, IL.
+
+Riezler,Stefan,TracyH.King,Ronald M. Kaplan,Richard Crouch,JohnT. Maxwell, III,and MarkJohnson.2002. ParsingtheWall StreetJournalusing alexical-functionalgrammarand discriminativeestimation techniques. InProceedingsofthe40thAnnualMeeting oftheAssociationforComputational Linguistics(ACL2002),pages271–278, Philadephia,PA.
+
+Riezler,Stefan,Detlef Prescher,Jonas Kuhn, and MarkJohnson.2000. Lexicalized stochastic modelingof constraint-based grammarsusinglog-linearmeasures andEMtraining.InProceedingsofthe 38thAnnualMeetingoftheAssociation forComputationalLinguistics(ACL2000), pages480–487, HongKong.
+
+Riezler,Stefan and Alexander Vasserman. 2004. Incrementalfeatureselection and regularizationforrelaxed maximumentropymodeling.InProceedings ofthe2004ConferenceonEmpirical MethodsinNaturalLanguageProcessing (EMNLP2004),pages174–181, Barcelona.
+
+Roark,Brian,MuratSaraclar,MichaelCollins, and MarkJohnson.2004. Discriminative languagemodelingwithconditional randomﬁeldsand theperceptron algorithm.InProceedingsofthe42ndAnnual MeetingoftheAssociationforComputational Linguistics(ACL2004),pages47–54, Barcelona. ComputationalLinguistics Volume34,Number1
+
+Rosenfeld, Ronald.1997. Awholesentence maximumentropylanguagemodel.In ProceedingsoftheIEEEWorkshoponAutomatic SpeechRecognitionandUnderstanding, pages 230–237, SantaBarbara,CA.
+
+Sag,Ivan A.,ThomasWasow, andEmilyM. Bender.2003.SyntacticTheory:AFormal Introduction.Number152 inCSLI Lecture Notes. CSLI Publications,Standford,CA.
+
+Sarawagi,Sunitaand William W. Cohen. 2004. Semi-Markovconditionalrandom ﬁeldsfor informationextraction.In Proceedingsofthe18thAnnualConference onNeuralInformationProcessing Systems,pages 1185–1192, Vancouver.
+
+Sato,Taisuke.2005.Agenericapproachtoem learningforsymbolic-statistical models.In Proceedingsofthe4thLearningLanguagein LogicWorkshop(LLL05),pages21–28, Bonn.
+
+Sato,Taisuke andYoshitakaKameya. 1997. PRISM: alanguageforsymbolic-statistical modeling.InProceedingsofthe15th InternationalJointConferenceonArtiﬁcial Intelligence(IJCAI’97),pages1330–1335,
+
+Nagoya. Sato,Taisuke andYoshitakaKameya. 2001. Parameterlearningoflogic programsfor symbolic-statistical modeling.Journalof ArtiﬁcialIntelligenceResearch,15:391–454.
+
+Settles, Burr.2004.Biomedical namedentity recognitionusingconditionalrandomﬁelds and rich featuresets. InProceedingsofthe InternationalJointWorkshoponNatural LanguageProcessinginBiomedicineandits Applications(NLPBA),pages104–107, Geneva.
+
+Sha,Feiand FernandoPereira.2003. Shallowparsingwithconditional randomﬁelds.InProceedingsofthe2003 HumanLanguageTechnologyConferenceand NorthAmericanChapteroftheAssociation forComputationalLinguistics(HLT-NAACL 2003), pages213–220, Edmonton.
+
+Shieber,StuartM. 1985.Using restriction toextend parsingalgorithmsfor complex-feature-based formalisms.In Proceedingsofthe23rdAnnualMeeting onAssociationforComputationalLinguistics, pages 145–152, Chicago, IL.
+
+Sutton,Charles, Khashayar Rohanimanesh, and AndrewMcCallum.2004. Dynamic conditional randomﬁelds:Factorized probabilisticmodelsforlabelingand segmentingsequence data.InProceedings ofthe21stInternationalConference onMachineLearning(ICML2004), pages 783–790, Alberta.
+
+Taskar, Ben,Dan Klein,Michael Collins,DaphneKoller, andChrisManning. 2004. Max-margin parsing.InProceedings ofthe2004ConferenceonEmpirical MethodsinNaturalLanguageProcessing (EMNLP2004), pages1–8, Barcelona. 
+
+Toutanova,KristinaandChristopher Manning.2002. Featureselection for a rich HPSGgrammarusingdecision trees. InProceedingsoftheSixthConferenceon NaturalLanguageLerning(CoNLL-2002), pages 77–83, Taipei.
+
+Toutanova,Kristina,PenkaMarkova, and ChristopherManning.2004. The leaf projection pathviewof parsetrees: Exploringstringkernelsfor HPSGparse selection. InProceedingsofthe2004 ConferenceonEmpiricalMethodsin NaturalLanguageProcessing(EMNLP 2004), pages166–173, Barcelona. TsujiiLaboratory.2004. Enju—Apractical HPSGparser.Available at http://www. tsujii.is.s.u-tokyo.ac.jp/enju/.
+
+Tsuruoka,Yoshimasa,YusukeMiyao, and Jun’ichi Tsujii.2004. Towardsefﬁcient probabilisticHPSGparsing:Integrating semantic and syntaticpreference toguidetheparsing.InProceedings oftheIJCNLP-04Workshop“BeyondShallow Analyses”,Hainan Island.Available at www.tsujii.is.s.u-tokyo.ac.jp/bsa.
+
+Tsuruoka,Yoshimasaand Jun’ichiTsujii. 2005. Bidirectionalinferencewiththe easiest-ﬁrst strategyfor taggingsequence data.InProceedingsofHumanLanguage TechnologyConferenceandConferenceon EmpiricalMethodsinNaturalLanguage Processing(HLT/EMNLP2005), pages 467–474, Vancouver.
+
+Vapnik,Vladimir N.1995.TheNatureof StatisticalLearningTheory.Springer-Verlag, NewYork.
+
+Vijay-Shanker,K., David J.Weir,and Aravind K.Joshi.1987. Characterizing structuraldescriptionsproducedby variousgrammaticalformalisms.In Proceedingsofthe25thAnnualMeeting oftheAssociationforComputational Linguistics,pages104–111, PaloAlto,CA.
+
+Weir, David J.1988.CharacterizingMildly Context-SensitiveGrammarFormalisms. Ph.D.thesis, Universityof Pennsylvania.
+
+Yakushiji,Akane,YusukeMiyao, TomokoOhta,YukaTateisi,and Jun’ichi Tsujii. 2006.Automaticconstructionof predicate-argumentstructurepatternsfor biomedicalinformationextraction. InProceedingsofthe2006Conferenceon EmpiricalMethodsinNaturalLanguage Processing(EMNLP2006),pages 284–292, Sydney.
+

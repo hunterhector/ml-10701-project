@@ -1,0 +1,2999 @@
+AFrameworkforFastIncremental
+InterpretationduringSpeechDecoding
+WilliamSchuler
+∗
+UniversityofMinnesota
+StephenWu
+∗
+UniversityofMinnesota
+LaneSchwartz
+∗
+UniversityofMinnesota
+Thisarticledescribesaframeworkforincorporatingreferentialsemanticinformationfroma
+worldmodelorontologydirectlyintoaprobabilisticlanguagemodelofthesortcommonly
+usedinspeechrecognition,whereitcanbeprobabilisticallyweightedtogetherwithphonological
+andsyntacticfactorsasanintegralpartofthedecodingprocess.Introducingworldmodel
+referentsintothedecodingsearchgreatlyincreasesthesearchspace,butbyusingasingle
+integratedphonological,syntactic,andreferentialsemanticlanguagemodel,thedecoderisableto
+incrementallyprunethissearchbasedonprobabilitiesassociatedwiththesecombinedcontexts.
+Theresultisasingleuniﬁedreferentialsemanticprobabilitymodelwhichbringsseveralkinds
+ofcontexttobearinspeechdecoding,andperformsaccuraterecognitioninrealtimeonlarge
+domainsintheabsenceofexamplein-domaintrainingsentences.
+1.Introduction
+The capacity to rapidly connect language to referential meaning is an essential aspect
+of communication between humans. Eye-tracking studies show that humans listening
+to spoken directives are able to actively attend to the entities that the words in these
+directives might refer to, even while the words are still being pronounced (Tanenhaus
+et al. 1995; Brown-Schmidt, Campana, and Tanenhaus 2002). This timely access to
+referential information about input utterances may allow listeners to adjust their pref-
+erences among likely interpretations of noisy or ambiguous utterances to favor those
+thatmakesenseinthecurrentenvironmentordiscoursecontext,beforeanylower-level
+disambiguation decisions have been made. This same capability in a spoken language
+interface system could allow reliable human–machine interaction in the idiosyncratic
+language of day-to-day life, populated with proper names of co-workers, objects, and
+eventsnotfoundinbroadtrainingcorpora.Whendomain-speciﬁctrainingcorporaare
+∗ DepartmentofComputerScienceandEngineering,200UnionSt.SE,Minneapolis,MN55455.
+E-mail:schuler@cs.umn.edu;swu@cs.umn.edu;lane@cs.umn.edu.
+Submissionreceived:25April2007;revisedsubmissionreceived:4March2008;acceptedforpublication:
+2June2008.
+©2009AssociationforComputationalLinguistics
+ComputationalLinguistics Volume35,Number3
+not available, a referential semantic interface could still exploit its model of the world:
+thedatatowhichitisaninterface,andpatternscharacterizingthesedata.
+This article describes a frameworkfor incorporating referential semantic informa-
+tion from a world model or ontology directly into a statistical language model of the
+sort commonly used in speech recognition, where it can be probabilistically weighted
+together with phonological and syntactic factors as an integral part of the decoding
+process. Introducing world model referents into the decoding search greatly increases
+thesearchspace,butbyusingasingleintegratedphonological,syntactic,andreferential
+semanticlanguagemodel,thedecoderisabletoincrementallyprunethissearchbased
+onprobabilitiesassociatedwiththesecombinedcontexts.
+Semanticinterpretationisdeﬁneddynamicallyinthisframework,intermsoftransi-
+tionsovertimefromlessconstrainedreferentstomoreconstrainedreferents.Becauseit
+isdeﬁneddynamically,interpretationinthisframeworkcanincorporatedependencies
+on referential context—for example, constraining interpretations to a presumed set of
+entities, or a presumed setting—which may be ﬁxed prior to recognition, or dynam-
+ically hypothesized earlier in the recognition process. This contrasts with other recent
+systemswhichinterpretconstituentsonlygivenﬁxedinter-utterancecontextsorexplicit
+syntacticarguments(Schuler2001;DeVaultandStone2003;GorniakandRoy2004;Aist
+et al. 2007). Moreover, because it is deﬁned dynamically, in terms of transitions, this
+context-dependent interpretation frameworkcan be directly integrated into a Viterbi
+decoding search, like ordinary state transitions in a Hidden Markov Model. The result
+is a single uniﬁed referential semantic probability model which brings several kinds
+of referential semantic context to bear in speech decoding, and performs accurate
+recognition in real time on large domains in the absence of example domain-speciﬁc
+trainingsentences.
+Theremainderofthisarticleisorganizedasfollows:Section2willdescriberelated
+approaches to interleaving semantic interpretation with speech recognition. Section 3
+willprovidedeﬁnitionsforworldmodelsusedinsemanticinterpretation,andlanguage
+models used in speech decoding, which will form the basis of a referential semantic
+languagemodel,deﬁnedinSection4.ThenSection5willdescribeanevaluationofthis
+modelinasamplespokenlanguageinterfaceapplication.
+2.RelatedWork
+Early approaches to incremental interpretation (Mellish 1985; Haddock1989) apply
+semanticconstraintsassociatedwitheachwordinasentencetoprogressivelywinnow
+thesetofindividualsthatcouldserveasreferentsinthatsentence.Theseincrementally
+constrained referents are then used to guide the syntactic analysis of the sentence, dis-
+preferringanalyseswithemptyinterpretationsinthecurrentenvironmentordiscourse
+context.Similarapproacheswereappliedtobroad-coveragetextprocessing,queryinga
+largecommonsenseknowledgebaseasaworldmodel(MartinandRiesbeck1986).But
+thiswinnowingisdonedeterministically,invokingdefaultassumptionsandpotentially
+exponentialbacktrackingwhendefaultassumptionsfail.
+The idea of basing analysis decisions on constrained sets of referent individuals
+waslaterextendedtopursuemultipleinterpretationsatoncebyexploitingpolynomial
+structure-sharing in a dynamic programming parser (Schuler 2001; DeVault and Stone
+2003; Gorniakand Roy 2004; Aist et al. 2007). The resulting shared interpretation is
+similar to underspeciﬁed semantic representations (Bos 1996), except that the rep-
+resentation mainly preserves syntactic ambiguity rather than semantic (e.g., quanti-
+314
+Schuler,Wu,andSchwartz AFrameworkforFastIncrementalInterpretation
+ﬁer scoping) ambiguity, and the size complexity of the parser chart representation is
+polynomially bounded. This approach was further extended to support hypothetical
+referents (DeVault and Stone 2003), domains with continuous relations (Gorniakand
+Roy2004),andupdatestothesharedparserchartbycomponentshandlingotherlevels
+oflinguisticanalysisinparallel,duringreal-timerecognition(Aistetal.2007).
+The advantage of this use of the parser chart is that it allows a straightforward
+mapping between syntax and semantics using familiar compositional semantic rep-
+resentations. But the standard dynamic programming algorithm for parsing derives
+its complexity bounds from the fact that each recognized constituent can be analyzed
+independently of every other constituent. These independence assumptions must be
+relaxed if dynamic context dependencies are to be applied across sibling constituents
+(e.g., inthepackagedatadirectory,open...,where the ﬁles to be opened should be
+restricted to the contents of the package data directory). More importantly, from an
+engineeringperspective,thedynamicprogrammingalgorithmforparsingrunsincubic
+time,notlinear,whichmeansthisinterpretationframeworkcannotbedirectlyapplied
+to continuous audio streams. Interface systems therefore typically perform utterance
+orsentencesegmentationasastand-alonepre-process,withoutintegratingsyntacticor
+referentialsemanticdependenciesintothisdecision.
+Finally,somespeechrecognitionsystemsemployinter-utterancecontext-dependent
+language models that are pre-compiled into wordn-grams for particular discourse or
+environment states, and swapped out between utterances (Young et al. 1989; Lemon
+and Gruenstein 2004; Seneff et al. 2004). But in some cases accurate interpretation will
+require spoken language interfaces to exploit context continuously during utterance
+recognition,notjustbetweenutterances.Forexample,theprobabilitydistributionover
+the next word in the utterancegotothepackagedatadirectoryandgetthe... (orinthe
+packagedatadirectorygetthe...)willdependcruciallyonthelinguisticandenvironment
+contextleadinguptothispoint:themeaningofpackagedatadirectoryintheﬁrstpartof
+this directive, as well as the objects that will be available once this part of the directive
+hasbeencarriedout.Moreover,inrichenvironmentspre-compilationtowordn-grams
+can be expensive, since all referents in the world model must be considered to build
+accuraten-grams.Thiswillnotbepracticalifenvironmentschangefrequently.
+3.Background
+IncontrasttotheapproachesdescribedinSection2,thisarticleproposesanincremental
+interpretationframeworkwhichisentirelycontainedwithinasingle-passprobabilistic
+decoding search. Essentially, this approach directly integrates model theoretic seman-
+tics,summarizedinSection3.1,withconventionalprobabilistictime-seriesmodelsused
+inspeechrecognition,summarizedinSection3.2.
+3.1ReferentialSemantics
+Semanticinterpretationrequiresaframeworkwithinwhichaspeaker’sintendedmean-
+ings can be formalized. Sections 3.1.1 and 3.1.2 describe a model theoretic approach
+to semantic interpretation that will later be extended in Section 4.1. The referential
+states deﬁned here will then be incorporated into a representation of nested syntactic
+constituents in a hierarchic time-series model in Section 4.2. Some of the notation
+introducedhereissummarizedlaterinTable1(Section4).
+315
+ComputationalLinguistics Volume35,Number3
+Figure1
+Asubsumptionlattice(laidonitsside)overthepowersetofadomaincontainingthree
+individuals:ι
+1,ι
+2,andι
+3
+.Subsumptionrelationsarerepresentedasgrayarrowsfromsupersets
+(orsuper-concepts)tosubsets(orsub-concepts).
+3.1.1ModelTheory.The language model described in this article deﬁnes semantic ref-
+erents in terms of a world model M. In model theory (Tarski 1933; Church 1940), a
+world model is deﬁned as a tuple M=〈E,llbracket·rrbracket〉 containing a domain of individuals E =
+{ι
+1,ι
+2,...} and an interpretation function llbracket·rrbracket to interpret expressions in terms of those
+individuals.Thisinterpretationfunctionacceptsexpressionsφofvarioustypes:logical
+statements, of simple type T (for example,thedemoﬁleiswritable) which may be true
+or false; references to individuals, of simple type E (for example,thedemoﬁle) which
+may refer to any individual in the world model; or functors of complex type 〈α,β〉,
+whichtakeanargumentoftypeαandproduceoutputoftypeβ.Functorexpressionsφ
+of type 〈α,β〉 can be applied to other expressions ψ of type α as arguments to yield
+expressions φ(ψ)oftypeβ (forexample,writablemaytakethedemoﬁleasanargument
+and return true). By nesting functors, complex expressions can be deﬁned, denoting
+setsorpropertiesofindividuals:〈E,T〉(forexample,writable),relationsoverindividual
+pairs: 〈E,〈E,T〉〉 (for example,contains), or ﬁrst-order functors over sets: 〈〈E,T〉,〈E,T〉〉
+(forexample,acomparativeadjectivelikelarger).
+3.1.2OntologicalPromiscuity.First-order or higher models (in which functors can take
+sets as arguments) can be mapped to equivalent zero-order models (with functors
+deﬁned only on entities). This is generally motivated by a desire to allow sets of
+individuals to be described in much the same way as individuals themselves (Hobbs
+1985). Entities in a zero-order model M can be deﬁned from individuals in a higher-
+order model M
+∗
+by mapping or reifying each set S={ι
+1,ι
+2,...} in P(E
+M
+∗) (or each
+set of sets in P(P(E
+M
+∗)), etc.) as an entity e
+S
+in a new domain E
+M
+.
+1
+Relationslinter-
+pretedaszero-orderfunctorsinMcanbedeﬁneddirectlyfromrelationsl
+∗
+interpreted
+as higher-order functors (over sets) in M
+∗
+by mapping each instance of 〈S
+1,S
+2
+〉 in
+llbracketl
+∗
+rrbracket
+M
+∗ : P(E
+M
+∗)×P(E
+M
+∗)toacorrespondinginstanceof〈e
+S
+1,e
+S
+2
+〉inllbracketlrrbracket
+M
+: E
+M
+×E
+M
+.Set
+subsumptioninM
+∗
+canthenbedeﬁnedonentitiesmadefromreiﬁedsetsinM,similar
+to ‘ISA’ relations over concepts in knowledge representation systems (Brachman and
+Schmolze1985).
+Thesesubsetorsubsumptionrelationscanberepresentedinasubsumptionlattice,
+as shown in Figure 1, with supersets to the left connecting to subsets to the right. This
+representation will be used in Section 4 to deﬁne weighted transitions over ﬁrst-order
+referentsinastatisticaltime-seriesmodelofinterpretation.
+1 Here,P(X)isthepowersetofX,containingthesetofallsubsets.
+316
+Schuler,Wu,andSchwartz AFrameworkforFastIncrementalInterpretation
+3.2LanguageModelingforSpeechRecognition
+The referential semantic language model described in this article is based on Hierar-
+chic Hidden Markov Models (HHMMs), an existing extension of the standard Hidden
+Markov Model (HMM) language modeling framework used in speech recognition,
+which has been factored to represent hierarchic information about language structure
+over time. This section will review HMMs (Section 3.2.1) and Hierarchic HMMs (Sec-
+tions 3.2.2 and 3.2.3). This underlying frameworkwill then be extended to include
+randomvariablesoversemanticreferentsinSection4.2.
+3.2.1HMMsandLanguageModels.Themodeldescribedinthisarticleisaspecialization
+of the HMM framework commonly used in speech recognition (Baker 1975; Jelinek,
+Bahl, and Mercer 1975). HMMs characterize speech as a sequence of hidden statesh
+t
+(which may consist of speech sounds, words, or other hypothesized syntactic or se-
+mantic information), and observed stateso
+t
+(typically ﬁnite, overlapping frames of an
+audiosignal)atcorrespondingtimestepst.Amost-probablesequenceofhiddenstates
+ˆ
+h
+1..T
+canthenbehypothesizedgivenanysequenceofobservedstateso
+1..T,usingBayes’
+Law (Equation 2) and Markov independence assumptions (Equation 3) to deﬁne the
+full probability P(h
+1..T
+|o
+1..T
+)astheproductofaLanguageModel(LM) prior proba-
+bility P(h
+1..T
+)
+def
+=
+producttext
+t
+P
+Θ
+LM
+(h
+t
+|h
+t−1
+)andanAcousticModel(AM) likelihood probability
+P(o
+1..T
+|h
+1..T
+)
+def
+=
+producttext
+t
+P
+Θ
+AM
+(o
+t
+|h
+t
+):
+ˆ
+h
+1..T
+=argmax
+h
+1..T
+P(h
+1..T
+|o
+1..T
+)(1)
+=argmax
+h
+1..T
+P(h
+1..T
+)· P(o
+1..T
+|h
+1..T
+2
+def
+=argmax
+h
+1..T
+T
+productdisplay
+t=1
+P
+Θ
+LM
+(h
+t
+|h
+t−1
+)· P
+Θ
+AM
+(o
+t
+|h
+t
+)(3)
+The initial hidden state h
+0
+may be deﬁned as a constant.
+2
+HMM transitions can be
+modeled using Weighted Finite State Automata (WFSAs), corresponding to regular
+expressions. An HMM state h
+t
+may then be deﬁned as a WFSA state, or a symbol
+positioninacorrespondingregularexpression.
+3.2.2 Hierarchic
+HMMs. Language model transitions P
+Θ
+LM
+(σ
+t
+|σ
+t−1
+) over internally
+structured hidden states σ
+t
+can be modeled using synchronized levels of stacked-
+up component HMMs in an HHMM (Murphy and Paskin 2001), generalized here
+as an abstract topology over unspeciﬁed random variables ρ and σ. In this topol-
+ogy, HHMM transition probabilities are calculated in two phases: a “reduce” phase
+(resulting in an intermediate, marginalized state ρ
+t
+at time step t), in which compo-
+nent HMMs may terminate; and a “shift” phase (resulting in a modeled state σ
+t
+),
+in which unterminated HMMs transition, and terminated HMMs are re-initialized
+from their parent HMMs. Variables over intermediate and modeled states are factored
+2 Itisalsocommontodeﬁneapriordistributionoverinitialstatesath
+0,butthisisnotnecessaryhere.
+317
+ComputationalLinguistics Volume35,Number3
+into sequences of depth-speciﬁc variables—one for each of D levels in the HHMM
+hierarchy:
+ρ
+t
+=〈ρ
+1
+t
+...ρ
+D
+t
+〉 (4)
+σ
+t
+=〈σ
+1
+t
+...σ
+D
+t
+〉 (5)
+Transition probabilities are then calculated as a product of transition probabilities at
+eachlevel,usinglevel-speciﬁc“reduce”Θ
+ρ
+and“shift”Θ
+σ
+models:
+P
+Θ
+LM
+(σ
+t
+|σ
+t−1
+)=
+summationdisplay
+ρ
+t
+P(ρ
+t
+|σ
+t−1
+)· P(σ
+t
+|ρ
+t
+σ
+t−1
+)(6)
+def
+=
+summationdisplay
+ρ
+1
+t
+...ρ
+D
+t
+parenleftBigg
+D
+productdisplay
+d=1
+P
+Θ
+ρ
+(ρ
+d
+t
+|ρ
+d+1
+t
+σ
+d
+t−1
+σ
+d−1
+t−1
+)
+parenrightBigg
+·
+parenleftBigg
+D
+productdisplay
+d=1
+P
+Θ
+σ
+(σ
+d
+t
+|ρ
+d+1
+t
+ρ
+d
+t
+σ
+d
+t−1
+σ
+d−1
+t
+)
+parenrightBigg
+(7)
+with ρ
+D+1
+t
+and σ
+0
+t
+deﬁned as constants. In Viterbi (maximum likelihood) decoding, the
+marginals (sums) in this equation may be approximated using an argmax operator. A
+graphicalrepresentationofthedependenciesinthismodelisshowninFigure2.
+3.2.3SimpleHierarchicHMMs.The previous generalized deﬁnition can be considered a
+template for factoring HMMs into synchronized levels, using σ and ρ as parameters.
+The speciﬁc Murphy–Paskin deﬁnition of HHMMs can then be considered a “simple”
+instantiation of this template using FSA states for σ and switching variables for ρ.In
+Section4,thisinstantiationwillbeaugmented(orfurtherfactored)toincorporateaddi-
+tionalvariables oversemanticreferentsateachdepthandtimestep,withoutchanging
+theoveralltopologyofthemodel.
+Figure2
+GraphicalrepresentationofaHHMMwithD=3hiddenlevels.Circlesdenoterandom
+variables,andedgesdenoteconditionaldependencies.Shadedcirclesdenotevariables
+withobservedvalues.
+318
+Schuler,Wu,andSchwartz AFrameworkforFastIncrementalInterpretation
+InsimpleHHMMs,eachintermediatestatevariable ρ
+d
+t
+isabooleanswitchingvari-
+ablef
+d
+ρ,t
+∈{0,1} and each modeled state variable σ
+d
+t
+is a syntactic, lexical, or phonetic
+FSAstateq
+d
+σ,t
+:
+ρ
+d
+t
+=f
+d
+ρ,t
+(8)
+σ
+d
+t
+=q
+d
+σ,t
+(9)
+Instantiating Θ
+ρ
+as Θ
+Simple-ρ,f
+d
+is deterministic: true (equal to 1) with probability 1 if
+there is a transition at the level immediately belowdand the stackelement q
+d
+σ,t−1
+is a
+ﬁnalstate,andfalse(equalto0)withprobability1otherwise:
+3
+P
+Θ
+Simple-ρ
+(ρ
+d
+t
+|ρ
+d+1
+t
+σ
+d
+t−1
+σ
+d−1
+t−1
+)
+def
+=
+
+
+
+
+
+iff
+d+1
+ρ,t
+=0 :[f
+d
+ρ,t
+=0]
+iff
+d+1
+ρ,t
+=1, q
+d
+σ,t−1
+negationslash∈Final: [f
+d
+ρ,t
+=0]
+iff
+d+1
+ρ,t
+=1, q
+d
+σ,t−1
+∈Final: [f
+d
+ρ,t
+=1]
+(10)
+wheref
+D+1
+ρ,t
+=1andq
+0
+σ,t
+=ROOT.
+Shift probabilities at each level (instantiating Θ
+σ
+as Θ
+Simple-σ
+) are deﬁned using
+level-speciﬁctransitionΘ
+Simple-Trans
+andexpansionΘ
+Simple-Init
+models:
+P
+Θ
+Simple-σ
+(σ
+d
+t
+|ρ
+d+1
+t
+ρ
+d
+t
+σ
+d
+t−1
+σ
+d−1
+t
+)
+def
+=
+
+
+
+
+
+iff
+d+1
+ρ,t
+=0, f
+d
+ρ,t
+=0:[q
+d
+σ,t
+=q
+d
+σ,t−1
+]
+iff
+d+1
+ρ,t
+=1, f
+d
+ρ,t
+=0: P
+Θ
+Simple-Trans
+(q
+d
+σ,t
+|q
+d
+σ,t−1
+)
+iff
+d+1
+ρ,t
+=1, f
+d
+ρ,t
+=1: P
+Θ
+Simple-Init
+(q
+d
+σ,t
+|q
+d−1
+σ,t
+)
+(11)
+wheref
+D+1
+ρ,t
+=1 andq
+0
+σ,t
+=ROOT. This model is conditioned on ﬁnal-state switching
+variables at and immediately below the current HHMM level: If there is no ﬁnal state
+immediatelybelowthecurrentlevel(theﬁrstcaseabove),itdeterministicallycopiesthe
+currentFSAstateforwardtothenexttimestep;ifthereisaﬁnalstateimmediatelybelow
+the current level (the second case presented), it transitions the FSA state at the current
+level, according to the distribution Θ
+Simple-Trans
+; and if the state at the current level is
+ﬁnal (the third case presented), it re-initializes this state given the state at the level
+above, according to the distribution Θ
+Simple-Init
+. The overall effect is that higher-level
+HMMs are allowed to transition only when lower-level HMMs terminate. An HHMM
+therefore behaves like a probabilistic implementation of a pushdown automaton (or
+“shift–reduce” parser) with a ﬁnite stack, where the maximum stack depth is equal to
+thenumberoflevelsintheHHMMhierarchy.
+Like HMM states, the states at each level in a simple HHMM also correspond to
+weighted FSA (WFSA) states or symbol positions in regular expressions, except that
+some states can benonterminalstates, which introduce corresponding sub-expressions
+orsub-WFSAsgoverningstatetransitionsatthelevelbelow.Theprocessofexpanding
+each nonterminal state q
+d−1
+σ,t
+to a sub-expression or WFSA (with start state q
+d
+σ,t
+)is
+modeled in Θ
+Simple-Init
+. Transitions to adjacent (possibly ﬁnal) states within each
+expressionorWFSAaremodeledinΘ
+Simple-Trans
+.
+3Here[·]isanindicatorfunction:[φ]=1ifφistrue, 0otherwise.
+319
+ComputationalLinguistics Volume35,Number3
+Forexample,asimpleHHMMmayfactoralanguagemodelintoword(q
+1
+σ,t
+),phone
+(q
+2
+σ,t
+),andsubphone(q
+3
+σ,t
+)levels,whereawordstatemaybeasingleword,aphonestate
+may be a position in a sequence of phones corresponding to a word, and a subphone
+state may be a position in a sequence of subphone states (e.g., onset, middle, and end)
+corresponding to a phone. In this case, Θ
+Simple-Init
+would deﬁne a prior model over
+words at level 1, a pronunciation model of phone sequences for each word at level 2,
+andastate-sequencemodelofsubphonestatesforeachphoneatlevel3;andΘ
+Simple-Trans
+would deﬁne a word bigram model at level 1, and would deterministically advance
+alongphoneandsubphonesequencesatlevels2and3(BilmesandBartels2005).
+This hierarchy of regular expressions may also be viewed as a probabilistic im-
+plementation of a cascaded FSA, used for modeling syntax in information extraction
+systemssuchasFASTUS(Hobbsetal.1996).
+4.AReferentialSemanticLanguageModel
+A referential semantic language model can now be deﬁned as an instantiation of an
+HHMM (as described in Section 3.2), interpreting directives in a reiﬁed world model
+(asdescribedinSection3.1).Thisinterpretationframeworkisnovelinthatitisdeﬁned
+dynamicallyintermsoftransitionsoverreferentialstates—evocationsofentityreferents
+from a (e.g., ﬁrst-order) world model—stacked up in a Hierarchic HMM. This allows
+(1)astraightforwardfastimplementationofsemanticinterpretation(astransition)that
+iscompatiblewithconventionaltime-seriesmodelsusedinspeechrecognition;and(2)
+abroadernotionofsemanticcompositionthatexploitsreferentialcontextintimeorder
+(frompreviousconstituentstolaterconstituents)aswellasbottom-up(fromcomponent
+constituentstocomposedconstituents).
+First, Section 4.1 will describe a deﬁnition of semantic constraints as transitions in
+a time-series model. Then Section 4.2 will apply these transitions to nested referents
+in a Hierarchic HMM. Section 4.3 will introduce a state-based syntactic representa-
+tion to linkthis semantic representation with recognized words. Finally, Section 4.4
+will demonstrate the expressive power of this model on some common linguistic
+constructions.
+Because this section combines notation from different theoretical frameworks (in
+particular, from formal semantics and statistical time-series modeling), a notation
+summaryisprovidedinTable1.
+4.1DynamicRelations
+Semanticinterpretationmaybeeasilyintegratedintoaprobabilistictime-seriesmodelif
+itisformulatedasatypeoftransition,fromsourcetodestinationreferentsofequivalent
+typeatadjacenttimesteps.Inotherwords,whilerelationsinanordinaryMontagovian
+interpretation framework(Montague 1973) may be functions from entity referents to
+truth value referents, all relations in the world model deﬁned here must betransition
+functionsfromentityreferentstoentityreferents.
+One-placepropertieslmaybemodeledinthissystembydeﬁningtransitionsfrom
+preceding, unconstrained referents to referents constrained by l. The unconstrained
+referents can be thought of as context arguments: For example, in the context of the
+set of user-writable ﬁles, a property like EXECUTABLE evokes the subset of writable
+executables. In the subsumption lattice shown in Figure 1, this will deﬁne a rightward
+transition from each set referent to some subset referent, labeled with the traversed
+relation(seeFigure4inSection4.4).
+320
+Schuler,Wu,andSchwartz AFrameworkforFastIncrementalInterpretation
+Table1
+SummaryofnotationusedinSection4.
+Modeltheory(seeSection3.1)
+M :aworldmodel
+E
+M
+: thedomainofindividualsinworldmodelM
+ι : anindividual
+llbracket·rrbracket
+M
+: aninterpretationfunctionfromlogicalsymbols(e.g.,relationlabels)
+tologicalfunctionsoverindividuals,setsofindividuals,etc.
+variableswithasterisks : refertoaninitialworldmodelpriortoreiﬁcation
+Typetheory(seeSection3.1.1)
+E : thetypeofanindividual
+T : thetypeofatruthvalue
+〈α,β〉 : thetypeofafunctionfromtypeαtotypeβ(variablesovertypes)
+Settheory(seeSection4.1)
+S : asetofindividuals
+R : arelationovertuplesofindividuals
+Randomvariables(seeSections3.2and4.2)
+h : ahiddenvariableinatime-seriesmodel
+o : anobservedvariableinatime-seriesmodel,
+(inthiscase,aframeoftheacousticalsignal)
+ρ : acomplexvariableoccurringinthereducephaseofprocessing;
+forexample,composedof〈e
+ρ,f
+ρ
+〉
+σ : acomplexvariableoccurringintheshiftphaseofprocessing;
+forexample,composedof〈e
+σ,q
+σ
+〉
+f : arandomvariableoverﬁnalstatestatus;forexample,withvalue1or0
+q : arandomvariableoverFSA(syntax)states,
+inthiscasecompiledfromregularexpressions;forexample,withvalueq
+1
+orq
+2
+e : arandomvariableoverreferententities;forexample,withvaluee
+{ι
+1
+ι
+2
+ι
+3
+}
+l : arandomvariableoverrelationlabels;forexample,withvalueEXECUTABLE
+(seeSection4.1)
+t : atimestep,from1totheendoftheutteranceT
+d : adepthlevel,from1tothemaximumdepthlevelD
+Θ : aprobabilitymodelmappingvariablevaluestoprobabilities
+(realnumbersform0.0to1.0)
+L : functionsfromFSA(syntax)statestorelationlabels
+variablesinboldface : instancesorvaluesofarandomvariable
+non-boldvariableswithsinglesubscripts : arespeciﬁctoatimestep;forexample,ρ
+t
+non-boldvariableswithdoublesubscripts : arespeciﬁctoareduceorshiftphasewithin
+atimestep;forexample,e
+ρ,t,q
+σ,t
+non-boldvariableswithsuperscripts : arespeciﬁctoadepthlevel;forexample,ρ
+d
+t,e
+d
+ρ,t
+Generaln-ary semantic relationslin this frameworkare therefore formulated as a
+type of multi-source transition, distinguishing one argument of an original, ordinary
+relationl
+∗
+as an output (destination) and leaving the rest as input (source); then intro-
+ducing a context referent as an additional input. Instead of deﬁning simple transition
+arcs on a subsumption lattice, n-ary relations more accurately deﬁne hyperarcs,with
+multiplesourcereferents:zeroormoreconventionalargumentsandoneadditionalcon-
+textreferent,leadingtoadestinationreferentintersectivelyconstrainedtothiscontext.
+321
+ComputationalLinguistics Volume35,Number3
+This model of interpretation as transition also allows referential semantic con-
+straintstobeappliedthatoccurpriortohypothesizedconstituents,inadditiontothose
+that occur as arguments. For example, in the sentence gotothepackagedatadirectory
+andhidetheexecutableﬁle,the phrasegotothepackagedatadirectoryprovides a powerful
+constraintonthereferentoftheexecutableﬁle,althoughitdoesnotoccurasanargument
+sub-constituent of this noun phrase. In this framework, the referent ofthepackagedata
+directory(asasetofﬁles)canbepassedasacontextargumenttointersectivelyconstrain
+theinterpretationoftheexecutableﬁle.
+Recall the deﬁnition in Section 3.1.2 of a zero-order model M with refer-
+ents e
+{ι
+1,ι
+2,...}
+reiﬁed from sets of individuals {ι
+1,ι
+2,...} in some original ﬁrstor
+higher-ordermodelM
+∗
+.Thereferentialsemanticlanguagemodeldescribedinthisarti-
+cleinteractswiththisreiﬁedworldmodelMthroughqueriesoftheformllbracketlrrbracket
+M
+(e
+S
+1,e
+S
+2
+),
+wherelisarelation,e
+S
+1
+isanargumentreferent,ande
+S
+2
+isacontextreferent(ore
+S
+1
+isa
+context referent if there is no argument). Each query returns a destination referent e
+S
+such that S is a subset of the context set in the original world model M
+∗
+. These
+context-dependentrelationslinMarethendeﬁnedintermsofcorrespondingordinary
+relationsl
+∗
+ofvarioustypesintheoriginalworldmodelM
+∗
+asfollows:
+llbracketlrrbracket
+M
+(e
+S
+1,e
+S
+2
+)=e
+S
+s.t.
+
+
+
+if llbracketl
+∗
+rrbracket
+M
+∗ istype〈E,T〉 : S=S
+1
+∩llbracketl
+∗
+rrbracket
+M
+∗
+if llbracketl
+∗
+rrbracket
+M
+∗ istype〈E,〈E,T〉〉 : S=S
+2
+∩(S
+1
+·llbracketl
+∗
+rrbracket
+M
+∗)
+if llbracketl
+∗
+rrbracket
+M
+∗ istype〈〈E,T〉,〈E,T〉〉: S=S
+2
+∩llbracketl
+∗
+rrbracket
+M
+∗(S
+1
+)
+(12)
+whererelationproductsaredeﬁnedtoresemblematrixproducts:
+S·R={ι
+primeprime
+| ι
+prime
+∈S, 〈ι
+prime,ι
+primeprime
+〉∈R} (13)
+Forexample,apropertylikeEXECUTABLEwouldordinarilybemodeledasafunctor
+oftype〈E,T〉:givenanindividual,itwouldreturntrueiftheindividualcanbeexecuted.
+The ﬁrst case in Equation (12) casts this as a transition from an argument set S
+1
+to
+the set of individuals withinS
+1
+that are executable. On the other hand, a relation like
+CONTAINS would ordinarily be modeled as 〈E,〈E,T〉〉: given an individual and then
+another individual, it would return true if the relation holds over the pair. The second
+caseinEquation(12)caststhisasatransitionfromasetofcontainersS
+1,givenacontext
+setS
+2, to the subset of this context that are contained by an individual inS
+1
+. Finally, a
+ﬁrst-order functor like LARGEST would ordinarily be modeled as 〈〈E,T〉,〈E,T〉〉:given
+a set of individuals and then another individual, it would return true if the individual
+belongstothe(singleton)setofthingsthatarethelargestintheargumentset.Thelast
+case in Equation (12) casts this as a transition from a setS
+1, given a context setS
+2,to
+the(singleton)subsetofthiscontextthataremembersofS
+1
+andarelargerthanallother
+individuals in S
+1
+. More detailed examples of each relation type in Equation (12) are
+providedinSection4.4.
+Relationsinthisworldmodelhavethecharacterofbeingcontext-dependentinthe
+sensethatrelationslikeCAPTAINthataretraditionallyone-place(denotingasetofenti-
+tieswithrankcaptain)arenowtwo-place,dependentonanargumentsuperconceptin
+thesubsumptionlattice.Relationscanthereforebegivendifferentmeaningsatdifferent
+places in the world model: in the context of a particular football team, CAPTAIN will
+refer to a particular player; in the context of a different team, it will refer to someone
+else. One-place relations can still be deﬁned using a subsumption lattice root concept
+322
+Schuler,Wu,andSchwartz AFrameworkforFastIncrementalInterpretation
+‘latticetop’ as a context argument of course, but this will increase the perplexity (number of
+choices)attherootconcept,makingrecognitionlessreliable.
+In this deﬁnition, referents e are similar to theinformationstatesin Dynamic Predi-
+cate Logic (Groenendijk and Stokhof 1991), except that only limited working memory
+for information states is assumed, containing only one referent (or variable binding in
+DPLterms)perHHMMlevel.
+4.2ReferentialSemanticHHMM
+Like the simple HHMM described in Section 3.2.3, the referential semantic language
+model described in this article (henceforth RSLM), is deﬁned by instantiating the gen-
+eral HHMM “template” deﬁned in Section 3.2.2. This RSLM instantiation incorporates
+both the switching variablesf∈{0,1} and FSA state variablesqof the simple HHMM,
+andaddsvariablesoversemanticreferentsetothe“reduce”and“shift”phasesateach
+level.Thus,theRSLMdecomposeseachHHMMreducevariableρ
+d
+t
+intoajointvariable
+subsuming an intermediate referent e
+d
+ρ,t
+and a ﬁnal-state switching variable f
+d
+ρ,t
+;and
+decomposes each HHMM shift variable σ
+d
+t
+into a joint variable subsuming a modeled
+referente
+d
+σ,t
+andanordinaryFSAstateq
+d
+σ,t
+:
+ρ
+d
+t
+=〈e
+d
+ρ,t,f
+d
+ρ,t
+〉 (14)
+σ
+d
+t
+=〈e
+d
+σ,t,q
+d
+σ,t
+〉 (15)
+A graphical representation of this referential semantic language model is shown in
+Figure3.
+Theintermediatereferentse
+d
+ρ,t
+inthisframeworkcorrespondtothetraditionalnotion
+of compositional semantics (Frege 1892), in which meanings of composed constituents
+(at higher levels in the HHMM hierarchy) are derived from meanings of component
+constituents (at lower levels in the hierarchy). However, in addition to the referents
+Figure3
+Agraphicalrepresentationofthedependenciesinthereferentialsemanticlanguagemodel
+describedinthisarticle(comparewithFigure2).Again,circlesdenoterandomvariables
+andedgesdenoteconditionaldependencies.Shadedcirclesdenoterandomvariableswith
+observedvalues.
+323
+ComputationalLinguistics Volume35,Number3
+of their component constituents, the intermediate referents in this frameworkare also
+constrained by the referents at the same depth in the previous time step—the referen-
+tial context described in Section 4.1. Themodeledreferentse
+d
+σ,t
+in this frameworkthen
+correspond to a snapshot at each time step of the referential state of the recognizer,
+after all completed constituents have been composed (or reduced), and after any new
+constituentshavebeenintroduced(orshifted).
+Both intermediate and modeled referents are constrained by labeled relations l
+in llbracket·rrbracket
+M
+associated with ordinary FSA states. Thus, relation labels are deﬁned for “re-
+duce”and“shift”HHMMoperationsvialabelfunctionsL
+ρ
+andL
+σ,respectively,which
+mapFSAstatesqtorelationlabelsl.
+Entityreferentse
+d
+ρ
+ateachreducephaseofthisHHMMareconstrainedbythepre-
+viousFSAstateq
+d
+t-1
+usingareducerelationl
+d
+ρ,t
+=L
+ρ
+(q
+d
+σ,t-1
+),suchthate
+d
+ρ
+= llbracketl
+d
+ρ
+rrbracket
+M
+(e
+d+1
+ρ,e
+d
+t-1
+).
+Reduceprobabilitiesateachlevel(instantiatingΘ
+ρ
+asΘ
+RSLM-ρ
+)aretherefore:
+4
+P
+Θ
+RSLM-ρ
+(ρ
+d
+t
+|ρ
+d+1
+t
+σ
+d
+t-1
+σ
+d-1
+t-1
+)
+def
+=
+
+
+
+
+
+
+
+
+
+iff
+d+1
+ρ,t
+=0 :[f
+d
+ρ,t
+=0]·[e
+d
+ρ,t
+=e
+d
+σ,t
+]
+iff
+d+1
+ρ,t
+=1, q
+d
+σ,t-1
+negationslash∈Final: [f
+d
+ρ,t
+=0]·[e
+d
+ρ,t
+=e
+d+1
+ρ,t
+]
+iff
+d+1
+ρ,t
+=1, q
+d
+σ,t-1
+∈Final: [f
+d
+ρ,t
+=1]·
+[e
+d
+ρ,t
+=llbracketl
+d
+ρ,t
+rrbracket
+M
+(e
+d+1
+ρ,t,e
+d-1
+σ,t-1
+)]
+(16)
+where ρ
+D+1
+ρ,t
+=〈e
+D
+σ,t-1,1〉 and σ
+0
+σ,t
+=〈e
+latticetop,ROOT〉. Here, it is assumed thatL
+ρ
+(q
+d
+σ,t-1
+)pro-
+vides a non-trivial constraint only when q
+d
+σ,t
+is a ﬁnal state; otherwise it returns an
+IDENTITYrelationsuchthat llbracketIDENTITYrrbracket
+M
+(e,e
+prime
+)=e.
+Entity referentse
+d
+σ,t
+at each shift phase of this HHMM are constrained by the cur-
+rent FSA stateq
+d
+σ,t
+using a shift relationl
+d
+σ,t
+=L
+σ
+(q
+d
+σ,t
+), such thate
+d
+σ,t
+= llbracketl
+d
+σ,t
+rrbracket
+M
+(e
+d-1
+σ,t,e
+latticetop
+).
+Shift probabilities at each level (instantiating Θ
+σ
+as Θ
+RSLM-σ
+) then generate relation
+labels using a “description” modelΘ
+Ref-Init, with referentse
+d
+σ,t
+and state transitionsq
+d
+σ,t
+conditionedon(ordeterministicallydependenton)theselabels.Theprobabilitydistri-
+butionovermodeledvariablesistherefore
+P
+Θ
+RSLM-σ
+(σ
+d
+t
+|ρ
+d+1
+t
+ρ
+d
+t
+σ
+d
+t-1
+σ
+d-1
+t
+)
+def
+=
+
+
+
+
+
+
+
+
+
+
+
+
+
+iff
+d+1
+ρ,t
+=0,f
+d
+ρ,t
+=0:[e
+d
+σ,t
+=e
+d
+ρ,t
+]·[q
+d
+σ,t
+=q
+d
+σ,t-1
+]
+iff
+d+1
+ρ,t
+=1,f
+d
+ρ,t
+=0:[e
+d
+σ,t
+=e
+d
+ρ,t
+]· P
+Θ
+Syn-Trans
+(q
+d
+σ,t
+|q
+d
+σ,t-1
+)
+iff
+d+1
+ρ,t
+=1,f
+d
+ρ,t
+=1:
+summationdisplay
+l
+d
+σ,t
+P
+Θ
+Ref-Init
+(l
+d
+σ,t
+|e
+d-1
+σ,t
+q
+d-1
+σ,t
+)
+·[e
+d
+σ,t
+=llbracketl
+d
+σ,t
+rrbracket
+M
+(e
+d-1
+σ,t, e
+latticetop
+)]
+·P
+Θ
+Syn-Init
+(q
+d
+σ,t
+|l
+d
+σ,t
+q
+d-1
+σ,t
+)
+(17)
+where ρ
+D+1
+ρ,t
+=〈e
+D
+σ,t-1,1〉 and σ
+0
+σ,t
+=〈e
+latticetop,ROOT〉. Here, it is assumed that L
+σ
+(q
+d
+σ,t
+)pro-
+vides a non-trivial constraint only whenq
+d
+σ,t
+is aninitialstate; otherwise it returns an
+IDENTITYrelationsuchthatllbracketIDENTITYrrbracket
+M
+(e,e
+prime
+)=e.TheprobabilitymodelsΘ
+Ref-Init
+and
+Θ
+Syn-Init
+areinducedfromcorpusobservationsordeﬁnedbyhand.
+The cases in this equation, conditioned on ﬁnal-state switching variables f
+d+1
+ρ,t
+andf
+d
+ρ,t, correspond to those in Equation (11) in Section 3.2.3. In the ﬁrst case, where
+thereisnoﬁnalstateimmediatelybelowthecurrentlevel,referentsandFSAstatesare
+simplypropagatedforward.Inthesecondcase,wherethereisaﬁnalstateimmediately
+belowthecurrentlevel,referentsarepropagatedforwardandtheFSAstateisadvanced
+4Again,[·]isanindicatorfunction:[φ]=1ifφistrue, 0otherwise.
+324
+Schuler,Wu,andSchwartz AFrameworkforFastIncrementalInterpretation
+accordingtothedistributionΘ
+Syn-Trans
+.Inthethirdcase,wherethecurrentFSAstateis
+ﬁnalandmustbere-initialized,anewreferentandFSAstatearechosenby:
+1. selecting,accordingtoa“description”modelΘ
+Ref-Init,arelationlabell
+d
+σ,t
+withwhichtoconstrainthecurrentreferent,
+2. deterministicallygeneratingareferente
+d
+σ,t
+giventhislabelandthereferent
+atthelevelabove,and
+3. selecting,accordingtoa“lexicalization”modelΘ
+Syn-Init,anFSAstateq
+d
+σ,t
+thatiscompatiblewiththislabel(i.e.,hasL
+σ
+(q
+d
+σ,t
+)=l
+d
+σ,t
+).
+4.3AssociatingSemanticRelationswithSyntacticExpressions
+Inthisframework,semanticreferentsareconstrainedovertimebyinstancesofseman-
+tic relationsl
+σ
+andl
+ρ
+. These relations are determined by instances of syntactic FSA
+statesq
+1,...,q
+n, themselves expanded from higher-level FSA statesq. These associa-
+tions between syntactic and semantic random variable values can be represented in
+expansionrulesoftheform
+q shortrightarrow q
+1
+... q
+n
+;withl
+σ
+=L
+σ
+(q
+1
+)andl
+ρ
+=L
+ρ
+(q
+n
+) (18)
+whereq
+1
+...q
+n
+maybeanyregular expression initiatingatstateq
+1
+andculminating at
+(ﬁnal) stateq
+n
+. Note that regular expressions must therefore begin with shift relations
+and end with reduce relations. This is in order to keep the syntactic and referential
+semanticexpansionssynchronized.
+These hierarchic regular expressions are deﬁned to resemble expansion rules in
+a context free grammar (CFG). However, unlike CFGs, HHMMs have memory limits
+on nesting, in the form of a maximum depthDbeyond which no expansion may take
+place. As a result, the expressive power of an HHMM is restricted to the set of regular
+languages,whereasCFGsmayrecognizethesetofcontext-freelanguages;andHHMM
+recognitionisworst-caselinearonthelengthofanutterance,whereasCFGrecognition
+iscubic.
+5
+Similarlimitshavebeenproposedonsyntaxinnaturallanguages,motivated
+by limits on short term memory observed in humans (Miller and Chomsky 1963;
+Pulman1986).Thesehavebeenappliedtoobtainmemory-limitedparsers(e.g.,Marcus
+1980), and depth-limited right-corner grammars that are equivalent to CFGs, except
+that they restrict the number of internally recursive expansions allowed in recognition
+(SchulerandMiller2005).
+4.4Expressivity
+The language model described herein deﬁnes referential semantics purely in terms of
+HHMM shift and reduce operations over referent entities, made from reiﬁed sets of
+individualsinsomeoriginalworldmodel.Thissectionwillshowthatthisbasicmodel
+issufﬁcientlyexpressivetorepresentmanycommonlyoccurringlinguisticphenomena,
+5 Whenexpressedasafunctionofthesizeofthegrammar,HHMMrecognitionisasymptotically
+exponentialonD,whereasCFGrecognitioniscubicregardlessofdepth.Inpractice,however,exact
+inferenceusingeitherformalismisimpractical,soapproximateinferenceisusedinstead(e.g.,
+maintainingabeamateachtimesteporateachconstituentspaninCFGparsing).
+325
+ComputationalLinguistics Volume35,Number3
+Figure4
+Asubsumptionlattice(laidonitsside,ingray)overthepowersetofadomaincontainingthree
+ﬁles:f
+1
+(awritableexecutable),f
+2
+(aread-onlyexecutable),andf
+3
+(aread-onlydataﬁle).
+“Referencepaths”madeupofconjunctionsofrelationsl(directedarcs,inblack)traversethe
+latticefromlefttorighttowardtheemptyset,asreferents(e
+{...},correspondingtosetsofﬁles)
+areincrementallyconstrainedbyintersectionwitheach llbracketlrrbracket
+M
+.(Somearcsareomittedforclarity.)
+including intersective modiﬁers (e.g., adjectives like executable), multi-argument rela-
+tions (e.g., prepositional phrases or relative clauses, involving trajector and landmark
+referents),negation(asintheadverbnot),andcomparativesovercontinuousproperties
+(e.g.,larger).
+4.4.1Properties.Properties(traditionallyunaryrelationslikeEXECUTABLEorWRITABLE)
+canberepresentedintheworldmodelaslabelededgesl
+t
+fromsupersetse
+t−1
+tosubsetse
+t
+deﬁnedbyintersectingthesete
+t−1
+withthesetllbracketl
+t
+rrbracket
+M
+satisfyingthepropertyl
+t
+.Recallthat
+areiﬁedworldmodelcanbecastasasubsumptionlatticeasdescribedinSection3.1.2.
+The result of conjoining a property l with a context set e can therefore be found by
+downwardtraversalofanedgeinthislatticelabeledlanddepartingfrome.
+6
+Thus, in Figure 4, the set of executablesthatareread-only would be reachable by
+traversing a READ-ONLY relation from the set of executables, or by traversing an EX-
+ECUTABLE relation from the set of read-only objects, or by a composed path READ-
+ONLY◦EXECUTABLEorEXECUTABLE◦READ-ONLYfrome
+latticetop
+.Theresultingsetmaythen
+serve as context for subsequent traversals. Property relations may also result in self-
+traversals (e.g., DATAFILE◦READ-ONLY in Figure 4) or traversals to the empty set e
+⊥
+(e.g., DATAFILE◦WRITABLE).Propertyrelationslike EXECUTABLEcanbedeﬁnedusing
+the dynamic relations in the ﬁrst case of Equation (12) in Section 4.1, which simply
+ignorethenon-contextargument.
+Ageneraltemplateforintersectivenounsandmodiﬁerscanbeexpressedasanoun
+phrase(NP)expansionusingthefollowingregularexpression(wherel
+σ
+andl
+ρ
+indicate
+relationlabelsconstrainingreferentsatthebeginningandendoftheNP):
+NP → Det
+parenleftbig
+Adj
+parenrightbig
+∗
+Noun
+parenleftbig
+PP|RC
+parenrightbig
+∗
+;withl
+σ
+= IDENTITYandl
+ρ
+= IDENTITY (19)
+6 Althoughproperties(andlater,n-aryrelations)aredeﬁnedintermsofanexponentiallylarge
+subsumptionlattice,thislatticeneednotbeanactualdatastructure.Iftheworldmodelisqueriedfroma
+decodertrelliswithabeamﬁlterratherthanfromacompletesearch,onlythoselatticerelationsthatare
+phonologically,syntactically,andsemanticallymostlikely(inotherwords,thosethatareonthisbeam)
+willbeexplored.
+326
+Schuler,Wu,andSchwartz AFrameworkforFastIncrementalInterpretation
+inwhichreferentsaresuccessivelyconstrainedbythesemanticsofrelationsassociated
+withadjectiveandnounexpansions:
+Adj → executable; withl
+σ
+= EXECUTABLEandl
+ρ
+= IDENTITY (20)
+Noun → executable; withl
+σ
+= EXECUTABLEandl
+ρ
+= IDENTITY (21)
+(and are also constrained by the prepositional phrase (PP) and relative clause (RC)
+modiﬁers, as described below). Here the relation EXECUTABLE traverses from refer-
+ente
+{f
+1
+f
+2
+f
+3
+}
+toreferente
+{f
+1
+f
+2
+},asubsetofe
+{f
+1
+f
+2
+f
+3
+}
+satisfying llbracketEXECUTABLE
+∗
+rrbracket
+M
+∗.
+4.4.2n-aryRelations.Sequencesofproperties(traditionallyunaryrelations)canbeinter-
+pretedassimplenonbranchingpathsfromreferenttoreferentinasubsumptionlattice,
+buthigher-arityrelationsdeﬁnemorecomplexpathsthatforkandrejoin.Forexample,
+thereferentofthedirectorycontainingtheexecutableinFigure5wouldbereachableonly
+by:
+1. storingtheoriginalsetofdirectoriese
+{d
+1
+d
+2
+d
+3
+}
+asatop-levelreferentinthe
+HHMMhierarchy,then
+2. traversingaCONTAINrelationdepartinge
+{d
+1
+d
+2
+d
+3
+}
+toobtainthecontentsof
+thosedirectoriese
+{f
+2
+f
+3
+},then
+3. traversinganEXECUTABLErelationdepartinge
+{f
+2
+f
+3
+}
+toconstrainthissetto
+thesetofcontentsthatarealsoexecutable:e
+{f
+2
+},then
+4. traversingtheinverseCONTAIN
+prime
+ofrelationCONTAINtoobtainthe
+containersoftheseexecutables,thenconstrainingtheoriginalsetof
+directoriese
+{d
+1
+d
+2
+d
+3
+}
+byintersectionwiththisresultingsettoyieldthe
+directoriescontainingexecutables:e
+{d
+2
+}
+.
+This‘forking’ofreferentialsemanticpathsishandledviasyntacticrecursion:onepathis
+explored by the recognizer while the other waits on the HHMM hierarchy (essentially
+Figure5
+Referencepathsforarelationcontaininginthedirectorycontainingtheexecutableﬁle.Areference
+pathforkstospecifyreferentsusingatwo-placerelationCONTAINinadomainofdirectories
+d
+1,d
+2,d
+3
+andﬁlesf
+1,f
+2,f
+3
+.Here,d
+2
+containsf
+2
+andd
+3
+containsf
+3,andf
+1
+andf
+2
+areexecutable.The
+ellipsisinthereferentsetindicatesthepresenceofadditionalindividualsthatarenotdirectories.
+Again,subsumptionisrepresentedingrayandrelationsarerepresentedinblack.(Portionsof
+thecompletesubsumptionlatticeandrelationgraphareomittedforclarity.)
+327
+ComputationalLinguistics Volume35,Number3
+functioning as a stack). A sample template for branching reduced relative clauses (or
+prepositionalphrases)thatexhibitthisforkingbehaviorcanbeexpressedasbelow:
+RC → containing NP; withl
+σ
+= CONTAINandl
+ρ
+= CONTAIN
+prime
+(22)
+where the inverse relation CONTAIN
+prime
+is applied when the NP expansion concludes or
+reduces (when the forked paths are re-joined). Relations like CONTAIN are covered in
+the second case of Equation (12) in Section 4.1, which deﬁne transitions from sets of
+individuals associated with one argument of an original relation CONTAIN
+∗
+to sets of
+individuals associated with the other argument of this relation, in the presence of a
+context set, which is a superset of the destination. The calculation of semantic tran-
+sition probabilities for n-ary relations thus resembles that for properties, except that
+the probability term associated with the relationl
+σ
+and the inverse relationl
+ρ
+would
+dependonbothcontextandargumentreferents(toitsleftandbelowit,intheHHMM
+hierarchy).
+Notethatthereisultimatelyasingletonreferent{f
+2
+}oftheexecutableﬁleinFigure5,
+even though thereare twoexecutable ﬁlesintheworld model used intheseexamples.
+Thisillustratesanimportantadvantageofadynamiccontext-dependent(threereferent)
+modelofsemanticcompositionoverthestrictcompositional(tworeferent)model.Ina
+dynamiccontextmodel,theexecutableﬁleisinterpretedinthecontextoftheﬁlesthatare
+containedinadirectory.Inastrictcompositionalmodel,theexecutableﬁleisinterpreted
+onlyinthecontextofﬁxedconstraintscoveringtheentireutterance,andtheconstraints
+related to the relationcontainingare applied only to the directories. This means that a
+generative model based on strict composition will assign some probability to an inﬁ-
+nitelyrecursivedescriptionthedirectoriescontainingexecutablescontainedbydirectories...
+In generation systems, this problem has been addressed by adding machinery to keep
+trackof redundancy (Dale and Haddock1991). But in this framework, a description
+model(Θ
+Ref-Init
+)whichissensitivetothesizesofitssourcereferentanddestinationref-
+erentattheendofeachdepartinglabeledtransitionwillbeabletodispreferreferential
+transitions that attempt to constrain already singleton referents, or that provide only
+trivialorvacuous(redundant)constraintsingeneral.Thissolutionisthereforemorein
+linewithgraph-basedmodelsofgeneration(Krahmer,vanErk,andVerleg2003),except
+thatthegraphsproposedhereareoverreiﬁedsetsratherthanindividuals,andthegoal
+isagenerativeprobabilitymodeloflanguageratherthangenerationperse.
+4.4.3Negation.Negation can be modeled in this frameworkas a relation between sets.
+Although it does not require any syntactic memory, negation does require referential
+semantic memory, in that the complement of a speciﬁed set must be intersected with
+some initial context set. Filesthatarenotwritable must still be ﬁles after all; only the
+writableportionofthisdescriptionshouldbenegated.
+Aregularexpressionfornegationofadjectivesis
+Adj → not Adj; withl
+σ
+= IDENTITYandl
+ρ
+= NOT (23)
+andisappliedtoaworldmodelinFigure6.RelationslikeNOTarecoveredinthethird
+caseofEquation(12)inSection4.1,whichdeﬁnetransitionsbetweensetsinanoriginal
+relation NOT
+∗
+.
+4.4.4 Comparatives, Superlatives, and Subsective Modiﬁers. Comparatives (e.g., larger),
+superlatives(e.g.,largest),andsubsectivemodiﬁers(e.g.,large,relativetosomecontext
+328
+Schuler,Wu,andSchwartz AFrameworkforFastIncrementalInterpretation
+Figure6
+Referencepathsfornegationinﬁlesthatarenotwritable,usingaworldmodelwithﬁlesf
+1,f
+2,
+andf
+3
+ofwhichonlyf
+1
+iswritable.Therecognizerﬁrstforksacopyofthesetofﬁles{f
+1,f
+2,f
+3
+}
+usingtherelationIDENTITY,thenappliestheadjectiverelationWRITABLEtoyield{f
+1
+}.The
+complementofthisset{f
+2,f
+3,...}isthenintersectedwiththestoredtop-levelreferent
+set{f
+1,f
+2,f
+3
+}toproducethesetofﬁlesthatarenotwritable:{f
+2,f
+3
+}.Ellipsesinreferentsets
+indicatethepresenceofadditionalindividualsthatarenotﬁles.
+set) deﬁne relations from sets to sets, or from sets to individuals (singleton sets). They
+can be handled in much the same way as negation. Here the context is provided from
+previouswordsandfromsub-structure,incontrasttoDeVaultandStone(2003),which
+deﬁnethecontextofacomparativeeitherfromﬁxedinter-utteranceconstraintsorasthe
+referent of the portion of the noun phrase dominated by the comparative (in addition
+to inter-utterance constraints). One advantage of dynamic (time-order) constraints is
+that implicit comparatives (intheClarkdirectory,selecttheﬁlethatislarger, with no
+complement) can be modeled with no additional machinery. If substructure context is
+notneeded,thennoadditionalHHMMstorageisnecessary.
+Aregularexpressionforsuperlativeadjectivesis
+Noun → largest Noun; withl
+σ
+= IDENTITYandl
+ρ
+= LARGEST (24)
+and is applied to a world model in Figure 7. Relations like LARGEST are also covered
+in the third case of Equation (12), which deﬁnes transitions between sets in an original
+relation LARGEST
+∗
+.
+5.EvaluationinaSpokenLanguageInterface
+Much of the motivation for this approach has been to develop a human-like model of
+language processing. But there are practical advantages to this approach as well. One
+of the main practical advantages of the referential semantic language model described
+Figure7
+Referencepathsforacomparativeinthelargestexecutable;thisforksacopyofthereferentset
+{f
+1,f
+2,f
+3
+}usingtherelationIDENTITY,appliesEXECUTABLEtotheforkedsettoobtain{f
+1,f
+2
+},
+andreturnsthereferent{f
+2
+}withthelargestﬁlesizeusingLARGEST.
+329
+ComputationalLinguistics Volume35,Number3
+in this article is that it may allow spoken language interfaces to be applied to content-
+creationdomainsthataresubstantiallydevelopedbyindividualusersthemselves.Such
+domains may include scheduling or reminder systems (organizing items containing
+idiosyncratic person or event names, added by the user), shopping lists (containing
+idiosyncraticbrandnames,addedbytheuser),interactivedesigntools(containingnew
+objectsdesignedandnamedbytheuser),orprogramminginterfacesforhomeorsmall
+business automation (containing new actions, deﬁned by the user). Indeed, computers
+are frequently used for content creation as well as content browsing; there is every
+reasontoexpectthatspokenlanguageinterfaceswillbeusedthiswayaswell.
+But the critical problem of applying spoken language interfaces to these kinds of
+content-creation domains is that the vocabulary of possible proper names that users
+may add or invent is vast. Interface vocabularies in such domains must allow new
+words to be created, and once they are created, these new words must be incorpo-
+rated into the recognizer immediately, so that they can be used in the current context.
+The standard tactic of training language models on example sentences prior to use
+is not practical in such domains—except for relatively skeletal abstractions, example
+sentences will often not be available. Even very large corpora gleaned from Internet
+documents are unlikely to provide reliable statistics for users’ made-up names with
+contextuallyappropriateusage,asareferentialsemanticlanguagemodelprovides.
+Content-creationapplicationssuchasthismayhaveconsiderablepracticalvalueas
+ameansofimprovingaccessibilitytocomputersfordisabledusers.Thesedomainsalso
+provide an ideal proving ground for a referential semantic language model, because
+directives in these domains mostly refer to a world model that is shared by the user
+and the interfaced application, and because the idiosyncratic language used in such
+domains makes it more resistant to domain-independent corpus training than other
+domains. In contrast, domains such as database query (e.g., of airline reservations),
+dictation,orinformationextractionarelesslikelytobeneﬁtfromareferentialsemantic
+language model, because the world model in such domains is not shared by either the
+speaker(indatabasequery)orbytheinterfacedapplication(indictationorinformation
+extraction),
+7
+orbecausethesedomainsarerelativelyﬁxed,sotheexpenseofmaintaining
+linguistictrainingcorporainthesedomainscanoftenbejustiﬁed.
+This section will describe an evaluation of an implementation of the referential
+semantic language model as a spoken language interface in a very basic content-
+creationdomain:thatofaﬁleorganizer,similartoaUnixshell.
+8
+Theperformanceofthe
+model on this domain will be evaluated in large environments containing thousands
+of entities; more than will ﬁt on the beam used in the Viterbi decoding search in this
+implementation.
+TheexperimentsdescribedinSections5.1through5.8wereconductedtoinvestigate
+the effect on recognition time and accuracy of using a referential semantic language
+modeltorecognizecommontypesofqueries,generatedbyanexperimenterandreadby
+severalspeakers.Athoroughevaluationofthepossiblecoverageofthiskindofsystem
+on spontaneous input (e.g., in usability experiments) would require a rich syntactic
+representation and attention to disﬂuencies and speech repairs which are beyond the
+scopeofthisarticle(seeSection6).
+7 Techniquesbasedonabductivereasoningmaymitigatethisproblemofincompletemodelsharing
+(Hobbsetal.1993),butthiswouldrequireconsiderableextensionstotheproposedmodel,andis
+beyondthescopeofthisarticle.
+8 ThisisalsosimilartoaspokenlanguageversionofWilensky’sUnixconsultant(Wilensky,Arens,and
+Chin1984).
+330
+Schuler,Wu,andSchwartz AFrameworkforFastIncrementalInterpretation
+5.1OntologyNavigationTestDomain
+Toevaluatethecontributiontorecognitionaccuracyofreferentialsemanticsoverthatof
+syntaxandphonologyalone,abaseline(syntaxonly)andtest(baselineplusreferential
+semantics) recognizer were run on sample ontology manipulation directives in a “stu-
+dentactivities”domain.Thisdomainhastheformofasimpletree-liketaxonomy,with
+somecross-listings(forexample,studentsmaybelistedinhomeroomsandinactivities).
+Taxonomicontologies(e.g.,fororganizingbiologicalclassiﬁcationsorcomputerﬁle
+directories)canbemappedtoreiﬁedworldmodelsofthesortdescribedinSection3.1.2.
+ConceptsCin such an ontology deﬁne sets of individuals described by that concept:
+{ι|C(ι)}. SubconceptsC
+prime
+of a conceptCthen deﬁne subsets of individuals: {ι|C
+prime
+(ι)}⊆
+{ι|C(ι)}. These sets and subsets can be reiﬁed as referent entities and arranged on
+a subsumption lattice as described in Section 3.1.2. A sample taxonomic ontology is
+showninFigure8a(tiltedonitssidetomatchthesubsumptionlatticesshownelsewhere
+inthisarticle).Thusdeﬁned,suchontologiescanbenavigatedusingreferenttransitions
+describedinSection4.1byenteringconceptreferentsvia“downward”(rightwardinthe
+ﬁgure) transitions, and leaving concept referents via “upward” (leftward) transitions.
+Forexample,thisontologycanbemanipulatedusingdirectivessuchas:
+(1) setCrookstoncampushomeroomtwoClarktosportsfootballcaptain
+whichareincrementallyinterpretedbytransitioningdownthesubsumptionlattice(e.g.,
+fromsportstofootballtocaptain)orforkingtoanotherpartofthelattice(e.g.,fromClark
+tosports).
+As an ontology like this is navigated in spoken language, there is a sense in which
+otherreferentse
+prime
+atthesameleveloftheontologyasthemostrecentlydescribedrefer-
+ente,orathigherlevelsoftheontologythanthemostrecentlydescribedentity,should
+be semantically accessible without restating the ontological context (the path from the
+root concept e
+latticetop
+)sharedbye
+prime
+ande. Thus, in the context of having recently referred
+to someone in Homeroom 2 at a particular campus in a school activities database,
+other students in the same homeroom or other activities at the same campus should
+beaccessiblewithoutgivinganexplicitbackupdirectiveateachbranchintheontology.
+Toseethevalueofimplicitupwardtransitions,compareExample(1)toadirectivethat
+makesupwardtransitionsexplicitusingthekeywordback(similarto‘..’inthesyntaxof
+Unixpaths)toexitthehomeroomtwoandClarkfolders:
+(2) setCrookstoncampushomeroomtwoClarktobackbacksportsfootballcaptain
+orifstartingfromtheDuluthcampussportsfootballdirectory:
+(3) setbackbackbackCrookstoncampushomeroomtwoClarktobackbacksports
+footballcaptain
+Insteadofrequiringexplicitbackkeywords,theseupwardtransitionscanbeimplic-
+itly composed with downward transitions, resulting in transitions from source e
+S
+1
+to
+destinatione
+S
+viasomeancestore
+S
+0
+:
+llbracketUP-lrrbracket
+M
+(e
+S
+1,e
+S
+2
+)=e
+S
+s.t. ∃e
+S
+0
+S
+0
+⊇S
+1, S
+0
+⊇S, llbracketlrrbracket
+M
+(e
+S
+0,e
+latticetop
+)=e
+S
+(25)
+Thecomposedtransitionfunctionﬁndsareferente
+S
+0
+whichsubsumesbothe
+S
+1
+ande
+S,
+thenﬁndsanordinary(downward)transitionlconnectinge
+S
+0
+toe
+S
+.TheresultisaUP-l
+transition to every immediate child of an ancestor a referent (or in genealogical terms,
+331
+ComputationalLinguistics Volume35,Number3
+Figure8
+Upwardanddownwardtransitionsinasamplestudentactivitiesworldmodel.Downward
+transitions(a)deﬁnebasicsub-typerelations.Upwardtransitions(b)relatesibling,ancestor,and
+(great-great-...-)aunt/uncleconcepts.Theentiremodelisreachablefromanygivenreferentvia
+thesetwokindsoftransitions.
+to every sibling, ancestor, and sibling of ancestor), making these contextually salient
+conceptsimmediatelyaccessiblewithoutexplicitback-stepping(seeFigure8b).
+Downward transitions are ordinary properties, as deﬁned in the ﬁrst case of
+Equation(12)inSection4.1.
+5.2ScalingtoRicherDomains
+Althoughnavigationinthisdomainisconstrainedtotree-likegraphs,thisdomaintests
+all of the features of a referential semantic language model that would be required
+332
+Schuler,Wu,andSchwartz AFrameworkforFastIncrementalInterpretation
+in richer domains. As described in Section 4, rich domains (in particular, ﬁrst-order
+domains, in which users can describe sets of individuals as referents) are mapped to
+transitionedgesonasimplegraph,similartothetree-likegraphsusedinthisontology.
+In ﬁrst-order domains, the size of this graph may be exponential on the number of
+individualsintheworldmodel.Butoncethenumberofreferentsexceedsthesizeofthe
+decoderbeam,thetimeperformanceoftherecognizerisconstrainednotbythenumber
+of entities in the world model, but by the beam width and the number of outgoing
+relations(labels)thatcanbetraversedfromeachhypothesis.Inaﬁrst-ordersystem,just
+as in the simple ontology navigation system evaluated here, this number of relations
+is constrained to the set of words deﬁned by the user up to that point. In both cases,
+although the interface may be used to describe any one of an arbitrarily large set of
+referents,thenumberofreferentsthatcanbeevokedatthenexttimestepisboundedby
+aconstant.
+When this model is extended to ﬁrst-order or continuous domains, the time re-
+quired to calculate sets of individuals or hypothetical planner states that result from
+atransitionmaybenontrivial,becauseitmaynotbepossibleinsuchdomainstoretain
+theentirereferenttransitionmodelinmemory.Inﬁrst-orderdomains,forexample,this
+mayrequireevaluatingcertainbinaryrelationsoverallpairsofindividualsintheworld
+model, withtimecomplexity proportional tothesquare ofthesize oftheworld model
+domain.Fortunatelythemodeldescribedherein,likemostgenerativelanguagemodels,
+hypothesizes words before recognizing them. This means a recognizer based on this
+modelwillbeabletocomputetransitionsthatmightfollowahypothesizedwordduring
+the time that word is being recognized. If just the current set of possible transitions
+is known (say, these have already been pre-fetched into a cache), the set of outgoing
+transitions that will be required at some timefollowingone of these current transitions
+can be requested as soon as thebeginningof this transition is hypothesized—as soon
+as any word associated with this transition makes its way onto the decoder beam.
+From this point, the recognizer will have the entire duration of the word to compute
+(inparallel,inaseparatethread,oronaseparateserver)thesetofoutgoingtransitions
+thatmayfollowthisword.Inotherwords,themodeldescribedhereinmaybescaledto
+richerdomainsbecauseitisamenabletoparallelization.
+5.3WorldModel
+The student activities ontology used in this evaluation is a taxonomic world model
+deﬁnedwithupwardanddownwardtransitionsasdescribedinSection5.1.Itorganizes
+extracurricular activities under subcategories (e.g., offense ⊂ football ⊂ sports), and
+organizesstudentsintohomerooms,inwhichcontexttheycanbeidentiﬁedbyasingle
+(ﬁrst or last) name. Every student or activity is an entityein the set of entities E,and
+relationslaresubcategorylabelsorstudentnames.
+5.3.1WorldModel M
+240
+. In the original student activities world model M
+240, a total
+of 240 entities were created in E: 158 concepts (groups or positions) and 82 instances
+(students),eachconnectedviaalabeledarcfromaparentconcept.
+Because a world model in this frameworkis a weighted set of labeled arcs, it is
+possible to calculate a meaningful perplexity statistic for transitions in this model,
+assuming all referents are equally likely to be a source. The perplexity of this world
+model (the average number of departing arcs) is 16.79, after inserting “UP” arcs as
+describedinSection5.1.
+333
+ComputationalLinguistics Volume35,Number3
+5.3.2WorldModelM
+4175
+.Anexpandedversionofthestudentsontology,M
+4175,includes
+4,175 entities from 717 concepts and 3,458 instances. This model contains M
+240
+as a
+subgraph, so that the same directives may be used in either domain; but it expands
+M
+240
+from above, with additional campuses and schools, and below, with additional
+students in each class. The perplexity of this world model was 37.77, after inserting
+“UP”arcsasdescribedinSection5.1.
+5.4TestCorpus
+A corpus of 144 test sentences (no training sentences) was collected from seven native
+Englishspeakers(5male,2female),whowereaskedtomakespeciﬁceditstothestudent
+activities ontology described previously. The subjects were all graduate students and
+native speakers of English, from various parts of the United States. The edit directives
+were recorded as isolated utterances, not as part of an interactive dialogue, and the
+targetconceptswereidentiﬁedbynameinwrittenprompts,sothecorpushasmuchof
+thecharacterofreadspeech.Theaveragesentencelengthinthiscollectionis7.17words.
+5.5AcousticModel
+Baseline and test versions of this system were run using a Recurrent Neural Network
+(RNN) acoustic model (Robinson 1994). This acoustic model performs competitively
+withmulti-statetriphonemodelsbasedonmultivariateGaussianmixtures,buthasthe
+advantageofusingonlyuniphoneswithsinglesubphonestates.Asaresult,lessofthe
+HMM trellis beam is occupied with subphone variations, so that a larger number of
+semanticallydistincthypothesesmaybeconsideredateachframe.
+Each model was evaluated using parameters trained from the TIMIT corpus of
+read speech (Fisher etal.1987). Thiscorpus yields several thousand examples foreach
+of the relatively small set of single-state uniphones used in the RNN model. Read
+speech is also appropriate training data for this evaluation, because the test subjects
+are constrained to perform ﬁxed edit tasks given written prompts, and the number of
+reasonable ways to perform these tasks is limited by the ontology, so hesitations and
+disﬂuenciesarerelativelyrare.
+5.6PhoneandSubphoneModels
+The language model used in these experiments is decomposed into ﬁve hierarchic
+levels, each with referent e and ordinary FSA state q components, as described in
+Section 4.2. The top three levels of this model represent syntactic states asq(derived
+fromregular expressions deﬁnedinSection4.3)andassociated semanticreferentsase.
+Thebottomtwolevelsrepresentpronunciationandsubphonestatesasq,andignoree.
+Transitionsacrosspronunciationstatesaredeﬁnedintermsofsequencesofphones
+associated with a word via a pronunciation model. The pronunciation model used in
+these experiments is taken from the CMU ARPABET dictionary (Weide 1998). Transi-
+tionsacrosssubphonestatesaredeﬁnedintermsofsequencesofsubphonesassociated
+with a phone. Because this evaluation used an acoustic model trained on the TIMIT
+corpus (Fisher et al. 1987), the TIMIT phone set was used as subphones. In most cases,
+thesesubphonesmapdirectlytoARPABETphones,soeachsubphoneHMMconsistsof
+a single, ﬁnal state; but in cases of plosive phones (B,D,G,K,P,andT), the subphone
+HMM consists of a stop subphone (e.g., bcl) followed by a burst subphone (e.g., b).
+334
+Schuler,Wu,andSchwartz AFrameworkforFastIncrementalInterpretation
+Referents are ignored in both the phone and subphone models, and therefore do not
+needtobecalculated.
+State transitions within the phone level P
+Θ
+Pron-Trans
+(q
+4
+σ,t
+|q
+4
+σ,t−1
+) deterministically ad-
+vance along a sequence of phones in a pronunciation; and initial phone sequences de-
+pendonwordsinhigher-levelsyntacticstatesq
+3
+σ,t,viaapronunciationmodelΘ
+Pron-Init
+:
+P
+Θ
+RSLM-σ
+(σ
+4
+t
+|ρ
+5
+t
+ρ
+4
+t
+σ
+4
+t−1
+σ
+3
+t
+)
+def
+=
+
+
+
+iff
+5
+ρ,t
+=0, f
+4
+ρ,t
+=0:[q
+4
+σ,t
+=q
+4
+σ,t−1
+]
+iff
+5
+ρ,t
+=1, f
+4
+ρ,t
+=0: P
+Θ
+Pron-Trans
+(q
+4
+σ,t
+|q
+4
+σ,t−1
+)
+iff
+5
+ρ,t
+=1, f
+4
+ρ,t
+=1: P
+Θ
+Pron-Init
+(q
+4
+σ,t
+|q
+3
+σ,t
+)
+(26)
+The student activities domain was developed with no synonymy—only one word de-
+scribes each semantic relation. Alternate pronunciations are modeled using a uniform
+distributionoveralllistedpronunciations.
+Initialization and transition of subphone sequences depend on the phone at the
+current time step and the subphone at the previous time step. This model was trained
+directlyusingrelativefrequencyestimationontheTIMITcorpusitself:
+P
+Θ
+RSLM-σ
+(σ
+5
+t
+|ρ
+6
+t
+ρ
+5
+t
+σ
+5
+t−1
+σ
+4
+t
+)
+def
+=
+˜
+P(q
+5
+σ,t
+|q
+4
+σ,t
+q
+5
+σ,t−1
+) (27)
+5.7SyntaxandReferenceModels
+The three upper levels of the HHMM comprise the syntactic and referential portion of
+thelanguagemodel.Concepterrorratetestswereperformedonthreebaselineandtest
+versions of this portion of the language model, using the same acoustic, phone, and
+subphonemodels,asdescribedinSections5.5and5.6.
+5.7.1LanguageModelΘ
+LM-Sem
+.First,thesyntacticandreferentialportionofthelanguage
+model was implemented as described in Section 4.2. A subset of the regular expres-
+sion grammar appears in Figure 9. Any nondeterminism resulting from disjunction or
+Kleene-starrepetitionintheregularexpressionswashandledinΘ
+Syn-Trans
+usinguniform
+distributions over all available following states. Distributions over regular expression
+expansions in Θ
+Syn-Init
+were uniform over all available expansions. Distributions over
+labelsinΘ
+Ref-Init
+werealsouniformoveralllabelsdepartingtheentityreferentcondition
+thatwerecompatiblewiththeFSAstatecategorygeneratedbyΘ
+Syn-Init
+.
+Figure9
+Samplegrammarforstudentactivitiesdomain.Relationsl
+σ,l
+ρ
+= IDENTITYunlessotherwise
+speciﬁed.
+335
+ComputationalLinguistics Volume35,Number3
+5.7.2LanguageModelΘ
+LM-NoSem
+.Second, in order to evaluate the contribution of refer-
+ential semantics to recognition, a baseline version of the model was tested with all
+relations deﬁned to be equivalent to NIL, returning e
+latticetop
+at each depth and time step,
+with all relation labels reachable in M from e
+latticetop
+. This has the effect of eliminating all
+semantic constraints from the recognizer, while preserving the relation labels of the
+original model as a resource from which to calculate concept error rate. The decoding
+equationsandgrammarinModelΘ
+LM-NoSem
+arethereforethesameasinModelΘ
+LM-Sem
+;
+onlythedomainofpossiblereferentsisrestricted.
+Again, distributions over state transitions, expansions, and outgoing labels in
+Θ
+Syn-Trans,Θ
+Syn-Init,andΘ
+Ref-Init
+areuniformoverallavailableoptions.
+5.7.3LanguageModelΘ
+LM-Trigram
+.Finally, the referential semantic language model (Lan-
+guage Model Θ
+LM-Sem
+) was compiled into a word trigram model, in order to test how
+wellthemodelwouldfunctionasapre-processtoaconventionaltrigram-basedspeech
+recognizer. This was done by iterating over all possible sequences of hidden state
+transitions starting from every possible conﬁguration of referents and FSA states on
+astackofdepth D(whereD=3):
+h
+t
+=〈w
+t−1,w
+t
+〉 (28)
+P(h
+t
+|h
+t−1
+)= P(w
+t−1
+w
+t
+|w
+t−2
+w
+t−1
+)= P(w
+t
+|w
+t−2
+w
+t−1
+) (29)
+def
+=
+summationdisplay
+σ
+t−2..t
+summationdisplay
+w
+t−2,w
+t−1
+P
+Θ
+Uniform
+(σ
+t−2
+)·[w
+t−2
+=W(q
+1..D
+σ,t−2
+)]
+·P
+Θ
+LM-Sem
+(σ
+t−1
+|σ
+t−2
+)·[w
+t−1
+=W(q
+1..D
+σ,t−1
+)]
+·P
+Θ
+LM-Sem
+(σ
+t
+|σ
+t−1
+)·[w
+t
+=W(q
+1..D
+σ,t
+)]
+(30)
+First, every valid combination of syntactic categories was calculated in a depth-
+ﬁrstsearchusingΘ
+LM-NoSem
+.Theneverycombinationofthreereferentsfrom M
+240
+was
+hypothesized as a possible referent conﬁguration. A complete set of possible initial
+values for σ
+t−2
+was then ﬁlled with combinations from the set of syntactic category
+conﬁguration crossed with the set of referent conﬁgurations. From each possible σ
+t−2,
+Θ
+LM-Sem
+wasconsultedtogiveadistributionoverσ
+t−1
+(assumingaword-leveltransition
+occurs, withf
+4
+ρ,t−1
+=1),and thenagain fromeach possible conﬁguration of σ
+t−1
+togive
+a distribution over σ
+t
+(again assuming a word-level transition). The product of these
+transitionprobabilitieswasthencalculatedandaddedtoatrigramcount,basedonthe
+wordsw
+t−2,w
+t−1,andw
+t
+occurringinσ
+t−2,σ
+t−1,andσ
+t
+.Thesetrigramcountswerethen
+normalizedoverw
+t−2
+andw
+t−1
+togive P(w
+t
+|w
+t−2
+w
+t−1
+).
+5.8Results
+ThefollowingresultsreportConceptErrorRate(CER),asthesumofthepercentagesof
+insertions, deletions, and substitutions required to transform the most likely sequence
+of relation labels hypothesized by the system into the hand-annotated transcript, ex-
+pressed as a percentage of the total number of labels in the hand-annotated transcript.
+Becausetherearefewsemanticallyunconstrainedfunctionwordsinthisdomain,thisis
+essentiallyworderrorrate,withafewmulti-wordlabels(e.g.,ﬁrstchair,homeroomtwo)
+concatenatedtogether.
+5.8.1LanguageModel Θ
+LM-Sem
+andWorldModel M
+240
+. Results using Language Model
+Θ
+LM-Sem
+with the 240-entity world model (M
+240
+) show an overall 17.1% CER (Table 2).
+336
+Schuler,Wu,andSchwartz AFrameworkforFastIncrementalInterpretation
+Table2
+Per-subjectresultsforLanguageModelΘ
+LM-Sem
+withM
+240
+.
+subject %correct %substitute %delete %insert CER%
+0 83.8 14.1 2.1 2.8 19.0
+1 73.2 20.3 6.5 5.8 32.7
+2 90.2 7.8 2.0 0.7 10.5
+3 88.1 9.3 2.7 0.7 12.6
+4 88.4 10.3 1.4 3.4 15.1
+5 90.8 8.5 0.7 7.0 16.2
+6 90.6 8.6 0.7 3.6 12.9
+all 86.4 11.3 2.3 3.4 17.1
+Table3
+Per-subjectresultsforLanguageModelΘ
+LM-Sem
+withM
+4175
+.
+subject %correct %substitute %delete %insert CER%
+0 85.2 14.1 0.7 2.1 16.9
+1 70.6 25.5 3.9 7.2 36.6
+2 86.9 9.2 3.9 3.9 17.0
+3 86.8 11.3 2.0 2.0 15.2
+4 83.6 14.4 2.1 6.9 23.3
+5 89.4 9.9 0.7 3.5 14.1
+6 89.9 9.4 0.7 5.0 15.1
+all 84.5 13.5 2.1 4.4 19.9
+Here the size of the vocabulary was roughly equal to the number of referents in the
+worldmodel.Thesentenceerrorrateforthisexperimentwas59.44%.
+5.8.2LanguageModelΘ
+LM-Sem
+andWorldModelM
+4175
+. With the number of entities (and
+words) increased to 4,175 (M
+4175
+), the CER increases slightly to 19.9% (Table 3). Here
+again, the size of the vocabulary was roughly equal to the number of referents in the
+worldmodel.Thesentenceerrorrateforthisexperimentwas62.24%.Here,theuseofa
+worldmodel(LanguageModelΘ
+LM-Sem
+)withnolinguistictrainingdataiscomparable
+to that reported for other large-vocabulary systems (Seneff et al. 2004; Lemon and
+Gruenstein2004),whichweretrainedonsamplesentences.
+5.8.3LanguageModelΘ
+LM-NoSem
+withnoWorldModel.Incomparison,abaselineusingonly
+thegrammarandvocabularyfromthestudentsdomainM
+240
+withoutanyworldmodel
+information and no linguistic training data (Language Model Θ
+LM-NoSem
+) scores 43.5%
+(Table4).
+9
+Thesentenceerrorrateforthisexperimentwas93.01%.
+Ignoring the world model signiﬁcantly raises error rates compared to Model
+Θ
+LM-Sem
+(p< 0.01 using pairwise t-test against Language model Θ
+LM-Sem
+with M
+240,
+groupingscoresbysubject),suggestingthatsyntacticconstraintsarepoorpredictorsof
+9 Ordinarilyasyntacticmodelwouldbeinterpolatedwithwordn-gramprobabilitiesderivedfromcorpus
+training,butintheabsenceoftrainingsentencesthesestatisticscannotbeincluded.
+337
+ComputationalLinguistics Volume35,Number3
+Table4
+Per-subjectresultsforLanguageModelΘ
+LM-NoSem
+.
+subject %correct %substitute %delete %insert CER%
+0 57.0 35.9 7.0 12.7 55.6
+1 49.0 41.2 9.8 13.7 64.7
+2 71.9 18.3 9.8 6.5 34.6
+3 69.5 26.5 4.0 9.3 39.7
+4 67.8 28.8 3.4 13.7 45.9
+5 79.6 19.0 1.4 7.0 27.5
+6 75.5 22.3 2.2 10.8 35.3
+all 67.1 27.5 5.5 10.5 43.5
+conceptswithoutconsideringreference.Butthisisnotsurprising:becausethegrammar
+by itself does not constrain the set of ontology labels that can be used to construct a
+path, the perplexity of this model is 240 (reﬂecting a uniform distribution over nearly
+theentirelexicon),whereastheperplexityofM
+240
+isonly16.79.
+5.8.4LanguageModelΘ
+LM-Trigram
+andWorldModel M
+240
+. In order to test how well the
+model would function as a pre-process to a conventional trigram-based speech recog-
+nizer,thereferentialsemanticlanguagemodel(LanguageModelΘ
+LM-Sem
+)wascompiled
+into a word trigram model. This word trigram language model (Language Model
+Θ
+LM-Trigram
+), compiled from the referential semantic model (in the 240-entity domain),
+showsaconcepterrorrateof26.6%onthestudentsexperiment(Table5).Thesentence
+errorrateforthisexperimentwas66.43%.
+Using trigram context (Language Model Θ
+LM-Trigram
+) similarly shows statistically
+signiﬁcant increases in error over Language ModelΘ
+LM-Sem
+with M
+240
+(p=0.01 using
+pairwise t-test, grouping scores by subject), showing that referential context is also
+more predictive than word n-grams derived from referential context. Moreover, the
+compilation to trigrams required to build Language Model Θ
+LM-Trigram
+is expensive
+(requiring several hours of pre-processing) because it must consider all combinations
+ofentitiesintheworldmodel.Thiswouldmakethepre-compiledmodelimpracticalin
+mutabledomains.
+Table5
+Per-subjectresultsforLanguageModelΘ
+LM-Trigram
+withM
+240
+.
+subject %correct %substitute %delete %insert CER%
+0 76.1 19.0 4.9 5.6 29.6
+1 56.9 24.8 18.3 12.4 44.4
+2 81.7 9.2 9.2 0.0 18.3
+3 83.4 13.9 2.7 2.0 18.5
+4 79.5 13.0 7.5 11.0 31.5
+5 86.6 10.6 2.8 0.7 14.1
+6 83.5 14.4 2.2 0.7 17.3
+all 78.1 15.0 6.9 4.7 26.6
+338
+Schuler,Wu,andSchwartz AFrameworkforFastIncrementalInterpretation
+Table6
+Experimentalresultswithfourmodelconﬁgurations.
+experiment correct substitute delete insert CER
+Θ
+LM-Sem,M
+240
+86.4 11.3 2.3 3.4 17.1
+Θ
+LM-Sem,M
+4175
+84.5 13.5 2.1 4.4 19.9
+Θ
+LM-NoSem
+67.1 27.5 5.5 10.5 43.5
+Θ
+LM-Trigram,M
+240
+78.1 15.0 6.9 4.7 26.6
+5.8.5 Summary
+of Results. Results in Table 6 summarize the results of the four
+experiments.
+Some of the erroneously hypothesized directives in this domain described im-
+plausible edits: for example, making one student a subset of another student. Domain
+informationormeta-datacouldeliminatesomeofthesekindsoferrors,butincontent-
+creation applications it is not always possible to provide this information in advance;
+andgiventhesubtlenatureoftheeffectofthisinformationonrecognition,itisnotclear
+thatuserswouldwanttomanageitthemselves,orallowittobeautomaticallyinduced
+without supervision.
+10
+In any case, the comparison described in this section to a non-
+semanticmodelΘ
+LM-NoSem
+suggeststhattheworldmodelbyitselfisabletoapplyuseful
+constraintsintheabsenceofdomainknowledge.Thissuggeststhat,inaninterpolated
+approach,directworldmodelinformationmayrelievesomeoftheburdenonauthored
+orinduceddomainknowledgetoperformrobustly,sothatthisdomainknowledgemay
+beauthoredmoresparselyorinducedmoreconservativelythanitotherwisemight.
+All evaluations ran in real time on a 4-processor dual-core 2.6GHz server, with a
+beam width of 1,000 hypotheses per frame. Differences in runtime performance were
+minimal,evenbetweenthesimpletrigrammodelandHHMM-basedreferentialseman-
+ticlanguagemodels.Thiswasduetotwofactors:
+1. Allrecognizerswererunwiththesamebeamwidth.Althoughitmight
+bepossibletonarrowthebeamwidthtoproducefasterthanreal-time
+performanceforsomemodels,wideningthebeambeyond1,000didnot
+returnsigniﬁcantreductionsinCERintheexperimentsdescribedherein.
+2. TheimplementationoftheViterbidecoderusedintheseexperimentswas
+optimizedtoskipcombinationsofjointvariablevaluesthatwouldresult
+inzeroprobabilitytransitions(whichisareasonableoptimizationforany
+factoredtime-seriesmodel),signiﬁcantlydecreasingruntimeforHHMM
+recognition.
+5.8.6StatisticalSigniﬁcancevs.MagnitudeofGain. The experiments described in this
+article show a statistically signiﬁcant increase in accuracy due to the incorporation of
+referential semantic information into speech decoding. But these results should not be
+interpreted to demonstrate any particular magnitude of error reduction (as might be
+claimedfortheintroductionofheadwordsintoparsingmodels,forexample).
+10 Ehlenetal.(2008)provideanexampleofauserinterfaceformanagingimperfectautomatically-induced
+informationabouttaskassignmentsfrommeetingtranscripts,whichismuchmoreconcretethanthekind
+ofdomainknowledgeinferenceconsideredhere.
+339
+ComputationalLinguistics Volume35,Number3
+First, this is because the acoustic model used in these experiments was trained on
+a relatively small corpus (6,000 utterances), which introduces the possibility that the
+acoustic model was under-trained. As a result, the error rates for both baseline and
+test systems may be greater here than if a larger training corpus had been used, so the
+performancegainduetotheintroductionofreferentialsemanticsmaybeoverstated.
+Second, these experiments were designed with relatively strong referential con-
+straints (a tree-like ontology, with a perplexity of about 17 for M
+240
+) and relatively
+weaksyntactic constraints (allowing virtually any sequence of relation labels, with a
+muchhigherperplexityofabout240),inordertohighlightdifferencesduetoreferential
+semantics. In general use, recognition accuracy gains due to the incorporation of ref-
+erential semantic information will depend crucially on the relative perplexity of the
+referentialconstraintscombinedwithsyntacticconstraints,comparedtothatofsyntac-
+tic constraints alone. This paper has argued that in content-creation applications this
+difference can be manipulated and exploited—in fact, by reorganizing folders into a
+binary branching tree (with perplexity 2), a user could achieve nearly perfect speech
+recognition—but in applications involving ﬁxed ontologies and purely hypothetical
+directives,asindatabasequeryapplications,gainsmaybeminimalornonexistant.
+6.ConclusionandFutureWork
+Thisarticle hasdescribed areferential semanticlanguage model thatachieves recogni-
+tionaccuracyfavorablycomparabletoapre-compiledtrigrambaselineinuser-deﬁned
+domains with no available domain-speciﬁc training corpora, through the use of ex-
+plicit hypothesized semantic referents. This architecture requires that the interfaced
+application make available a queryable world model, but the combined phonological,
+syntactic, and referential semantic decoding process ensures the world model is only
+queriedwhennecessary,allowingaccuraterealtimeperformanceeveninlargedomains
+containingseveralthousandentities.
+Theframeworkdescribedinthisarticleisdeﬁnedoverﬁrst-ordersets(ofindividu-
+als), making transition functions over referents equivalent to expressions in ﬁrst-order
+logic.Thisframeworkcanbeextendedtomodelotherkindsofreferences(e.g.,totime
+intervalsorevents)bycastingthemasindividuals(Hobbs1985).
+The system as deﬁned herein also has some ability to recognize referents con-
+strainedbyquantiﬁers:forexample,thedirectorycontainingtwoﬁles.Becauseitsreferents
+arereiﬁedsets,thesystemcannaturallymodelrelationsthataresensitivetocardinality
+(self-transitioningifthesethasNorgreaterindividuals,transitioningtoe
+⊥
+otherwise).
+Butadynamicviewofthereferentialsemanticsofnestedquantiﬁersrequiresreferents
+to be indexed to particular iterations of quantiﬁers at higher levels of nesting in the
+HHMMhierarchy(correspondingtohigher-scopingquantiﬁers).Extendingthesystem
+to dynamically interpret nested quantiﬁers therefore requires that all semantic opera-
+tions preserve an “iteration context” of nested outer-quantiﬁed individuals for each
+inner-quantiﬁedindividual.Thisisleftforfuturework.
+Some analyses of phenomena like intensional or non-inherent adjectives—for ex-
+ample, toy in toy guns, which are not actually guns; or old in old friends, who are
+not necessarily elderly (Peters and Peters 2000)—involve referents corresponding to
+second-order sets (this allows these adjectives to be composed before being applied to
+anoun:oldbutcasualfriend).Unfortunately, extendingtheframeworkdescribed inthis
+article to use a similarly explicit representation of secondor higher-order sets would
+be impractical. Not only would the number of possible secondor higher-order sets
+be exponentially larger than the number of possible ﬁrst-order sets (which is already
+340
+Schuler,Wu,andSchwartz AFrameworkforFastIncrementalInterpretation
+exponential on the number of individuals), but the length of the description of each
+referent itself would be exponential on the number of individuals (whereas the list of
+individualsdescribingaﬁrst-orderreferentismerelylinear).
+The deﬁnition of semantic interpretation as a transition function does support
+interesting extensions to hypothetical reasoning and planning beyond the standard
+closed-worldmodel-theoreticframework,however.Recallthesentencegotothepackage
+datadirectoryandhidetheexecutableﬁles, or equivalently, inthepackagedatadirectory,
+hidetheexecutableﬁles,exemplifyingthecontinuouscontext-sensitivityofthereferential
+semantic language model. Here, the system focuses on the contents of this directory
+because a sequence of transitions resulting from the combined phonological, syntactic,
+andreferentialsemanticcontextofthesentenceledittothisstate.Onemaycharacterize
+the referential semantic transitions leading to this state as a hypothetical sequence of
+changedirectoryactionsmovingtheactivedirectoryoftheinterfacetothisdirectory(for
+the purpose of understanding the consequences of the ﬁrst part of this directive). The
+hypothesized context of this directory is then aworldstateorplanningstateresulting
+from these actions. Thus characterized, the referential semantic decoder is performing
+a kind of statistical plan recognition (Blaylock and Allen 2005). By viewing referents
+as world states, or as having world-state components, it would then be possible to use
+logical conclusions of other types of actions as implicit constraints—e.g.,unpackthetar
+ﬁleandhidetheexecutable[whichwillresultfromthisunpacking]—without adding extra
+functionality to the recognizer implementation. Similarly, referents for hypothetical
+objects like the noun phraseatarﬁlein the directivecreateatarﬁle,are not part of the
+worldmodelwhentheuserdescribesthem.
+Recognizing references to these hypothetical states and objects requires a capacity
+to dynamically generate referents not in the current world model. The domain of
+referents in this extended system is therefore unbounded. Fortunately, as mentioned
+in Section 5.2, the number of referents that can be generated ateachtimestep is still
+bounded by a constant, equal to the recognizer’s beam width multiplied by the num-
+ber of traversable relation labels. This means that distributions over outgoing relation
+labels are still well-deﬁned for each referential state. The only difference is that, when
+modelinghypotheticalreferents,thesedistributionsmustbecalculateddynamically.
+Finally, this article has primarily focused on connecting an explicit representation
+of referential semantics to speech recognition decisions. Ordinarily this is thought of
+as being mediated by syntax, which is covered in this article only through a rela-
+tively simple frameworkof bounded recursive HHMM state transitions. However, the
+bounded HHMM representation used in this paper has been applied (without seman-
+tics) to rich syntactic parsing as well, using a transformed grammar to minimize stack
+usagetocasesofcenter-expansion(Schuleretal.2008).Coverageexperimentswiththis
+transformedgrammardemonstratedthatover97%ofthelargesyntacticallyannotated
+PennTreebank(Marcus,Santorini,andMarcinkiewicz1994)couldbeparsedusingonly
+three elements of stackmemory, with four elements giving over 99% coverage. This
+suggests that the relatively tight bounds on recursion described in this paper might be
+expressivelyadequateifsyntacticstatesaredeﬁnedusingthiskindoftransform.
+Thistransformmodel(again,withoutsemantics)wasthenfurtherappliedtopars-
+ing speech repairs, in which speakers repeat or edit mistakes in their directives: for
+example,selectthered,uh,thebluefolder(MillerandSchuler2008).Theresultingsystem
+models incomplete disﬂuent constituents using transitions associated with ordinary
+ﬂuent speech until the repair point (theuhin the example), then processes the speech
+repair using only a small number of learned repair reductions. Coverage results for
+the same transform model on the Penn TreebankSwitchboard Corpus of transcribed
+341
+ComputationalLinguistics Volume35,Number3
+spontaneous speech showed a similar threeto four-element memory requirement. If
+this HHMM speech repair model were combined with the HHMM model of referen-
+tial semantics described in this article, referents associated with ultimately disﬂuent
+constituents could similarly berecognized using referential transitions associated with
+ordinary ﬂuent speech until the repair point, then reduced using a repair rule that
+discardsthereferent.TheseresultssuggestthatanHHMM-basedsemanticframework
+suchastheonedescribedinthisarticlemaybepsycholinguisticallyplausible.
+Acknowledgments
+Theauthorswouldliketothankthe
+anonymousreviewersfortheirinput.This
+researchwassupportedbyNationalScience
+FoundationCAREER/PECASEaward
+0447685.Theviewsexpressedarenot
+necessarilyendorsedbythesponsors.
+References
+Aist,Gregory,JamesAllen,EllenCampana,
+CarlosGallo,ScottStoness,MarySwift,
+andMichaelTanenhaus.2007.Incremental
+understandinginhuman–computer
+dialogueandexperimentalevidence
+foradvantagesovernonincremental
+methods.InProceedingsofDECALOG,
+pages149–154,Trento.
+Baker,James.1975.TheDragonsystem:an
+overivew.IEEETransactionsonAcoustics,
+SpeechandSignalProcessing,23(1):24–29.
+Bilmes,JeffandChrisBartels.2005.
+Graphicalmodelarchitecturesforspeech
+recognition.IEEESignalProcessing
+Magazine,22(5):89–100.
+Blaylock,NateandJamesAllen.2005.
+Recognizinginstantiatedgoalsusing
+statisticalmethods.InIJCAIWorkshop
+onModelingOthersfromObservations
+(MOO-2005),pages79–86,Edinburgh.
+Bos,Johan.1996.Predicatelogicunplugged.
+InProceedingsofthe10thAmsterdam
+Colloquium,pages133–143,Amsterdam.
+Brachman,RonaldJ.andJamesG.Schmolze.
+1985.Anoverviewofthekl-one
+knowledgerepresentationsystem.
+CognitiveScience,9(2):171–216.
+Brown-Schmidt,Sarah,EllenCampana,and
+MichaelK.Tanenhaus.2002.Reference
+resolutioninthewild:Online
+circumscriptionofreferentialdomainsina
+naturalinteractiveproblem-solvingtask.
+InProceedingsofthe24thAnnualMeetingof
+theCognitiveScienceSociety,pages148–153,
+Fairfax,VA.
+Church,Alonzo.1940.Aformulationofthe
+simpletheoryoftypes.JournalofSymbolic
+Logic,5(2):56–68.
+Dale,RobertandNicholasHaddock.1991.
+Contentdeterminationinthegenerationof
+referringexpressions.Computational
+Intelligence,7(4):252–265.
+DeVault,DavidandMatthewStone.2003.
+Domaininferenceinincremental
+interpretation.InProceedingsofICoS,
+pages73–87,Nancy.
+Ehlen,Patrick,MatthewPurver,John
+Niekrasz,StanleyPeters,andKariLee.
+2008.Meetingadjourned:Off-line
+learninginterfacesforautomaticmeeting
+understanding.InProceedingsofthe
+InternationalConferenceonIntelligentUser
+Interfaces,pages276–284,CanaryIslands.
+Fisher,WilliamM.,VictorZue,Jared
+Bernstein,andDavidS.Pallet.1987.An
+acoustic–phoneticdatabase.Journalofthe
+AcousticalSocietyofAmerica,81:S92–S93.
+Frege,Gottlob.1892.Ubersinnund
+bedeutung.ZeitschriftfurPhilosophieund
+Philosophischekritik,100:25–50.
+Gorniak,PeterandDebRoy.2004.Grounded
+semanticcompositionforvisualscenes.
+JournalofArtiﬁcialIntelligenceResearch,
+21:429–470.
+Groenendijk,JeroenandMartinStokhof.
+1991.Dynamicpredicatelogic.Linguistics
+andPhilosophy,14:39–100.
+Haddock,Nicholas.1989.Computational
+modelsofincrementalsemantic
+interpretation.LanguageandCognitive
+Processes,4:337–368.
+Hobbs,JerryR.1985.Ontological
+promiscuity.InProceedingsofACL,
+pages61–69,Chicago,IL.
+Hobbs,JerryR.,DouglasE.Appelt,
+JohnBear,DavidIsrael,Megumi
+Kameyama,MarkStickel,and
+MabryTyson.1996.Fastus:Acascaded
+ﬁnite-statetransducerforextracting
+informationfromnatural-language
+text.InYvesSchabes,editor,Finite
+StateDevicesforNaturalLanguage
+Processing.MITPress,Cambridge,MA,
+pages383–406.
+Hobbs,JerryR.,MarkStickel,DouglasE.
+Appelt,andPaulMartin.1993.
+Interpretationasabduction.Artiﬁcial
+Intelligence,63:69–142.
+Jelinek,Frederick,LalitR.Bahl,andRobertL.
+Mercer.1975.Designofalinguistic
+342
+Schuler,Wu,andSchwartz AFrameworkforFastIncrementalInterpretation
+statisticaldecoderfortherecognitionof
+continuousspeech.IEEETransactionson
+InformationTheory,21:250–256.
+Krahmer,Emiel,SebastiaanvanErk,and
+AndreVerleg.2003.Graph-based
+generationofreferringexpressions.
+ComputationalLinguistics,29(1):53–72.
+Lemon,OliverandAlexanderGruenstein.
+2004.Multithreadedcontextfor
+robustconversationalinterfaces:
+Context-sensitivespeechrecognitionand
+interpretationofcorrectivefragments.
+ACMTransactionsonComputer-Human
+Interaction,11(3):241–267.
+Marcus,Mitch.1980.ATheoryofSyntactic
+RecognitionforNaturalLanguage.MIT
+Press,Cambridge,MA.
+Marcus,MitchellP.,BeatriceSantorini,and
+MaryAnnMarcinkiewicz.1994.Buildinga
+largeannotatedcorpusofEnglish:The
+PennTreebank.ComputationalLinguistics,
+19(2):313–330.
+Martin,CharlesandChristopherRiesbeck.
+1986.Uniformparsingandinferencing
+forlearning.InProceedingsofAAAI,
+pages257–261,Philadelphia,PA.
+Mellish,Chris.1985.ComputerInterpretation
+ofNaturalLanguageDescriptions.Wiley,
+NewYork.
+Miller,GeorgeandNoamChomsky.1963.
+Finitarymodelsoflanguageusers.In
+R.Luce,R.Bush,andE.Galanter,editors,
+HandbookofMathematicalPsychology,
+volume2.JohnWiley,NewYork,
+pages419–491.
+Miller,TimandWilliamSchuler.2008.
+Auniﬁedsyntacticmodelforparsing
+ﬂuentanddisﬂuentspeech.In
+Proceedingsofthe46thAnnualMeeting
+oftheAssociationforComputational
+Linguistics(ACL’08)pages105–108,
+Columbus,OH.
+Montague,Richard.1973.Theproper
+treatmentofquantiﬁcationinordinary
+English.InJ.Hintikka,J.M.E.Moravcsik,
+andP.Suppes,editors,Approaches
+toNaturalLanguage.D.Riedel,
+Dordrecht,pages221–242.Reprintedin
+R.H.Thomasoned.,FormalPhilosophy,
+YaleUniversityPress,NewHaven,
+CT,1994.
+Murphy,KevinP.andMarkA.Paskin.2001.
+Lineartimeinferenceinhierarchical
+HMMs.InProceedingsofNIPS,
+pages833–840,Vancouver.
+Peters,IvonneandWimPeters.2000.
+Thetreatmentofadjectivesinsimple:
+Theoreticalobservations.InProceedings
+ofLREC,paper#366,Athens.
+Pulman,Steve.1986.Grammars,parsers
+andmemorylimitations.Languageand
+CognitiveProcesses,1(3):197–225.
+Robinson,Tony.1994.Anapplicationof
+recurrentnetstophoneprobability
+estimation.InIEEETransactionson
+NeuralNetworks,5:298–305.
+Seneff,Stephanie,ChaoWang,Lee
+Hetherington,andGraceChung.2004.
+Adynamicvocabularyspokendialogue
+interface.InProceedingsofICSLP,
+pages1457–1460,JejuIsland.
+Schuler,William.2001.Computational
+propertiesofenvironment-based
+disambiguation.InProceedingsofACL,
+pages466–473,Toulouse.
+Schuler,William,SamirAbdelRahman,
+TimMiller,andLaneSchwartz.2008.
+Towardapsycholinguistically-motivated
+modeloflanguage.InProceedingsof
+COLING,pages785–792,Manchester,UK.
+Schuler,WilliamandTimMiller.2005.
+Integratingdenotationalmeaningintoa
+DBNlanguagemodel.InProceedings
+ofthe9thEuropeanConferenceonSpeech
+CommunicationandTechnology/
+6thInterspeechEvent(Eurospeech/
+Interspeech’05),pages901–904,Lisbon.
+Tanenhaus,MichaelK.,MichaelJ.
+Spivey-Knowlton,KathyM.Eberhard,
+andJulieE.Sedivy.1995.Integrationof
+visualandlinguisticinformationin
+spokenlanguagecomprehension.
+Science,268:1632–1634.
+Tarski,Alfred.1933.PraceTowarzystwa
+NaukowegoWarszawskiego,WydzialIIINauk
+Matematyczno-Fizycznych,34.Translatedas
+‘Theconceptoftruthinformalized
+languages’,inJ.Corcoran,editor,Logic,
+Semantics,Metamathematics:Papersfrom
+1923to1938.HackettPublishingCompany,
+Indianapolis,IN,1983,pages152–278.
+Weide,R.L.1998.CarnegieMellon
+UniversityPronouncingDictionaryv0.6d.
+Availableat www.speech.cs.cmu.edu/
+cgi-bin/cmudict.
+Wilensky,Robert,YigalArens,andDavid
+Chin.1984.TalkingtoUNIX:Anoverview
+ofUC.CommunicationsoftheACM,
+27(6):574–593.
+Young,S.L.,A.G.Hauptmann,W.H.Ward,
+E.T.Smith,andP.Werner.1989.High
+levelknowledgesourcesinusablespeech
+recognitionsystems.Communications
+oftheACM,32(2):183–194.
+343
+
+

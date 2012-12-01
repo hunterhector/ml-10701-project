@@ -1,0 +1,989 @@
+Proceedings of the 11th Meeting of the ACL-SIGMORPHON, ACL 2010, pages 28–37,
+Uppsala, Sweden, 15 July 2010. c 2010 Association for Computational Linguistics
+MaximumLikelihoodEstimationofFeature-basedDistributions
+JeffreyHeinzandCesarKoirala
+UniversityofDelaware
+Newark,Delaware,USA
+{heinz,koirala}@udel.edu
+Abstract
+Motivated by recent work in phonotac-
+tic learning (Hayes and Wilson 2008, Al-
+bright 2009), this paper shows how to de-
+finefeature-basedprobabilitydistributions
+whose parameters can be provably effi-
+ciently estimated. The main idea is that
+these distributions are defined as a prod-
+uct of simpler distributions (cf. Ghahra-
+mani and Jordan 1997). One advantage
+of this framework is it draws attention to
+what is minimally necessary to describe
+andlearnphonologicalfeatureinteractions
+in phonotactic patterns. The “bottom-up”
+approach adopted here is contrasted with
+the “top-down” approach in Hayes and
+Wilson (2008), and it is argued that the
+bottom-up approach is more analytically
+transparent.
+1 Introduction
+Thehypothesisthattheatomicunitsofphonology
+arephonologicalfeatures,andnotsegments,isone
+of the tenets of modern phonology (Jakobson et
+al., 1952; Chomsky and Halle, 1968). Accord-
+ing to this hypothesis, segments are essentially
+epiphenomenal and exist only by virtue of being
+a shorthand description of a collection of more
+primitive units—the features. Incorporating this
+hypothesis into phonological learning models has
+been the focus of much influential work (Gildea
+andJurafsky,1996;Wilson,2006;HayesandWil-
+son,2008;Moreton,2008;Albright,2009).
+This paper makes three contributions. The first
+contribution isaframeworkwithinwhich:
+1. researchers can choose which statistical in-
+dependence assumptions to make regarding
+phonological features;
+2. feature systems can be fully integrated into
+strictlylocal(McNaughtonandPapert,1971)
+(i.e. n-gram models (Jurafsky and Martin,
+2008))andstrictlypiecewisemodels(Rogers
+et al., 2009; Heinz and Rogers, 2010) in
+order to define families of provably well-
+formed, feature-based probability distribu-
+tionsthatareprovablyefficientlyestimable.
+The main idea is to define a family of distribu-
+tions as the normalized product of simpler distri-
+butions. Each simpler distribution can be repre-
+sented by aProbabilistic Deterministic Finite Ac-
+ceptor (PDFA), and the product of these PDFAs
+defines the actual distribution. When a family of
+distributions F isdefinedinthisway,F mayhave
+many fewer parameters than if F is defined over
+theproductPDFAdirectly. Thisisbecausethepa-
+rameters of the distributions are defined in terms
+of the factors which combine in predictable ways
+viatheproduct. Fewerparametersmeansaccurate
+estimationoccurswithlessdataand,relatedly,the
+familycontains fewerdistributions.
+This idea is not new. It is explicit in Facto-
+rial Hidden Markov Models (FHMMs) (Ghahra-
+mani and Jordan, 1997; Saul and Jordan, 1999),
+and more recently underlies approaches to de-
+scribing and inferring regular string transductions
+(Dreyer et al., 2008; Dreyer and Eisner, 2009).
+Although HMMsand probabilistic finite-state au-
+tomata describe the same class of distributions
+(Vidaletal.,2005a;Vidaletal.,2005b),thispaper
+presents these ideas in formal language-theoretic
+andautomata-theoretic termsbecause(1)thereare
+nohiddenstatesandisthussimplerthanFHMMs,
+(2) determinstic automata have several desirable
+properties crucially used here, and (3) PDFAs
+add probabilities to structure whereas HMMsadd
+structure toprobabilities andtheauthors aremore
+comfortable with the former perspective (for fur-
+therdiscussion, seeVidaletal. (2005a,b)).
+The second contribution illustrates the main
+idea with a feature-based bigram model with a
+28
+strong statistical independence assumption: no
+twofeatures interact. Thisisshowntocaptureex-
+actly the intuition that sounds with like features
+have like distributions. Also, the assumption of
+non-interacting features is shown to be too strong
+because like sounds do not have like distributions
+in actual phonotactic patterns. Four kinds of fea-
+tural interactions are identified and possible solu-
+tionsarediscussed.
+Finally, we compare this proposal with Hayes
+and Wilson (2008). Essentially, the model here
+represents a“bottom-up” approach whereastheirs
+is “top-down.” “Top-down” models, which con-
+sider every set of features as potentially interact-
+ing in every allowable context, face the difficult
+problem of searching a vast space and often re-
+sort to heuristic-based methods, which are diffi-
+cult to analyze. To illustrate, we suggest that the
+roleplayedbyphonologicalfeaturesinthephono-
+tactic learner in Hayes and Wilson (2008) is not
+well-understood. We demonstrate that classes of
+all segments but one (i.e. the complement classes
+of single segments) play a significant role, which
+diminishes the contribution provided by natural
+classes themselves (i.e. ones made by phonologi-
+calfeatures). Incontrast,theproposedmodelhere
+isanalytically transparent.
+This paper is organized as follows. §2 reviews
+some background. §3 discusses bigram models
+and §4 defines feature systems and feature-based
+distributions. §5 develops a model with a strong
+independence assumption and §6 discusses feat-
+ural interaction. §7 dicusses Hayes and Wilson
+(2008)and§8concludes.
+2 Preliminaries
+We start with mostly standard notation. P(A) is
+the powerset of A. Σ denotes a finite set of sym-
+bols and a string over Σ is a finite sequence of
+these symbols. Σ+ and Σ∗ denote all strings over
+this alphabet of nonzero but finite length, and of
+any finite length, respectively. A function f with
+domain Aandcodomain B iswritten f : A → B.
+When discussing partial functions, the notation ↑
+and ↓ indicate for particular arguments whether
+thefunctionisundefinedanddefined,respectively.
+A language L is a subset of Σ∗. A stochastic
+language D is a probability distribution over Σ∗.
+The probability p of word w with respect to D is
+written PrD(w) = p. Recall that all distributions
+D must satisfysummationtextw∈Σ∗ PrD(w) = 1. If L is lan-
+guage then PrD(L) = summationtextw∈LPrD(w). Since all
+distributionsinthispaperarestochasticlanguages,
+weusethetwotermsinterchangeably.
+A Probabilistic Deterministic Finite-
+state Automaton (PDFA) is a tuple
+M = 〈Q,Σ,q0,δ,F,T〉 where Q is the state
+set, Σ is the alphabet, q0 is the start state, δ is
+a deterministic transition function, F and T are
+the final-state and transition probabilities. In
+particular, T : Q × Σ → R+ and F : Q → R+
+suchthat
+forall q ∈ Q, F(q) +
+summationdisplay
+σ∈Σ
+T(q,σ) = 1. (1)
+PDFAs are typically represented as labeled di-
+rectedgraphs (e.g. M′ inFigure1).
+A PDFA M generates a stochastic language
+DM. Ifitexists,the(unique) pathforawordw =
+a0 ... ak belonging to Σ∗ through a PDFA is a
+sequence 〈(q0,a0),(q1,a1),...,(qk,ak)〉, where
+qi+1 = δ(qi,ai). The probability a PDFAassigns
+towisobtainedbymultiplyingthetransitionprob-
+abilitieswiththefinalprobabilityalongw’spathif
+itexists,andzerootherwise.
+PrDM(w) =
+parenleftBigg kproductdisplay
+i=0
+T(qi,ai)
+parenrightBigg
+·F(qk+1) (2)
+if ˆd(q0,w)↓and0otherwise
+A stochastic language is regular deterministic iff
+thereisaPDFAwhichgenerates it.
+Thestructural components ofaPDFAMisthe
+deterministicfinite-stateautomata(DFA)givenby
+the states Q, alphabet Σ, transitions δ, and initial
+state q0 of M. By the structure of a PDFA, we
+mean its structural components.1 Each PDFA M
+defines afamily ofdistributions given by the pos-
+sible instantiations of T and F satisfying Equa-
+tion1. Thesedistributionshaveatmost|Q|·(|Σ|+
+1) parameters (since for each state there are |Σ|
+possibletransitionsplusthepossibilityoffinality.)
+These are, for all q ∈ Q and σ ∈ Σ, the proba-
+bilities T(q,σ)andF(q). Tomaketheconnection
+toprobability theory,wesometimeswritetheseas
+Pr(σ | q) and Pr(# | q),respectively.
+We define the product of PDFAs in terms of
+co-emission probabilities (Vidal et al., 2005a).
+Let M1 = 〈Q1,Σ1,q01,δ1,F1,T1〉 and M2 =
+1This is up to the renaming of states so PDFA with iso-
+morphic structural components are said to have the same
+structure.
+29
+〈Q2,Σ2,q02,δ2,F2,T2〉 be PDFAs. The proba-
+bility that σ1 is emitted from q1 ∈ Q1 at the
+same moment σ2 is emitted from q2 ∈ Q2 is
+CT(σ1,σ2,q1,q2) = T1(q1,σ1)·T2(q2,σ2). Sim-
+ilarly, the probability that a word simultaneously
+ends at q1 ∈ Q1 and at q2 ∈ Q2 is CF(q1,q2) =
+F1(q1)·F2(q2).
+Definition1 Thenormalizedco-emissionproduct
+of PDFAs M1 and M2 is M = M1 × M2 =
+〈Q,Σ,q0,δ,F,T〉 where
+1. Q, q0, and F are defined in terms of the
+standard DFA product over the state space
+Q1 ×Q2 (Hopcroft et al., 2001).
+2. Σ = Σ1 ×Σ2
+3. For all 〈q1,q2〉 ∈ Q and 〈σ1,σ2〉 ∈
+Σ, δ(〈q1,q2〉,〈σ1,σ2〉) = 〈q′1,q′2〉 iff
+δ1(q1,σ1) = q′1 and δ2(q2,σ2) = q′2.2
+4. Forall 〈q1,q2〉 ∈ Q,
+(a) let Z(〈q1,q2〉) = CF(〈q1,q2〉) +summationtext
+〈σ1,σ2〉∈Σ CT(σ1,σ2,q1,q2) be the
+normalization term; and
+(b) F(〈q1,q2〉) = CF(q1,q2)Z ; and
+(c) forall 〈σ1,σ2〉 ∈ Σ,
+T(〈q1,q2〉,〈σ1,σ2〉) =
+CT(〈σ1,σ2,q1,q2〉)
+Z
+In other words, the numerators of T and F are
+defined to be the co-emission probabilities, and
+division by Z ensures that M defines a well-
+formed probability distribution.3 The normalized
+co-emission product effectively adopts a statisti-
+cal independence assumption between the states
+of M1 and M2. If S isalist of PDFAs,wewritecirclemultiplytext
+S fortheirproduct (note orderofproduct isir-
+relevantuptorenamingofthestates).
+The maximum likelihood (ML) estimation of
+regular deterministic distributions is a solved
+problemwhenthestructureofthePDFAisknown
+(Vidal et al., 2005a; Vidal et al., 2005b; de la
+Higuera, 2010). LetS beafinitesampleofwords
+drawnfromaregulardeterministic distribution D.
+Theproblemistoestimateparameters T andF of
+2Note that restricting δ to cases when σ1 = σ2 obtains
+thestandarddefinitionofδ = δ1×δ2 (Hopcroftetal.,2001).
+Thereasonwemaintaintwoalphabetsbecomes clearin§4.
+3Z(〈q1,q2〉) is less than one whenever either F1(q1) or
+F2(q2)areneitherzeronorone.
+M so that DM approaches D using the widely-
+adoptedMLcriterion (Equation3).
+(ˆT, ˆF) = argmax
+T,F
+parenleftBiggproductdisplay
+w∈S
+PrM(w)
+parenrightBigg
+(3)
+It is well-known that if D is generated by some
+PDFAM′ withthesamestructuralcomponentsas
+M, then the ML estimate of S with respect to M
+guarantees that DM approaches D as the size of
+S goestoinfinity(Vidaletal.,2005a; Vidaletal.,
+2005b;delaHiguera,2010).
+Finding the ML estimate of a finite sample S
+with respect to M is simple provided M is de-
+terministicwithknownstructuralcomponents. In-
+formally, the corpus is passed through the PDFA,
+andthepaths ofeachwordthrough thecorpus are
+tracked to obtain counts, which are then normal-
+ized by state. Let M = 〈Q,Σ,δ,q0,F,T〉 be the
+PDFA whose parameters F and T are to be esti-
+mated. For all states q ∈ Q and symbols σ ∈ Σ,
+The ML estimation of the probability of T(q,σ)
+is obtained by dividing the number of times this
+transition is used in parsing the sample S by the
+numberoftimesstateq isencounteredinthepars-
+ing of S. Similarly, the ML estimation of F(q) is
+obtained by calculating the relative frequency of
+state q being final with state q being encountered
+intheparsing of S. Forboth cases,thedivision is
+normalizing; i.e. itguarantees thatthereisawell-
+formed probability distribution at each state. Fig-
+ure1illustrates thecounts obtained foramachine
+M with sample S = {abca}.4 Figure 1 shows
+a DFA with counts and the PDFA obtained after
+normalizing thesecounts.
+3 Strictlylocaldistributions
+In formal language theory, strictly k-local lan-
+guages occupy the bottom rung of a subregular
+hierarchy which makes distinctions on the basis
+ofcontiguoussubsequences(McNaughtonandPa-
+pert, 1971; Rogers and Pullum, toappear; Rogers
+et al., 2009). They are also the categorical coun-
+terparttostochasticlanguagesdescribable withn-
+gram models (where n = k) (Garcia et al., 1990;
+Jurafsky and Martin, 2008). Since stochastic lan-
+guages are distributions, we refer to strictly k-
+localstochasticlanguagesasstrictlyk-localdistri-
+4Technically,MisneitherasimpleDFAorPDFA;rather,
+ithas been calleda Frequency DFA.We donot formallyde-
+finethemhere,seedelaHiguera(2010).
+30
+A:1
+a:2
+b:1
+c:1
+A:1/5
+a:2/5
+b:1/5
+c:1/5
+M M′
+Figure1: Mshowsthecountsobtainedbyparsing
+itwithsample S = {abca}. M′ showstheproba-
+bilitiesobtained afternormalizing thosecounts.
+butions (SLDk). Weillustrate withSLD2 (bigram
+models)foreaseofexposition.
+For an alphabet Σ, SL2 distributions have
+(|Σ| + 1)2 parameters. These are, for all σ,τ ∈
+Σ∪{#},theprobabilities Pr(σ | τ). Theproba-
+bilityofw = σ1 ...σn isgiveninEquation4.
+Pr(w) def= Pr(σ1 | #)×Pr(σ2 | σ1)
+×...×Pr(# | σn) (4)
+PDFA representations of SL2 distributions have
+the following structure: Q = Σ ∪ {#}, q0 = #,
+and for all q ∈ Q and σ ∈ Σ, it is the case that
+δ(q,σ) = σ.
+As an example, the DFA in Figure 2 provides
+the structure of PDFAs which recognize SL2 dis-
+tributions with Σ = {a,b,c}. Plainly, the param-
+eters of the model are given by assigning proba-
+bilitiestoeachtransitionandtotheendingateach
+state. In fact, for all σ ∈ Σ and τ ∈ Σ ∪ {#},
+Pr(σ | τ) is T(τ,σ) and Pr(# | τ) is F(τ).
+It follows that the probability of a particular path
+throughthemodelcorrespondstoEquation4. The
+structure of a SL2 distribution for alphabet Σ is
+givenbyMSL2(Σ).
+Additionally, given afinitesample S ⊂ Σ∗,the
+ML estimate of S with respect to the family of
+distributions describable with MSL2(Σ) is given
+by counting the parse of S through MSL2(Σ) and
+thennormalizingasdescribedin§2. Thisisequiv-
+alent to the procedure described in Jurafsky and
+Martin(2008,chap. 4).
+4 Feature-baseddistributions
+Thissectionfirstintroducesfeaturesystems. Then
+it defines feature-based SL2 distributions which
+makethestrong independence assumption thatno
+two features interact. It explains how to find
+b
+a
+c
+ b
+a
+ c
+ b
+a
+c
+ b
+a  c
+#
+a
+b
+c
+Figure2: MSL2({a,b,c}) represents thestructure
+ofSL2 distributions when Σ = {a,b,c}.
+F G
+a + -
+b + +
+c +
+Table1: AnexampleofafeaturesystemwithΣ =
+{a,b,c}andtwofeatures F and G.
+the ML estimate of samples with respect to such
+distributions. This section closes by identifying
+kinds of featural interactions in phonotactic pat-
+terns, and discusses how such interactions can be
+addressed withinthisframework.
+4.1 Featuresystems
+Assume the elements of the alphabet share prop-
+erties, called features. For concreteness, let each
+feature be a total function F : Σ → VF, where
+the codomain VF is a finite set of values. A fi-
+nite vector of features F = 〈F1,...,Fn〉 is called
+a feature system. Table 1 provides an example
+of a feature system with F = 〈F,G〉 and values
+VF = VG = {+,−}.
+We extend the domain of all features F ∈ F
+to Σ+, so that F(σ1 ...σn) = F(σ1)...F(σn).
+For example, using the feature system in Table 1,
+F(abc) = + + − and G(abc) = − + +. We
+also extend the domain of F to all languages:
+F(L) = ∪w∈Lf(w). We also extend the notation
+sothatF(σ) = 〈F1(σ),...,Fn(σ)〉. Forexample,
+F(c) = 〈−F,+G〉 (feature indices are included
+forreadability).
+ForfeatureF : Σ → VF,letF−1 betheinverse
+function with domain VF and codomain P(Σ).
+For example in Table 1, G−1(+) = {b,c}. F−1
+is similarly defined, i.e. F−1(〈−F,+G〉) = {c}.
+31
+If, for all arguments vectorv, F−1(vectorv) is nonempty then
+the feature system is exhaustive. If, for all argu-
+ments vectorv such that F−1(vectorv) is nonempty, it is the
+case that |F−1(vectorv)| = 1 then the feature system is
+distinctive. E.g. the feature system in Table 1 in
+notexhaustivesinceF−1(〈−F,−G〉) = ∅,butitis
+distinctive since where F−1 is nonempty, it picks
+outexactlyoneelementofthealphabet.
+Generally, phonological feature systems for a
+particular language aredistinctive butnot exhaus-
+tive. AnyfeaturesystemFcanbemadeexhaustive
+by adding finitely many symbols to the alphabet
+(since F is finite). Let Σ′ denote an alphabet ob-
+tained by adding to Σ the fewest symbols which
+makeFexhaustive.
+Each feature system also defines a set of indi-
+cator functions VF = uniontextf∈F(Vf × {f}) with do-
+main Σ such that 〈v,f〉(σ) = 1 iff f(σ) = v and
+0 otherwise. In the example in Table 1, VF =
+{+F,−F,+G,−G} (omitting angle braces for
+readability). For all f ∈ F, the set VFf is the
+VF restricted to f. So continuing our example,
+VFF = {+F,−F}.
+4.2 Feature-baseddistributions
+Wenowdefinefeature-basedSL2 distributionsun-
+der the strong independence assumption that no
+two features interact. For feature system F =
+〈F1 ...Fn〉, there are n PDFAs, one for each fea-
+ture. Thenormalizedco-emissionproductofthese
+PDFAs essentially defines the distribution. For
+each Fi, the structure of its PDFA is given by
+MSL2(VFi). For example, MF = MSL2(VF)
+andMG = MSL2(VG)infigures3and4illustrate
+thefinite-staterepresentationoffeature-basedSL2
+distributions given the feature system in Table1.5
+The states of each machine make distinctions ac-
+cording tofeatures FandG,respectively. Thepa-
+rametersofthesedistributionsaregivenbyassign-
+ingprobabilities toeachtransition andtotheend-
+ingateachstate(exceptfor Pr(# | #)).6
+Thus there are 2|VF| +summationtextF∈F|VFF|2 + 1 pa-
+rameters for feature-based SL2 distributions. For
+example, the feature system in Table 1 defines a
+distribution with 2·4 + 22 + 22 + 1 = 17 param-
+5For readability, featural information in the states and
+transitions is included in these figures. By definition, the
+states and transitions are only labeled with elements of VF
+and VG, respectively. In this case, that makes the structures
+ofthetwomachinesidentical.
+6ItispossibletoreplacePr(# | #)withtwoparameters,
+Pr(# | #F) Pr(# | #G),butforeaseofexpositionwedo
+notpursuethisfurther.
+-F-F
++F+F
+-F
++F
+-F
++F
+#
+Figure 3: MF represents a SL2 distribution with
+respecttofeatureF.
+-G-G
++G+G
+-G
++G
+-G
++G
+#
+Figure 4: MG represents a SL2 distribution with
+respecttofeatureG.
+eters, which include Pr(# | +F), Pr(+F | #),
+Pr(+F | +F),Pr(+F | −F),...,theGequiva-
+lents,andPr(# | #). LetSLD2F bethefamilyof
+distributions given by all possible parameter set-
+tings (i.e. all possible probability assignments for
+eachMSL2(VFi) inaccordance withEquation1.)
+Thenormalizedco-emissionproductdefinesthe
+feature-based distribution. Forexample,thestruc-
+ture of the product of MF and MG is shown in
+Figure5.
+Asdefined,thenormalizedco-emissionproduct
+can result in states and transitions that cannot be
+interpretedbynon-exhaustivefeaturesystems. An
+example of this is in Figure 5 since 〈−F,−G〉 is
+not interpretable bythe feature system in Table1.
+We make the system exhaustive by letting Σ′ =
+Σ∪{d}andsettingF(d) = 〈−F,−G〉.
+What is the probability of a given b in the
+feature-based model? According to the normal-
+izedco-emission product(Defintion1),itis
+Pr(a | b) = Pr(〈+F,−G〉 | 〈+F,+G〉) =
+Pr(+F | +F)·Pr(−G | +G)
+Z
+whereZ = Z(〈+F,+G〉) equals
+summationdisplay
+σ∈Σ′
+Pr(F(σ) | +F)·Pr(G(σ) | +G)
++ (Pr(# | +F)·Pr(# | +G)
+Generally, for an exhuastive distinctive feature
+system F = 〈F1,...,Fn〉, and for all σ,τ ∈ Σ,
+32
+#
++F,-G
++F,-G
++F,+G
++F,+G
+-F,+G
+-F,+G
+-F,-G
+-F,-G
++F,-G
++F,+G
+-F,+G
+-F,-G
++F,-G
++F,+G
+-F,+G
+-F,-G
++F,-G
++F,+G
+-F,+G
+-F,-G
++F,-G
++F,+G
+-F,+G-F,-G
+Figure5: ThestructureoftheproductofMF andMG.
+the Pr(σ | τ) is given by Equation 5. First, the
+normalization termisprovided. Let
+Z(τ) =
+summationdisplay
+σ∈Σ
+
+ productdisplay
+1≤i≤n
+Pr(Fi(σ) | Fi(τ))
+
+
++
+productdisplay
+1≤i≤n
+Pr(# | Fi(τ))
+Then
+Pr(σ | τ) =
+producttext
+1≤i≤n Pr(Fi(σ) | Fi(τ))
+Z(τ) (5)
+The probabilities Pr(σ | #) and Pr(# | τ)
+aresimilarlydecomposedintofeaturalparameters.
+Finally, likeSL2 distributions, theprobability ofa
+word w ∈ Σ∗ is given by Equation 4. We have
+thusprovedthefollowing.
+Theorem1 The parameters of a feature-based
+SL2 distribution define a well-formed probability
+distribution over Σ∗.
+Proof Itissufficient toshowfor all τ ∈ Σ∪{#}
+that summationtextσ∈Σ∪{#} Pr(σ | τ) = 1 since in this
+case, Equation 4 yields a well-formed probability
+distribution over Σ∗. This follows directly from
+the definition of the normalized co-emission
+product(Definition1). squaresquare
+The normalized co-emission product adopts a
+statisticalindependenceassumption,whichhereis
+between features since each machine represents a
+singlefeature. Forexample,consider Pr(a | b) =
+Pr(〈−F,+G〉 | 〈+F,+G〉). The probability
+Pr(〈−F,+G〉 | 〈+F,+G〉) cannot be arbitrar-
+ilydifferent fromtheprobabilities Pr(−F | +F)
+and Pr(+G | +G); it is not an independent pa-
+rameter. In fact, because Pr(a | b) is computed
+directly as the normalized product of parameters
+Pr(−F | +F) and Pr(+G | +G), the assump-
+tionisthatthefeaturesF andGdonotinteract. In
+otherwords,thismodeldescribesexactlythestate
+of affairs one expects if there is no statistical in-
+teraction between phonological features. In terms
+of inference, this means if one sound is observed
+to occur in some context (at least contexts dis-
+tinguishable by SL2 models), then similar sounds
+(i.e. those that share many of its featural values)
+areexpected tooccurinthiscontextaswell.
+4.3 MLestimation
+The ML estimate of feature-based SL2 distribu-
+tionsisobtainedbycountingtheparseofasample
+througheachfeaturemachine,andnormalizingthe
+results. This is because the parameters of the dis-
+tribution are the probabilities on the feature ma-
+chines, whose product determines the actual dis-
+tribution. The following theorem follows imme-
+diately from the PDFA representation of feature-
+basedSL2 distributions.
+Theorem2 LetF = 〈F1,...Fn〉andletD bede-
+scribed by M = circlemultiplytext1≤i≤nMSL2(VFi). Consider
+a finite sample S drawn from D. Then the ML es-
+timate of S with respect to SLD2F is obtained by
+finding, foreach Fi ∈ F,theMLestimateofFi(S)
+withrespect toMSL2(VFi).
+Proof The ML estimate of S with respect to
+SLD2F returns the parameter values that maxi-
+mizethelikelihoodofS withinthefamilySLD2F.
+The parameters of D ∈SLD2F are found on the
+33
+states of each MSL2(VFi). By definition, each
+MSL2(VFi) describes a probability distribution
+over Fi(Σ∗), as well as a family of distributions.
+Therefore finding the MLE of S with respect to
+SLD2F meansfindingtheMLEestimate of Fi(S)
+withrespect toeachMSL2(VFi).
+Optimizing the ML estimate of Fi(S) for
+each Mi = MSL2(VFi) means that as |Fi(S)|
+increases, the estimates ˆTMi and ˆFMi approach
+the true values TMi and FMi. It follows that
+as |S| increases, ˆTM and ˆFM approach the true
+values of TM and FM and consequently DM
+approaches D. squaresquare
+4.4 Discussion
+Feature-basedmodelscanhavesignificantlyfewer
+parameters than segment-based models. Con-
+sider binary feature systems, where |VF| = 2|F|.
+An exhaustive feature system with 10 binary fea-
+tures describes an alphabet with 1024 symbols.
+Segment-basedbigrammodelshave(1024+1)2 =
+1,050,625 parameters, but the feature-based one
+only has 40 + 40 + 1 = 81 parameters! Con-
+sequently, much less training data is required to
+accurately estimatetheparametersofthemodel.
+Anotherwayofdescribingthisisintermsofex-
+pressivity. Forgivenfeaturesystem,feature-based
+SL2 distributions are a proper subset of SL2 dis-
+tributions since, as the the PDFA representations
+makeclear,everyfeature-baseddistributioncanbe
+described by a segmental bigram model, but not
+vice versa. The fact that feature-based distribu-
+tionshavepotentially farfewerparametersisare-
+flectionoftherestrictive nature ofthemodel. The
+statisticalindependenceassumptionconstrainsthe
+system in predictable ways. The next section
+shows exactly what feature-based generalization
+lookslikeundertheseassumptions.
+5 Examples
+This section demonstrates feature-based gener-
+alization by comparing it with segment-based
+generalization, using a small corpus S =
+{aaab, caca, acab, cbb} and the feature system
+in Table 1. Tables 2 and 3 show the results of
+MLestimationofS withrespecttosegment-based
+SL2 distributions (unsmoothed bigram model)
+and feature-based SL2 distributions, respectively.
+Each table shows the Pr(σ | τ) for all σ,τ ∈
+{a,b,c,d,#} (where F(d) = 〈−F,−G〉), for
+σ
+P(σ | τ) a b c d #
+a 0.29 0.29 0.29 0. 0.14
+b 0. 0.25 0. 0. 0.75
+τ c 0.75 0.25 0. 0. 0.
+d 0. 0. 0. 0. 0.
+# 0.5 0. 0.5 0. 0.
+Table 2: ML estimates of parameters of segment-
+basedSL2 distributions.
+σ
+P(σ | τ) a b c d #
+a 0.22 0.43 0.17 0.09 0.09
+b 0.32 0.21 0.09 0.13 0.26
+τ c 0.60 0.40 0. 0 0.
+d 0.33 0.67 0 0 0
+# 0.25 0.25 0.25 0.25 0.
+Table 3: ML estimates of parameters of feature-
+basedSL2 distributions.
+easeofcomparison.
+Observe the sharp divergence between the two
+modelsincertaincells. Forexample,nowordsbe-
+ginwithbinthesample. Hencethesegment-based
+ML estimates of Pr(b | #) is zero. Conversely,
+thefeature-based MLestimateisnonzero because
+b, like a, is +F, and b, like c, is +G, and both a
+andcbeginwords. Also,noticenonzeroprobabil-
+itiesareassigned to doccuring after a and b. This
+is because F(d) = 〈−F,−G〉 and the following
+sequences all occur in the corpus: [+F][-F] (ac),
+[+G][-G] (ca), and [-G][-G] (aa). On the other
+hand,zeroprobabilities areassignedto docurring
+after c and d because there areno cc sequences in
+thecorpusandhencetheprobabilityof[-F]occur-
+ingafter[-F]iszero.
+Thissimpleexample demonstrates exactly how
+themodelworks. Generalizationsaremadeonthe
+basis of individual features, not individual sym-
+bols. Infact,segmentsaretrulyepiphenomenal in
+this model, as demonstrated by the nonzero prob-
+abilties assigned to segments outside the original
+feature system (here, this is d). To sum up, this
+model captures exactly the idea that the distribu-
+tion of segments is conditioned on the distribu-
+tionsofitsfeatures.
+34
+6 Featuralinteraction
+In many empirical cases of interest, features do
+interact, which suggests the strong independence
+assumption is incorrect for modeling phonotactic
+learning.
+There are at least four kinds of featural inter-
+action. First, different features may be prohib-
+ited from occuring simultaneously in certain con-
+texts. As an example of the first type consider
+the fact that both velars and nasal sounds occur
+word-initially in English, but the velar nasal may
+not. Second, specific languages may prohibit dif-
+ferentfeaturesfromsimultaneouslyoccuringinall
+contexts. In English, for example, there are syl-
+labicsoundsandobstruentsbutnosyllabicobstru-
+ents. Third, different features may be universally
+incompatible: e.g. novowelsareboth[+high]and
+[+low]. Thelasttypeofinteractionisthatdifferent
+features may be prohibited from occuring syntag-
+matically. For example, some languages prohibit
+voiceless soundsfromoccuring afternasals.
+Although the independence assumption is too
+strong, itisstilluseful. First,itallowsresearchers
+to quantify the extent to which data can be ex-
+plained without invoking featural interaction. For
+example, following Hayes and Wilson (2008), we
+may be interested in how well human acceptabil-
+ityjudgementscollectedbyScholes(1966)canbe
+explained ifdifferent features do not interact. Af-
+tertraining thefeature-based SL2 modelonacor-
+pus of word initial onsets adapted from the CMU
+pronouncing dictionary (HayesandWilson,2008,
+395-396) and using a standard phonological fea-
+ture system (Hayes, 2009, chap. 4), it achieves
+a correlation (Spearman’s r) of 0.751.7 In other
+words, roughly three quarters of the acceptability
+judgements areexplained without relying onfeat-
+uralinteraction (orsegments).
+Secondly,theincorrectpredictionsofthemodel
+are in principle detectable. For example, recall
+that English has word-inital velars and nasals, but
+noword-initalvelarnasals. Aone-cellchi-squared
+test can determine whether the observed number
+of[#N]issignificantly belowtheexpectednumber
+according to the feature-based distribution, which
+could lead to a new parameter being adopted to
+describe theinteraction ofthe [dorsal] and [nasal]
+7WeusethefeaturechartinHayes(2009)becauseitcon-
+tainsover150IPAsymbols(andnotjustEnglishphonemes).
+Featural combinations not in the chart were assumed to be
+impossible(e.g. [+high,+low])andwerezeroedout.
+featuresword-initially. Thedetailsoftheseproce-
+dures are left for future research and are likely to
+drawfromtherichliteratureonBayesiannetworks
+(Pearl,1989;Ghahramani, 1998).
+Moreimportant, however, isthis framework al-
+lowsresearcherstoconstructtheindependenceas-
+sumptionstheywantintothemodelinatleasttwo
+ways. First,universally incompatible features can
+be excluded. For example, suppose [-F] and [-G]
+in the feature system in Table 1 are anatomically
+incompatible like [+low] and [+high]. If desired,
+they can be excluded from the model essentially
+by zeroing out any probability mass assigned to
+suchcombinations andre-normalizing.
+Second, models can be defined where multiple
+features are permitted to interact. For example,
+suppose features F and G from Table 1 are em-
+bedded in a larger feature system. The machine
+in Figure 5 can be defined to be a factor of the
+model,andnowinteractionsbetweenFandGwill
+be learned, including syntagmatic ones. The flex-
+ibility of the framework and the generality of the
+normalizedco-emissionproductallowresearchers
+to consider feature-based distributions which al-
+low any two features to interact but which pro-
+hibitthree-featureinteractions,orwhichallowany
+three features to interact but which prohibit four-
+feature interactions, or models where only certain
+features are permitted to interact but not others
+(perhapsbecausetheybelongtothesamenodeina
+feature geometry (Clements, 1985; Clements and
+Hume,1995).8
+7 HayesandWilson(2008)
+This section introduces the Hayes and Wilson
+(2008) (henceforth HW) phonotactic learner and
+showsthatthecontribution features playingener-
+alizationisnotasclearaspreviously thought.
+HW propose an inductive model which ac-
+quires a maxent grammar defined by weighted
+constraints. Each constraint is described as a se-
+quence of natural classes using phonological fea-
+tures. Theconstraint format also allowsreference
+to word boundaries and at most one complement
+class. (The complement class of S ⊆ Σ is Σ/S.)
+Forexample,theconstraint
+*#[ˆ-voice,+anterior,+strident][-approximant]
+meansthatinword-initialC1C2 clusters,ifC2 isa
+nasalorobstruent,thenC1 mustbe[s].
+8Note if all features are permitted to interact, this yields
+thesegmentalbigrammodel.
+35
+HayesandWilsonmaxentmodels r
+features&complementclasses 0.946
+nofeatures &complement classes 0.937
+features&nocomplement classes 0.914
+nofeatures &nocomplementclasses 0.885
+Table4: Correlationsofdifferentsettingsversions
+ofHWmaxentmodelwithScholesdata.
+HW report that the model obtains a correlation
+(Spearman’s r) of 0.946 with blick test data from
+Scholes(1966). HWandAlbright(2009)attribute
+this high correlation to the model’s use of natural
+classesandphonological features. HWalsoreport
+that when the model is run without features, the
+grammarobtainedscoresanr valueofonly0.885,
+implyingthatthegainincorrelation isduespecif-
+icallytotheuseofphonological features.
+However,therearetworelevantissues. Thefirst
+is the use of complement classes. If features are
+notusedbutcomplementclassesare(ineffectonly
+allowingthemodeltorefertosinglesegmentsand
+the complements of single segments, e.g. [t] and
+[ˆt]) then in fact the grammar obtained scores an
+r value of 0.936, a result comparable to the one
+reported.9 Table4showsthe r values obtained by
+the HW learner under different conditions. Note
+we replicate the main result of r = 0.946 when
+usingbothfeatures andcomplementclasses.10
+Thisexercise reveals thatphonological features
+play a smaller role in the HWphonotactic learner
+than previously thought. Features are helpful, but
+not as much as complement classes of single seg-
+ments (though features with complement classes
+yieldsthebestresultbythismeasure).
+Thesecondissuerelatestothefirst: thequestion
+of whether additional parameters are worth the
+gain in empirical coverage. Wilson and Obdeyn
+(2009) provide an excellent discussion of the
+model comparison literature and provide a rigor-
+ous comparative analysis of computational mod-
+elelingofOCPrestrictions. Hereweonlyraisethe
+questionsandleavetheanswerstofutureresearch.
+Compare the HW learners in the first two rows
+in Table 4. Is the ∼ 0.01 gain in r score worth
+the additional parameters which refer to phono-
+9Examination of the output grammar reveals heavy re-
+liance on the complement class [ˆs], which is not surprising
+giventhediscussionof[sC]clustersinHW.
+10ThissoftwareisavailableonBruceHayes’webpage:
+http://www.linguistics.ucla.edu/
+people/hayes/Phonotactics/index.htm.
+logically natural classes? Also, the feature-based
+SL2 modelin§4onlyreceivesanr scoreof0.751,
+much lower than the results in Table 4. Yet this
+model has far fewer parameters not only because
+the maxent models in Table 4 keep track of tri-
+grams,butalsobecauseofitsstrongindependence
+assumption. As mentioned, this result is infor-
+mative because it reveals how much can be ex-
+plained without featural interaction. In the con-
+text of model comparison, this particular model
+provides an inductive baseline against which the
+utility of additional parameters invoking featural
+interaction oughttobemeasured.
+8 Conclusion
+Thecurrentproposal explicitlyembedstheJakob-
+sonian hypothesis that the primitive unit of
+phonology is the phonological feature into a
+phonotactic learning model. While this paper
+specifically shows how to integrate features into
+n-gram models to describe feature-based strictly
+n-local distributions, these techniques can be ap-
+plied to other regular deterministic distributions,
+such as strictly k-piecewise models, which de-
+scribe long-distance dependencies, like the ones
+foundinconsonant andvowelharmony(Heinz,to
+appear;HeinzandRogers,2010).
+In contrast to models which assume that all
+features potentially interact, a baseline model
+was specifically introduced under the assumption
+that no two features interact. In this way, the
+“bottom-up” approach to feature-based general-
+ization shifts the focus of inquiry to the featural
+interactions necessary (and ultimately sufficient)
+to describe and learn phonotactic patterns. The
+frameworkintroducedhereshowshowresearchers
+can study feature interaction in phonotactic mod-
+elsinasystematic,transparent way.
+Acknowledgments
+We thank Bill Idsardi, Tim O’Neill, Jim Rogers,
+Robert Wilder, Colin Wilson and the U. of
+Delaware’s phonology/phonetics group for valu-
+able discussion. Special thanks to Mark Ellison
+for helpful comments, to Adam Albright for illu-
+minating remarks on the types of featural interac-
+tion in phonotactic patterns, and to Jason Eisner
+forbringingtoourattentionFHMMsandotherre-
+latedwork.
+36
+References
+Adam Albright. 2009. Feature-based generalisation
+as a source of gradient acceptability. Phonology,
+26(1):9–41.
+Noam Chomsky and Morris Halle. 1968. The Sound
+PatternofEnglish. Harper&Row,NewYork.
+G.N. Clements and Elizabeth V. Hume. 1995. The
+internal organization of speech sounds. In John A.
+Goldsmith, editor, The handbook of phonological
+theory,chapter7.Blackwell,Cambridge,MA.
+George N. Clements. 1985. The geometry of phono-
+logicalfeatures. PhonologyYearbook,2:225–252.
+Colin de la Higuera. 2010. Grammatical Inference:
+Learning Automata and Grammars. Cambridge
+UniversityPress.
+Markus Dreyer and Jason Eisner. 2009. Graphical
+modelsovermultiplestrings. In Proceedings of the
+Conference on Empirical Methods in Natural Lan-
+guageProcessing(EMNLP),pages101–110,Singa-
+pore,August.
+Markus Dreyer, Jason R. Smith, and Jason Eisner.
+2008. Latent-variable modeling of string transduc-
+tions with finite-state methods. In Proceedings of
+the Conference on Empirical Methods in Natural
+Language Processing (EMNLP), pages 1080–1089,
+Honolulu,October.
+Pedro Garcia, Enrique Vidal, and Jos´e Oncina. 1990.
+Learning locally testable languages in the strict
+sense. InProceedingsof the Workshop onAlgorith-
+mic LearningTheory,pages325–338.
+ZoubinGhahramaniandMichaelI.Jordan. 1997. Fac-
+torial hidden markov models. Machine Learning,
+29(2):245–273.
+Zoubin Ghahramani. 1998. Learning dynamic
+bayesian networks. In Adaptive Processing of
+Sequences and Data Structures, pages 168–197.
+Springer-Verlag.
+Daniel Gildea and Daniel Jurafsky. 1996. Learn-
+ing bias and phonological-rule induction. Compu-
+tationalLinguistics,24(4).
+BruceHayesandColinWilson. 2008. Amaximumen-
+tropy model of phonotactics and phonotactic learn-
+ing. LinguisticInquiry,39:379–440.
+Bruce Hayes. 2009. Introductory Phonology. Wiley-
+Blackwell.
+Jeffrey Heinz and James Rogers. 2010. Estimating
+strictly piecewise distributions. In Proceedings of
+the48thAnnualMeetingoftheAssociationforCom-
+putationalLinguistics,Uppsala,Sweden.
+Jeffrey Heinz. to appear. Learning long-distance
+phonotactics. LinguisticInquiry,41(4).
+John Hopcroft, Rajeev Motwani, and Jeffrey Ullman.
+2001. IntroductiontoAutomataTheory,Languages,
+andComputation. Boston,MA:Addison-Wesley.
+Roman Jakobson, C. Gunnar, M. Fant, and Morris
+Halle. 1952. Preliminaries to Speech Analysis.
+MITPress.
+Daniel Jurafsky and James Martin. 2008. Speech
+and Language Processing: An Introduction to Nat-
+uralLanguageProcessing,SpeechRecognition,and
+Computational Linguistics. Prentice-Hall, Upper
+SaddleRiver,NJ,2ndedition.
+Robert McNaughton and Seymour Papert. 1971.
+Counter-FreeAutomata. MITPress.
+ElliotMoreton. 2008. Analyticbiasandphonological
+typology. Phonology,25(1):83–127.
+Judea Pearl. 1989. Probabilistic Reasoning in In-
+telligent Systems: Networks of Plausible Inference.
+MorganKauffman.
+James Rogers and GeoffreyPullum. to appear. Aural
+pattern recognition experiments and the subregular
+hierarchy. Journal of Logic, Language and Infor-
+mation.
+James Rogers, Jeffrey Heinz, Gil Bailey, Matt Edlef-
+sen, Molly Visscher, David Wellcome, and Sean
+Wibel. 2009. On languages piecewise testable in
+thestrictsense. In Proceedingsof the 11th Meeting
+oftheAssocationforMathematicsofLanguage.
+LawrenceK.SaulandMichaelI.Jordan. 1999. Mixed
+memory markov models: Decomposing complex
+stochastic processes as mixtures of simpler ones.
+MachineLearning,37(1):75–87.
+RobertJ. Scholes. 1966. Phonotactic grammaticality.
+Mouton,TheHague.
+Enrique Vidal, Franck Thollard, Colin de la Higuera,
+Francisco Casacuberta, and Rafael C. Carrasco.
+2005a. Probabilistic finite-state machines-part I.
+IEEETransactionsonPatternAnalysisandMachine
+Intelligence,27(7):1013–1025.
+Enrique Vidal, Frank Thollard, Colin de la Higuera,
+Francisco Casacuberta, and Rafael C. Carrasco.
+2005b. Probabilistic finite-state machines-part II.
+IEEETransactionsonPatternAnalysisandMachine
+Intelligence,27(7):1026–1039.
+ColinWilsonandMariekeObdeyn. 2009. Simplifying
+subsidiary theory: statistical evidence from arabic,
+muna, shona, and wargamay. Johns Hopkins Uni-
+versity.
+Colin Wilson. 2006. Learning phonology with sub-
+stantive bias: An experimental and computational
+study of velar palatalization. Cognitive Science,
+30(5):945–982.
+37
+

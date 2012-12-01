@@ -1,0 +1,200 @@
+1:199	A Boosting Algorithm for Classification of Semi-Structured Text Taku Kudo Yuji Matsumoto Graduate School of Information Science, Nara Institute of Science and Technology 8916-5 Takayama, Ikoma Nara Japan ftaku-ku,matsug@is.naist.jp Abstract The focus of research in text classification has expanded from simple topic identification to more challenging tasks such as opinion/modality identification.
+2:199	Unfortunately, the latter goals exceed the ability of the traditional bag-of-word representation approach, and a richer, more structural representation is required.
+3:199	Accordingly, learning algorithms must be created that can handle the structures observed in texts.
+4:199	In this paper, we propose a Boosting algorithm that captures sub-structures embedded in texts.
+5:199	The proposal consists of i) decision stumps that use subtrees as features and ii) the Boosting algorithm which employs the subtree-based decision stumps as weak learners.
+6:199	We also discuss the relation between our algorithm and SVMs with tree kernel.
+7:199	Two experiments on opinion/modality classification confirm that subtree features are important.
+8:199	1 Introduction Text classification plays an important role in organizing the online texts available on the World Wide Web, Internet news, and E-mails.
+9:199	Until recently, a number of machine learning algorithms have been applied to this problem and have been proven successful in many domains (Sebastiani, 2002).
+10:199	In the traditional text classification tasks, one has to identify predefined text topics, such as politics, finance, sports or entertainment.
+11:199	For learning algorithms to identify these topics, a text is usually represented as a bag-of-words, where a text is regarded as a multi-set (i.e. , a bag) of words and the word order or syntactic relations appearing in the original text is ignored.
+12:199	Even though the bag-of-words representation is naive and does not convey the meaning of the original text, reasonable accuracy can be obtained.
+13:199	This is because each word occurring in the text is highly relevant to the predefined topics to be identified.
+14:199	At present, NTT Communication Science Laboratories, 2-4, Hikaridai, Seika-cho, Soraku, Kyoto, 619-0237 Japan taku@cslab.kecl.ntt.co.jp Given that a number of successes have been reported in the field of traditional text classification, the focus of recent research has expanded from simple topic identification to more challenging tasks such as opinion/modality identification.
+15:199	Example includes categorization of customer E-mails and reviews by types of claims, modalities or subjectivities (Turney, 2002; Wiebe, 2000).
+16:199	For the latter, the traditional bag-of-words representation is not sufficient, and a richer, structural representation is required.
+17:199	A straightforward way to extend the traditional bag-of-words representation is to heuristically add new types of features to the original bag-of-words features, such as fixed-length n-grams (e.g. , word bi-gram or tri-gram) or fixedlength syntactic relations (e.g. , modifier-head relations).
+18:199	These ad-hoc solutions might give us reasonable performance, however, they are highly taskdependent and require careful design to create the optimal feature set for each task.
+19:199	Generally speaking, by using text processing systems, a text can be converted into a semi-structured text annotated with parts-of-speech, base-phrase information or syntactic relations.
+20:199	This information is useful in identifying opinions or modalities contained in the text.
+21:199	We think that it is more useful to propose a learning algorithm that can automatically capture relevant structural information observed in text, rather than to heuristically add this information as new features.
+22:199	From these points of view, this paper proposes a classification algorithm that captures sub-structures embedded in text.
+23:199	To simplify the problem, we first assume that a text to be classified is represented as a labeled ordered tree, which is a general data structure and a simple abstraction of text.
+24:199	Note that word sequence, base-phrase annotation, dependency tree and an XML document can be modeled as a labeled ordered tree.
+25:199	The algorithm proposed here has the following characteristics: i) It performs learning and classification using structural information of text.
+26:199	ii) It uses a set of all subtrees (bag-of-subtrees) for the feature set without any constraints.
+27:199	iii) Even though the size of the candidate feature set becomes quite large, it automatically selects a compact and relevant feature set based on Boosting.
+28:199	This paper is organized as follows.
+29:199	First, we describe the details of our Boosting algorithm in which the subtree-based decision stumps are applied as weak learners.
+30:199	Second, we show an implementation issue related to constructing an efficient learning algorithm.
+31:199	We also discuss the relation between our algorithm and SVMs (Boser et al. , 1992) with tree kernel (Collins and Duffy, 2002; Kashima and Koyanagi, 2002).
+32:199	Two experiments on the opinion and modality classification tasks are employed to confirm that subtree features are important.
+33:199	2 Classifier for Trees We first assume that a text to be classified is represented as a labeled ordered tree.
+34:199	The focused problem can be formalized as a general problem, called the tree classification problem.
+35:199	The tree classification problem is to induce a mapping f(x) : X !f 1g, from given training examples T = fhxi;yiigLi=1, where xi 2X is a labeled ordered tree and yi 2f 1gis a class label associated with each training data (we focus here on the problem of binary classification.).
+36:199	The important characteristic is that the input example xi is represented not as a numerical feature vector (bagof-words) but a labeled ordered tree.
+37:199	2.1 Preliminaries Let us introduce a labeled ordered tree (or simply tree), its definition and notations, first.
+38:199	Definition 1 Labeled ordered tree (Tree) A labeled ordered tree is a tree where each node is associated with a label and is ordered among its siblings, that is, there are a first child, second child, third child, etc. Definition 2 Subtree Let t and u be labeled ordered trees.
+39:199	We say that t matches u, or t is a subtree of u (t u), if there exists a one-to-one function from nodes in t to u, satisfying the conditions: (1) preserves the parent-daughter relation, (2) preserves the sibling relation, (3) preserves the labels.
+40:199	We denote the number of nodes in t asjtj.
+41:199	Figure 1 shows an example of a labeled ordered tree and its subtree and non-subtree.
+42:199	2.2 Decision Stumps Decision stumps are simple classifiers, where the final decision is made by only a single hypothesis a0 a1 a2 a1 a0 a2 a3 a0 a1 a2 a0 a2 a1 a0 a4a4a6a5 a7 a8a8a10a9 a11a11a12 Figure 1: Labeled ordered tree and subtree relation or feature.
+43:199	Boostexter (Schapire and Singer, 2000) uses word-based decision stumps for topic-based text classification.
+44:199	To classify trees, we here extend the decision stump definition as follows.
+45:199	Definition 3 Decision Stumps for Trees Let t and x be labeled ordered trees, and y be a class label (y2f 1g), a decision stump classifier for trees is given by hht;yi(x) def= y t x y otherwise: The parameter for classification is the tupleht;yi, hereafter referred to as the rule of the decision stumps.
+46:199	The decision stumps are trained to find ruleh^t; ^yi that minimizes the error rate for the given training data T =fhxi;yiigLi=1: h^t; ^yi = argmin t2F;y2f 1g 1 2L LX i=1 (1 yihht;yi(xi));(1) whereF is a set of candidate trees or a feature set (i.e. ,F = SLi=1ftjt xig).
+47:199	The gain function for ruleht;yiis defined as gain(ht;yi) def= LX i=1 yihht;yi(xi): (2) Using the gain, the search problem given in (1) becomes equivalent to the following problem: h^t; ^yi = argmax t2F;y2f 1g gain(ht;yi): In this paper, we will use gain instead of error rate for clarity.
+48:199	2.3 Applying Boosting The decision stumps classifiers for trees are too inaccurate to be applied to real applications, since the final decision relies on the existence of a single tree.
+49:199	However, accuracies can be boosted by the Boosting algorithm (Freund and Schapire, 1996; Schapire and Singer, 2000).
+50:199	Boosting repeatedly calls a given weak learner to finally produce hypothesis f, which is a linear combination of K hypotheses produced by the prior weak learners, i,e.: f(x) = sgn(PKk=1 khhtk;yki(x)).
+51:199	A weak learner is built at each iteration k with different distributions or weights d(k) = (d(k)i ;:::;d(k)L ), (where PNi=1d(k)i = 1;d(k)i 0).
+52:199	The weights are calculated in such a way that hard examples are focused on more than easier examples.
+53:199	To use the decision stumps as the weak learner of Boosting, we redefine the gain function (2) as follows: gain(ht;yi) def= LX i=1 yidihht;yi(xi): (3) There exist many Boosting algorithm variants, however, the original and the best known algorithm is AdaBoost (Freund and Schapire, 1996).
+54:199	We here use Arc-GV (Breiman, 1999) instead of AdaBoost, since Arc-GV asymptotically maximizes the margin and shows faster convergence to the optimal solution than AdaBoost.
+55:199	3 Efficient Computation In this section, we introduce an efficient and practical algorithm to find the optimal rule h^t; ^yi from given training data.
+56:199	This problem is formally defined as follows.
+57:199	Problem 1 Find Optimal Rule Let T = fhx1;y1;d1i;:::;hxL;yL;dLig be training data, where, xi is a labeled ordered tree, yi 2 f 1g is a class label associated with xi and di (PLi=1di = 1; di 0) is a normalized weight assigned to xi.
+58:199	Given T, find the optimal rule h^t; ^yi that maximizes the gain, i.e., h^t; ^yi = argmaxt2F;y2f 1gdiyihht;yi, where F =S L i=1ftjt xig.
+59:199	The most naive and exhaustive method, in which we first enumerate all subtrees F and then calculate the gains for all subtrees, is usually impractical, since the number of subtrees is exponential to its size.
+60:199	We thus adopt an alternative strategy to avoid such exhaustive enumeration.
+61:199	The method to find the optimal rule is modeled as a variant of the branch-and-bound algorithm, and is summarized in the following strategies: 1.
+62:199	Define a canonical search space in which a whole set of subtrees of a set of trees can be enumerated.
+63:199	2.
+64:199	Find the optimal rule by traversing this search space.
+65:199	3.
+66:199	Prune search space by proposing a criterion with respect to the upper bound of the gain.
+67:199	We will describe these steps more precisely in the following subsections.
+68:199	3.1 Efficient Enumeration of Trees Abe and Zaki independently proposed an efficient method, rightmost-extension, to enumerate all subtrees from a given tree (Abe et al. , 2002; Zaki, 2002).
+69:199	First, the algorithm starts with a set of trees consisting of single nodes, and then expands a given tree of size (k 1) by attaching a new node to this tree to obtain trees of size k. However, it would be inefficient to expand nodes at arbitrary positions of the tree, as duplicated enumeration is inevitable.
+70:199	The algorithm, rightmost extension, avoids such duplicated enumerations by restricting the position of attachment.
+71:199	We here give the definition of rightmost extension to describe this restriction in detail.
+72:199	Definition 4 Rightmost Extension (Abe et al. , 2002; Zaki, 2002) Let t and t0 be labeled ordered trees.
+73:199	We say t0 is a rightmost extension oft, if and only iftandt0satisfy the following three conditions: (1) t0 is created by adding a single node to t, (i.e. , t t0 andjtj+ 1 =jt0j).
+74:199	(2) A node is added to a node existing on the unique path from the root to the rightmost leaf (rightmostpath) in t.
+75:199	(3) A node is added as the rightmost sibling.
+76:199	Consider Figure 2, which illustrates example tree t with the labels drawn from the set L = fa;b;cg.
+77:199	For the sake of convenience, each node in this figure has its original number (depth-first enumeration).
+78:199	The rightmost-path of the tree t is (a(c(b))), and occurs at positions 1;4 and 6 respectively.
+79:199	The set of rightmost extended trees is then enumerated by simply adding a single node to a node on the rightmost path.
+80:199	Since there are three nodes on the rightmost path and the size of the label set is 3 (= jLj), a total of 9 trees are enumerated from the original tree t. Note that rightmost extension preserves the prefix ordering of nodes in t (i.e. , nodes at positions 1::jtjare preserved).
+81:199	By repeating the process of rightmost-extension recursively, we can create a search space in which all trees drawn from the setL are enumerated.
+82:199	Figure 3 shows a snapshot of such a search space.
+83:199	3.2 Upper bound of gain Rightmost extension defines a canonical search space in which one can enumerate all subtrees from a given set of trees.
+84:199	We here consider an upper bound of the gain that allows subspace pruning in bac12 4a b5 6c3 bac12 4a b5 6c3 bac12 4a b5 6c3 b ac12 4 a b5 6c3 rightmost-path t rightmost extension 7 7 7 t },,{ cbaL= },,{ cba },,{ cba},,{ cba Figure 2: Rightmost extension Figure 3: Recursion using rightmost extension this canonical search space.
+85:199	The following theorem, an extension of Morhishita (Morhishita, 2002), gives a convenient way of computing a tight upper bound on gain(ht0;yi) for any super-tree t0 of t. Theorem 1 Upper bound of the gain: (t) For any t0 t and y2f 1g, the gain of ht0;yiis bounded by (t) (i.e. , gain(ht0yi) (t)), where (t) is given by (t) def= max 2 X fijyi=+1;t xig di LX i=1 yi di; 2 X fijyi= 1;t xig di + LX i=1 yi di : Proof 1 gain(ht0;yi) = LX i=1 diyihht0;yi(xi) = LX i=1 diyi y (2I(t0 xi) 1) If we focus on the case y = +1, then gain(ht0;+1i) = 2 X fijt0 xig yidi LX i=1 yi di 2 X fijyi=+1;t0 xig di LX i=1 yi di 2 X fijyi=+1;t xig di LX i=1 yi di; sincejfijyi = +1;t0 xigj jfijyi = +1;t xigj for any t0 t. Similarly, gain(ht0; 1i) 2 X fijyi= 1;t xig di + LX i=1 yi di Thus, for any t0 t and y2f 1g, gain(ht0;yi) (t) 2 We can efficiently prune the search space spanned by right most extension using the upper bound of gain u(t).
+86:199	During the traverse of the subtree lattice built by the recursive process of rightmost extension, we always maintain the temporally suboptimal gain among all gains calculated previously.
+87:199	If (t) <, the gain of any super-tree t0 t is no greater than, and therefore we can safely prune the search space spanned from the subtree t. If (t), in contrast, we cannot prune this space, since there might exist a super-tree t0 t such that gain(t0).
+88:199	We can also prune the space with respect to the expanded single node s. Even if (t) and a node s is attached to the tree t, we can ignore the space spanned from the tree t0 if (s) <, since no super-tree of s can yield optimal gain.
+89:199	Figure 4 presents a pseudo code of the algorithm Find Optimal Rule.
+90:199	The two pruning are marked with (1) and (2) respectively.
+91:199	4 Relation to SVMs with Tree Kernel Recent studies (Breiman, 1999; Schapire et al. , 1997; Ratsch et al. , 2001) have shown that both Boosting and SVMs (Boser et al. , 1992) have a similar strategy; constructing an optimal hypothesis that maximizes the smallest margin between the positive and negative examples.
+92:199	We here describe a connection between our Boosting algorithm and SVMs with tree kernel (Collins and Duffy, 2002; Kashima and Koyanagi, 2002).
+93:199	Tree kernel is one of the convolution kernels, and implicitly maps the example represented in a labeled ordered tree into all subtree spaces.
+94:199	The implicit mapping defined by tree kernel is given as: (x)=(I(t1 x);:::;I(tjFj x)), where tj2F, x2X and I( ) is the indicator function 1.
+95:199	The final hypothesis of SVMs with tree kernel can be given by f(x) = sgn(w (x) b) = sgn( X t2F wt I(t x) b): (4) Similarly, the final hypothesis of our boosting algorithm can be reformulated as a linear classifier: 1Strictly speaking, tree kernel uses the cardinality of each substructure.
+96:199	However, it makes little difference since a given tree is often sparse in NLP and the cardinality of substructures will be approximated by their existence.
+97:199	Algorithm: Find Optimal Rule argument: T =fhx1;y1;d1i:::;hxL;yL;dLig (xi a tree, yi2f 1gis a class, and di (PLi=1di = 1; di 0) is a weight) returns: Optimal ruleh^t; ^yi begin = 0 // suboptimal value function project (t) if (t) then return ::: (1) y0 = argmaxy2f 1ggain(ht;yi) if gain(ht;y0i) > then h^t; ^yi=ht;y0i = gain(h^t; ^yi) // suboptimal solution end foreach t02fset of trees that are rightmost extension of tg s =single node added by RME if (s) then continue ::: (2) project(t0) end end // for each single node foreach t02ftjt2[Li=1ftjt xi)g; jtj= 1g project (t0) end returnh^t; ^yi end Figure 4: Algorithm: Find Optimal Rule f(x) = sgn( KX k=1 khhtk;yki(x)) = sgn( KX k=1 k yk(2I(tk x) 1)) = sgn( X t2F wt I(t x) b); (5) where b = KX k=1 yk k; wt = X fkjt=tkg 2 yk k: We can thus see that both algorithms are essentially the same in terms of their feature space.
+98:199	The difference between them is the metric of margin; the margin of Boosting is measured in l1-norm, while, that of SVMs is measured in l2-norm.
+99:199	The question one might ask is how the difference is expressed in practice.
+100:199	The difference between them can be explained by sparseness.
+101:199	It is well known that the solution or separating hyperplane of SVMs is expressed as a linear combination of the training examples using some coefficients, (i.e. , w = PLi=1 i (xi)).
+102:199	Maximizingl2norm margin gives a sparse solution in the example space, (i.e. , most of i becomes 0).
+103:199	Examples that have non-zero coefficient are called support vectors that form the final solution.
+104:199	Boosting, in contrast, performs the computation explicitly in the feature space.
+105:199	The concept behind Boosting is that only a few hypotheses are needed to express the final solution.
+106:199	The l1-norm margin allows us to realize this property.
+107:199	Boosting thus finds a sparse solution in the feature space.
+108:199	The accuracies of these two methods depends on the given training data.
+109:199	However, we argue that Boosting has the following practical advantages.
+110:199	First, sparse hypotheses allow us to build an efficient classification algorithm.
+111:199	The complexity of SVMs with tree kernel is O(L0jN1jjN2j), where N1 and N2 are trees, and L0 is the number of support vectors, which is too heavy to realize real applications.
+112:199	Boosting, in contrast, runs faster, since the complexity depends only on the small number of decision stumps.
+113:199	Second, sparse hypotheses are useful in practice as they provide transparent models with which we can analyze how the model performs or what kind of features are useful.
+114:199	It is difficult to give such analysis with kernel methods, since they define the feature space implicitly.
+115:199	5 Experiments 5.1 Experimental Setting We conducted two experiments in sentence classification.
+116:199	PHS review classification (PHS) The goal of this task is to classify reviews (in Japanese) for PHS2 as positive reviews or negative reviews.
+117:199	A total of 5,741 sentences were collected from a Web-based discussion BBS on PHS, in which users are directed to submit positive reviews separately from negative reviews.
+118:199	The unit of classification is a sentence.
+119:199	The categories to be identified are positive or negative with the numbers 2,679 and 3,062 respectively.
+120:199	Modality identification (MOD) This task is to classify sentences (in Japanese) by modality.
+121:199	A total of 1,710 sentences from a Japanese newspaper were manually annotated 2PHS (Personal Handyphone System) is a cell phone system developed in Japan in 1989.
+122:199	according to Tamuras taxonomy (Tamura and Wada, 1996).
+123:199	The unit of classification is a sentence.
+124:199	The categories to be identified are opinion, assertion or description with the numbers 159, 540, and 1,011 respectively.
+125:199	To employ learning and classification, we have to represent a given sentence as a labeled ordered tree.
+126:199	In this paper, we use the following three representation forms.
+127:199	bag-of-words (bow), baseline Ignoring structural information embedded in text, we simply represent a text as a set of words.
+128:199	This is exactly the same setting as Boostexter.
+129:199	Word boundaries are identified using a Japanese morphological analyzer, ChaSen3.
+130:199	Dependency (dep) We represent a text in a word-based dependency tree.
+131:199	We first use CaboCha4 to obtain a chunk-based dependency tree of the text.
+132:199	The chunk approximately corresponds to the basephrase in English.
+133:199	By identifying the head word in the chunk, a chunk-based dependency tree is converted into a word-based dependency tree.
+134:199	N-gram (ngram) It is the word-based dependency tree that assumes that each word simply modifies the next word.
+135:199	Any subtree of this structure becomes a word n-gram.
+136:199	We compared the performance of our Boosting algorithm and support vector machines (SVMs) with bag-of-words kernel and tree kernel according to their F-measure in 5-fold cross validation.
+137:199	Although there exist some extensions for tree kernel (Kashima and Koyanagi, 2002), we use the original tree kernel by Collins (Collins and Duffy, 2002), where all subtrees of a tree are used as distinct features.
+138:199	This setting yields a fair comparison in terms of feature space.
+139:199	To extend a binary classifier to a multi-class classifier, we use the one-vs-rest method.
+140:199	Hyperparameters, such as number of iterations K in Boosting and soft-margin parameter C in SVMs were selected by using cross-validation.
+141:199	We implemented SVMs with tree kernel based on TinySVM5 with custom kernels incorporated therein.
+142:199	3http://chasen.naist.jp/ 4http://chasen.naist.jp/ taku/software/cabocha/ 5http://chasen.naist.jp/ taku/software/tinysvm 5.2 Results and Discussion Table 1 summarizes the results of PHS and MOD tasks.
+143:199	To examine the statistical significance of the results, we employed a McNemars paired test, a variant of the sign test, on the labeling disagreements.
+144:199	This table also includes the results of significance tests.
+145:199	5.2.1 Effects of structural information In all tasks and categories, our subtree-based Boosting algorithm (dep/ngram) performs better than the baseline method (bow).
+146:199	This result supports our first intuition that structural information within texts is important when classifying a text by opinions or modalities, not by topics.
+147:199	We also find that there are no significant differences in accuracy between dependency and n-gram (in all cases, p> 0:2).
+148:199	5.2.2 Comparison with Tree Kernel When using the bag-of-words feature, no significant differences in accuracy are observed between Boosting and SVMs.
+149:199	When structural information is used in training and classification, Boosting performs slightly better than SVMs with tree kernel.
+150:199	The differences are significant when we use dependency features in the MOD task.
+151:199	SVMs show worse performance depending on tasks and categories, (e.g. , 24.2 F-measure in the smallest category opinion in the MOD task).
+152:199	When a convolution kernel is applied to sparse data, kernel dot products between almost the same instances become much larger than those between different instances.
+153:199	This is because the number of common features between similar instances exponentially increases with size.
+154:199	This sometimes leads to overfitting in training, where a test instance very close to an instance in training data is correctly classified, and other instances are classified as a default class.
+155:199	This problem can be tackled by several heuristic approaches: i) employing a decay factor to reduce the weights of large sub-structures (Collins and Duffy, 2002; Kashima and Koyanagi, 2002).
+156:199	ii) substituting kernel dot products for the Gaussian function to smooth the original kernel dot products (Haussler, 1999).
+157:199	These approaches may achieve better accuracy, however, they yield neither the fast classification nor the interpretable feature space targeted by this paper.
+158:199	Moreover, we cannot give a fair comparison in terms of the same feature space.
+159:199	The selection of optimal hyperparameters, such as decay factors in the first approach and smoothing parameters in the second approach, is also left to as an open question.
+160:199	Table 1: Results of Experiments on PHS / MOD, F-measure, precision (%), and recall (%) PHS MOD opinion assertion description Boosting bow 76.0 (76.1 / 75.9) 59.6 (59.4 / 60.0) 70.0 (70.4 / 69.9) 82.2 (81.0 / 83.5) dep 78.7 (79.1 / 78.4) 78.7* (90.2 / 70.0) 86.7* (88.0 / 85.6) 91.7* (91.1 / 92.4) n-gram 79.3 (79.8 / 78.5) 76.7* (87.2 / 68.6) 87.2 (86.9 / 87.4) 91.6 (91.0 / 92.2) SVMs bow 76.8 (78.3 / 75.4) 57.2 (79.0 / 48.4) 71.3 (64.3 / 80.0) 82.1 (82.7 / 81.5) dep 77.0 (80.7 / 73.6) 24.2 (95.7 / 13.8) 81.7 (86.7 / 77.2) 87.6 (86.1 / 89.2) n-gram 78.9 (80.4 / 77.5) 57.5 (98.0 / 40.9) 84.1 (90.1 / 78.9) 90.1 (88.2 / 92.0) We employed a McNemars paired test on the labeling disagreements.
+161:199	Underlined results indicate that there is a significant difference (p < 0:01) against the baseline (bow).
+162:199	If there is a statistical difference (p < 0:01) between Boosting and SVMs with the same feature representation (bow / dep / n-gram), better results are asterisked.
+163:199	5.2.3 Merits of our algorithm In the previous section, we described the merits of our Boosting algorithm.
+164:199	We experimentally verified these merits from the results of the PHS task.
+165:199	As illustrated in section 4, our method can automatically select relevant and compact features from a number of feature candidates.
+166:199	In the PHS task, a total 1,793 features (rules) were selected, while the set sizes of distinct uni-gram, bi-gram and trigram appearing in the data were 4,211, 24,206, and 43,658 respectively.
+167:199	Even though all subtrees are used as feature candidates, Boosting selects a small and highly relevant subset of features.
+168:199	When we explicitly enumerate the subtrees used in tree kernel, the number of active (non-zero) features might amount to ten thousand or more.
+169:199	Table 2 shows examples of extracted support features (pairs of feature (tree) t and weight wt in (Eq.
+170:199	5)) in the PHS task.
+171:199	A. Features including the word tXM(hard, difficult) In general, tXM(hard, difficult) is an adjective expressing negative opinions.
+172:199	Most of features including tXM are assigned a negative weight (negative opinion).
+173:199	However, only one feature  ~tXM(hard to cut off) has a positive weight.
+174:199	This result strongly reflects the domain knowledge, PHS (cell phone reviews).
+175:199	B. Features including the word O(use) O(use) is a neutral expression for opinion classifications.
+176:199	However, the weight varies according to the surrounding context: 1) M hM(want to use)!positive, 2) Mb M(be easy to use)!positive, 3) Mb Tlh(was easy to use) (past form)!negative, 4) wOUMbM( is easier to use than ) (comparative)!negative.
+177:199	C. Features including the word  F ?(recharge) Features reflecting the domain knowledge are Table 2: Examples of features in PHS dataset keyword wt subtree t (support features) A.tXM0.0004 ~tXM(be hard to cut off) (hard, -0.0006 tXM(be hard to read) difficult) -0.0007OtXM(be hard to use) -0.0017tXM(be hard to) B.O0.0027OhM(want to use) (use) 0.0002O(use) 0.0002Oo(be in use) 0.0001ObM(be easy to use) -0.0001ObMh(was easy to use) -0.0007OtXM(be hard to use) -0.0019MUObM(is easier to use than) C. F ?0.0028 F ?UyM(recharging time is short) (recharge) -0.0041 F ?UM(recharging time is long) extracted: 1)  F ?UyM(recharging time is short) ! positive, 2)  F ?U M(recharging time is long) ! negative.
+178:199	These features are interesting, since we cannot determine the correct label (positive/negative) by using just the bag-of-words features, such as recharge, short or long alone.
+179:199	Table 3 illustrates an example of actual classification.
+180:199	For the input sentence  UGVXo,, _bM(The LCD is large, beautiful, and easy to see.), the system outputs the features applied to this classification along with their weights wt.
+181:199	This information allows us to analyze how the system classifies the input sentence in a category and what kind of features are used in the classification.
+182:199	We cannot perform these analyses with tree kernel, since it defines their feature space implicitly.
+183:199	The testing speed of our Boosting algorithm is much higher than that of SVMs with tree kernel.
+184:199	In the PHS task, the speeds of Boosting and SVMs are 0.531 sec./5,741 instances and 255.42 sec./5,741 instances respectively 6.
+185:199	We can say that Boosting is 6We ran these tests on a Linux PC with XEON 2.4Ghz dual processors and 4.0Gbyte main memory.
+186:199	Table 3: A running example Input: UGVXo,_bM. The LCD is large, beautiful and easy to see.
+187:199	wt subtree t (support features) 0.00368bM(be easy to) 0.00352(beautiful) 0.00237_bM(be easy to see) 0.00174UGVM( is large) 0.00107 UGVM(The LCD is large) 0.00074 U(The LCD is ) 0.00058 (The LCD) 0.00027o(a particle for coordination) 0.00036_(see) -0.00001GVM(large) -0.00052U(a nominative case marker) about 480 times faster than SVMs with tree kernel.
+188:199	Even though the potential size of search space is huge, the pruning criterion proposed in this paper effectively prunes the search space.
+189:199	The pruning conditions in Fig.4 are fulfilled with more than 90% probabitity.
+190:199	The training speed of our method is 1,384 sec./5,741 instances when we set K = 60;000 (# of iterations for Boosting).
+191:199	It takes only 0.023 (=1,384/60,000) sec.
+192:199	to invoke the weak learner, Find Optimal Rule.
+193:199	6 Conclusions and Future Work In this paper, we focused on an algorithm for the classification of semi-structured text in which a sentence is represented as a labeled ordered tree7.
+194:199	Our proposal consists of i) decision stumps that use subtrees as features and ii) Boosting algorithm in which the subtree-based decision stumps are applied as weak learners.
+195:199	Two experiments on opinion/modality classification tasks confirmed that subtree features are important.
+196:199	One natural extension is to adopt confidence rated predictions to the subtree-based weak learners.
+197:199	This extension is also found in BoosTexter and shows better performance than binary-valued learners.
+198:199	In our experiments, n-gram features showed comparable performance to dependency features.
+199:199	We would like to apply our method to other applications where instances are represented in a tree and their subtrees play an important role in classifications (e.g. , parse re-ranking (Collins and Duffy, 2002) and information extraction).
+

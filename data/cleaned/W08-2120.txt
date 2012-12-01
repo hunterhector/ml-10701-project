@@ -1,0 +1,762 @@
+CoNLL 2008: Proceedings of the 12th Conference on Computational Natural Language Learning, pages 151–158
+Manchester, August 2008
+TrainableSpeaker-BasedReferringExpressionGeneration
+GiuseppeDiFabbrizio and AmandaJ.Stent and SrinivasBangalore
+AT&TLabs-Research,Inc.
+180ParkAvenue
+FlorhamPark,NJ07932,USA
+{pino,stent,srini}@research.att.com
+Abstract
+Previousworkinreferringexpressiongen-
+erationhasexploredgeneralpurposetech-
+niques for attribute selection and surface
+realization. However, most of this work
+did not take into account: a) stylisticdif-
+ferencesbetweenspeakers; or b) trainable
+surface realization approaches that com-
+binesemanticandwordorderinformation.
+Inthispaperwedescribeandevaluatesev-
+eralend-to-endreferringexpressiongener-
+ation algorithmsthat take into considera-
+tionspeaker styleandusedata-driven sur-
+facerealizationtechniques.
+1 Introduction
+Naturallanguagegeneration(NLG)systemshave
+typically decomposedthe problem of generating
+a linguisticexpressionfroma conceptualspecifi-
+cation into three major steps: content planning,
+text planningand surface realization(Reiterand
+Dale, 2000). The task in content planningis to
+select the informationthat is to be conveyed to
+maximizecommunicationefficiency. The task in
+text planningand surface realizationis to use the
+availablelinguisticresources(wordsandsyntax)to
+conveytheselectedinformationusingwell-formed
+linguisticexpressions.
+Duringa discourse(whetherwrittenor spoken,
+monologor dialog), a numberof entities are in-
+troducedinto the discoursecontext sharedby the
+reader/hearerand the writer/speaker. Construct-
+inglinguisticreferencestotheseentitiesefficiently
+and effectively is a problem that touches on all
+c©2008. Licensed under the Creative Commons
+Attribution-Noncommercial-Share Alike 3.0 Unported li-
+cense (http://creativecommons.org/licenses/by-nc-sa/3.0/).
+Somerightsreserved.
+partsof an NLGsystem. Traditionally, this prob-
+lem is split into two parts. The task of selecting
+theattributesto usein referringto anentityis the
+attribute selectiontask,performedduringcontent
+planning or sentence planning. The actual con-
+structionofthereferringexpressionispartof sur-
+facerealization.
+Therenow exist numerousgeneral-purposeal-
+gorithmsforattributeselection(e.g.,(DaleandRe-
+iter, 1995; Krahmeret al., 2003; Belz and Gatt,
+2007; Siddharthanand Copestake, 2004)). How-
+ever, these algorithmsby-and-large focus on the
+algorithmicaspectsof referringexpressiongener-
+ation rather than on psycholinguisticfactors that
+influence languageproduction. For example,we
+knowthathumansexhibitindividualdifferencesin
+languageproductionthatcanbequitepronounced
+(e.g. (Belz, 2007)). We also know that the
+languageproductionprocessis subject to lexical
+priming,whichmeansthatwordsandconceptsthat
+have beenusedrecentlyarelikelytoappearagain
+(Levelt,1989).
+In thispaper, we lookat attribute selectionand
+surface realizationfor referringexpressiongener-
+ationusingtheTUNAcorpus
+1, an annotatedcor-
+pusof human-producedreferringexpressionsthat
+describe furniture and people. We first explore
+the impactof individual style and primingon at-
+tribute selection for referring expressiongenera-
+tion. To getan ideaof the potentialimprovement
+when modelingthese factors, we implementeda
+version of full brevity search that uses speaker-
+specific constraints,and anotherversionthat also
+uses recency constraints. We found that using
+speaker-specificconstraintsledtobigperformance
+gainsforbothTUNAdomains,whiletheuseofre-
+1
+http://www.csd.abdn.ac.uk/research/tuna/
+151
+cency constraintswas notas effective for TUNA-
+style tasks. We then modified Dale and Reiter’s
+classicattributeselectionalgorithm(DaleandRe-
+iter,1995)tomodelindividualdifferencesinstyle,
+and foundperformancegainsin this moregreedy
+approachaswell.
+Then, we look at surface realization for re-
+ferring expression generation. There are sev-
+eral approachesto surface realizationsdescribed
+in the literature (Reiter and Dale, 2000) rang-
+ing fromhand-craftedtemplate-basedrealizersto
+data-driven syntax-basedrealizers(Langkildeand
+Knight, 2000; Bangalore and Rambow, 2000).
+Template-basedrealizationprovidesa straightfor-
+wardmethodtofilloutpre-definedtemplateswith
+the current attribute values. Data-driven syntax-
+basedmethodsemploytechniquesthatincorporate
+the syntacticrelationsbetweenwords which can
+potentially go beyond local adjacency relations.
+Syntacticinformationalsohelpsineliminatingun-
+grammaticalsentencerealizations.Attheotherex-
+treme,thereare techniquesthatexhaustively gen-
+eratepossiblerealizationswithrecourseto syntax
+inasmuchasitisreflectedinlocaln-grams.Such
+techniqueshave the advantageof beingrobust al-
+thoughthey are inadequateto capturelong-range
+dependencies. We explore three techniques for
+thetaskofreferringexpressiongenerationthatare
+different hybridsof hand-craftedand data-driven
+methods.
+The layoutof this paperis as follows: In Sec-
+tion2,wedescribetheTUNAdatasetandthetask
+of identifyingtarget entitiesin the context of dis-
+tractors. In Section3, we presentour algorithms
+for attribute selection. Our algorithms for sur-
+face realizationare presentedin Section 4. Our
+evaluationof thesemethodsforattribute selection
+andsurfacerealizationarepresentedinSections5
+and6.
+2 TheTUNACorpus
+The TUNA corpuswas constructedusinga web-
+based experiment. Participants were presented
+with a sequenceof web pages,on each of which
+they saw displayeda selectionof 7 picturesof ei-
+therfurniture(e.g. Figure1) or people(e.g. Fig-
+ure 2) sparsely placed on a 3 row x 5 column
+grid. One of the pictures(the target) was high-
+lighted;the other6 objects(the distractors) were
+randomlyselectedfromthe objectdatabase. Par-
+ticipantsweretoldthattheywereinteractingwitha
+computersystemtoremoveallbut thehighlighted
+picturefromthescreen.Theyenteredadescription
+oftheobjectusingnaturallanguagetoidentifythe
+objecttothecomputersystem.
+The sectionof the TUNA corpuswe used was
+thatprovidedfor the REG2008Challenge
+2
+. The
+trainingdataincludes319referringexpressionsin
+thefurnituredomainand274inthepeopledomain.
+Thedevelopmentdata(whichweusedfortesting)
+includes80 referringexpressionsin the furniture
+domainand68inthepeopledomain.
+Figure1: Exampleof data fromthe furnituredo-
+main(Thered couch on top).
+Figure2: Exampleofdatafromthepeopledomain
+(The bald subject on the bottom with the white
+beard).
+3 AttributeSelectionAlgorithms
+Given a set of entitieswith attributes appropriate
+toadomain(e.g.,costofflights,authorofabook,
+2
+http://www.nltg.brighton.ac.uk/research/reg08/. Prelimi-
+naryversionsofthesealgorithmswereusedinthischallenge
+andpresentedatINLG2008.
+152
+colorofacar)thatareinadiscoursecontext,anda
+targetentitythatneedstobeidentified,thetaskof
+attribute selectionis to select a subset of the at-
+tributes that uniquely identifies the target entity.
+(Note that there may be more than one such at-
+tributeset.) Theefficacy of attribute selectioncan
+be measuredbased on the minimalityof the se-
+lected attribute set as well as its ability to deter-
+mine the target entity uniquely. Thereare varia-
+tionshowever in termsofwhatmakesanattribute
+set morepreferableto a human. For example,in
+a peopleidentificationtask,attributesof facesare
+generallymorememorablethanattributespertain-
+ing to outfits. In this paper, we demonstratethat
+theattributesetisspeakerdependent.
+Inthissection,wepresenttwodifferentattribute
+selectionalgorithms. TheFullBrevityalgorithm
+selectsthe attribute set by exhaustively searching
+throughallpossibleattributesets.Incontrast,Dale
+and Reiter algorithmorders the attributes based
+on a heuristic (motivated by human preference)
+andselectstheattributesinthatorderuntilthetar-
+getentityisuniquelydetermined.Weelaborateon
+thesealgorithmsbelow.
+FullBrevity(FB) Weimplementedaversionof
+full brevity search. It does the following: first,
+it constructs AS, the set of attribute sets that
+uniquely identify the referent given the distrac-
+tors. Then,it selectsan attribute set AS
+u
+∈ AS
+basedononeofthefollowingfourcriteria:1)The
+minimality(FB-m)criterionselectsfromamong
+the smallestelementsof AS at random. 2) The
+frequency(FB-f)criterionselectsthe elementof
+AS that occurredmostoftenin the trainingdata.
+3) The speaker frequency (FB-sf) criterion se-
+lects the elementof AS used most often by this
+speaker inthetrainingdata,backingoff toFB-fif
+necessary. Thiscriterionmodelsindividualspeak-
+ing/writingstyle. 4) Finally, thespeaker recency
+(FB-sr)criterionselectsthe elementof AS used
+mostrecentlyby this speaker in the trainingdata,
+backingoff to FB-sf if necessary. This criterion
+modelspriming.
+Dale and Reiter We implementedtwo variants
+of the classic Dale & Reiter attribute selection
+(Dale and Reiter, 1995) algorithm. For Dale &
+Reiterbasic(DR-b), we first build the preferred
+listofattributesbysortingtheattributesaccording
+to frequency of usein the trainingdata. We keep
+separatelistsbasedonthe“LOC”condition(ifits
+valuewas“+LOC”,theparticipantsweretoldthat
+they couldreferto thetarget usingits locationon
+thescreen;if it was “-LOC”,they wereinstructed
+not to use locationon the screen)and backoff to
+a globalpreferredattribute listif necessary. Next,
+we iterateover the list of preferredattributes and
+select the next one that rules out at least one en-
+tityin thecontrastsetuntilno distractorsare left.
+Dale & Reiterspeaker frequency(DR-sf)uses
+adifferentpreferredattributelistforeachspeaker,
+backingofftotheDR-bpreferredlistifanattribute
+has never been observed in the currentspeaker’s
+preferredattributelist.Forthepurposeofthistask,
+we did not use any externalknowledge(e.g. tax-
+onomies).
+4 SurfaceRealizationApproaches
+Asurfacerealizerforreferringexpressiongenera-
+tiontransformsasetofattribute-valuepairsintoa
+linguisticallywell-formedexpression.Oursurface
+realizers, which are all data-driven, involve four
+stagesof processing: (a) lexical choiceof words
+andphrasesto realizeattribute values;(b)genera-
+tionofaspaceofsurfacerealizations(T);(c)rank-
+ingthesetof realizationsusinga languagemodel
+(LM); (d) selectingthe best scoring realization.
+Ingeneral,thebestrankingrealization(T
+∗
+) is de-
+scribedbyequation1:
+T
+∗
+= Bestpath(Rank(T,LM)) (1)
+Wedescribethreedifferentmethodsforcreating
+thesearchspaceofsurfacerealizations–Template-
+based, Dependency-basedand Permutation-based
+methods. Although these techniques share the
+samemethodforranking,they differ in themeth-
+odsusedfor generatingthe spaceof possiblesur-
+facerealizations.
+4.1 Generatingpossiblesurfacerealizations
+In order to transform the set of attribute-value
+pairsintoa linguisticallywell-formedexpression,
+the appropriatewords that realize each attribute
+value needto be selected(lexicalchoice)and the
+selected words need to be ordered according to
+the syntax of the target language(lexical order).
+Wepresentdifferentmodelsforapproximatingthe
+syntax of the target language. All three models
+tightlyintegrate the lexicalchoiceand lexical re-
+orderingsteps.
+153
+4.1.1 Template-BasedRealizer
+Inthetemplate-basedapproach,surfacerealiza-
+tionsfromourtrainingdataareusedto infera set
+of templates. In theTUNAdata,eachattribute in
+eachreferringexpressionis annotatedwithits at-
+tribute type (e.g. in “the large red sofa” the sec-
+ond word is labeled ‘size’, the third ‘color’ and
+the fourth ‘type’). We extract the annotatedre-
+ferringexpressionsfromeachtrial in the training
+dataandreplaceeachattribute valuewithits type
+(e.g.“thesize color type”)tocreateatem-
+plate.Eachtemplateisindexedbythelexicograph-
+icallysortedlistof attribute typesit contains(e.g.
+color size type). If an attribute set is not
+found in the training data (e.g. color size)
+but a supersetof that set is (e.g. color size
+type),thenthecorrespondingtemplate(s)maybe
+used,withtheun-filledattributetypesdeletedprior
+tooutput.
+Atgenerationtime,wefindallpossiblerealiza-
+tions(l) (fromthe trainingdata)of each attribute
+value(a)intheinputattributeset(AS),andfillin
+eachpossibletemplate(t) witheachcombination
+oftheattributerealizations.Thespaceofpossible
+surface realizationsis representedas a weighted
+finite-stateautomaton.Theweightsarecomputed
+from the prior probabilityof each template and
+thepriorprobabilityof eachlexicalitemrealizing
+an attribute (Equation2). We have two versions
+of this realizer: one with speaker-specific lexi-
+consandtemplates(Template-S),andonewithout
+(Template). Wereportresultsforboth.
+P(T|AS) =
+summationdisplay
+t
+P(t|AS)∗
+productdisplay
+a∈t
+summationdisplay
+l
+P(l|a,t) (2)
+4.1.2 Dependency-BasedRealizer
+Toconstructourdependency-basedrealizer, we
+first parse all the word strings from the train-
+ing data using the dependency parser described
+in (Bangalore et al., 2005; Nasr and Rambow,
+2004). Then,for every pair of words w
+i, w
+j
+that
+occurinthesamereferringexpression(RE)inthe
+trainingdata,we compute: freq(i < j), the fre-
+quency with which w
+i
+precedes w
+j
+in any RE;
+freq(dep(w
+i,w
+j
+) ∧ i < j), the frequency with
+whichw
+i
+dependsonandprecedesw
+j
+in any RE,
+andfreq(dep(w
+i,w
+j
+)∧j < i),thefrequencywith
+whichw
+i
+dependsonandfollowsw
+j
+inanyRE.
+Atgenerationtime,wefindallpossiblerealiza-
+tions of each attribute value in the input attribute
+set, and for eachcombinationof attribute realiza-
+tions,we find the mostlikely setof dependencies
+and precedencesgiven the trainingdata. In other
+words, we bin the selected attribute realizations
+accordingto whetherthey are mostlikely to pre-
+cede,dependon and precede,dependon and fol-
+low, or follow, the headword they are closestto.
+Theresultisasetofweightedpartialorderingson
+the attribute realizations. As with the template-
+based surface realizer, we implementedspeaker-
+specific and speaker-independent versions of the
+dependency-based surface realizer. Once again,
+we encode the space of possiblesurface realiza-
+tionsasaweightedfinite-stateautomaton.
+4.1.3 PermuteandRankRealizer
+Inthismethod,thelexicalitemsassociatedwith
+eachattribute valueto be realizedare treatedas a
+disjunctive set of tokens. This disjunctive set is
+representedas a finite-state automatonwith two
+states and transitionsbetweenthem labeled with
+thetokensoftheset. Thetransitionsareweighted
+bythenegative logarithmoftheprobabilityofthe
+lexicaltoken(l)beingassociatedwiththatattribute
+value(a): (−log(P(l|a))). Thesesetsare treated
+asbagsoftokens;wecreatepermutationsofthese
+bagsoftokenstorepresentthesetofpossiblesur-
+facerealizations.
+In general,thenumberof statesof theminimal
+permutationautomatonofevenalinearautomaton
+(finite-staterepresentationofastring)growsexpo-
+nentiallywith the numberof words of the string.
+Althoughcreatingthefullpermutationautomaton
+for full natural language generation tasks could
+becomputationallyprohibitive, mostattributesets
+in our two domainscontainno morethanfive at-
+tributes. Sowechooseto explorethe fullpermu-
+tationspace.Amoregeneralapproachmightcon-
+strainpermutationstobewithinalocalwindowof
+adjustablesize(alsosee(Kanthaketal.,2005)).
+Figure 3 shows the minimal permutation au-
+tomatonfor an input sequenceof 4 words and a
+window sizeof 2. Eachstateof the automatonis
+indexedbyabitvectorofsizeequaltothenumber
+of words/phrasesof the target sentence. Eachbit
+of the bit vector is set to 1 if the word/phrasein
+thatbitpositionisusedonanypathfromtheinitial
+tothecurrentstate.Thenextwordforpermutation
+fromagivenstateisrestrictedtobewithinthewin-
+dow size (2 in our case) positionscountingfrom
+thefirstas-yetuncoveredpositioninthatstate.For
+example,thestateindexedwithvector“1000”rep-
+154
+0000
+1000
+1
+0100
+2
+1100
+2
+1010
+3
+1
+1110
+3
+1101
+4
+1111
+4
+3
+2
+Figure3: Locallyconstraintpermutationautomatonfora sentencewith4 positionsanda window size
+of2.
+resentsthe fact thatthe word/phraseat position1
+has been used. The next two (window=2) posi-
+tionsarethepossibleoutgoingarcsfromthisstate
+withlabels2and3connectingtostate“1100”and
+“1010”respectively. Thebitvectorsof two states
+connectedby an arc differ only by a single bit.
+Notethatbitvectorselegantlysolvetheproblemof
+recombiningpathsintheautomatonasstateswith
+thesamebitvectorscanbemerged. Asa result,a
+fullyminimizedpermutationautomatonhasonlya
+singleinitialandfinalstate.
+4.2 RankingandRecoveringaSurface
+Realization
+Thesethreemethodsforsurfacerealizationcreate
+aspaceofpossiblelinguisticexpressionsgiventhe
+set of attributes to be realized. Theseexpressions
+areencodedasfinite-stateautomataandhavetobe
+ranked based on their syntacticwell-formedness.
+We approximatethe syntacticwell-formednessof
+an expressionby the n-gram likelihood score of
+that expression. We use a trigrammodeltrained
+on the realizationsin the training corpus. This
+languagemodelis alsorepresentedas a weighted
+finite-stateautomaton. The automatonrepresent-
+ing the spaceof possiblerealizationsand the one
+representing the language model are composed.
+Theresultis anautomatonthatranksthepossible
+realizationsaccordingto their n-gram likelihood
+scores. We thenproducethe best-scoringrealiza-
+tion as the target realizationof the inputattribute
+set.
+We introduce a parameter λ which allows us
+to controlthe importanceof the prior score rela-
+tive to the languagemodelscores. We weightthe
+finite-stateautomataaccordingtothisparameteras
+showninEquation3.
+T
+∗
+= Bestpath(λ∗T ◦ (1 −λ)∗LM) (3)
+DICE MASI Acc. Uniq. Min.
+Furniture
+FB-m .36 .16 0 1 1
+FB-f .81 .58 .40 1 0
+FB-sf .95 .87 .79 1 0
+FB-sr .93 .81 .71 1 0
+DR-b .81 .60 .45 1 0
+DR-sf .86 .64 .45 1 .04
+People
+FB-m .26 .12 0 1 1
+FB-f .58 .37 .28 1 0
+FB-sf .94 .88 .84 1 .01
+FB-sr .93 .85 .79 1 .01
+DR-b .70 .45 .25 1 0
+DR-sf .78 .55 .35 1 0
+Overall
+FB-m .32 .14 0 1 1
+FB-f .70 .48 .34 1 0
+FB-sf .95 .87 .81 1 .01
+FB-sr .93 .83 .75 1 .01
+DR-b .76 .53 .36 1 0
+DR-sf .82 .60 .41 1 .02
+Table1: Resultsforattributeselection
+5 AttributeSelectionExperiments
+Data Preparation The trainingdata were used
+to buildthe modelsoutlinedabove. Thedevelop-
+mentdatawerethenprocessedone-by-one.
+Metrics We report performanceusing the met-
+rics used for the REG 2008 competition. The
+MASI metric is a metric used in summarization
+that measuresagreementbetweentwo annotators
+(or one annotatorand one system)on set-valued
+items(Nenkova et al., 2007). Values range from
+0 to 1, with 1 representing perfect agreement.
+TheDICEmetricis alsoa measureof association
+whosevaluevariesfrom0(noassociation)to1(to-
+tal association)(Dice,1945). TheAccuracy met-
+ric is binary-valued: 1 if the attribute set is iden-
+tical to that selectedby the human, 0 otherwise.
+TheUniquenessmetricis alsobinary-valued: 1 if
+theattributesetuniquelyidentifiesthetargetrefer-
+entamongthedistractors,0otherwise.Finally,the
+Minimalitymetricis 1 if the selectedattribute set
+isassmallaspossible(whilestilluniquelyidenti-
+fyingthetargetreferent),and0otherwise.Wenote
+155
+thatattribute selectionalgorithmssuchas Dale&
+Reiter’s arebasedontheobservationthathumans
+frequentlydo not produce minimalreferring ex-
+pressions.
+Results Table1 shows the resultsfor variations
+offullbrevity. Aswewouldexpect,allapproaches
+achieve a perfectscore on uniqueness. For both
+corpora, we see a large performancejump when
+we use speaker constraints for all metrics other
+than minimality. However, when we incorporate
+recency constraintsas well performancedeclines
+slightly. We thinkthisis dueto two factors: first,
+the speakers are not in a conversation, and self-
+primingmayhave lessimpactthanother-priming;
+andsecond,wedonotalwayshavethemostrecent
+priorutterancefor a given speaker in the training
+data.
+Table1 also shows the resultsfor variationsof
+Dale& Reiter’s algorithm. Whenwe incorporate
+speaker constraints,we again see a performance
+jumpfor mostmetrics,althoughcomparedto the
+bestpossiblecase(fullbrevity)thereis stillroom
+forimprovement.
+Weconcludethatspeakerconstraintscanbesuc-
+cessfullyusedinstandardattribute selectionalgo-
+rithmstoimproveperformanceonthistask.
+Themostrelevantpreviousresearchisthework
+of (Gupta and Stent, 2005), who modified Dale
+andReiter’salgorithmtomodelspeakeradaptation
+in dialog. However, this corpusdoes not involve
+dialog so there are no cross-speaker constraints,
+onlywithin-speaker constraints(speaker styleand
+priming).
+6 SurfaceRealizationExperiments
+DataPreparation Wefirstnormalizedthetrain-
+ingdatatocorrectmisspellingsandremove punc-
+tuation and capitalization. We then extracted a
+phrasal lexicon. For each attribute value we ex-
+tractedthecountofallrealizationsofthatvaluein
+the trainingdata. We treated locationsas a spe-
+cial case, storingseparatelythe realizationsof x-
+y coordinatepairsand singlexor y-coordinates.
+We addeda smallnumberof realizationsby hand
+to cover possibleattribute values not seen in the
+trainingdata.
+Realization Werantworealizationexperiments.
+In the first experiment, we used the human-
+selectedattribute sets in the developmentdata as
+the input to realization. If we want to maxi-
+λ SED ACC Bleu NIST
+Furniture
+Permute&Rank 0.01 3.54 0.14 0.311 3.87
+Dependency 0.90 4.51 0.09 0.206 3.29
+Dependency-S 0.60 4.30 0.11 0.232 3.91
+Template 0.10 3.59 0.13 0.328 3.93
+Template-S 0.10 2.80 0.28 0.403 4.67
+People
+Permute&Rank 0.04 4.37 0.10 0.227 3.15
+Dependency 0.70 6.10 0.00 0.072 2.35
+Dependency-S 0.50 5.84 0.02 0.136 3.05
+Template 0.80 3.87 0.07 0.250 3.18
+Template-S 0.70 3.79 0.15 0.265 3.59
+Overall
+Permute&Rank .01/.04 3.92 0.12 0.271 4.02
+Dependency 0.9/0.7 5.24 0.05 0.146 3.23
+Dependency-S 0.6/0.5 5.01 0.07 0.187 3.98
+Template 0.1/0.8 3.77 0.10 0.285 4.09
+Template-S 0.1/0.7 3.26 0.22 0.335 4.77
+Table2: Resultsforrealizationusingspeakers’at-
+tributeselection(SED:StringEditDistance,ACC:
+StringAccuracy)
+mizehumanlikeness,thenusingtheseattributesets
+shouldgive usanideaof thebestpossibleperfor-
+manceof our realizationmethods. In the second
+experiment,we used the attribute sets output by
+ourbest-performingattribute selectionalgorithms
+(FB-sfandDR-sf)astheinputtorealization.
+Metrics We report performanceof our surface
+realizersusingthemetricsusedfortheREG2008
+sharedchallengeandstandardmetricsusedin the
+natural language generation and machine trans-
+lation communities. String Edit Distance(SED)
+is a measureof the numberof words that would
+have to be added,deleted,or replacedin orderto
+transformthe generatedreferringexpressioninto
+the one producedby the human. As used in the
+REG2008sharedchallenge,itisunnormalized,so
+its values range from zero up. Accuracy (ACC)
+is binary-valued: 1 if the generatedreferringex-
+pressionis identicalto that producedby the hu-
+man(afterspellingcorrectionandnormalization),
+and 0 otherwise. Bleu is an n-gram based met-
+ric that counts the number of 1, 2 and 3 grams
+shared between the generated string and one or
+more(preferablymore)referencestrings(Papenini
+etal.,2001).Bleuvaluesarenormalizedandrange
+from 0 (no match)to 1 (perfectmatch). Finally,
+the NIST metric is a variation on the Bleu met-
+ricthat,amongotherthings,weightsraren-grams
+higher than frequently-occurring ones (Dodding-
+ton,2002).NISTvaluesareunnormalized.
+156
+SED ACC Bleu NIST
+Furniture
+FB-sf DR-sf FB-sf DR-sf FB-sf DR-sf FB-sf DR-sf
+Permute&Rank 3.97 4.22 0.09 0.06 .291 .242 3.82 3.32
+Dependency 4.80 5.03 0.04 0.03 .193 .105 3.32 2.46
+Dependency-S 4.71 4.88 0.06 0.04 .201 .157 3.74 3.26
+Template 3.89 4.56 0.09 0.05 .283 .213 3.48 3.22
+Template-S 3.26 3.90 0.19 0.12 .362 .294 4.41 4.07
+People
+Permute&Rank 4.75 5.82 0.09 0.03 .171 .110 2.70 2.31
+Dependency 6.35 6.91 0.00 0.00 .068 .073 1.81 1.86
+Dependency-S 5.94 6.18 0.01 0.00 .108 .113 2.73 2.41
+Template 3.62 4.24 0.07 0.04 .231 .138 2.88 1.35
+Template-S 3.76 4.38 0.12 0.06 .201 .153 2.76 1.88
+Overall
+Permute&Rank 4.33 4.96 0.09 0.05 .236 .235 3.73 3.72
+Dependency 5.51 6.00 0.02 0.01 .136 .091 2.97 2.50
+Dependency-S 5.36 5.67 0.04 0.02 .159 .136 3.77 3.25
+Template 3.76 4.41 0.08 0.05 .258 .180 3.69 2.89
+Template-S 3.48 4.12 0.16 0.09 .288 .229 4.15 3.58
+Table3: Resultsforrealizationwithdifferentattributeselectionalgorithms
+Furniture People
+FB-sf DR-sf FB-sf DR-sf
+Permute&Rank .01 .05 .05 .04
+Dependency .9 .9 .9 .1
+Dependency-S .2 .2 .4 .4
+Template .8 .8 .8 .8
+Template-S .6 .8 .8 .8
+Table4: Optimalλ valueswithdifferentattribute
+selectionalgorithms
+Results Our experimentalresults are shown in
+Tables 2 and 3. (These results are the results
+obtainedwith the languagemodelweightingthat
+gives bestperformance;the weightsare shown in
+Tables2 and 4.) Our approacheswork betterfor
+the furniture domain, where there are fewer at-
+tributes, than for the people domain. For both
+domains, for automatic and human attribute se-
+lection,thespeaker-dependentTemplate-basedap-
+proachseemstoperformthebest,thenthespeaker-
+independentTemplate-basedapproach, and then
+the Permute&Rankapproach. However, we find
+automaticmetricsfor evaluatinggenerationqual-
+itytobeunreliable.Welookedattheoutputofthe
+surfacerealizersforthetwoexamplesinSection2.
+ThebestoutputfortheexampleinFigure1isfrom
+theFB-sftemplate-basedspeaker-dependentalgo-
+rithm, whichis the big red sofa. The worst out-
+putis fromthe DR-sfdependency-basedspeaker-
+dependentalgorithm,whichisontheleftredchair
+with three seats. The best output for the exam-
+ple in Figure2 is from the FB-sftemplate-based
+speaker-independent algorithm,whichis the man
+withthewhitebeard. Theworstoutputisfromthe
+FB-sfdependency-basedspeaker-dependentalgo-
+rithm,whichisbeard manwhite.
+Discussion The Template-S approach achieves
+thebeststringeditdistancescores,butitisnotvery
+robust. If no examplesare found in the training
+datathatrealize(a supersetof) the inputattribute
+set, neither Templateapproachwill produce any
+output.
+ThebiggestcauseoferrorsforthePermuteand
+Reorderapproachismissingdeterminersandmiss-
+ingmodifiers. Thebiggestcauseof errorsforthe
+Dependency approachis missingdeterminersand
+reorderedwords. The Templateapproachsome-
+times has repeatedwords (e.g. “middle”,where
+“middle”referredtobothx-andy-coordinates).
+Here we report performance using automatic
+metrics,but we findthesemetricstobeunreliable
+(particularlyin the absenceof multiplereference
+texts).Also,wearenotsurethatpeoplewouldac-
+cept from a computersystemoutput that is very
+human-like inthisdomain,asthehuman-like out-
+put is often ungrammaticaland telegraphic (e.g.
+“greyfrontaltable”).Weplantodoahumaneval-
+uationsoonto betteranalyzeoursystems’perfor-
+mance.
+7 Conclusions
+Whenbuildingcomputationalmodelsoflanguage,
+knowledgeaboutthefactorsthatinfluencehuman
+languageproductioncanprove veryhelpful. This
+knowledgecan be incorporatedin frequentistand
+heuristicapproachesas constraintsor features. In
+the experimentsdescribedin this paper, we used
+157
+data-driven,speaker-awareapproachestoattribute
+selectionandreferringexpressionrealization.We
+showedthatindividualspeakingstylecanbe use-
+fully modeled even for quite ‘small’ generation
+tasks, and confirmed that data-driven approaches
+to surfacerealizationcanworkwellusinga range
+oflexical,syntacticandsemanticinformation.
+We planto explorethe impactof humanvisual
+search strategies (Rayner, 1998) on the referring
+expression generationtask. In addition, we are
+planningahumanevaluationofthegenerationsys-
+tems’output. Finally, we planto applyour algo-
+rithmstoaconversationaltask.
+Acknowledgments
+We thank Anja Belz, AlbertGatt, and Eric Kow
+fororganizingtheREGcompetitionandproviding
+data, and Gregory Zelinsky for discussionsabout
+visually-basedconstraints.
+References
+Bangalore,S. and O. Rambow. 2000. Exploitinga
+probabilistichierarchicalmodelfor generation. In
+Proc.COLING.
+Bangalore,S., A. Emami,andP. Haffner. 2005. Fac-
+toringglobalinferencebyenrichinglocalrepresen-
+tations.Technicalreport,AT&TLabs-Research.
+Belz,A.andA.Gatt. 2007. Theattributeselectionfor
+GREchallenge:Overviewandevaluationresults.In
+Proc.UCNLG+MTatMTSummitXI.
+Belz, A. 2007. Probabilisticgenerationof weather
+forecasttexts. InProc.NAACL/HLT.
+Dale,R.andE.Reiter. 1995. Computationalinterpre-
+tationsof the Griceanmaximsin the generationof
+referringexpressions.CognitiveScience,19(2).
+Dice, L. 1945. Measuresof the amountof ecologic
+associationbetweenspecies.Ecology,26.
+Doddington,G. 2002. Automaticevaluationof ma-
+chinetranslationqualityusingn-gramco-occurrence
+statistics.InProc.HLT.
+Gupta,S. and A. Stent. 2005. Automaticevaluation
+ofreferringexpressiongenerationusingcorpora.In
+Proc.UCNLG.
+Kanthak,S.,D.Vilar,E.Matusov,R.Zens,andH.Ney.
+2005. Novelreorderingapproachesinphrase-based
+statisticalmachinetranslation. In Proc. ACL Work-
+shoponBuildingandUsingParallelTexts.
+Krahmer,E.,S.vanErk,andA.Verleg. 2003. Graph-
+basedgenerationofreferringexpressions.Computa-
+tionalLinguistics,29(1).
+Langkilde,I.andK.Knight.2000.Forest-basedstatis-
+ticalsentencegeneration.InProc.NAACL.
+Levelt,W., 1989. Speaking:From intentionto articu-
+lation,pages222–226.MITPress.
+Nasr, A. and O. Rambow. 2004. Supertaggingand
+fullparsing.InProc.7thInternationalWorkshopon
+Tree AdjoiningGrammar and Related Formalisms
+(TAG+7).
+Nenkova,A.,R.Passonneau,andK.McKeown. 2007.
+The Pyramid method: incorporatinghuman con-
+tentselectionvariationinsummarizationevaluation.
+ACMTransactionsonspeechandlanguageprocess-
+ing,4(2).
+Papenini,K.,S.Roukos,T.Ward,andW.-J.Zhu.2001.
+BLEU:A methodfor automaticevaluationof ma-
+chinetranslation.InProc.ACL.
+Rayner,K. 1998.Eyemovementsinreadingandinfor-
+mationprocessing:20yearsofresearch.Psycholog-
+icalBulletin,124(3).
+Reiter, E. andR. Dale. 2000. BuildingNatural Lan-
+guage Generation Systems. CambridgeUniversity
+Press.
+Siddharthan,A. and A. Copestake. 2004. Generat-
+ingreferringexpressionsinopendomains. InProc.
+ACL.
+158
+

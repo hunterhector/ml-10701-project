@@ -1,0 +1,1098 @@
+TowardsRobustSemanticRoleLabeling
+SameerS.Pradhan
+∗
+BBNTechnologies
+Wayne Ward
+∗∗
+UniversityofColorado
+JamesH.Martin
+†
+UniversityofColorado
+Most semantic role labeling (SRL) research has been focused on training and evaluating on
+thesamecorpus.Thisstrategy,althoughappropriateforinitiatingresearch,canleadtoover-
+trainingtotheparticularcorpus.Thisarticledescribestheoperationof ASSERT,astate-of-the
+artSRLsystem,andanalyzestherobustnessofthesystemwhentrainedononegenreofdata
+andusedtolabeladifferentgenre.Asastartingpoint,resultsareﬁrstpresentedfortraining
+andtestingthesystemonthePropBankcorpus,whichisannotatedWallStreetJournal(WSJ)
+data.Experimentsarethenpresentedtoevaluatetheportabilityofthesystemtoanothersourceof
+data.TheseexperimentsarebasedoncomparisonsofperformanceusingPropBankedWSJdata
+and PropBanked Brown Corpus data. The results indicate that whereas syntactic parses and
+argumentidentiﬁcationtransferrelativelywelltoanewcorpus,argumentclassiﬁcationdoes
+not.Ananalysisofthereasonsforthisispresentedandthesegenerallypointtothenatureofthe
+morelexical/semanticfeaturesdominatingtheclassiﬁcationtaskwheremoregeneralstructural
+featuresaredominantintheargumentidentiﬁcationtask.
+1.Introduction
+Automatic, accurate, and wide-coverage techniques that can annotate naturally oc-
+curring text with semantic structure can play a key role in NLP applications such as
+information extraction (Harabagiu, Bejan, and Morarescu 2005), question answering
+(NarayananandHarabagiu2004),andsummarization.Semanticrolelabeling(SRL)is
+one method for producing such semantic structure. When presented with a sentence,
+a semantic role labeler should, for each predicate in the sentence, ﬁrst identify and
+then label its semantic arguments. This process entails identifying groups of words
+inasentencethatrepresentthesesemanticargumentsandassigningspeciﬁclabelsto
+them.Inthebulkofrecentwork,thisproblemhasbeencastasaprobleminsupervised
+machinelearning.Usingthesetechniqueswithhand-correctedsyntacticparses,ithas
+∗ DepartmentofSpeechandLanguageProcessing,10MoultonStreet,Room2/245,Cambridge,MA02138.
+E-mail:sameer@cemantix.org.
+∗∗ TheCenterforSpokenLanguageResearch,CampusBox594,Boulder,CO80309.
+E-mail:whw@colorado.edu.
+† TheCenterforSpokenLanguageResearch,CampusBox594,Boulder,CO80309.
+E-mail:martin@colorado.edu.
+Submissionreceived:15July2006;revisedsubmissionreceived:3May2007;acceptedforpublication:
+19June2007.
+©2008AssociationforComputationalLinguistics
+ComputationalLinguistics Volume34,Number2
+been possible to achieve accuracies within the range of human inter-annotator agree-
+ment. More recent approaches have involved using improved features such asn-best
+parses(Koomenetal.2005;Toutanova,Haghighi,andManning2005);exploitingargu-
+mentinterdependence(Jiang,Li,andNg2005);usinginformationfromfundamentally
+different,andcomplementarysyntactic,views(Pradhan,Wardetal.2005);combining
+hypothesesfromdifferentlabelingsystemsusinginference(M`arquezetal.2005);aswell
+asapplyingnovellearningparadigms(Punyakanoketal.2005;Toutanova,Haghighi,
+and Manning 2005; Moschitti 2006) that try to capture more sequence and contextual
+information.Somehavealsotriedtojointlydecodethesyntacticandsemanticstructures
+(YiandPalmer2005;MusilloandMerlo2006).Thisproblemhasalsobeenthesubject
+oftwoCoNLLsharedtasks(CarrerasandM`arquez2004;CarrerasandM`arquez2005).
+Althoughallofthesesystemsperformquitewellonthestandardtestdata,theyshow
+signiﬁcant performance degradation when applied to test data drawn from a genre
+different from the data on which the system was trained. The focus of this article is
+topresentresultsfromanexaminationintotheprimarycausesofthelackofportability
+acrossgenresofdata.
+TosetthestagefortheseexperimentsweﬁrstdescribetheoperationofASSERT,our
+state-of-theartSRLsystem.Resultsarepresentedfortrainingandtestingthesystemon
+thePropBankcorpus,whichisannotatedWallStreetJournal(WSJ)data.
+Experiments are then presented to assess the portability of the system to another
+genre of data. These experiments are based on comparisons of performance using
+PropBanked WSJ data and PropBanked Brown corpus data. The results indicate that
+whereas syntactic parses and identiﬁcation of the argument bearing nodes transfer
+relativelywelltoanewcorpus,roleclassiﬁcationdoesnot.Analysisofthereasonsfor
+thisgenerallypointtothenatureofthemorelexical/semanticfeaturesdominatingthe
+classiﬁcation task, as opposed to the more structural features that are relied upon for
+identifyingwhichconstituentsareassociatedwitharguments.
+2.SemanticAnnotationandCorpora
+Inthisarticle,wereportonthetaskofreproducingthesemanticlabelingschemeused
+bythePropBankcorpus(Palmer,Gildea,andKingsbury2005).PropBankisa300k-word
+corpus in which predicate argument relations are marked for almost all occurrences
+of non-copula verbs in the WSJ part of the Penn Treebank (Marcus, Santorini, and
+Marcinkiewicz 1993). PropBank uses predicate independent labels that are sequential
+fromARG0toARG5,whereARG0isthePROTO-AGENT(usuallythesubjectofatran-
+sitiveverb)and ARG1isthePROTO-PATIENT (usuallyitsdirectobject).Inadditionto
+thesecorearguments,additionaladjunctivearguments,referredtoasARGMs,arealso
+marked.SomeexamplesareARGM-LOC,forlocatives,andARGM-TMP,fortemporals.
+Table1showstheargumentlabelsassociatedwiththepredicateoperateinPropBank.
+FollowingisanexamplestructureextractedfromthePropBankcorpus.Thesyntax
+treerepresentationalongwiththeargumentlabelsisshowninFigure1.
+[
+ARG0
+It][
+predicate
+operates][
+ARG1
+stores][
+ARGM−LOC
+mostlyinIowaandNebraska].
+ThePropBankannotationschemeassumesthatasemanticargumentofapredicate
+alignswithoneormorenodesinthehand-correctedTreebankparses.Althoughmost
+frequentlytheargumentsareidentiﬁedbyonenodeinthetree,therecanbecaseswhere
+theargumentsarediscontinuousandmorethanonenodeisrequiredtoidentifyparts
+ofthearguments.
+290
+Pradhan,Ward,andMartin TowardsRobustSemanticRoleLabeling
+Table1
+Argumentlabelsassociatedwiththepredicateoperate(sense:work)inthePropBankcorpus.
+Tag Description
+ARG0 Agent,operator
+ARG1 Thingoperated
+ARG2 Explicitpatient(thingoperatedon)
+ARG3 Explicitargument
+ARG4 Explicitinstrument
+Treebanktreescanalsohavetracenodeswhichrefertoanothernodeinthetree,but
+donothaveanywordsassociatedwiththem.Thesecanalsobemarkedasarguments.
+As traces are typically not reproduced by current automatic parsers, we decided not
+to consider them in our experiments—whether or not they represent arguments of a
+predicate.Noneofthepreviousworkhasattemptedtorecoversuchtracearguments.
+PropBankalsocontainsargumentsthatarecoreferential.
+We treat discontinuous and coreferential arguments in accordance to the CoNLL
+shared task on semantic role labeling. The ﬁrst part of a discontinuous argument is
+labeled as it is, and the second part of the argument is labeled with a preﬁx “C-”
+appendedtoit.Allcoreferentialargumentsarelabeledwithapreﬁx“R-”appended.
+WefollowthestandardconventionofusingSection02toSection21asthetraining
+set, Section 00 as the development set, and Section 23 as the test set. The training set
+comprises about 90,000 predicates instantiating about 250,000 arguments and the test
+setcomprisesabout5,000predicatesinstantiatingabout12,000arguments.
+3.TaskDescription
+InASSERT,thetaskofsemanticrolelabelingisimplementedbyassigningrolelabelsto
+constituentsofasyntacticparse.Partsoftheoverallprocesscanbeanalyzedasthree
+differenttasksasintroducedbyGildeaandJurafsky(2002):
+1. ArgumentIdentiﬁcation—Thisistheprocessofidentifyingparsed
+constituentsinthesentencethatrepresentsemanticargumentsof
+Figure1
+SyntaxtreeforasentenceillustratingthePropBanktags.
+291
+ComputationalLinguistics Volume34,Number2
+Figure2
+SyntaxtreeforasentenceillustratingthePropBankarguments.
+agivenpredicate.Eachnodeinaparsetreecanbeclassiﬁed(with
+respecttoagivenpredicate)aseitheronethatrepresentsasemantic
+argument(i.e.,aNON-NULLnode)oronethatdoesnotrepresent
+anysemanticargument(i.e.,aNULLnode).
+2. ArgumentClassiﬁcation—Givenconstituentsknowntorepresent
+argumentsofapredicate,thisprocessassignstheappropriate
+argumentlabelstothem.
+3. ArgumentIdentiﬁcationandClassiﬁcation—Acombinationofthetwotasks.
+For example, in the tree shown in Figure 2, the node IN that dominates for is a
+NULL node because it does not correspond to a semantic argument. The node NP
+that dominates about20minutes is a NON-NULL node, because it does correspond to
+asemanticargument—ARGM-TMP.
+4.ASSERT(AutomaticStatisticalSEmanticRoleTagger)
+4.1SystemArchitecture
+ASSERT
+1
+producesaseparatesetofsemanticrolelabelsforeachcandidatepredicatein
+asentence.BecausePropBankonlyannotatesargumentsfornon-copula/non-auxiliary
+verbs,thosearealsothepredicatesconsideredbyASSERT.ASSERTperformsconstituent-
+based role assignment. The basic inputs are a sentence and a syntactic parse of the
+sentence. For each constituent in the parse tree, the system extracts a set of features
+andusesaclassiﬁertoassignalabeltotheconstituent.Thesetoflabelsusedarethe
+PropBank argument labels plus NULL, which means no argument is assigned to that
+constituentforthepredicateunderconsideration.
+Supportvectormachines(SVMs)(Burges1998;Vapnik1998)havebeenshownto
+perform well on text classiﬁcation tasks, where data is represented in a high dimen-
+sionalspaceusingsparsefeaturevectors(Joachims1998;KudoandMatsumoto 2000;
+Lodhi et al. 2002). We formulate the problem as a multi-class classiﬁcation problem
+usinganSVMclassiﬁer.WeemployaONEvsALL(OVA)approachtotrainnclassiﬁers
+foramulti-classproblem.Theclassiﬁersaretrainedtodiscriminatebetweenexamples
+1 www.cemantix.org/assert.
+292
+Pradhan,Ward,andMartin TowardsRobustSemanticRoleLabeling
+of each class, and those belonging to all other classes combined. During testing, the
+classiﬁerscoresonanexamplearecombinedtopredictitsclasslabel.
+ASSERT was developed using TinySVM
+2
+along with YamCha
+3
+(Kudo and
+Matsumoto 2000, 2001) as the SVM training and classiﬁcation software. The system
+usesapolynomialkernelwithdegree2;thecostperunitviolationofthemargin,C=1;
+and,toleranceoftheterminationcriterion,e=0.001.SVMsoutputdistancesfromthe
+classiﬁcation hyperplane, not probabilities. These distances may not be comparable
+acrossclassiﬁers,especiallyifdifferentfeaturesareusedtotraineachbinaryclassiﬁer.
+TheserawSVMscoresareconvertedtoprobabilitiesbyﬁttingtoasigmoidfunctionas
+donebyPlatt(2000).
+Thearchitecturejustdescribedhasthedrawbackthateachargumentclassiﬁcation
+is made independently, without considering other arguments assigned to the same
+predicate.Thisignoresapotentiallyimportantsourceofinformation:thatapredicateis
+likelytoinstantiateacertainsetofarguments.Torepresentthisinformation,abacked-
+offtrigrammodelistrainedfortheargumentsequences.Inthismodel,thepredicateis
+consideredasanargumentandispartofthesequence.Thismodelrepresentsnotonly
+whatargumentsapredicateislikelytotake,butalsotheprobabilityofagivensequence
+of arguments. During the classiﬁcation process the system generates an argument
+lattice using the n-best hypotheses for each node in the syntax tree. A Viterbi search
+through the lattice uses the probabilities assigned by the sigmoid as the observation
+probabilities,alongwiththeargumentsequencelanguagemodelprobabilities,toﬁnd
+themaximumlikelihoodpathsuchthateachnodeiseitherassignedavaluebelonging
+to the PropBank arguments, or NULL. The search is also constrained so that no two
+nodesthatoverlaparebothassignedNON-NULLlabels.
+4.2Features
+The feature set used in ASSERT is a combination of features described in Gildea and
+Jurafsky (2002) as well as those introduced in Pradhan et al. (2004), Surdeanu et al.(2003),andthesyntactic-framefeatureproposedin(XueandPalmer2004).Followingis
+thelistoffeaturesused.
+4.2.1Predicate.Thisisthepredicatewhoseargumentsarebeingidentiﬁed.Thesurface
+formaswellasthelemmaareaddedasfeatures.
+4.2.2Path.Thesyntacticpaththroughtheparsetreefromtheparseconstituenttothe
+predicatebeingclassiﬁed.
+Forexample,inFigure3,thepathfromARG0(Thelawyers)tothepredicatewentis
+representedwiththestringNP↑S↓VP↓VBD.↑and↓representupwardanddownward
+movementinthetree,respectively.
+4.2.3PhraseType.Syntacticcategory(NP,PP,etc.)oftheconstituent.
+4.2.4Position.Whethertheconstituentisbeforeorafterthepredicate.
+2 www.chasen.org/~taku/software/TinySVM/.
+3 www.chasen.org/~taku/software/YamCha/.
+293
+ComputationalLinguistics Volume34,Number2
+Figure3
+IllustrationofpathNP↑S↓VP↓VBD.
+4.2.5 Voice. Whether the predicate is realized as an active or passive construction. A
+setofhand-written tgrep expressionsoperatingonthesyntaxtreeisusedtoidentify
+passives.
+4.2.6SubCategorization.Thisisthephrasestructureruleexpandingthepredicate’sparent
+nodeintheparsetree.Forexample,inFigure3,thesubcategorizationforthepredicate
+“went”isVP→VBD-PP-NP.
+4.2.7PredicateCluster.Thedistancefunctionusedforclusteringisbasedontheintuition
+thatverbswithsimilarsemanticswilltendtohavesimilardirectobjects.Forexample,
+verbssuchaseat,devour,andsavorwilltendtoalloccurwithdirectobjectsdescribing
+food.Theclusteringalgorithmusesadatabaseofverb–direct-objectrelationsextracted
+by Lin (1998). The verbs were clustered into 64 classes using the probabilistic co-
+occurrencemodelof HofmannandPuzicha(1998).Wethenusetheverbclassofthe
+currentpredicateasafeature.
+4.2.8HeadWord.Syntacticheadoftheconstituent.
+4.2.9HeadWordPOS.Partofspeechoftheheadword.
+4.2.10 Named Entities in Constituents. Binary features for seven named entities
+(PERSON,ORGANIZATION,LOCATION,PERCENT,MONEY,TIME,DATE) tagged by
+IdentiFinder(Bikel,Schwartz,andWeischedel1999).
+4.2.11PathGeneralizations.
+1. PartialPath—Pathfromtheconstituenttothelowestcommonancestor
+ofthepredicateandtheconstituent.
+2. Clause-basedpathvariations—Positionoftheclausenode(S,SBAR)
+seemstobeanimportantfeatureinargumentidentiﬁcation(Hacioglu
+etal.2004).Thereforeweexperimentedwithfourclause-basedpath
+featurevariations.
+(a) Replacingallthenodesinapathotherthanclausenodeswithan
+asterisk.Forexample,thepathNP↑S↑VP↑SBAR↑NP↑VP↓VBD
+becomesNP↑S↑*S↑*↑*↓VBD.
+294
+Pradhan,Ward,andMartin TowardsRobustSemanticRoleLabeling
+(b) Retainingonlytheclausenodesinthepath,whichforthegiven
+examplewouldproduceNP↑S↑S↓VBD.
+(c) Addingabinaryfeaturethatindicateswhethertheconstituentisin
+thesameclauseasthepredicate.
+(d) CollapsingthenodesbetweenSnodes,whichgives
+NP↑S↑NP↑VP↓VBD.
+3. Pathn-grams—Thisfeaturedecomposesapathintoaseriesoftrigrams.
+Forexample,thepathNP↑S↑VP↑SBAR↑NP↑VP↓VBDbecomes:NP↑S↑VP,
+S↑VP↑SBAR,VP↑SBAR↑NP,SBAR↑NP↑VP,andsoon.Shorterpathswere
+paddedwithnulls.
+4. Singlecharacterphrasetags—Eachphrasecategoryisclusteredtoa
+categorydeﬁnedbytheﬁrstcharacterofthephraselabel.
+4.2.12 Predicate Context. We added the predicate context to capture predicate sense
+variations. Two words before and two words after were added as features. The POS
+ofthewordswerealsoaddedasfeatures.
+4.2.13Punctuation.Punctuationplaysanparticularlyimportantroleforsomeadjunctive
+arguments, so punctuation on the left and right of the constituent are included as
+features. The absence of punctuation in either location was indicated with a NULL
+featurevalue.
+4.2.14HeadWordofPP.Many adjunctive arguments, such as temporals and locatives,
+occurasprepositionalphrasesinasentence,anditisoftenthecasethattheheadwords
+of those phrases, which are prepositions, are not very discriminative; for example, in
+thecity and inafewminutes both share the same head word in and neither contain a
+namedentity,buttheformerisARGM-LOC,whereasthelatterisARGM-TMP.Thehead
+word of the ﬁrst noun phrase inside the prepositional phrase is used for this feature.
+Prepositioninformationisrepresentedbyappendingittothephrasetype,forexample,
+“PP-in”insteadof“PP.”
+4.2.15FirstandLastWord/POSinConstituent.Theﬁrstandlastwordsinaconstituent
+alongwiththeirpartsofspeech.
+4.2.16OrdinalConstituentPosition.Inordertoavoidfalsepositiveswhereconstituents
+far away from the predicate are spuriously identiﬁed as arguments, we added this
+feature which is a concatenation of the constituent type and its ordinal position from
+thepredicate.
+4.2.17ConstituentTreeDistance.Thisisamoreﬁne-grainedwayofspecifyingthealready
+presentpositionfeature.Thisisthenumberofconstituentsthatareencounteredinthe
+pathfromthepredicatetotheconstituentunderconsideration.
+4.2.18ConstituentRelativeFeatures.Theseareninefeaturesrepresentingthephrasetype,
+headword,andheadwordpartofspeechoftheparent,andleftandrightsiblingsof
+theconstituent.
+4.2.19TemporalCueWords.Thereareseveraltemporalcuewordsthatarenotcaptured
+bythenamedentitytaggerandwereaddedasbinaryfeaturesindicatingtheirpresence.
+295
+ComputationalLinguistics Volume34,Number2
+The BOW toolkit was used to identify words and bigrams that had highest average
+mutualinformationwiththeARGM-TMPargumentclass.
+4.2.20SyntacticFrame.Sometimestherearemultiplechildrenunderaconstituenthaving
+thesamephrasetype,andoneorbothofthemrepresentargumentsofthepredicate.In
+suchsituations,thepathfeatureisnotverygoodatdiscriminatingbetweenthem,and
+thepositionfeatureisalsonotveryuseful.Toovercomethislimitation,XueandPalmer
+(2004)proposedafeaturewhichtheycallthesyntacticframe.Forexample,ifthesub-
+categorization for the predicate is VP→VBD-NP-NP, then the syntactic frame feature
+fortheﬁrstNPinthesequencewouldbe,“vbd NP np,”andfortheseconditwouldbe
+“vbd np NP.”
+4.3Performance
+Table2illustratestheperformanceofthesystemusingTreebankparsesandusingparses
+producedbyaCharniakparser(Automatic).Precision(P),Recall(R),andF-scoresare
+givenfortheidentiﬁcationandcombinedtasks,andClassiﬁcationAccuracy(A)forthe
+classiﬁcationtask.ClassiﬁcationperformanceusingCharniakparsesisonly1%absolute
+worse than when using Treebank parses. On the other hand, argument identiﬁcation
+performanceusingCharniakparsesis10.9%absoluteworse.AbouthalfoftheIDerrors
+areduetomissingconstituentsintheCharniakparse.Techniquestoaddresstheissue
+of constituents missing from the syntactic parse tree are reported in Pradhan, Ward
+etal.(2005).
+4.4FeatureSalience
+InPradhan,Haciogluetal.(2005)wereportedonaseriesofexperimentstoshowthe
+relative importance of features to the Identiﬁcation task and the Classiﬁcation task.
+The data show that different features are more salient for each of the two tasks. For
+the Identiﬁcation task, the most salient features are the Path and Partial Path. The
+Predicate was not particularly salient. For Classiﬁcation, the most salient features are
+HeadWord,FirstWord,andLastWordofaconstituentaswellasthePredicateitself.
+ForClassiﬁcation,thePathandPhraseTypefeatureswerenotverysalient.
+AreasonableconclusionisthatstructuralfeaturesdominatetheIdentiﬁcationtask,
+whereasmorespeciﬁclexicalorsemanticfeaturesareimportantforClassiﬁcation.As
+Table2
+PerformanceofASSERTonWSJtestset(Section23)usingcorrectTreebankparsesaswellas
+Charniakparses.
+Parse Task P(%) R(%) F A(%)
+Treebank Id. 97.5 96.1 96.8
+Class. – – – 93.0
+Id.+Class. 91.8 90.5 91.2
+Automatic Id. 87.8 84.1 85.9
+Class. – – – 92.0
+Id.+Class. 81.7 78.4 80.0
+296
+Pradhan,Ward,andMartin TowardsRobustSemanticRoleLabeling
+we’llseelater,thispatternhascriticalimplicationsfortheportabilityofthesefeatures
+acrossgenres.
+5.RobustnesstoGenreofData
+MostworkonSRLsystemshasbeenfocusedonimprovingthelabelingperformance
+onatestsetbelongingtothesamegenreoftextasthetrainingset.BoththeTreebankon
+whichthesyntacticparseristrained,andthePropBankonwhichtheSRLsystemsare
+trainedrepresentarticlesfromtheyear1989oftheWallStreetJournal.Improvementsto
+thesystemmayreﬂecttuningtothespeciﬁcdatasetratherthanrealprogress.Forthis
+technology to be widely accepted it is critical that it perform reasonably well on text
+with styles different from the training data. The availability of PropBank annotation
+for another corpus of a very different style than WSJ makes it possible to evaluate
+the portability of SRL techniques, and to understand some of the factors affecting
+performance.
+5.1TheBrownCorpus
+TheBrownCorpusisastandardcorpusofAmericanEnglishthatconsistsofaboutone
+million words of English text printed in the calendar year 1961 (Kuˇcera and Francis
+1967). The corpus contains about 500 samples of 2,000+ words each. The motivation
+forcreatingthiscorpuswastocreateaheterogeneoussampleofEnglishtextusefulfor
+comparativelanguagestudies.Table3liststhesectionsintheBrowncorpus.
+5.2SemanticAnnotation
+Release 3 of the Penn Treebank contains hand-corrected syntactic trees from a subset
+of the Brown Corpus (sections F, G, K, L, M, N, P, and R). Sections belonging to the
+newswiregenrewerenotincludedbecauseaconsiderableamountofsimilarmaterial
+was already available from the WSJ portion of the Treebank. Palmer, Gildea, and
+Kingsbury (2005) annotated a signiﬁcant portion of the Treebanked Brown corpus
+Table3
+ListofsectionsintheBrowncorpus.
+A. Pressreportage
+B. Presseditorial
+C. Pressreviews(theater,books,music,anddance)
+D. Religion
+E. Skillsandhobbies
+F. Popularlore
+G. Belleslettres,biography,memoirs,etc.
+H. Miscellaneous
+J. Learned
+K. Generalﬁction
+L. Mysteryanddetectiveﬁction
+M. Scienceﬁction
+N. AdventureandWesternﬁction
+P. Romanceandlovestory
+R.Humor
+297
+ComputationalLinguistics Volume34,Number2
+with PropBank roles. The PropBanking philosophy is the same as described earlier.
+In all, about 17,500 predicates are tagged with their semantic arguments. For these
+experimentsweusethereleaseoftheBrownPropBankdatedSeptember2005.
+Table4showsthenumberofpredicatesthathavebeentaggedforeachsection:
+6.RobustnessExperiments
+Inthissection,wepresentaseriesofexperimentscomparingtheperformanceofASSERT
+on the WSJ corpus to performance on the Brown corpus. The intent is to understand
+howwellthealgorithmsandfeaturestransfertoothersourcesandtounderstandthe
+natureofanyproblems.
+6.1Cross-GenreTesting
+The ﬁrst experiment evaluates the performance of the system when it is trained on
+annotateddatafromonegenreoftext(WSJ)andisusedtolabelatestsetfromadifferent
+genre (the Brown corpus). The ASSERT system described earlier, trained on WSJ Sec-
+tions 02–21, was used to label arguments for the PropBanked portion of the Brown
+corpus.Asbefore,theCharniakparserwasusedtogeneratethesyntaxparsetrees.
+Table5showstheF-scoreforIdentiﬁcationandcombinedIdentiﬁcationandClassi-
+ﬁcation for each of the eight different text genres as well as the overall performance
+on Brown. As can be seen, there is a signiﬁcant degradation across all the various
+sectionsofBrown.Inaddition,althoughthereisanoticeabledropinperformancefor
+theIdentiﬁcationtask,thebulkofthedegradationcomesinthecombinedtask.
+The following are among the likely factors contributing to this performance
+degradation:
+1. Syntacticparsingerrors—Thesemanticrolelabeleriscompletely
+dependentonthequalityofthesyntacticparses;missing,mislabeled,
+andmisplacedconstituentswillallleadtoerrors.Becausethesyntactic
+parserusedtogeneratetheparsetreesisheavilylexicalized,thegenre
+differencewillhaveanimpactontheaccuracyoftheparses,andthe
+featuresextractedfromthem.
+2. TheBrowncorpusmayinfactbefundamentallymoredifﬁcultthanthe
+WSJ.Therearemanypotentialsourcesforthiskindofdifﬁculty.Among
+Table4
+NumberofpredicatesthathavebeentaggedinthePropBankedportionoftheBrowncorpus.
+Section TotalPropositions TotalLemmas
+F 926 321
+G 777 302
+K 8,231 1,476
+L 5,546 1,118
+M 167 107
+N 863 269
+P 788 252
+R224 140
+298
+Pradhan,Ward,andMartin TowardsRobustSemanticRoleLabeling
+Table5
+PerformanceontheentirePropBankedBrowncorpuswhenASSERTistrainedonWSJ.
+Train Test Id.F Id.+ClassF
+WSJ WSJ(Section23) 85.9 80.0
+WSJ Brown(Popularlore) 77.2 64.9
+WSJ Brown(Biography,memoirs) 77.1 61.1
+WSJ Brown(Generalﬁction) 78.9 64.9
+WSJ Brown(Detectiveﬁction) 82.9 67.1
+WSJ Brown(Scienceﬁction) 83.8 64.5
+WSJ Brown(Adventure) 82.5 65.5
+WSJ Brown(Romanceandlovestory) 81.2 63.9
+WSJ Brown(Humor) 78.8 62.5
+WSJ Brown(All) 81.2 63.9
+Table6
+Deleted/missingargument-bearingconstituentsinCharniakparsesoftheWSJtestset
+(Section23)andtheentirePropBankedBrowncorpus.
+Total Misses %
+WSJ(Section23) 13,612 851 6.2
+Brown(Popularlore) 2,280 219 9.6
+Brown(Biography,memoirs) 2,180 209 9.6
+Brown(Generalﬁction) 21,611 1,770 8.2
+Brown(Detectiveﬁction) 14,740 1,105 7.5
+Brown(Scienceﬁction) 405 23 5.7
+Brown(Adventure) 2,144 169 7.9
+Brown(Romanceandlovestory) 1,928 136 7.1
+Brown(Humor) 592 61 10.3
+Brown(All) 45,880 3,692 8.1
+themostobvioussourcesareagreaterdiversityintherangeofuseof
+predicatesandheadwordsintheBrowndomain.Thatis,thelexical
+featuresmaybemorevariedintermsofpredicatesensesandraw
+numberofpredicates.Moreconsistentusageofpredicatesand
+headwordsintheWSJmayallowveryspeciﬁcfeaturestobetrained
+inWSJthatwillnotbeaswelltrainedorassalientinBrown.
+Thefollowingdiscussionexploreseachofthesepossibilitiesinturn.
+Table6showsthepercentageofargument-bearingnodesdeletedfromthesyntactic
+parseleadingtoanIdentiﬁcationerror.Thesyntacticparserdeletes6.2%oftheargu-
+mentbearingnodesinthetreewhenitistrainedandtestedonWSJ.Whentestedon
+Brown,thisnumberincreasesto8.1%,arelativeincreaseof30%.Thiseffectgoessome
+waytowardexplainingthedecreaseinIdentiﬁcationperformance,butdoesnotexplain
+thelargedegradationincombinedtaskperformance.
+The effect of errors from the syntactic parse can be removed by using the correct
+syntactictreesfromtheTreebanksforbothcorpora.Thispermitsananalysisofother
+299
+ComputationalLinguistics Volume34,Number2
+factors affecting the performance difference. For this experiment, we evaluated per-
+formance for all combinations of training and testing on WSJ and Brown. A test set
+for the Brown corpus was generated by selecting every tenth sentence in the corpus.
+ThedevelopmentsetusedbyBacchianietal.(2006)waswithheldforfutureparameter
+tuning. No parameter tuning was done for these experiments. The parameters used
+for the data reported in Table 2 were used for all subsequent tests reported in this
+article.ThisprocedureresultsinatrainingsetforBrownthatcontainsapproximately
+14k predicates. In order to have training sets comparable in size for the two corpora,
+stratiﬁedsamplingwasusedtocreateaWSJtrainingsetofthesamesizeastheBrown
+trainingset.Section23ofWSJisstillusedasthetestsetforthatcorpus.
+Table 7 shows the results of this experiment. Rows 2 and 4 show the conditions
+whenthesystemistrainedonthe14kpredicateWSJtraining.TestingonBrownvs.WSJ
+results inamodest reduction inF-score from95.3to93.0forargument identiﬁcation.
+AlthoughthereissomereductioninIdentiﬁcationperformanceintheabsenceoferrors
+in the syntactic parse tree, the effect is not large. However, argument classiﬁcation
+showsalargedropinaccuracyfrom86.1%to72.9%.Thesedatareiteratethepointthat
+syntacticparseerrorsarenotthemajorfactoraccountingforthereductioninperformance
+forBrown.
+ThenextpointtonoteistheeffectofvaryingtheamountoftrainingdataforWSJ
+fortestingresultsonWSJandBrown.TheﬁrstrowofTable7showstheperformance
+when ASSERTistrainedonthefullWSJtrainingsetofSections2–21(90kpredicates).
+Thesecondrowshowsperformancewhenitistrainedonthereducedsetof14kpred-
+icates.WhereastheF1scoreforIdentiﬁcationdroppedby1.5percentagepoints(from
+96.8%to95.3%)theClassiﬁcationratedroppedby6.9%percentabsolute.Classiﬁcation
+seeminglyrequiresconsiderablemoredatabeforeitsperformancebeginstoasymptote.
+Table7
+PerformancewhenASSERTistrainedusingcorrectTreebankparses,andisusedtoclassifytest
+setfromeitherthesamegenreoranother.Foreachdataset,thenumberofexamplesusedfor
+trainingareshowninparentheses.
+SRLTrain SRLTest Task P(%) R(%) F A(%)
+WSJ WSJ Id. 97.5 96.1 96.8
+(90k) (5k) Class. 93.0
+Id.+Class. 91.8 90.5 91.2
+WSJ WSJ Id. 96.3 94.4 95.3
+(14k) (5k) Class. 86.1
+Id.+Class. 84.4 79.8 82.0
+BROWN BROWN Id. 95.7 94.9 95.2
+(14k) (1.6k) Class. 80.1
+Id.+Class. 79.9 77.0 78.4
+WSJ BROWN Id. 94.6 91.5 93.0
+(14k) (1.6k) Class. 72.9
+Id.+Class. 72.1 67.2 69.6
+BROWN WSJ Id. 94.9 93.8 94.3
+(14k) (5k) Class. 78.3
+Id.+Class. 76.6 73.3 74.9
+300
+Pradhan,Ward,andMartin TowardsRobustSemanticRoleLabeling
+Finally, row 3 shows the performance for training and testing on Brown. The
+performance of argument Identiﬁcation is essentially the same as when training and
+testingonWSJ.However,argumentClassiﬁcationis6percentagepointsworse(80.1%
+vs.86.1%)whentrainingandtestingonBrownthanwhentrainingandtestingonWSJ.
+Thispatternisconsistentwithourthirdhypothesisgivenpreviously:Brownmaybean
+intrinsicallyhardercorpusforthistask.
+Somepossiblecausesforthisdifﬁcultyare:
+1. MoreuniquepredicatesorheadwordsthanareseenintheWSJset,so
+thereislesstrainingdataforeach;
+2. MorepredicatesenseambiguityinBrown;
+3. Lessconsistentrelationsbetweenpredicatesandheadwords;
+4. AgreaterpreponderanceofdifﬁcultsemanticrolesinBrown;
+5. Relativelyfewerexamplesofpredictivefeaturessuchasnamedentities.
+Theremainderofthissectionexploreseachofthesepossibilitiesinturn.
+Inordertotesttheimportanceofpredicatesenseinthisprocess,weaddedoracle
+predicate sense information as a feature in ASSERT. Because only about 60% of the
+PropBankedBrowncorpuswastaggedwithpredicatesenseinformation,theseresults
+arenotdirectlycomparabletotheonereportedintheearliertables.Inthiscase,boththe
+Browntrainingandtestsetsaresubsetsoftheearlierones,withabout10kpredicates
+in training and 1k in testing. For comparison, we used the same size WSJ training
+data.Table8showstheperformancewhentrainedonWSJandBrown,andtestedon
+Brown,withandwithoutpredicatesenseinformation,andforbothTreebankparsesand
+Charniak parses. We ﬁnd that there is a small increase in the combined identiﬁcation
+andclassiﬁcationperformancewhentrainedonBrownandtestedonBrown.
+Onereasonforthiscouldsimplybetherawnumberofinstancesthatareseenin
+thetrainingdata.BecauseweknowthatPredicateandHeadWordaretwoparticularly
+salientfeaturesforclassiﬁcation,thepercentagesofacombinationofthesefeaturesin
+the Brown test set that are seen in both the training sets should be informative. This
+informationisshowninTable9.Inordertogetacross-corpusstatistic,wealsopresent
+thesamenumbersontheWSJtestset.
+Table8
+PerformanceonBrowntest,usingBrownandWSJtrainingsets,withandwithoutoracle
+predicatesenseinformationwhenusingTreebankparses.
+Id. Id.+Class.
+Train PredicateSense P% R% F P% R% F
+Brown
+(10k) × 95.6 95.4 95.5 78.6 76.2 77.4
+√
+95.7 95.7 95.7 81.1 77.1 79.0
+WSJ
+(10k) × 93.4 91.7 92.5 71.1 65.8 68.4
+√
+93.3 91.8 92.5 71.3 66.1 68.6
+301
+ComputationalLinguistics Volume34,Number2
+Table9
+Featuresseenintrainingforvarioustestsets.
+Test → WSJ Brown
+Features Tseen tseen Tseen tseen
+Corpora ↓ (%) (%) (%) (%)
+WSJ PredicateLemma(P) 76 94 65 80
+PredicateSense(S) 79 93 64 78
+HeadWord(HW) 61 87 49 76
+P+H 19311317
+Brown PredicateLemma(P) 64 85 86 94
+PredicateSense(S) 29 35 91 96
+HeadWord(HW) 37 63 68 87
+P+H 10172733
+T=types;t=tokens.
+ItcanbeseenthatforboththeWSJandBrowncorpustestsets,thenumberofpredi-
+catelemmasaswellastheparticularsensesseenintherespectivetestsetsisquitehigh.
+However, a cross comparison shows that there is about a 15% drop in coverage from
+WSJ/WSJtoWSJ/Brown.ItisalsointerestingtonotethatforWSJ,thedropincoverage
+forpredicatelemmasisalmostthesameasthatforindividualpredicatesenses.Thisfur-
+therconﬁrmsthehypothesisthatWSJhasamorehomogeneouscollectionofpredicates.
+WhenwecomparethedropincoverageforBrown/Brownvs.WSJ/Brown,weﬁnd
+about the same drop in coverage for predicate lemmas, but a much more signiﬁcant
+dropforthesenses.ThisvariationinsensesinBrownisprobablythereasonthatadding
+sense information helps more for the Brown test set. In the WSJ case, the addition of
+word sense as a feature does not add much information, and so the numbers are not
+muchdifferentthanforthebaseline.Similarly,wecanseethatpercentageofheadwords
+seen across the two genres also drop signiﬁcantly, and they are much lower to begin
+with.Findingthecoverageforthepredicatelemmaandheadwordcombinationisstill
+worse,andthisisnotevenconsideringthesense.Therefore,datasparsenessisanother
+potentialreasonthattheimportanceofthepredicatesensefeaturedoesnotreﬂectinthe
+performancenumbers.
+Asnotedearlier,anotherpossiblesourceofdifﬁcultyforBrownmaybethedistri-
+butionofPropBankargumentsinthiscorpus.Table10showstheclassiﬁcationperfor-
+manceforeachargument,foreachofthefourconﬁgurations(trainonBrownorWSJand
+testonWSJorBrown).Amongthetwomostfrequentarguments—ARG0andARG1—
+ARG1seemstobeaffectedthemost.Whenthetrainingandtestsetsarefromthesame
+genre,theperformanceonARG0isslightlyworseontheBrowntestset.ARG1onthe
+otherhandisabout5%worseonbothprecisionandrecall,whentrainedandtestedon
+Brown.Forcore-argumentsARG2–5whicharehighlypredicatesensedependent,there
+isamuchlargerperformancedrop.
+Finally,anotherpossiblereasonforthedropinperformanceisthedistributionof
+named entities in the corpus. Table 11 shows the frequency of occurrence of name
+entitiesin10kWSJandBrowntrainingsets.Itcanbeseenthatnumberoforganizations
+talkedaboutinBrownismuchsmallerthaninWSJ,andtherearemorepersonnames.
+Also,monetaryamountswhichfrequentlyﬁlltheARG3andARG4slotsarealsomuch
+moreinfrequentinBrown,andsoistheincidenceofpercentages.Thiswoulddeﬁnitely
+havesomeimpactontheusabilityofthesefeaturesinthelearnedmodels.
+302
+Pradhan,Ward,andMartin TowardsRobustSemanticRoleLabeling
+7.EffectofImprovedSyntacticParses
+Practical natural language processing systems will always use errorful automatic
+parses,andsoitwouldbeinterestingtoﬁndouthowmuchsyntacticparsererrorshin-
+derperformanceonthetaskofsemanticrolelabeling.Fortunately,recentimprovements
+totheCharniakparserprovidedanopportunitytotestthishypothesis.Weusethelatest
+versionoftheCharniakparserthatdoesn-bestre-ranking(CharniakandJohnson2005)
+and the model that is self-trained using the North American News corpus (NANC).
+ThisversionadaptsmuchbettertotheBrowncorpus(McClosky,Charniak,andJohnson
+Table10
+ClassiﬁcationaccuracyforeachargumenttypeintheWSJ(W)andBrown(B)testsets.
+W×WB×BB×WW×B
+Numberin Numberin P RP RP RP R
+Argument WSJTest BrownTest (%) (%) (%) (%) (%) (%) (%) (%)
+ARG0 3,149 1,122 91.1 96.8 90.4 92.8 83.4 92.2 87.4 93.3
+ARG1 4,264 1,375 90.2 92.0 85.0 88.5 78.7 79.7 83.4 89.0
+ARG2 796 312 73.3 66.6 65.9 60.6 49.7 56.4 59.5 48.1
+ARG3 128 25 74.3 40.6 71.4 20.0 30.8 16.0 28.6 4.7
+ARG4 72 20 89.1 68.1 57.1 60.0 16.7 5.0 61.1 15.3
+C-ARG0 2 4 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+C-ARG1 165 34 91.5 64.8 80.0 35.3 64.7 32.4 82.1 19.4
+R-ARG0 189 45 83.1 93.7 82.7 95.6 62.5 88.9 76.8 77.2
+R-ARG1 122 44 77.8 63.1 91.7 75.0 64.5 45.5 54.5 59.8
+ARGM-ADV 435 290 78.0 66.0 67.6 64.8 74.7 44.8 49.9 71.0
+ARGM-CAU 65 15 82.5 72.3 80.0 53.3 62.5 66.7 86.0 56.9
+ARGM-DIR72 114 57.1 50.0 71.0 62.3 46.6 36.0 39.7 43.1
+ARGM-DIS 270 65 87.6 86.7 81.0 72.3 54.1 70.8 89.6 64.1
+ARGM-EXT 31 10 83.3 48.4 0.0 0.0 0.0 0.0 33.3 3.2
+ARGM-LOC 317 147 73.8 80.8 60.8 70.7 52.6 48.3 60.6 65.6
+ARGM-MNR305 144 56.1 59.0 64.5 63.2 42.6 55.6 51.4 48.9
+ARGM-MOD 454 129 99.6 100.0 100.0 100.0 100.0 99.2 99.6 100.0
+ARGM-NEG 201 85 100.0 99.5 97.7 98.8 100.0 85.9 94.8 99.5
+ARGM-PNC 99 43 60.4 58.6 66.7 55.8 54.8 39.5 52.8 57.6
+ARGM-PRD 5 8 0.0 0.0 33.3 12.5 0.0 0.0 0.0 0.0
+ARGM-TMP 978 280 85.4 90.4 84.8 85.4 71.3 83.6 82.2 76.0
+W×B=ASSERTtrainedonBandusedtoclassifyWtestset.
+Table11
+Distributionofthenamedentitiesina10kdatafromWSJandBrowncorpora.
+NameEntity WSJ Brown
+PERSON 1,274 2,037
+ORGANIZATION 2,373 455
+LOCATION 1,206 555
+MONEY 831 32
+DATE 710 136
+PERCENT 457 5
+TIME 9 21
+303
+ComputationalLinguistics Volume34,Number2
+Table12
+PerformancefordifferentversionsoftheCharniakparserusedintheexperiments.
+Train Test F
+WSJ WSJ 91.0
+WSJ Brown 85.2
+Brown Brown 88.4
+WSJ+NANC Brown 87.9
+2006a,2006b).WealsouseanothermodelthatistrainedontheBrowncorpusitself.The
+performanceoftheseparsersisshowninTable12.
+Wedescribetheresultsofthefollowingﬁveexperiments:
+1. ASSERTistrainedonfeaturesextractedfromautomaticallygenerated
+parsesofthePropBankedWSJsentences.Thesyntacticparser(Charniak
+parser)isitselftrainedontheWSJtrainingsectionsoftheTreebank.This
+isusedtoclassifySection23ofWSJ.
+2. ASSERTistrainedonfeaturesextractedfromautomaticallygenerated
+parsesofthePropBankedWSJsentences.Thesyntacticparser(Charniak
+parser)isitselftrainedontheWSJtrainingsectionsoftheTreebank.This
+isusedtoclassifytheBrowntestset.
+3. ASSERTistrainedonfeaturesextractedfromautomaticallygenerated
+parsesofthePropBankedBrowncorpussentences.Thesyntacticparser
+istrainedusingtheWSJportionoftheTreebank.Thisisusedtoclassify
+theBrowntestset.
+4. ASSERTistrainedonfeaturesextractedfromautomaticallygenerated
+parsesofthePropBankedBrowncorpussentences.Thesyntacticparser
+istrainedusingtheBrowntrainingportionoftheTreebank.Thisisused
+toclassifytheBrowntestset.
+5. ASSERTistrainedonfeaturesextractedfromautomaticallygenerated
+parsesofthePropBankedBrowncorpussentences.Thesyntacticparser
+istheversionthatisself-trainedusing2,500,000sentencesfromNANC,
+andwherethestartingversionistrainedonlyonWSJdata(McClosky,
+Charniak,andJohnson2006b).ThisisusedtoclassifytheBrowntestset.
+The same training and test sets used for the systems in Table 7 are used in this
+experiment.Table13showstheresults.Forsimplicityofdiscussionwehavelabeledthe
+ﬁveconditionsasA,B,C,D,andE.ComparingconditionsBandCshowsthatwhenthe
+featuresusedtotrainASSERTareextractedusingasyntacticparserthatistrainedonWSJ
+itperformsatalmostthesamelevelonthetaskofidentiﬁcation,regardlessofwhether
+it is trained on the PropBanked Brown corpus or the PropBanked WSJ corpus. This,
+however,isabout5–6F-scorepointslowerthanwhenallthethree(thesyntacticparser
+trainingset,ASSERTtrainingset,andASSERTtestset)arefromthesamegenre—WSJor
+Brown,asseeninAandD.Forthecombinedtask,thegapbetweentheperformance
+for conditions B and C is about 10 F-score points apart (59.1 vs. 69.8). Looking at the
+argument classiﬁcation accuracies, we see that using ASSERT trained on WSJ to test
+Brownsentencesresultsina12-pointdropinF-score.Using ASSERTtrainedonBrown
+304
+Pradhan,Ward,andMartin TowardsRobustSemanticRoleLabeling
+Table13
+PerformanceonWSJandBrowntestsetswhenASSERTistrainedonfeaturesextractedfrom
+automaticallygeneratedsyntacticparses.
+Setup ParserTrain SRLTrain SRLTest Task P(%) R(%) F A(%)
+A. WSJ WSJ WSJ Id. 87.3 84.8 86.0
+(40k–sec:00–21) (14k) (5k) Class. 84.1
+Id.+Class. 77.5 69.7 73.4
+B. WSJ WSJ Brown Id. 81.7 78.3 79.9
+(40k–sec:00–21) (14k) (1.6k) Class. 72.1
+Id.+Class. 63.7 55.1 59.1
+C. WSJ Brown Brown Id. 81.7 78.3 80.0
+(40k–sec:00–21) (14k) (1.6k) Class. 79.2
+Id.+Class. 78.2 63.2 69.8
+D. Brown Brown Brown Id. 87.6 82.3 84.8
+(20k) (14k) (1.6k) Class. 78.9
+Id.+Class. 77.4 62.1 68.9
+E. WSJ+NANC Brown Brown Id. 87.7 82.5 85.0
+(2,500k) (14k) (1.6k) Class. 79.9
+Id.+Class. 77.2 64.4 70.0
+H. WSJ+NANC Brown WSJ Id. 88.2 78.2 82.8
+(2,500k) (14k) (5k) Class. 76.9
+Id.+Class. 75.4 51.6 61.2
+using the WSJ-trained syntactic parser reduces accuracy by about 5 F-score points.
+When ASSERTistrainedonBrownusingasyntacticparseralsotrainedonBrown,we
+getaquitesimilarclassiﬁcationperformance,whichisagainabout5pointslowerthan
+what we get using all WSJ data. Finally, looking at conditions C and D we ﬁnd that
+thedifferenceinperformanceonthecombinedtaskofidentiﬁcationandclassiﬁcation
+using the Brown corpus for training ASSERTis very close (69.8 vs. 68.9) even though
+the syntactic parser used in C has a performance that is about 3.2 points worse than
+thatusedinD.Thisindicatesthatbetterparsestructureislessimportantthanlexical
+semanticcoverageforobtainingbetterperformanceontheBrowncorpus.
+8.AdaptingtoaNewGenre
+One possible way to ameliorate the effects of domain speciﬁcity is to incrementally
+addsmallamountsofdatafromanewdomaintothealreadyavailableout-of-domain
+trainingdata.Inthefollowingexperimentsweexplorethispossibilitybyslowlyadding
+datafromtheBrowncorpustoaﬁxedamountofWSJdata.
+One section of the Brown corpus—section K—has about 8,200 predicates anno-
+tated.Therefore,wewilltakesixdifferentscenarios—twoinwhichwewillusecorrect
+Treebank parses, and the four others in which we will use automatically generated
+parses using the variations used before. All training sets start with the same number
+ofexamplesasthatoftheBrowntrainingset.Thepartofthissectionusedasatestset
+fortheCoNLL2005sharedtaskwasusedasthetestsetfortheseexperiments.Thistest
+setcontains804predicatesin426sentencesofBrownsectionK.
+305
+ComputationalLinguistics Volume34,Number2
+Table 14 shows the results. In all six settings, the performance on the task of
+identiﬁcationandclassiﬁcationimprovesgraduallyuntilabout5,625examplesofsec-
+tion K, which is about 75% of the total added, above which it adds very little. Even
+when the syntactic parser is trained on WSJ and the SRL is trained on WSJ, adding
+7,500 instances of this new genre achieves almost the same performance as when all
+threearefromthesamegenre(67.2vs.69.9).Forthetaskofargumentidentiﬁcation,the
+incremental addition of data from the new genre shows only minimal improvement.
+Thesystemthatusesaself-trainedsyntacticparserperformsslightlybetterthanother
+Table14
+Effectofincrementallyaddingdatafromanewgenre.
+Id. Id.+Class
+ParserTrain SRLTrain P(%) R(%) F P(%) R(%) F
+WSJ WSJ(14k)(Treebankparses)
+(Treebank +0examplesfromK 96.2 91.9 94.0 74.1 66.5 70.1
+parses) +1,875examplesfromK 96.1 92.9 94.5 77.6 71.3 74.3
++3,750examplesfromK 96.3 94.2 95.1 79.1 74.1 76.5
++5,625examplesfromK 96.4 94.8 95.6 80.4 76.1 78.1
++7,500examplesfromK 96.4 95.2 95.8 80.2 76.1 78.1
+Brown Brown(14k)(Treebankparses)
+(Treebank +0examplesfromK 96.1 94.2 95.1 77.1 73.0 75.0
+parses) +1,875examplesfromK 96.1 95.4 95.7 78.8 75.1 76.9
++3,750examplesfromK 96.3 94.6 95.3 80.4 76.9 78.6
++5,625examplesfromK 96.2 94.8 95.5 80.4 77.2 78.7
++7,500examplesfromK 96.3 95.1 95.7 81.2 78.1 79.6
+WSJ WSJ(14k)
+(40k) +0examplesfromK 83.1 78.8 80.9 65.2 55.7 60.1
++1,875examplesfromK 83.4 79.3 81.3 68.9 57.5 62.7
++3,750examplesfromK 83.9 79.1 81.4 71.8 59.3 64.9
++5,625examplesfromK 84.5 79.5 81.9 74.3 61.3 67.2
++7,500examplesfromK 84.8 79.4 82.0 74.8 61.0 67.2
+WSJ Brown(14k)
+(40k) +0examplesfromK 85.7 77.2 81.2 74.4 57.0 64.5
++1,875examplesfromK 85.7 77.6 81.4 75.1 58.7 65.9
++3,750examplesfromK 85.6 78.1 81.7 76.1 59.6 66.9
++5,625examplesfromK 85.7 78.5 81.9 76.9 60.5 67.7
++7,500examplesfromK 85.9 78.1 81.7 76.8 59.8 67.2
+Brown Brown(14k)
+(20k) +0examplesfromK 87.6 80.6 83.9 76.0 59.2 66.5
++1,875examplesfromK 87.4 81.2 84.1 76.1 60.0 67.1
++3,750examplesfromK 87.5 81.6 84.4 77.7 62.4 69.2
++5,625examplesfromK 87.5 82.0 84.6 78.2 63.5 70.1
++7,500examplesfromK 87.3 82.1 84.6 78.2 63.2 69.9
+WSJ+NANC Brown(14k)
+(2,500k) +0examplesfromK 89.1 81.7 85.2 74.4 60.1 66.5
++1,875examplesfromK 88.6 82.2 85.2 76.2 62.3 68.5
++3,750examplesfromK 88.3 82.6 85.3 76.8 63.6 69.6
++5,625examplesfromK 88.3 82.4 85.2 77.7 63.8 70.0
++7,500examplesfromK 88.9 82.9 85.8 78.2 64.9 70.9
+306
+Pradhan,Ward,andMartin TowardsRobustSemanticRoleLabeling
+versions that use automatically generated syntactic parses. The improvement on the
+identiﬁcation performance is almost exclusively due to recall. The precision numbers
+arealmostunaffected,exceptwhenthelabeleristrainedonWSJPropBankdata.
+9.Conclusions
+Inthisarticle,wehavepresentedresultsfromastate-of-the-artSemanticRoleLabeling
+systemtrainedonPropBankWSJdataandthenusedtolabeltestsetsfromboththeWSJ
+corpusandtheBrowncorpus.Thesystem’sperformanceontheBrowntestsetexhibited
+alargedropcomparedtotheWSJtestset.Ananalysisoftheseresultsrevealedthatthe
+subtaskofIdentiﬁcation,determiningwhichconstituentsofasyntaxtreearearguments
+ofapredicate,isresponsibleforonlyarelativelysmallpartofthedropinperformance.
+TheClassiﬁcationtask,assigninglabelstoconstituentsknowntobearguments,iswhere
+themajorperformancelossoccurs.
+Several possible factors were examined to determine their effect on this perfor-
+mancedifference:
+a114
+ThesyntacticparserwastrainedonWSJ.Itwasshownthaterrorsinthe
+syntacticparsearenotalargefactorintheoverallperformancedifference.
+Thesyntacticparserdoesnotshowalargedegradationinperformance
+whenrunonBrown.Evenmoretelling,thereisstillalargedropin
+performancewhentrainingandtestingusingTreebankparses.
+When the system was trained and tested on Brown, the performance was still
+signiﬁcantlyworsethantrainingandtestingonWSJ,evenwhentheamountoftraining
+dataiscontrolledfor.TrainingandtestingonBrownshowedperformanceintermediate
+betweentrainingandtestingonWSJandtrainingonWSJandtestingonBrown.This
+leadstoourﬁnalhypothesis.
+a114
+TheBrowncorpusisinsomesensefundamentallymoredifﬁcultforthis
+problem.Themostobviousreasonforthisisthatitrepresentsamore
+heterogeneoussourcethantheWSJ.Amongthelikelymanifestationsof
+thisisthatpredicatestendtohaveasingledominatingsenseinWSJand
+aremorepolysemousinBrown.Datawaspresentedusinggold-standard
+wordsenseinformationforthepredicatesfortrainingandtestingBrown.
+Addingpredicatesenseinformationhasalargeeffectforsomepredicates,
+butoverthewholeBrowntestsethasonlyasmalleffect.Fewerpredicates
+andheadwordscouldallowveryspeciﬁcmodelingofhighfrequency
+predicates,andpredicate–headwordrelationsdohavealargeeffecton
+overallperformance.
+The initial experiment is a case of training on homogeneous data and testing on
+differentdata.Themorehomogeneoustrainingdataallowsthesystemtorelyheavily
+on speciﬁc features and relations in the data. It is usually the case that training on a
+moreheterogeneousdatasetdoesnotgivequiteashighperformanceontestdatafrom
+thesamecorpusasmorehomogeneousdata,buttheheterogeneousdataportsbetterto
+othercorpora.ThisisseenwhentrainingonBrowncomparedtoWSJ.Theobservation
+thattheIdentiﬁcationtaskportswellwhiletheclassiﬁcationtaskdoesnotisconsistent
+withthisexplanation.FortheIdentiﬁcationtask,structuralfeaturessuchaspathand
+307
+ComputationalLinguistics Volume34,Number2
+partialpathtendtobethemostsalientwhiletheClassiﬁcationtaskreliesmoreheavily
+onlexical/semanticfeaturessuchasspeciﬁcpredicate-headwordcombinations.
+Thequestionnowiswhattodoaboutthis.Twopossibilitiesare:
+a114
+Lesshomogeneouscorpora—Ratherthanusingmanyexamplesdrawn
+fromonesource,fewerexamplescouldbedrawnfrommanysources.This
+wouldreducethelikelihoodoflearningidiosyncraticsensesandargument
+structuresforpredicates.
+a114
+Lessspeciﬁcfeatures—Features,andthevaluestheytakeon,shouldbe
+designedtoreducethelikelihoodoflearningidiosyncraticaspectsofthe
+trainingdomain.Examplesofthismightincludetheuseofmoregeneral
+namedentityclasses,andtheuseofabstractionsoverspeciﬁcheadwords
+andpredicatesratherthanthewordsthemselves.
+Bothofthesemanipulationswould,inalllikelihood,reduceperformanceonboth
+the training data and on test sets of the same genre as the training data. But they
+would be more likely to lead to better generalization across genres. Training on very
+homogeneoustrainingsetsandtestingonsimilartestsetsgivesamisleadingimpression
+oftheperformanceofasystem.
+Acknowledgments
+WeareextremelygratefultoMarthaPalmer
+forprovidinguswiththePropBanked
+Browncorpus,andtoDavidMcCloskyfor
+providinguswithhypothesesontheBrown
+testsetaswellasacross-validatedversion
+oftheBrowntrainingdataforthevarious
+modelsreportedinhisworkreportedat
+HLT2006.
+Thisresearchwaspartiallysupportedby
+theARDAAQUAINTprogramviacontract
+OCG4423BandbytheNSFviagrants
+IS-9978025andITR/HCI0086132.Computer
+timewasprovidedbyNSFARIGrant
+CDA-9601817,NSFMRIGrantCNS-0420873,
+NASAAISTgrantNAG2-1646,DOESciDAC
+grantDE-FG02-04ER63870,NSFsponsorship
+oftheNationalCenterforAtmospheric
+Research,andagrantfromtheIBMShared
+UniversityResearch(SUR)program.
+References
+Bacchiani,Michiel,MichaelRiley,Brian
+Roark,andRichardSproat.2006.MAP
+adaptationofstochasticgrammars.
+ComputerSpeechandLanguage,20(1):41–68.
+Bikel,DanielM.,RichardSchwartz,and
+RalphM.Weischedel.1999.Analgorithm
+thatlearnswhat’sinaname.Machine
+Learning,34:211–231.
+Burges,ChristopherJ.C.1998.Atutorial
+onsupportvectormachinesforpattern
+recognition.DataMiningandKnowledge
+Discovery,2(2):121–167.
+Carreras,XavierandLlu´ısM`arquez.2004.
+IntroductiontotheCoNLL-2004shared
+task:Semanticrolelabeling.InProceedings
+oftheEighthConferenceonComputational
+NaturalLanguageLearning(CoNLL),
+pages89–97,Boston,MA.
+Carreras,XavierandLlu´ısM`arquez.2005.
+IntroductiontotheCoNLL-2005shared
+task:Semanticrolelabeling.InProceedings
+oftheNinthConferenceonComputational
+NaturalLanguageLearning(CoNLL),
+pages152–164,AnnArbor,MI.
+Charniak,EugeneandMarkJohnson.2005.
+Coarse-to-ﬁnen-bestparsingandmaxent
+discriminativereranking.InProceedingsof
+the43rdAnnualMeetingoftheAssociation
+forComputationalLinguistics(ACL),
+AnnArbor,MI.
+Gildea,DanielandDanielJurafsky.2002.
+Automaticlabelingofsemanticroles.
+ComputationalLinguistics,28(3):245–288.
+Hacioglu,Kadri,SameerPradhan,Wayne
+Ward,JamesMartin,andDanielJurafsky.
+2004.Semanticrolelabelingbytagging
+syntacticchunks.InProceedingsofthe
+EighthConferenceonComputational
+NaturalLanguageLearning(CoNLL),
+Boston,MA.
+Harabagiu,Sanda,CosminAdrianBejan,
+andPaulMorarescu.2005.Shallow
+semanticsforrelationextraction.In
+ProceedingsoftheNineteenthInternational
+JointConferenceonArtiﬁcialIntelligence
+(IJCAI),pages1061–1067,Edinburgh,
+Scotland.
+308
+Pradhan,Ward,andMartin TowardsRobustSemanticRoleLabeling
+Hofmann,ThomasandJanPuzicha.1998.
+Statisticalmodelsforco-occurrence
+data.Memo,MassachusettsInstitute
+ofTechnologyArtiﬁcialIntelligence
+Laboratory,Cambridge,MA.
+Jiang,ZhengPing,JiaLi,andHweeTouNg.
+2005.Semanticargumentclassiﬁcation
+exploitingargumentinterdependence.In
+ProceedingsoftheNineteenthInternational
+JointConferenceonArtiﬁcialIntelligence
+(IJCAI),pages1067–1072,Edinburgh,
+Scotland.
+Joachims,Thorsten.1998.Textcategorization
+withsupportvectormachines:Learning
+withmanyrelevantfeatures.InProceedings
+oftheEuropeanConferenceonMachine
+Learning(ECML),pages137–142,
+Chemnitz,Germany.
+Koomen,Peter,VasinPunyakanok,Dan
+Roth,andWen-tauYih.2005.Generalized
+inferencewithmultiplesemanticrole
+labelingsystems.InProceedingsofthe
+NinthConferenceonComputationalNatural
+LanguageLearning(CoNLL),pages181–184,
+AnnArbor,MI.
+Kuˇcera,HenryandW.NelsonFrancis.1967.
+ComputationalAnalysisofPresent-day
+AmericanEnglish.BrownUniversityPress,
+Providence,RI.
+Kudo,TakuandYujiMatsumoto.2000.
+Useofsupportvectorlearningforchunk
+identiﬁcation.InProceedingsoftheFourth
+ConferenceonComputationalNatural
+LanguageLearning(CoNLL),pages142–144,
+Lisbon,Portugal.
+Kudo,TakuandYujiMatsumoto.2001.
+Chunkingwithsupportvectormachines.
+InProceedingsoftheSecondMeetingofthe
+NorthAmericanChapteroftheAssociation
+forComputationalLinguistics(NAACL),
+Pittsburgh,PA.
+Lin,Dekang.1998.Automaticretrieval
+andclusteringofsimilarwords.In
+ProceedingsoftheSeventeenthInternational
+ConferenceonComputationalLinguistics
+andThirtySixthAnnualMeetingofthe
+AssociationofComputationalLinguistics
+(COLING/ACL),pages768–774,Montreal,
+Canada.
+Lodhi,Huma,CraigSaunders,John
+Shawe-Taylor,NelloCristianini,and
+ChrisWatkins.2002.Textclassiﬁcation
+usingstringkernels.JournalofMachine
+LearningResearch,2(Feb):419–444.
+Marcus,MitchellP.,BeatriceSantorini,and
+MaryAnnMarcinkiewicz.1993.Building
+alargeannotatedcorpusofEnglish:The
+Penntreebank.ComputationalLinguistics,
+19(2):313–330.
+M`arquez,Llu´ıs,MihaiSurdeanu,Pere
+Comas,andJordiTurmo.2005.Arobust
+combinationstrategyforsemanticrole
+labeling.InProceedingsoftheHuman
+LanguageTechnologyConferenceand
+ConferenceonEmpiricalMethodsinNatural
+LanguageProcessing(HLT/EMNLP),
+pages644–651,Vancouver,British
+Columbia.
+McClosky,David,EugeneCharniak,
+andMarkJohnson.2006a.Effective
+self-trainingforparsing.InProceedings
+oftheHumanLanguageTechnology
+Conference/NorthAmericanChapter
+oftheAssociationofComputational
+Linguistics(HLT/NAACL),pages152–159,
+NewYork,NY.
+McClosky,David,EugeneCharniak,and
+MarkJohnson.2006b.Rerankingand
+self-trainingforparseradaptation.In
+ProceedingsoftheTwentyFirstInternational
+ConferenceonComputationalLinguistics
+andFortyFourthAnnualMeetingofthe
+AssociationforComputationalLinguistics
+(COLING/ACL),pages337–344,Sydney,
+Australia.
+Moschitti,Alessandro.2006.Syntactic
+kernelsfornaturallanguagelearning:
+Thesemanticrolelabelingcase.In
+ProceedingsoftheHumanLanguage
+TechnologyConference/NorthAmerican
+ChapteroftheAssociationofComputational
+Linguistics(HLT/NAACL),pages97–100,
+NewYork,NY.
+Musillo,GabrieleandPaolaMerlo.2006.
+Accurateparsingofthepropositionbank.
+InProceedingsoftheHumanLanguage
+TechnologyConference/NorthAmerican
+ChapteroftheAssociationofComputational
+Linguistics(HLT/NAACL),pages101–104,
+NewYork,NY.
+Narayanan,SriniandSandaHarabagiu.
+2004.Questionansweringbasedon
+semanticstructures.InProceedingsofthe
+InternationalConferenceonComputational
+Linguistics(COLING),pages693–701,
+Geneva,Switzerland.
+Palmer,Martha,DanielGildea,andPaul
+Kingsbury.2005.ThePropositionBank:
+Anannotatedcorpusofsemanticroles.
+ComputationalLinguistics,31(1):71–106.
+Platt,John.2000.Probabilitiesforsupport
+vectormachines.InA.Smola,P.Bartlett,
+B.Scholkopf,andD.Schuurmans,editors,
+AdvancesinLargeMarginClassiﬁers.MIT
+Press,Cambridge,MA,pages61–74.
+Pradhan,Sameer,KadriHacioglu,Valerie
+Krugler,WayneWard,JamesMartin,
+andDanJurafsky.2005.Supportvector
+309
+ComputationalLinguistics Volume34,Number2
+learningforsemanticargumentclassiﬁcation.
+MachineLearningJournal,60(1):11–39.
+Pradhan,Sameer,WayneWard,Kadri
+Hacioglu,JamesMartin,andDanJurafsky.
+2004.Shallowsemanticparsingusing
+supportvectormachines.InProceedings
+oftheHumanLanguageTechnologyConference/
+NorthAmericanChapteroftheAssociationof
+ComputationalLinguistics(HLT/NAACL),
+pages233–240,Boston,MA.
+Pradhan,Sameer,WayneWard,Kadri
+Hacioglu,JamesMartin,andDanJurafsky.
+2005.Semanticrolelabelingusingdifferent
+syntacticviews.InProceedingsofthe
+Forty-ThirdAnnualMeetingofthe
+AssociationforComputationalLinguistics
+(ACL),pages581–588,AnnArbor,MI.
+Punyakanok,Vasin,DanRoth,WentauYih,
+andDavZimak.2005.Learningand
+inferenceoverconstrainedoutput.In
+ProceedingsoftheNineteenthInternational
+JointConferenceonArtiﬁcialIntelligence
+(IJCAI),pages1117–1123,Edinburgh,
+Scotland.
+Surdeanu,Mihai,SandaHarabagiu,
+JohnWilliams,andPaulAarseth.2003.
+Usingpredicate-argumentstructuresfor
+informationextraction.InProceedingsofthe
+Forty-FirstAnnualMeetingoftheAssociation
+forComputationalLinguistics(ACL),
+pages8–15,Sapporo,Japan.
+Toutanova,Kristina,AriaHaghighi,and
+ChristopherManning.2005.Jointlearning
+improvessemanticrolelabeling.In
+ProceedingsoftheForty-ThirdAnnual
+MeetingoftheAssociationforComputational
+Linguistics(ACL),pages589–596,
+AnnArbor,MI.
+Vapnik,Vladimir.1998.StatisticalLearning
+Theory.Wiley,NewYork.
+Xue,NianwenandMarthaPalmer.2004.
+Calibratingfeaturesforsemanticrole
+labeling.InProceedingsoftheConference
+onEmpiricalMethodsinNaturalLanguage
+Processing(EMNLP),pages88–94,
+Barcelona,Spain.
+Yi,Szu-tingandMarthaPalmer.2005.The
+integrationofsyntacticparsingand
+semanticrolelabeling.InProceedingsofthe
+NinthConferenceonComputationalNatural
+LanguageLearning(CoNLL),pages237–240,
+AnnArbor,MI.
+310
+

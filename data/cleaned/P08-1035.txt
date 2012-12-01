@@ -1,0 +1,880 @@
+Proceedings of ACL-08: HLT, pages 299–307,
+Columbus, Ohio, USA, June 2008. c©2008 Association for Computational Linguistics
+A Generic Sentence Trimmer with CRFs
+Tadashi Nomoto
+National Institute of Japanese Literature
+10-3, Midori Tachikawa
+Tokyo, 190-0014, Japan
+nomoto@acm.org
+Abstract
+The paper presents a novel sentence trimmer
+in Japanese, which combines a non-statistical
+yet generic tree generation model and Con-
+ditional Random Fields (CRFs), to address
+improving the grammaticality of compres-
+sion while retaining its relevance. Experi-
+ments found that the present approach out-
+performs in grammaticality and in relevance
+a dependency-centric approach (Oguro et al.,
+2000; Morooka et al., 2004; Yamagata et al.,
+2006; Fukutomietal., 2007)−theonlylineof
+work in prior literature (on Japanese compres-
+sion) we are aware of that allows replication
+and permits a direct comparison.
+1 Introduction
+For better or worse, much of prior work on sentence
+compression (Riezler et al., 2003; McDonald, 2006;
+Turner and Charniak, 2005) turned to a single cor-
+pus developed by Knight and Marcu (2002) (K&M,
+henceforth) for evaluating their approaches.
+The K&M corpus is a moderately sized corpus
+consisting of 1,087 pairs of sentence and compres-
+sion, which account for about 2% of a Ziff-Davis
+collection from which it was derived. Despite its
+limited scale, prior work in sentence compression
+relied heavily on this particular corpus for establish-
+ing results (Turner and Charniak, 2005; McDonald,
+2006; Clarke and Lapata, 2006; Galley and McKe-
+own, 2007). It was not until recently that researchers
+started to turn attention to an alternative approach
+which does not require supervised data (Turner and
+Charniak, 2005).
+Our approach is broadly in line with prior work
+(Jing, 2000; Dorr et al., 2003; Riezler et al., 2003;
+Clarke and Lapata, 2006), in that we make use of
+some form of syntactic knowledge to constrain com-
+pressions we generate. What sets this work apart
+from them, however, is a novel use we make of
+Conditional Random Fields (CRFs) to select among
+possible compressions (Lafferty et al., 2001; Sut-
+ton and McCallum, 2006). An obvious beneﬁt of
+using CRFs for sentence compression is that the
+model provides a general (and principled) proba-
+bilistic framework which permits information from
+various sources to be integrated towards compress-
+ing sentence, a property K&M do not share.
+Nonetheless, there is some cost that comes with
+the straightforward use of CRFs as a discriminative
+classiﬁer in sentence compression; its outputs are
+often ungrammatical and it allows no control over
+the length of compression they generates (Nomoto,
+2007). We tackle the issues by harnessing CRFs
+with what we might call dependency truncation,
+whose goal is to restrict CRFs to working with can-
+didates that conform to the grammar.
+Thus, unlike McDonald (2006), Clarke and Lap-
+ata (2006) and Cohn and Lapata (2007), we do not
+insist on ﬁnding a globally optimal solution in the
+space of 2n possible compressions for an n word
+long sentence. Rather we insist on ﬁnding a most
+plausible compression among those that are explic-
+itly warranted by the grammar.
+Later in the paper, we will introduce an approach
+called the ‘Dependency Path Model’ (DPM) from
+the previous literature (Section 4), which purports to
+provide a robust framework for sentence compres-
+299
+sion in Japanese. We will look at how the present
+approach compares with that of DPM in Section 6.
+2 A
+Sentence Trimmer with CRFs
+Our idea on how to make CRFs comply with gram-
+mar is quite simple: we focus on only those la-
+bel sequences that are associated with grammati-
+cally correct compressions, by making CRFs look
+at only those that comply with some grammatical
+constraints G, and ignore others, regardless of how
+probable they are.1 But how do we ﬁnd compres-
+sions that are grammatical? To address the issue,
+rather than resort to statistical generation models as
+in the previous literature (Cohn and Lapata, 2007;
+Galley and McKeown, 2007), we pursue a particular
+rule-based approach we call a ‘dependency trunca-
+tion,’ which as we will see, gives us a greater control
+over the form that compression takes.
+Let us denote a set of label assignments for S that
+satisfy constraints, by G(S).2 We seek to solve the
+following,
+y⋆ = arg max
+y∈G(S)
+p(y|x;θ). (2)
+There would be a number of ways to go about the
+problem. In the context of sentence compression, a
+linear programming based approach such as Clarke
+andLapata(2006)iscertainlyonethatdeservescon-
+sideration. In this paper, however, we will explore a
+much simpler approach which does not require as
+involved formulation as Clarke and Lapata (2006)
+do.
+We approach the problem extentionally, i.e.,
+through generating sentences that are grammatical,
+or that conform to whatever constraints there are.
+1Assume as usual that CRFs take the form,
+p(y|x) ∝
+exp
+ 
+P
+k,j λjfj(yk,yk−1,x) +
+P
+i µigi(xk,yk,x)
+!
+= exp[w⊤f(x,y)]
+(1)
+fj and gi are ‘features’ associated with edges and vertices, re-
+spectively, and k ∈ C, whereC denotes a set of cliques in CRFs.
+λj and µi are the weights for corresponding features. w and f
+are vector representations of weights and features, respectively
+(Tasker, 2004).
+2Note that a sentence compression can be represented as an
+arrayofbinarylabels, oneofthemmarkingwordstoberetained
+in compression and the other those to be dropped.
+a0
+a1
+a2 a3
+a2
+a1
+a2a4 a5 a6
+a2 a3
+a2
+a1 a2
+Figure 1: Syntactic structure in Japanese
+Consider the following.
+(3) Mushoku-no
+unemployed
+John
+John
+-ga
+SBJ
+takai
+expensive
+kuruma
+car
+-wo
+ACC
+kat-ta.
+buy PAST
+‘John, who is unemployed, bought an
+expensive car.’
+whose grammatically legitimate compressions
+would include:
+(4) (a) John -ga takai kuruma -wo kat-ta.
+‘John bought an expensive car.’
+(b) John -ga kuruma -wo kat-ta.
+‘John bought a car.’
+(c) Mushoku-no John -ga kuruma -wo kat-ta.
+‘John, who is unemployed, bought a car.
+(d) John -ga kat-ta.
+‘John bought.’
+(e) Mushoku-no John -ga kat-ta.
+‘John, who is unemployed, bought.’
+(f) Takai kuruma-wo kat-ta.
+‘ Bought an expensive car.’
+(g) Kuruma-wo kat-ta.
+‘ Bought a car.’
+(h) Kat-ta.
+‘ Bought.’
+This would give us G(S)={a, b, c, d, e, f, g, h}, for
+the input 3. Whatever choice we make for compres-
+sion among candidates in G(S), should be gram-
+matical, since they all are. One linguistic feature
+300
+a0 a1 a2
+a0 a1 a3
+a0 a1 a4
+a0 a1 a5
+a0 a1 a6
+a7 a8 a9
+a1
+Figure 2: Compressing an NP chunk
+a0
+a1
+a2
+a3a4
+Figure 3: Trimming TDPs
+of the Japanese language we need to take into ac-
+countwhengeneratingcompressions, isthatthesen-
+tence, which is free of word order and verb-ﬁnal,
+typically takes a left-branching structure as in Fig-
+ure 1, consisting of an array of morphological units
+called bunsetsu (BS, henceforth). A BS, which we
+mightregardasaninﬂectedform(casemarkedinthe
+case of nouns) of verb, adjective, and noun, could
+involve one or more independent linguistic elements
+such as noun, case particle, but acts as a morpholog-
+ical atom, in that it cannot be torn apart, or partially
+deleted, without compromising the grammaticality.3
+Noting that a Japanese sentence typically consists
+of a sequence of case marked NPs and adjuncts, fol-
+lowed by a main verb at the end (or what would
+be called ‘matrix verb’ in linguistics), we seek to
+compress each of the major chunks in the sentence,
+leavinguntouchedthematrixverb, asitsremovalof-
+ten leaves the sentence unintelligible. In particular,
+starting with the leftmost BS in a major constituent,
+3Example 3 could be broken into BSs: / Mushuku -no / John
+-ga / takai / kuruma -wo / kat-ta /.
+we work up the tree by pruning BSs on our way up,
+which in general gives rise to grammatically legiti-
+mate compressions of various lengths (Figure 2).
+More speciﬁcally, we take the following steps to
+construct G(S). Let S = ABCDE. Assume that
+it has a dependency structure as in Figure 3. We
+begin by locating terminal nodes, i.e., those which
+have no incoming edges, depicted as ﬁlled circles
+in Figure 3, and ﬁnd a dependency (singly linked)
+path from each terminal node to the root, or a node
+labeled ‘E’ here, which would give us two paths
+p1 = A-C-D-E and p2 = B-C-D-E (call them ter-
+minating dependency paths, or TDPs). Now create
+a set T of all trimmings, or sufﬁxes of each TDP,
+including an empty string:
+T (p1) = {<A C D E>, <C D E>, <D E>, <E>, <>}
+T (p2) = {<B C D E>, <C D E>, <D E>, <E>, <>}
+Then we merge subpaths from the two sets in every
+possible way, i.e., for any two subpaths t1 ∈ T (p1)
+andt2 ∈ T (p2),wetakeaunionovernodesint1 and
+t2; Figure 4 shows how this might done. We remove
+duplicates if any. This would give us G(S)={{A B C
+D E}, {A C D E}, {B C D E}, {C D E}, {D E}, {E},
+{}}, a set of compressions over S based on TDPs.
+What is interesting about the idea is that creating
+G(S) does not involve much of anything that is spe-
+ciﬁc to a given language. Indeed this could be done
+on English as well. Take for instance a sentence at
+the top of Table 1, which is a slightly modiﬁed lead
+sentence from an article in the New York Times. As-
+sume that we have a relevant dependency structure
+as shown in Figure 5, where we have three TDPs,
+i.e.,onewithsouthern,onewithBritishandonewith
+lethal. Then G(S) would include those listed in Ta-
+ble 1. A major difference from Japanese lies in the
+direction in which a tree is branching out: right ver-
+sus left.4
+Having said this, we need to address some lan-
+guage speciﬁc constraints: in Japanese, for instance,
+we should keep a topic marked NP in compression
+as its removal often leads to a decreased readability;
+and also it is grammatically wrong to start any com-
+pressed segment with sentence nominalizers such as
+4We stand in a marked contrast to previous ‘grafting’ ap-
+proaches which more or less rely on an ad-hoc collection
+of transformation rules to generate candidates (Riezler et al.,
+2003).
+301
+Table 1: Hedge-clipping English
+An ofﬁcial was quoted yesterday as accusing Iran of supplying explosive technology used in lethal attacks on British
+troops in southern Iraq
+An ofﬁcial was quoted yesterday as accusing Iran of supplying explosive technology used in lethal attacks on British
+troops in Iraq
+An ofﬁcial was quoted yesterday as accusing Iran of supplying explosive technology used in lethal attacks on British
+troops
+An ofﬁcial was quoted yesterday as accusing Iran of supplying explosive technology used in lethal attacks on troops
+An ofﬁcial was quoted yesterday as accusing Iran of supplying explosive technology used in lethal attacks
+An ofﬁcial was quoted yesterday as accusing Iran of supplying explosive technology used in attacks
+An ofﬁcial was quoted yesterday as accusing Iran of supplying explosive technology
+An ofﬁcial was quoted yesterday as accusing Iran of supplying technology
+a0 a1 a2 a3 a4 a5
+a0 a6 a2 a3 a4 a5
+a0 a2 a3 a4 a5
+a0 a3 a4 a5
+a0 a4 a5
+a0 a5
+a7
+a1 a6 a2 a3 a4 a8
+a7
+a1 a2 a3 a4 a8
+a7
+a1 a2 a3 a4 a8
+a7
+a1 a2 a3 a4 a8
+a7
+a1 a2 a3 a4 a8
+a0 a3 a4 a5
+a0 a6 a2 a3 a4 a5
+a0 a2 a3 a4 a5
+a0 a3 a4 a5
+a0 a4 a5
+a0 a5
+a7
+a6 a2 a3 a4 a8
+a7
+a2 a3 a4 a8
+a7
+a3 a4 a8
+a7
+a3 a4 a8
+a7
+a3 a4 a8
+a0 a5
+a0 a6 a2 a3 a4 a5
+a0 a2 a3 a4 a5
+a0 a3 a4 a5
+a0 a4 a5
+a0 a5
+a7
+a6 a2 a3 a4 a8
+a7
+a2 a3 a4 a8
+a7
+a3 a4 a8
+a7
+a4 a8
+a7
+a8
+a0 a2 a3 a4 a5
+a0 a6 a2 a3 a4 a5
+a0 a2 a3 a4 a5
+a0 a3 a4 a5
+a0 a4 a5
+a0 a5
+a7
+a6 a2 a3 a4 a8
+a7
+a2 a3 a4 a8
+a7
+a2 a3 a4 a8
+a7
+a2 a3 a4 a8
+a7
+a2 a3 a4 a8
+a0 a4 a5
+a0 a6 a2 a3 a4 a5
+a0 a2 a3 a4 a5
+a0 a3 a4 a5
+a0 a4 a5
+a0 a5
+a7
+a6 a2 a3 a4 a8
+a7
+a2 a3 a4 a8
+a7
+a3 a4 a8
+a7
+a4 a8
+a7
+a4 a8
+Figure 4: Combining TDP sufﬁxes
+-koto and -no. In English, we should keep a prepo-
+sition from being left dangling, as in An ofﬁcial was
+quoted yesterday as accusing Iran of supplying tech-
+nology used in. In any case, we need some extra
+rules on G(S) to take care of language speciﬁc is-
+sues (cf. Vandeghinste and Pan (2004) for English).
+An important point about the dependency truncation
+is that for most of the time, a compression it gener-
+ates comes out reasonably grammatical, so the num-
+ber of ‘extras’ should be small.
+Finally, in order for CRFs to work with the com-
+pressions, we need to translate them into a sequence
+of binary labels, which involves labeling an element
+token, bunsetsu or a word, with some label, e.g., 0
+for ’remove’ and 1 for ‘retain,’ as in Figure 6.
+a0 a1
+a2 a3 a4 a5 a6 a7 a8
+a1
+a9
+a8 a10 a11
+a5 a8 a3 a3 a12 a2
+a13
+a8
+a0
+a5
+a0
+a2 a6
+a3
+a1
+a10 a5 a5 a10 a14 a15 a2
+a16
+a7 a5 a6 a10
+a16
+a0 a1
+a4 a2 a7 a17 Figure 5: An English dependency structure and TDPs
+Consider following compressions y1 to y4 for
+x = β1β2β3β4β5β6. βi denotes a bunsetsu (BS).
+‘0’ marks a BS to be removed and ‘1’ that to be re-
+tained.
+β1 β2 β3 β4 β5 β6y
+1 0 1 1 1 1 1y
+2 0 0 1 1 1 1y
+3 0 0 0 0 0 1y
+4 0 0 1 0 0 0
+Assume that G(S) = {y1,y2,y3}. Because y4
+is not part of G(S), it is not considered a candidate
+for a compression for y, even if its likelihood may
+exceed those of others in G(S). We note that the
+approach here does not rely on so much of CRFs
+as a discriminative classiﬁer as CRFs as a strategy
+for ranking among a limited set of label sequences
+which correspond to syntactically plausible simpli-
+ﬁcations of input sentence.
+Furthermore, we could dictate the length of com-
+pression by putbting an additional constraint on out-
+302
+a0
+a1 a1
+a1
+a2
+a1 a1
+a1
+a2
+Figure 6: Compression in binary representation.
+put, as in:
+y⋆ = arg max
+y∈G′(S)
+p(y|x;θ), (5)
+where G′(S) = {y : y ∈ G(S),R(y,x) = r}.
+R(y,x) denotes a compression rate r for which y is
+desired, where r = # of 1 in ylength of x. The constraint forces
+the trimmer to look for the best solution among can-
+didatesthatsatisfytheconstraint, ignoringthosethat
+do not.5
+AnotherpointtonoteisthatG(S)isﬁniteandrel-
+atively small − it was found, for our domain, G(S)
+usually runs somewhere between a few hundred and
+ten thousand in length − so in practice it sufﬁces
+that we visit each compression in G(S), and select
+one that gives the maximum value for the objective
+function. We will have more to say about the size of
+the search space in Section 6.
+3 Features
+in CRFs
+We use an array of features in CRFs which are ei-
+ther derived or borrowed from the taxonomy that
+a Japanese tokenizer called JUMAN and KNP,6 a
+Japanese dependency parser (aka Kurohashi-Nagao
+Parser), make use of in characterizing the output
+they produce: both JUMAN and KNP are part of the
+compression model we build.
+Features come in three varieties: semantic, mor-
+phological and syntactic. Semantic features are used
+for classifying entities into semantic types such as
+name of person, organization, or place, while syn-
+tactic features characterize the kinds of dependency
+5It is worth noting that the present approach can be recast
+into one based on ‘constraint relaxation’ (Tromble and Eisner,
+2006).
+6http://nlp.kuee.kyoto-u.ac.jp/nl-resource/top-e.html
+relations that hold among BSs such as whether a BS
+is of the type that combines with the verb (renyou),
+or of the type that combines with the noun (rentai),
+etc.
+A morphological feature could be thought of as
+something that broadly corresponds to an English
+POS, marking for some syntactic or morphological
+category such as noun, verb, numeral, etc. Also
+we included ngram features to encode the lexi-
+cal context in which a given morpheme appears.
+Thus we might have something like: for some
+words (morphemes) w1, w2, and w3, fw1·w2(w3) =
+1 if w3 is preceded by w1,w2; otherwise, 0. In ad-
+dition, we make use of an IR-related feature, whose
+job is to indicate whether a given morpheme in the
+input appears in the title of an associated article.
+The motivation for the feature is obviously to iden-
+tify concepts relevant to, or unique to the associ-
+ated article. Also included was a feature on tﬁdf,
+to mark words that are conceptually more important
+than others. The number of features came to around
+80,000 for the corpus we used in the experiment.
+4 The
+Dependency Path Model
+In what follows, we will describe somewhat in
+detail a prior approach to sentence compression
+in Japanese which we call the ”dependency path
+model,” or DPM. DPM was ﬁrst introduced in
+(Oguro et al., 2000), later explored by a number of
+people (Morooka et al., 2004; Yamagata et al., 2006;
+Fukutomi et al., 2007).7
+DPM has the form:
+h(y) = αf(y) + (1 −α)g(y), (6)
+where y = β0,β1,...,βn−1, i.e., a compression
+consisting of any number of bunsetsu’s, or phrase-
+like elements. f(·) measures the relevance of con-
+tent in y; and g(·) the ﬂuency of text. α is to provide
+a way of weighing up contributions from each com-
+ponent.
+We further deﬁne:
+f(y) =
+n−1∑
+i=0
+q(βi), (7)
+7Kikuchi et al. (2003) explore an approach similar to DPM.
+303
+a0 a1 a2 a3 a4 a4 a5 a3 a6 a5 a0
+a0 a7 a8 a2
+a9 a6 a7 a10
+a11 a12 a6 a5 a5 a13 a5 a8 a8 a5 a0
+a2 a1 a8 a12 a14
+Figure 7: A dependency structure
+and
+g(y) = maxs
+n−2∑
+i=0
+p(βi,βs(i)). (8)
+q(·) is meant to quantify how worthy of inclusion
+in compression, a given bunsetsu is; and p(βi,βj)
+represents the connectivity strength of dependency
+relation between βi and βj. s(·) is a linking function
+that associates with a bunsetsu any one of those that
+follows it. g(y) thus represents a set of linked edges
+that, if combined, give the largest probability for y.
+Dependency path length (DL) refers to the num-
+ber of (singly linked) dependency relations (or
+edges) that span two bunsetsu’s. Consider the de-
+pendency tree in Figure 7, which corresponds to
+a somewhat contrived sentence ’Three-legged dogs
+disappeared from sight.’ Take an English word for a
+bunsetsu here. We have
+DL(three-legged, dogs) = 1
+DL(three-legged, disappeared) = 2
+DL(three-legged, from) = ∞
+DL(three-legged, sight) = ∞
+Since dogs is one edge away from three-legged, DL
+for them is 1; and we have DL of two for three-
+legged and disappeared, as we need to cross two
+edges in the direction of arrow to get from the for-
+mer to the latter. In case there is no path between
+words as in the last two cases above, we take the DL
+to be inﬁnite.
+DPM takes a dependency tree to be a set of
+linked edges. Each edge is expressed as a triple
+< Cs(βi),Ce(βj),DL(βi,βj) >, where βi and βj
+represent bunsestu’s that the edge spans. Cs(β) de-
+notes the class of a bunsetsu where the edge starts
+and Ce(β) that of a bunsetsu where the edge ends.
+What we mean by ‘class of bunsetsu’ is some sort of
+a classiﬁcatory scheme that concerns linguistic char-
+acteristics of bunsetsu, such as a part-of-speech of
+the head, whether it has an inﬂection, and if it does,
+what type of inﬂection it has, etc. Moreover, DPM
+uses two separate classiﬁcatory schemes for Cs(β)
+and Ce(β).
+In DPM, we deﬁne the connectivity strength p by:
+p(βi,βj) =
+braceleftbigg logS(t) if DL(β
+i,βj) ̸= ∞
+−∞ otherwise (9)
+where t =< Cs(βi),Ce(βj),DL(βi,βj) >, and
+S(t) is the probability of t occurring in a compres-
+sion, which is given by:
+S(t) = # of t’s found in compressions# of triples found in the training data (10)
+We complete the DPM formulation with:
+q(β) = logpc(β) + tﬁdf(β) (11)
+pc(β) denotes the probability of having bunsetsu β
+in compression, calculated analogously to Eq. 10,8
+and tﬁdf(β) obviously denotes the tﬁdf value of β.
+InDPM,acompressionofagivensentencecanbe
+obtained by ﬁnding argmaxy h(y), where y ranges
+over possible candidate compressions of a particular
+length one may derive from that sentence. In the
+experimentdescribedlater,wesetα = 0.1forDPM,
+following Morooka et al. (2004), who found the best
+performance with that setting for α.
+5 Evaluation
+Setup
+We created a corpus of sentence summaries based
+on email news bulletins we had received over ﬁve
+to six months from an on-line news provider called
+Nikkei Net, which mostly deals with ﬁnance and
+politics.9 Each bulletin consists of six to seven news
+briefs, each with a few sentences. Since a news brief
+contains nothing to indicate what its longer version
+8DPM puts bunsetsu’s into some groups based on linguis-
+tic features associated with them, and uses the statistics of the
+groups for pc rather than that of bunsetsu’s that actually appear
+in text.
+9http://www.nikkei.co.jp
+304
+Table 2: The rating scale on ﬂuency
+RATING EXPLANATION
+1 makes no sense
+2 only partially intelligible/grammatical
+3 makes sense; seriously ﬂawed in gram-
+mar
+4 makes good sense; only slightly ﬂawed
+in grammar
+5 makesperfectsense; nogrammarﬂaws
+might look like, we manually searched the news site
+forafull-lengtharticlethatmightreasonablybecon-
+sidered a long version of that brief.
+We extracted lead sentences both from the brief
+and from its source article, and aligned them, us-
+ingwhatisknownastheSmith-Watermanalgorithm
+(Smith and Waterman, 1981), which produced 1,401
+pairs of summary and source sentence.10 For the
+ease of reference, we call the corpus so produced
+‘NICOM’ for the rest of the paper. A part of our sys-
+tem makes use of a modeling toolkit called GRMM
+(Sutton et al., 2004; Sutton, 2006). Throughout the
+experiments, we call our approach ‘Generic Sen-
+tence Trimmer’ or GST.
+6 Results
+and Discussion
+We ran DPM and GST on NICOM in the 10-fold
+cross validation format where we break the data into
+10 blocks, use 9 of them for training and test on the
+remaining block. In addition, we ran the test at three
+different compression rates, 50%, 60% and 70%, to
+learn how they affect the way the models perform.
+This means that for each input sentence in NICOM,
+we have three versions of its compression created,
+corresponding to a particular rate at which the sen-
+tence is compressed. We call a set of compressions
+so generated ‘NICOM-g.’
+In order to evaluate the quality of outputs GST
+and DPM generate, we asked 6 people, all Japanese
+natives, to make an intuitive judgment on how each
+compression fares in ﬂuency and relevance to gold
+10The Smith-Waterman algorithm aims at ﬁnding a best
+match between two sequences which may include gaps, such
+as A-C-D-E and A-B-C-D-E. The algorithm is based on an idea
+rather akin to dynamic programming.
+Table 3: The rating scale on content overlap
+RATING EXPLANATION
+1 no overlap with reference
+2 poor or marginal overlap w. ref.
+3 moderate overlap w. ref.
+4 signiﬁcant overlap w. ref.
+5 perfect overlap w. ref.
+standards (created by humans), on a scale of 1 to 5.
+To this end, we conducted evaluation in two sepa-
+rate formats; one concerns ﬂuency and the other rel-
+evance. The ﬂuency test consisted of a set of com-
+pressions which we created by randomly selecting
+200ofthemfromNICOM-g, foreachmodelatcom-
+pression rates 50%, 60%, and 70%; thus we have
+200 samples for each model and each compression
+rate.11 The total number of test compressions came
+to 1,200.
+The relevance test, on the other hand, consisted of
+paired compressions along with the associated gold
+standardcompressions. Eachpaircontainscompres-
+sions both from DPM and from GST at a given com-
+pressionrate. Werandomlypicked200ofthemfrom
+NICOM-g, at each compression rate, and asked the
+participants to make a subjective judgment on how
+much of the content in a compression semantically
+overlap with that of the gold standard, on a scale of
+1 to 5 (Table 3). Also included in the survey are 200
+goldstandardcompressions, togetsomeideaofhow
+ﬂuent “ideal” compressions are, compared to those
+generated by machine.
+Tables 4 and 5 summarize the results. Table 4
+looks at the ﬂuency of compressions generated by
+each of the models; Table 5 looks at how much of
+the content in reference is retained in compressions.
+In either table, CR stands for compression rate. All
+the results are averaged over samples.
+We ﬁnd in Table 4 a clear superiority of GST over
+DPM at every compression rate examined, with ﬂu-
+ency improved by as much as 60% at 60%. How-
+ever, GST fell short of what human compressions
+achieved in ﬂuency − an issue we need to address
+11As stated elsewhere, by compression rate, we mean r =
+# of 1 in y
+length of x.
+305
+Table 4: Fluency (Average)
+MODEL/CR 50% 60% 70%
+GST 3.430 3.820 3.810
+DPM 2.222 2.372 2.660
+Human − 4.45 −
+Table 5: Semantic (Content) Overlap (Average)
+MODEL/CR 50% 60% 70%
+GST 2.720 3.181 3.405
+DPM 2.210 2.548 2.890
+in the future. Since the average CR of gold standard
+compressions was 60%, we report their ﬂuency at
+that rate only.
+Table 5 shows the results in relevance of con-
+tent. Again GST marks a superior performance over
+DPM, beating it at every compression rate. It is in-
+teresting to observe that GST manages to do well
+in the semantic overlap, despite the cutback on the
+search space we forced on GST.
+As for ﬂuency, we suspect that the superior per-
+formance of GST is largely due to the depen-
+dency truncation the model is equipped with; and
+its performance in content overlap owes a lot to
+CRFs. However, just how much improvement GST
+achieved over regular CRFs (with no truncation) in
+ﬂuency and in relevance is something that remains
+to be seen, as the latter do not allow for variable
+length compression, which prohibits a straightfor-
+ward comparison between the two kinds of models.
+We conclude the section with a few words on the
+size of |G(S)|, i.e., the number of candidates gener-
+ated per run of compression with GST.
+Figure 8 shows the distribution of the numbers of
+candidates generated per compression, which looks
+like the familiar scale-free power curve. Over 99%
+of the time, the number of candidates or |G(S)| is
+found to be less than 500.
+7 Conclusions
+This paper introduced a novel approach to sentence
+compression in Japanese, which combines a syntac-
+tically motivated generation model and CRFs, in or-
+Number of Candidates
+Frequency
+0 500 1500 2500
+0
+400
+800
+1200
+Figure 8: The distribution of |G(S)|
+der to address ﬂuency and relevance of compres-
+sions we generate. What distinguishes this work
+from prior research is its overt withdrawal from a
+search for global optima to a search for local optima
+that comply with grammar.
+We believe that our idea was empirically borne
+out, as the experiments found that our approach out-
+performs, by a large margin, a previously known
+method called DPM, which employs a global search
+strategy. The results on semantic overlap indicates
+that the narrowing down of compressions we search
+obviously does not harm their relevance to refer-
+ences.
+An interesting future exercise would be to explore
+whether it is feasible to rewrite Eq. 5 as a linear inte-
+gerprogram. Ifitis,thewholeschemeofourswould
+fall under what is known as ‘Linear Programming
+CRFs’(Tasker, 2004; RothandYih, 2005). Whatre-
+mains to be seen, however, is whether GST is trans-
+ferrable to languages other than Japanese, notably,
+English. The answer is likely to be yes, but details
+have yet to be worked out.
+
+References
+
+James Clarke and Mirella Lapata. 2006. Constraint-
+based sentence compression: An integer programming
+approach. In Proceedings of the COLING/ACL 2006,
+pages 144–151.
+
+Trevor Cohn and Mirella Lapata. 2007. Large margin
+synchronous generation and its application to sentence
+compression. InProceedingsofthe2007JointConfer-
+ence on Empirical Methods in Natural Language Pro-
+cessing and Computational Natural Language Learn-
+ing, pages 73–82, Prague, June.
+
+Bonnie Dorr, David Zajic, and Richard Schwartz. 2003.
+Hedge trimmer: A parse-and-trim approach to head-
+line generataion. In Proceedings of the HLT-NAACL
+Text Summarization Workshop and Document Under-
+standing Conderence (DUC03), pages 1–8, Edmon-
+ton, Canada.
+
+Satoshi Fukutomi, Kazuyuki Takagi, and Kazuhiko
+Ozeki. 2007. Japanese Sentence Compression using
+Probabilistic Approach. In Proceedings of the 13th
+Annual Meeting of the Association for Natural Lan-
+guage Processing Japan.
+
+Michel Galley and Kathleen McKeown. 2007. Lexical-
+ized Markov grammars for sentence compression. In
+Proceedings of the HLT-NAACL 2007, pages 180–187.
+
+Hongyan Jing. 2000. Sentence reduction for automatic
+text summarization. In Proceedings of the 6th Confer-
+ence on Applied Natural Language Processing, pages
+310–315.
+
+Tomonori Kikuchi, Sadaoki Furui, and Chiori Hori.
+2003. Two-stage automatic speech summarization by
+sentence extraction and compaction. In Proceedings
+of ICASSP 2003.
+
+Kevin Knight and Daniel Marcu. 2002. Summariza-
+tion beyond sentence extraction: A probabilistic ap-
+proach to sentence compression. Artiﬁcial Intelli-
+gence, 139:91–107.
+
+John Lafferty, Andrew MacCallum, and Fernando
+Pereira. 2001. Conditional random ﬁelds: Probabilis-
+tic models for segmenting and labeling sequence data.
+In Proceedings of the 18th International Conference
+on Machine Learning (ICML-2001).
+
+Ryan McDonald. 2006. Discriminative sentence com-
+pression with soft syntactic evidence. In Proceedings
+of the 11th Conference of EACL, pages 297–304.
+
+Yuhei Morooka, Makoto Esaki, Kazuyuki Takagi, and
+Kazuhiko Ozeki. 2004. Automatic summarization of
+news articles using sentence compaction and extrac-
+tion. In Proceedings of the 10th Annual Meeting of
+Natural Language Processing, pages436–439, March.
+(In Japanese).
+
+Tadashi Nomoto. 2007. Discriminative sentence com-
+pression with conditional random ﬁelds. Information
+Processing and Management, 43:1571 – 1587.
+
+Rei Oguro, Kazuhiko Ozeki, Yujie Zhang, and Kazuyuki
+Takagi. 2000. An efﬁcient algorithm for Japanese
+sentence compaction based on phrase importance
+and inter-phrase dependency. In Proceedings of
+TSD 2000 (Lecture Notes in Artiﬁcial Intelligence
+1902,Springer-Verlag), pages 65–81, Brno, Czech Re-
+public.
+
+Stefan Riezler, Tracy H. King, Richard Crouch, and An-
+nie Zaenen. 2003. Statistical sentence condensation
+using ambiguity packing and stochastic disambigua-
+tion methods for lexical functional grammar. In Pro-
+ceedings of HLT-NAACL 2003, pages 118–125, Ed-
+monton.
+
+Dan Roth and Wen-tau Yih. 2005. Integer linear pro-
+gramming inference for conditional random ﬁelds. In
+Proceedings of the 22nd International Conference on
+Machine Learning (ICML 05).
+
+T. F. Smith and M. S. Waterman. 1981. Identiﬁcation of
+common molecular subsequence. Journal of Molecu-
+lar Biology, 147:195–197.
+
+Charles Sutton and Andrew McCallum. 2006. An in-
+troduction to conditional random ﬁelds for relational
+learning. In Lise Getoor and Ben Taskar, editors,
+Introduction to Statistical Relational Learning. MIT
+Press. To appear.
+
+Charles Sutton, Khashayar Rohanimanesh, and Andrew
+McCallum. 2004. Dynamic conditional random
+ﬁelds: Factorized probabilistic labeling and segment-
+ing sequence data. In Proceedings of the 21st In-
+ternational Conference on Machine Learning, Banff,
+Canada.
+
+Charles Sutton. 2006. GRMM: A graphical models
+toolkit. http://mallet.cs.umass.edu.
+
+Ben Tasker. 2004. Learning Structured Prediction Mod-
+els: A Large Margin Approach. Ph.D. thesis, Stanford
+University.
+
+Roy W. Tromble and Jason Eisner. 2006. A fast ﬁnite-
+state relaxation method for enforcing global constraint
+on sequence decoding. In Proceeings of the NAACL,
+pages 423–430.
+
+Jenie Turner and Eugen Charniak. 2005. Supervised and
+unsupervised learning for sentence compression. In
+Proceedings of the 43rd Annual Meeting of the ACL,
+pages 290–297, Ann Arbor, June.
+
+Vincent Vandeghinste and Yi Pan. 2004. Sentence com-
+pression for automatic subtitling: A hybrid approach.
+In Proceedings of the ACL workshop on Text Summa-
+rization, Barcelona.
+
+Kiwamu Yamagata, Satoshi Fukutomi, Kazuyuki Takagi,
+and Kzauhiko Ozeki. 2006. Sentence compression
+using statistical information about dependency path
+length. In Proceedings of TSD 2006 (Lecture Notes in
+Computer Science, Vol. 4188/2006), pages 127–134,
+Brno, Czech Republic.
+

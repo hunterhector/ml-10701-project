@@ -1,0 +1,1466 @@
+KernelMethodsforMinimallySupervisedWSD
+ClaudioGiuliano
+∗
+FondazioneBrunoKessler–IRST
+AlﬁoMassimilianoGliozzo
+∗∗
+FondazioneBrunoKessler–IRST
+CarloStrapparava
+†
+FondazioneBrunoKessler–IRST
+We present a semi-supervised technique for word sense disambiguation that exploits external
+knowledge acquired in an unsupervised manner. In particular, we use a combination of basic
+kernelfunctionstoindependentlyestimatesyntagmaticanddomainsimilarity,buildingasetof
+word-expertclassiﬁersthatshareacommondomainmodelacquiredfromalargecorpusofun-
+labeleddata.Theresultsshowthattheproposedapproachachievesstate-of-the-artperformance
+onawiderangeoflexicalsampletasksandontheEnglishall-wordstaskofSenseval-3,although
+itusesaconsiderablysmallernumberoftrainingexamplesthanothermethods.
+1.Introduction
+Asigniﬁcantchallengeinmanynaturallanguageprocessingtasksistoreducetheneed
+for labeled training data while maintaining an acceptable performance. This is espe-
+ciallytrueforwordsensedisambiguation(WSD)becausewhenmovingfromthesome-
+what artiﬁcial lexical-sample task to the more realistic all-words task it is practically
+impossible to collect a large number of training examples for each word sense. Thus,
+manysupervisedapproaches,explicitlydesignedforthelexical-sampletask,cannotbe
+appliedtotheall-wordstask,eventhoughtheyexhibitexcellentperformance.Thishas
+ledtothesomewhatparadoxicalsituationinwhichcompletelydifferentmethodshave
+beendevelopedforthetwotasks,althoughtheyrepresenttwosidesofthesamecoin.
+Toaddressthisproblem,inrecentworkwepresentedasemi-supervisedapproach
+based on kernel methods for WSD (Strapparava, Gliozzo, and Giuliano 2004; Gliozzo,
+Giuliano,andStrapparava2005;Giuliano,Gliozzo,andStrapparava2006).Inparticular,
+weexploredthefollowingresearchdirections:(1)independentlymodelingdomainand
+syntagmatic aspects of sense distinction to improve feature representativeness; and
+(2) exploiting external knowledge acquired from unlabeled data, with the purpose of
+drasticallyreducingtheamountoflabeledtrainingdata.Theﬁrstdirectionisbasedon
+thelinguisticassumptionthatsyntagmaticanddomain(associative)relationsarecrucial
+for representing sense distinctions, but theyare originated bydifferent phenomena.
+Regarding the second direction, one can hope to obtain a more accurate prediction
+∗ FBK-irst,viaSommarive18,I-38050Povo,Trento,Italy.E-mail:giuliano@fbk.eu.
+∗∗ FBK-irst,viaSommarive18,I-38050Povo,Trento,Italy.E-mail:gliozzo@fbk.eu.
+† FBK-irst,viaSommarive18,I-38050Povo,Trento,Italy.E-mail:strappa@fbk.eu.
+Submissionreceived:23December2006;revisedsubmissionreceived:28February2008;acceptedfor
+publication:17April2008.
+©2009AssociationforComputationalLinguistics
+ComputationalLinguistics Volume35,Number4
+bytaking into account unlabeled data relevant to the learning problem (Chapelle,
+Sch¨olkopf,andZien2006).Asamatteroffact,totestthishypothesis,mostofthelexical
+sample tasks of Senseval-3 (Mihalcea and Edmonds 2004) were provided with a large
+amountofunlabeledtrainingdata,aswellastheusuallabeledtrainingdata.However,
+at that time, we were the onlyteam to use the unlabeled data (Strapparava, Gliozzo,
+andGiuliano2004).
+In this article, we review our technique that combines domain and syntagmatic
+information in order to deﬁne a complete kernel for WSD. The rest of the article is
+organized as follows. In Section 2, we provide a general introduction to the kernel
+methods,inwhichwegivethebasisforunderstandingourapproach.Exploitingkernel
+methods,wecandeﬁneandcombineindividualkernelsrepresentinginformationfrom
+different sources in a principled way. After this introductory section, in Section 3 we
+present the kernels that we developed for WSD. This includes a detailed description
+of the individual kernels and the waywe deﬁne the composite ones. We present our
+experimentsinSection4.Theresultsobtainedonarangeoflexical-sampletasksandon
+the English all-words task of Senseval-3 (Mihalcea and Edmonds 2004) show that our
+approach achieves state-of-the-art performance. Finally, in Section 5, we offer conclu-
+sionsandsomedirectionsforfutureresearch.
+2.KernelMethods
+Kernel methods are a popular machine learning approach within the natural lan-
+guage processing community. They are theoretically well founded in statistical learn-
+ing theoryand have shown good empirical results in manyapplications (Vapnik 1999;
+Cristianini and Shawe-Taylor 2000; Sch¨olkopf and Smola 2002; Shawe-Taylor and
+Cristianini2004).
+The strategyadopted bykernel methods consists of splitting the learning problem
+into two parts. Theyﬁrst embed the input data in a suitable feature space, and then
+use a linear algorithm to discover nonlinear patterns in the input space. Typically, the
+mapping is performed implicitlybya so-called kernel function. The kernel function
+isasimilaritymeasurebetweentheinputdatathatdependsexclusivelyonthespeciﬁc
+datatypeanddomain.Atypicalsimilarityfunctionistheinnerproductbetweenfeature
+vectors. Characterizing the similarityof the inputs plays a crucial role in determining
+thesuccessorfailureofthelearningalgorithm,anditisoneofthecentralquestionsin
+theﬁeldofmachinelearning.
+Formally,thekernelisafunctionK :X×X → Rthattakesasinputtwodataobjects
+(e.g., vectors, texts, or parse trees) and outputs a real number characterizing their
+similarity, with the property that the function is symmetric and positive semi-deﬁnite.
+Thatis,forallx
+i,x
+j
+∈Xsatisﬁes
+K(x
+i,x
+j
+)=〈φ(x
+i
+),φ(x
+j
+)〉 (1)
+whereφisan(implicit)mappingfromXtoan(innerproduct)featurespaceF.
+Kernelsareusedinsidelearningalgorithmssuchassupportvectormachines(SVM)
+or kernel perceptrons as the interface between the algorithm and the data. The kernel
+function is then the onlydomain speciﬁc element of the system, while the learning
+algorithmisageneralpurposecomponent.
+TheideabehindtheSVM(oneofthebestknownkernel-basedlearningalgorithms)
+istomapthesetoftrainingdataintoahigh-dimensionalfeaturespaceF viaamapping
+functionφ :X → F,andconstructaseparatinghyperplanewithmaximummargin(i.e.,
+514
+Giuliano,Gliozzo,andStrapparava KernelMethodsforMinimallySupervisedWSD
+theminimumdistancebetweenthehyperplaneanddatapoints)inthatspace.Theuse
+of an appropriate non-linear transformation φ of the input yields a nonlinear decision
+boundaryin the input space. Kernel functions make possible the use of feature spaces
+with an exponential or even inﬁnite number of dimensions. Instead of performing the
+explicitfeaturemapping φ,onecanuseakernelfunction,whichpermitsthe(efﬁcient)
+computation of inner products in high-dimensional feature spaces without explicitly
+carrying out the mapping φ. This is called the kernel trick in the machine learning
+literature(Boser,Guyon,andVapnik1992).
+Finally, wepointoutthetheoretical toolsrequired tocreate newkernels, andcom-
+bineindividualkernelstoformcompositeones.Ofcourse,noteverysimilarityfunction
+is a valid kernel because, bydeﬁnition, kernels should be equivalent to some inner
+product in a feature space. The function K :X×X → R is a valid kernel provided that
+its kernel matrices
+1
+are positive semi-deﬁnite
+2
+for all training sets S={x
+1,...,x
+l
+},the
+so-calledﬁnitelypositivesemi-deﬁniteproperty.Notethatdeﬁningsimilaritymeasures
+bymeansofkernelsmaybemoreintuitivethanperformingtheexplicitmappinginthe
+feature space. Furthermore, this formulation does not require the set X to be a vector
+space:forexample,weshalldeﬁnekernelsthattakestringsasinput.
+This result is not onlyuseful because it opens new perspectives to deﬁne kernel
+functionsthatonlyimplicitlycorrespondtoafeaturemapping φ.Anotherconsequence
+isthatitcanbeusedtoproveasetofrulesforcombiningbasickernelstoobtaincompos-
+iteones.Thiswillallowustointegrateheterogeneoussourcesofinformationinasimple
+andeffectiveway.Weshallusethefollowingpropertiesofkernelstodeﬁneourcompos-
+itekernels.Letk
+1
+andk
+2
+bekernelsoverX×X;thenthefollowingfunctionsarekernels:
+a114
+k(x
+i,x
+j
+)=k
+1
+(x
+i,x
+j
+)+k
+2
+(x
+i,x
+j
+)
+a114
+k(x
+i,x
+j
+)=c·k
+1
+(x
+i,x
+j
+),c∈ R
++
+a114
+k(x
+i,x
+j
+)=
+k
+1
+(x
+i,x
+j
+)
+√
+k
+1
+(x
+i,x
+i
+)×k
+1
+(x
+j,x
+j
+)
+(normalization)
+In summary, we can deﬁne a kernel function by following different strategies: (1)
+providing an explicit feature mapping φ :X → R
+n
+; (2) deﬁning a similarityfunction
+thatissymmetricandpositivesemi-deﬁnite;and(3)composingdifferentvalidkernels,
+usingtheclosurepropertiesofkernels.Thisformsthebasisfortheapproachdescribed
+inthefollowingsection.
+3.KernelMethodsforWSD
+OurapproachtoWSDconsistsofrepresentinglinguisticphenomenaindependentlyand
+thendeﬁningacombinationmethodtointegratethem.Asdescribedintheprevioussec-
+tion, the kernel function is the onlytask-speciﬁc component of the learning algorithm.
+Thus,todevelopaWSDsystem,weonlyneedtodeﬁneappropriatekernelfunctionsto
+representthedomainandsyntagmaticaspectsofsensedistinctionand,second,exploit
+the properties of kernel functions to deﬁne a composite kernel to combine and extend
+theindividualkernels.
+The resulting WSD system consists of two families of kernels: the domain and the
+syntagmatic kernels. The former family, described in Section 3.1, models the domain
+1 GivenasetofvectorsS={x
+1,...,x
+l
+},thekernelmatrixKisdeﬁnedasthel×lmatrixKwhoseentries
+areK
+ij
+=k(x
+i,x
+j
+)=〈φ(x
+i
+),φ(x
+j
+)〉,wherekisakernelfunctionthatevaluatestheinnerproductsina
+featurespacewithfeaturemapφ.
+2 Asymmetricmatrixispositivesemi-deﬁniteifitseigenvaluesareallnon-negative.Actually,aswewill
+seeinSection3.2usingProposition1,itisquiteeasytoverifythisproperty.
+515
+ComputationalLinguistics Volume35,Number4
+Table1
+Anexampleofadomainmatrix.
+Medicine ComputerScience
+HIV 1 0
+AIDS 1 0
+virus 0.5 0.5
+laptop 0 1
+aspects of sense distinction; it is composed of the domain kernel (K
+D
+) and the bag-of-
+words kernel (K
+BoW
+). The latter, described in Section 3.2, represents the syntagmatic
+aspectsofsensedistinction;itiscomposedofthecollocationkernel(K
+Coll
+)andthepart-
+of-speechkernel(K
+PoS
+).Finally,Section3.3describesthecompositekernelforWSD.
+3.1DomainKernels
+It has been shown that domain information is fundamental for WSD (Magnini et al.2002). For instance, the (domain) polysemy between the computer science and the
+medicine senses of the word virus can be solved byconsidering the domain of the
+context in which it appears. Gliozzo, Strapparava, and Dagan (2004) proposed a WSD
+methodthatexploitsonlydomaininformation.
+Inthecontextofkernelmethods,domaininformationcanbeexploitedbydeﬁning
+a kernel function that estimates the domain similaritybetween the contexts of the
+words to be disambiguated. The simplest method to estimate the domain similarity
+between two texts is to compute the cosine similarityof their vector representations
+in the vector space model (VSM). The VSM is a k-dimensional space R
+k, in which the
+text t
+j
+is represented bya vector
+vector
+t
+j, where the i
+th
+component is the term frequencyof
+thetermw
+i
+int
+j
+.However,suchanapproachdoesnotdealwellwithlexicalvariability
+and ambiguity. For instance, despite the fact that the sentencesHe is affected by AIDS
+and HIV is a virus express closely-related concepts, their similarity is zero in the VSM
+because theyhave no words in common (theyare represented byorthogonal vectors).
+On the other hand, due to the ambiguityof the word virus, the similaritybetween the
+sentences The laptop has been infected by a virus and HIV is a virus is greater than zero,
+eventhoughtheyconveyverydifferentmessages.
+Toovercomethisproblem,weintroducethedomainmodel(DM)andshowhowto
+use it to deﬁne a domain VSM in which texts and terms are represented in a uniform
+way. A DM is composed of soft clusters of terms. Each cluster represents a semantic
+domain, that is, a set of terms that often co-occur in texts having similar topics. A DM
+is represented bya k×k
+prime
+rectangular matrix D, containing the degree of association
+amongtermsanddomains,asillustratedinTable1.
+The matrix D is used to deﬁne a function D :R
+k
+→ R
+k
+prime, that maps the vector
+vector
+t
+j
+represented in the standard VSM into the vector
+vector
+t
+prime
+j
+in the domain VSM. D is deﬁned
+asfollows:
+3
+D(
+vector
+t
+j
+)=
+vector
+t
+j
+(I
+IDF
+D)=
+vector
+t
+prime
+j
+(2)
+3 InWong,Ziarko,andWong(1985),Equation(2)isusedtodeﬁneageneralizedvectorspacemodel,of
+whichthedomainVSMisaparticularinstance.
+516
+Giuliano,Gliozzo,andStrapparava KernelMethodsforMinimallySupervisedWSD
+where
+vector
+t
+j
+is represented as a row vector, I
+IDF
+is a k×k diagonal matrix such that i
+IDF
+i,i
+=
+IDF(w
+i
+),andIDF(w
+i
+)istheinversedocumentfrequencyof w
+i
+.
+Inthedomainspace,thesimilarityisestimatedbytakingintoaccountsecondorder
+relations among terms. For example, the similarityof the two sentences He is affected
+by AIDS and HIV is a virus is veryhigh, because the terms AIDS, HIV,andvirus are
+stronglyassociatedwiththemedicinedomain.
+ADMcanbeestimatedfrommanuallyconstructedlexicalresources,suchasWord-
+NetDomains(MagniniandCavagli`a2000),orbyperformingaterm-clusteringprocess
+ona(large)corpus.However,thesecondapproach ismoreattractivebecauseitallows
+ustoautomaticallyacquireDMsfordifferentlanguagesanddomains.
+In Gliozzo, Giuliano, and Strapparava (2005), we use singular valued decomposi-
+tion (SVD) to acquire DMs from a corpus represented byits term-by-document matrix
+T, in a unsupervised way.
+4
+SVD decomposes the term-by-document matrix T into
+threematrixesT similarequal VΣ
+k
+primeU
+T,whereVandUareorthogonalmatrices(i.e.,V
+T
+V=Iand
+U
+T
+U=I) whose columns are the eigenvectors of TT
+T
+and T
+T
+T, respectively, andΣ
+k
+prime
+is the diagonal k×k matrix containing the highest k
+prime
+lessmuchk eigenvalues of T, and all the
+remainingelementssetto0.Theparameterk
+prime
+isthedimensionalityofthedomainVSM
+and can be ﬁxed in advance. Under this setting, we deﬁne the domain matrix D as
+follows:
+D=I
+N
+V
+radicalbig
+Σ
+k
+prime (3)
+where I
+N
+is a diagonal matrix such that i
+N
+i,i
+=
+1
+radicalBig
+〈
+vector
+w
+prime
+i,
+vector
+w
+prime
+i
+〉,
+vector
+w
+prime
+i
+is the i
+th
+row of the matrix
+V
+√
+Σ
+k
+prime.
+5
+Note that in this case, with respect to Table 1, the domains are represented bythe
+columns of the matrix D and theydo not have an explicit name. Byusing a small
+number of domains, we can deﬁne a verycompact representation of the DM and, con-
+sequently, reduce the memory requirements while preserving most of the information.
+There exist veryefﬁcient algorithms to perform the SVD process on sparse matrices,
+allowingustoperformthisoperationonlargecorporainaverylimitedtimeandwith
+reducedmemoryrequirements.
+6
+Therefore, we can deﬁne the domain kernel to estimate the domain similarity
+between the contexts of the words to be disambiguated. It is a variant of the latent
+semantic kernel (Shawe-Taylor and Cristianini 2004), in which a DM is exploited to
+deﬁneanexplicitmapping D :R
+k
+→ R
+k
+prime
+fromtheclassical VSMintothedomain VSM.
+Thedomainkernelisexplicitlydeﬁnedasfollows:
+K
+D
+(t
+i,t
+j
+)=〈D(t
+i
+),D(t
+j
+)〉 (4)
+whereD isthedomainmappingdeﬁnedinEquation(2).
+4 TheSVDalgorithmwasﬁrstadoptedtoperformlatentsemanticanalysisoftermsandlatentsemantic
+indexingofdocumentsinlargecorpora(Deerwesteretal.1990).
+5WhenDissubstitutedinEquation(2)thedomainVSMisequivalenttoalatentsemanticspace
+(Deerwesteretal.1990).Theonlydifferenceinourformulationisthatthevectorsrepresentingtheterms
+inthedomainVSMarenormalizedbythematrix I
+N,andthenrescaled,accordingtotheirIDFvalue,by
+matrixI
+IDF
+.Notetheanalogywiththetf-idftermweightingschema(SaltonandMcGill1983),widely
+usedininformationretrieval.
+6 ToperformtheSVD,weusedLIBSVDC,anoptimizedpackageforsparsematricesthatallows
+ustoperformthisstepinafewminutesevenforlargecorpora.Itcanbedownloadedfrom
+http://tedlab.mit.edu/∼dr/SVDLIBC/.
+517
+ComputationalLinguistics Volume35,Number4
+A standard approach for detecting topic (domain) similarityis to extract bag-of-
+words features from a wide window of text around the words to be disambiguated.
+Based on this representation, we deﬁne a linear kernel called the bag-of-words kernel
+(K
+BoW
+). K
+BoW
+is a particular case of the domain kernel in which D=I in Equation (2),
+where I is the identitymatrix. The BoW kernel does not require a DM; therefore, it
+can be applied to the strictlysupervised settings, in which external knowledge is not
+available.
+To summarize, the domain kernel allows us to plug external knowledge into the
+supervisedlearningprocess;itwillbecomparedandcombinedwiththestandardbag-
+of-words approach in Section 4. In the following section, we shall see that domain
+modelsarealsousefulfordeﬁningsoft-matchingcollocationkernels.
+3.2SyntagmaticKernels
+Collocations(suchasbigramsandtrigrams)extractedfromthelocalcontextoftheword
+to be disambiguated are typically used to capture syntagmatic relations (Yarowsky
+1994). However, traditional approaches to WSD fail to represent non-contiguous or
+shifted collocations, and fail to consider lexical variability. For example, suppose we
+havetodisambiguatetheverbtoscoreinthesentenceRonaldoscoredtheﬁrstgoal,given
+the labeled example The football player scored two goals in the second half as training. A
+traditionalapproachhasnocluestoreturntherightanswerbecausethetwosentences
+havenofeaturesincommon.
+The use of kernels on strings allows us to overcome the aforementioned problems
+byrepresenting (non-contiguous) collocations and exploiting external lexical knowl-
+edge sources to deﬁne non-zero measures of similaritybetween words (soft-matching
+criteria).Inthisformulation,wordstakenintheircontextarecomparedbykernelsthat
+sumthenumberofcommon(non-contiguous)collocationsofwords,consideringlexical
+variability, and part-of-speech tags, avoiding an explicit feature mapping that would
+leadtoanexponentialnumberoffeatures.
+String kernels (or sequence kernels) are a familyof kernel functions developed
+to compute the inner product among images of strings in high-dimensional feature
+spaceusingdynamicprogrammingtechniques.Thegap-weightedsubsequenceskernel
+is one of the most general types of kernel based on sequences. Roughly speaking,
+it compares two strings bymeans of the number of contiguous and non-contiguous
+substrings of a given length theyhave in common. Non-contiguous occurrences are
+penalized according to the number of gaps theycontain. Formally, let Σ be an al-
+phabet of |Σ| symbols, and s=s
+1
+s
+2
+...s
+|s|
+be a ﬁnite sequence over Σ (i.e., s
+i
+∈Σ,1lessorequalslant
+ilessorequalslant|s|). Let i=[i
+1,i
+2,...,i
+n
+], with 1lessorequalslanti
+1
+< i
+2
+<...<i
+n
+lessorequalslant|s|, be a subset of the indices
+in s; we will denote as s[i] ∈Σ
+n
+the subsequence s
+i
+1
+s
+i
+2
+...s
+i
+n
+.Notethats[i] does not
+necessarilyform a contiguous subsequence of s; for example, if s is the sequence
+“Ronaldo scored the ﬁrst goal” and i=[2,5], then s[i] is “scored goal”. The length
+spanned by s[i]ins is l(i)=i
+n
+−i
+1
++1. The feature space associated with the gap-
+weighted subsequences kernel of length n is indexed by I=Σ
+n, with the embedding
+givenby
+φ
+n
+u
+(s)=
+summationdisplay
+i:u=s[i]
+λ
+l(i),u∈Σ
+n
+(5)
+518
+Giuliano,Gliozzo,andStrapparava KernelMethodsforMinimallySupervisedWSD
+where0<λlessorequalslant1isthedecayfactorusedtopenalizenon-contiguoussubsequences.
+7
+The
+associatekernelisdeﬁnedas
+K
+n
+(s,t)=〈φ
+n
+(s),φ
+n
+(t)〉=
+summationdisplay
+u∈Σ
+n
+φ
+n
+u
+(s)φ
+n
+u
+(t)(6)
+An explicit computation of Equation (6) is unfeasible even for small values of n.
+To evaluate K
+n
+more efﬁciently, we use the recursive formulation based on a dynamic
+programmingimplementation(Lodhietal.2002;Saunders,Tschach,andShawe-Taylor
+2002;Canceddaetal.2003).Itisdeﬁnedinthefollowingequations:
+K
+prime
+0
+(s,t)=1,∀s,t (7)
+K
+prime
+i
+(s,t)=0,if min(|s|,|t|) < i (8)
+K
+primeprime
+i
+(s,t)=0,if min(|s|,|t|) < i (9)
+K
+primeprime
+i
+(sx,ty)=
+braceleftBigg
+λK
+primeprime
+i
+(sx,t)ifxnegationslash=y;
+λK
+primeprime
+i
+(sx,t)+λ
+2
+K
+prime
+i−1
+(s,t) otherwise.
+(10)
+K
+prime
+i
+(sx,t)= λK
+prime
+i
+(s,t)+K
+primeprime
+i
+(sx,t) (11)
+K
+n
+(s,t)=0,if min(|s|,|t|) < n (12)
+K
+n
+(sx,t)=K
+n
+(s,t)+
+summationdisplay
+j:t
+j
+=x
+λ
+2
+K
+prime
+n−1
+(s,t[1:j−1]) (13)
+whereK
+prime
+n
+andK
+primeprime
+n
+areauxiliaryfunctionswithasimilardeﬁnitionto K
+n
+usedtofacilitate
+the computation. Based on these deﬁnitions, K
+n
+can be computed in O(n|s||t|). Using
+thisrecursivedeﬁnition,itturnsoutthatcomputingallkernelvaluesforsubsequences
+oflengthsuptonisnotsigniﬁcantlymorecostlythancomputingthekernelfor nonly.
+Thesyntagmatic kernel isdeﬁned as asumof gap-weighted subsequences kernels
+thatoperateatwordandpart-of-speechtaglevel.Inparticular,followingtheapproach
+proposed byCancedda et al. (2003), it is possible to adapt sequence kernels to operate
+at word level byinstancing the alphabet Σ with the vocabulary V ={w
+1,w
+2,...,w
+k
+}.
+Moreover, we restrict the generic deﬁnition of the gap-weighted subsequences kernel
+to recognize collocations in the local context of a speciﬁed word. The resulting kernel,
+called the n-gram collocation kernel (K
+n
+Coll
+), operates on sequences of lemmata around
+a speciﬁed word l
+0
+(i.e., l
+−3, l
+−2, l
+−1, l
+0, l
++1, l
++2, l
++3
+). This formulation allows us to
+estimate the number of common (sparse) subsequences of lemmata (i.e., collocations)
+between two examples, in order to capture syntagmatic similarity. Analogously, we
+deﬁne the part-of-speech kernel (K
+n
+PoS
+) to operate on sequences of part-of-speech tags
+p
+−3,p
+−2,p
+−1,p
+0,p
++1,p
++2,p
++3,wherep
+0
+isthepart-of-speechtagofl
+0
+.
+The collocation kernel and the part-of-speech kernel are deﬁned byEquations (14)
+and(15),respectively.
+K
+Coll
+(s,t)=
+n
+summationdisplay
+l=1
+K
+l
+Coll
+(s,t) (14)
+7 Noticethatbychoosing
+λ =1,sparsesubsequencesarenotpenalized.Ontheotherhand,thekerneldoes
+nottakeintoaccountsparsesubsequenceswithλ → 0.
+519
+ComputationalLinguistics Volume35,Number4
+K
+PoS
+(s,t)=
+n
+summationdisplay
+l=1
+K
+l
+PoS
+(s,t) (15)
+Both kernels depend on the parameter n, the length of the non-contiguous subse-
+quences, and λ, the decayfactor. For example, K
+2
+Coll
+allows us to represent all (sparse)
+bigramsinthelocalcontextofaword.Finally,thesyntagmatickernelisdeﬁnedas
+K
+Synt
+(s,t)=K
+Coll
+(s,t)+K
+PoS
+(s,t) (16)
+In the preceding deﬁnition, onlyexact word-matches contribute to the similarity.
+To solve this problem, external lexical knowledge is fed into the supervised learning
+process,allowingustodeﬁnethesoft-matchingcollocationkernel.Inparticular,wede-
+ﬁnetwoalternativesoft-matchingcriteriabyexploitingsynonymyrelationsinWordNet
+and DMs acquired from corpora. Both criteria are based on the assumption that every
+word in a sentence can be substituted byanother preserving the original meaning, if
+thesewordsareparadigmaticallyrelated(e.g.,synonyms,hyponyms,ordomainrelated
+words).Forexample, ifweconsider asequivalent thetermsRonaldoandfootballplayer,
+then the sentenceThefootballplayerscorestheﬁrstgoalis equivalent toRonaldoscoresthe
+ﬁrst goal, providing a strong evidence to disambiguate the verb to score in the second
+sentence.
+FollowingtheapproachproposedbyShawe-TaylorandCristianini(2004),thesoft-
+matchinggap-weightedsubsequenceskernelisnowcalculatedrecursivelyusingEqua-
+tions(7)–(9),(11),and(12),replacingEquation(10)bytheequation:
+K
+primeprime
+i
+(sx,ty)= λK
+primeprime
+i
+(sx,t)+λ
+2
+a
+xy
+K
+prime
+i−1
+(s,t),∀x,y (17)
+andmodifyingEquation(13)to:
+K
+n
+(sx,t)=K
+n
+(s,t)+
+|t|
+summationdisplay
+j
+λ
+2
+a
+xt
+j
+K
+prime
+n−1
+(s,t[1:j−1]) (18)
+wherea
+xy
+areentriesinasimilaritymatrix Abetweenterms.Inordertoensurethatthe
+resultingkernelisstillvalid,Amustbepositivesemi-deﬁnite.
+In the following sections, we describe the two alternative soft-matching criteria
+based on WordNet Synonymy and Domain Proximity, respectively. To show that the
+similaritymatricesarepositivesemi-deﬁnite,weusethefollowingresult.
+Proposition1
+AmatrixAispositivesemi-deﬁniteifandonlyif A=B
+T
+BforsomerealmatrixB.
+TheproofisgiveninShawe-TaylorandCristianini(2004).
+WordNet Synonymy. The ﬁrst soft-matching criterion is based on WordNet
+8
+to deﬁne
+a similaritymatrix between words. In particular, we substitute two words if theyare
+synonyms.Tothisend,awordisrepresentedasvectorwhosedimensionsareassociated
+8 WeusedWordNet1.7.1andMultiWordNetforEnglishandItalianexperiments,respectively.
+520
+Giuliano,Gliozzo,andStrapparava KernelMethodsforMinimallySupervisedWSD
+with the synsets. Formally, we deﬁne the term-by-synset matrix S as the matrix whose
+rows are indexed bythe terms and whose columns are indexed bythe synsets. The
+(i,j)th entryof S is 1 if the synset s
+j
+contains the term w
+i
+; 0 otherwise. The matrix
+S gives rise to the similaritymatrix A=SS
+T
+between terms. Because A can be re-
+written as A= (S
+T
+)
+T
+S
+T
+=B
+T
+B, it follows directlyfrom Proposition 1 that it is positive
+semi-deﬁnite.
+DomainProximity.Thesecondsoft-matchingcriterionexploitsthedomainmodelsintro-
+duced in Section 3.1todeﬁne asimilaritymatrix between words. Once aDM has been
+deﬁnedbythematrix D,thedomainspaceisak
+prime
+dimensionalspace,inwhichbothtexts
+andtermsarerepresentedbymeansofdomainvectors,thatis,vectorsrepresentingthe
+domainrelevancesamongthelinguisticobjectandeachdomain.Thedomainvector
+vector
+w
+prime
+i
+for the termw
+i
+∈ V is thei
+th
+row of D, where V ={w
+1,w
+2,...,w
+k
+} is the vocabularyof
+the corpus. The term-by-domain matrix D gives rise to the similaritymatrix A=DD
+T
+betweenterms.ItfollowsbyProposition1that Aispositivesemi-deﬁnite.
+Weshallshowthatthesyntagmatickernelismoreeffectivethanstandardbigrams
+andtrigramsoflemmataandpart-of-speechtagstypicallyusedasfeaturesinWSD.
+3.3CompositeKernel
+Havingdeﬁnedalltheindividualkernelsrepresentingsyntagmaticanddomainaspects
+of sense distinction, we can deﬁne the composite kernel to combine and extend the
+individual kernels. The closure properties of the kernel functions allows us to deﬁne
+thecompositekernelas
+K
+C
+(x
+i,x
+j
+)=
+n
+summationdisplay
+l=1
+K
+l
+(x
+i,x
+j
+)
+radicalbig
+K
+l
+(x
+j,x
+j
+)K
+l
+(x
+i,x
+i
+)
+(19)
+whereK
+l
+isavalidindividualkernel.Theindividualkernelsarenormalized—thisplays
+an important role in allowing us to integrate information from heterogeneous feature
+spaces.
+Recent work (Moschitti 2004; Gliozzo, Giuliano, and Strapparava 2005; Zhao and
+Grishman 2005; Giuliano, Lavelli, and Romano 2006) has empiricallyshown the effec-
+tivenessofcombiningkernelsinthisway:Thecompositekernelconsistentlyimproves
+the performance of the individual ones. In addition, this formulation allows us to
+evaluatetheindividualcontributionofeachinformationsource.
+In order to show the effectiveness of the proposed domain model in supervised
+learning,wedeﬁnedtwoWSDkernels,K
+wsd
+andK
+prime
+wsd
+.Theyarecompletelyspeciﬁedby
+thenindividualkernelsthatcomposetheminEquation(19).
+K
+wsd
+iscomposedbyK
+Coll,K
+PoS,andK
+BoW
+;
+K
+prime
+wsd
+iscomposedbyK
+Coll,K
+PoS,K
+BoW,andK
+D
+.
+The onlydifference between the two is that K
+prime
+wsd
+uses the domain kernel K
+D
+to exploit
+externalknowledgewhileK
+wsd
+onlyusesthelabeledtrainingdata.
+521
+ComputationalLinguistics Volume35,Number4
+4.Evaluation
+Experiments were carried out on various tasks of Senseval-3 (Mihalcea and Edmonds
+2004). First of all, we conducted a preliminaryset of experiments on the Catalan,
+English, Italian, and Spanish lexical-sample tasks; the results are shown in Section 4.1.
+Second, in order to show the general applicabilityof the proposed method, we evalu-
+atedthesystemontheEnglishall-wordstask;theresultsarepresentedinSection4.2.
+AlltheexperimentswereperformedusingtheSVMpackage(ChangandLin2001)
+customized to embed our own kernels. The parameters were optimized byﬁve-fold
+cross-validationonthetrainingset.
+4.1Lexical-SampleTasks
+Inthissection,wereporttheevaluationofourmethodontheCatalan,English,Italian,
+and Spanish lexical-sample tasks of Senseval-3 (Mihalcea and Edmonds 2004). Table 2
+describes the tasks we have considered. For each task, it summarizes the number of
+words to be disambiguated, the mean polysemy, the size of the labeled training set,
+the size of the test set, and the size of the unlabeled training set, respectively. For the
+Catalan, Italian, and Spanish tasks, we acquired the DMs from the unlabeled corpora
+made available bythe task organizers. For the English task, we used a DM acquired
+from the British National Corpus (BNC) as the task organizers have not provided
+anyunlabeled training data. The objectives of these experiments are to (a) estimate
+the impact of different knowledge sources in WSD; (b) studythe effectiveness of the
+kernel combination; (c) understand the beneﬁts of plugging external information in a
+supervised framework; and (d) verifythe portabilityof our methodologyto different
+languages.
+4.1.1 Results. Table 3 reports the results of the individual kernels K
+BoW, K
+D, K
+Coll,and
+K
+PoS
+and their combinations K
+wsd
+and K
+prime
+wsd
+(the baselines for the tasks are reported in
+Table 5). In our experiments, the parameters n and λ (see Equation (5)) are optimized
+byﬁve-fold cross-validation. For K
+n
+Coll, we obtained the best results with n=2and
+λ =0.5. For K
+n
+PoS, n=3andλ → 0. The domain cardinality k
+prime
+was set to 50. Table 4
+shows theperformance ofthe syntagmatic kernel in different conﬁgurations: hard and
+soft matching. As a baseline, we report the result of a standard approach consisting of
+explicit bigrams and trigrams of words and part-of-speech tags around the words to
+be disambiguated (Yarowsky1994). We evaluated the impact of the domain kernel on
+theoverallperformancebycomparingthelearningcurvesof K
+prime
+wsd
+andK
+wsd
+onthefour
+lexical-sample tasks. Figure 1 shows the results of our experiments. The points of the
+learningcurvesareobtainedbysamplingthesamepercentageoftrainingexamplesfor
+Table2
+Descriptionofthelexical-sampletasksofSenseval-3.
+Task #w meanpolysemy #train #test #unlab
+Catalan 27 3.11 4,469 2,253 23,935
+English 57 6.47 7,860 3,944 -
+Italian 45 6.30 5,145 2,439 74,788
+Spanish 46 3.30 8,430 4,195 61,252
+522
+Giuliano,Gliozzo,andStrapparava KernelMethodsforMinimallySupervisedWSD
+Table3
+Theperformance(F1)ofthebasicandcompositekernelsontheCatalan,English,Italian,and
+Spanishlexical-sampletasksofSemeval-3.
+Kernel Catalan English Italian Spanish
+K
+BoW
+81.3 63.7 43.3 78.2
+K
+D
+85.2 65.5 44.5 84.4
+K
+Coll
+84.2 68.5 54.0 83.6
+K
+PoS
+79.6 64.0 44.4 79.5
+K
+wsd
+85.2 69.7 53.1 84.2
+K
+prime
+wsd
+89.0 73.3 61.3 88.2
+Table4
+Performance(F1)ofthesyntagmatickernelfortheCatalan,English,Italian,andSpanish
+lexical-sampletasksofSemeval-3.
+Method Catalan English Italian Spanish
+Bigramsandtrigrams 82.6 67.3 51.0 81.9
+Hardmatching 83.8 67.7 51.9 82.9
+Softmatching(WordNet) 67.3 51.3 -
+Softmatching(Domainproximity) 84.2 68.5 54.0 83.6
+eachword.Finally,Table5summarizestheresultsweobtained,providingacomparison
+withthestateoftheart.
+4.1.2 Discussion. Table 3 shows that domain information and syntagmatic information
+are crucial for WSD, and their combination signiﬁcantlyoutperforms the individual
+kernels,showingtheeffectivenessofthekernelcombinationmethod.
+In addition, the domain kernel K
+D
+outperforms the bag-of-words kernel K
+BoW,
+and the composite kernel K
+prime
+wsd
+that makes use of domain information outperforms the
+one K
+wsd
+based onlyon the labeled training data, demonstrating our assumption (see
+Section3).
+Table 4 shows that the syntagmatic kernel outperforms the baseline (bigrams and
+trigrams)inanyconﬁguration(hard-/soft-matching).Thesoft-matchingcriteriafurther
+improvetheclassiﬁcationperformance.Itisinterestingtonotethatthedomainproxim-
+ityobtainedbetterresultsthanWordNetsynonymy(notethatwedonothaveaCatalan
+or a Spanish WordNet). The different results observed for Italian and English using
+the domain proximitysoft-matching criterion are probablydue to the small size of the
+unlabeledEnglishcorpus.
+Figure 1 shows thatK
+prime
+wsd
+outperforms K
+wsd
+on all lexical sample tasks, even with a
+smallnumberofexamples.Itisworthnoting,asreportedinTable5,thatK
+prime
+wsd
+achieves
+the same performance asK
+wsd
+using about half of the labeled training data. This result
+shows that the proposed semi-supervised learning approach consisting of acquiring
+domainmodelsfromunlabeledcorporaiseffective,asitallowsustodrasticallyreduce
+the amount of labeled training data and provide a viable solution for the knowledge
+acquisitionbottleneckprobleminWSD.
+Tothebestofourknowledge,K
+prime
+wsd
+turnsouttobethebestsystemforallthetested
+tasks of Senseval-3, further improving the state of the art by0.4% to 8.2% for English
+and Italian, respectively. Finally, we have demonstrated the language independency
+523
+ComputationalLinguistics Volume35,Number4
+Figure1
+Fromlefttoright,toptobottom,learningcurvesfortheCatalan,English,Italian,andSpanish
+lexical-sampletasksofSemeval-3.
+of our approach. The DMs have been acquired for different languages from different
+unlabeled corpora byadopting exactlythe same methodology, without requiring any
+externallexicalresourceoradhocrule.
+4.2All-WordsTask
+Encouragedbytheexcellentresultsobtainedonthelexical-sampletasks,weevaluated
+our approach on the all-words task, in which a verysmall amount of labeled training
+Table5
+Comparativeevaluationonthelexicalsampletasks.
+Task MF Agreement BEST K
+wsd
+K
+prime
+wsd
+DM+ %oftraining
+Catalan 66.3 93.1 85.2 85.2 89.0 3.8 46
+English 55.2 67.3 72.9 69.7 73.3 3.6 54
+Italian 18.0 89.0 53.1 53.1 61.3 8.2 51
+Spanish 67.7 85.3 84.2 84.2 88.2 4.0 50
+Columnsreport:theMostFrequentbaseline,theinter-annotatoragreement,theF1ofthebestsystem
+atSenseval-3,theF1ofK
+wsd,theF1ofK
+prime
+wsd,DM+(theimprovementduetoDM,i.e.,K
+prime
+wsd
+−K
+wsd
+),
+and the percentage of sense-tagged examples required byK
+prime
+wsd
+to achieve the same performance
+asK
+wsd
+withfulltraining.
+524
+Giuliano,Gliozzo,andStrapparava KernelMethodsforMinimallySupervisedWSD
+Table6
+Theperformance(F1)ofthebasickernelsandcompositekernelsontheEnglishall-wordstaskof
+Senseval-3.
+basickernels compositekernels
+K
+bnc
+D
+K
+sem
+D
+K
+BoW
+K
+PoS
+K
+Coll
+K
+wsd
+ˆ
+K
+bnc
+wsd
+ˆ
+K
+sem
+wsd
+F1 63.0 63.2 63.2 63.4 64.0 64.4 65.0 65.2
+data is typically available. We performed the evaluation on the English all-words task
+ofSenseval-3(SnyderandPalmer2004).ThetestsetwasextractedfromtwoWallStreet
+Journalarticles and one text from the Brown Corpus. The test set consists of 945 words
+(2,041 word occurrences) to be disambiguated with WordNet 1.7.1 senses. The inter-
+annotator agreement rate in the preparation of the corpus was approximately72.5%.
+Themostfrequent(MF)baselineusingtheﬁrstWordNetsenseheuristicobtained60.9%.
+Wehavetrainedandtestedthesystemexploitingthefollowingresources:(1)Word-
+Net 1.7.1 as sense repository; (2) SemCor,
+9
+considering onlythose words appearing
+in the Senseval-3 all-words data set—we extracted about 61,700 tagged examples that
+constitute the onlylabeled training set exploited bythe system; and (3) the BNC, from
+whichweextractedtheunlabeledtrainingdata.
+4.2.1Results.Wetrained734word-expertclassiﬁersontheSemCorcorpus.Thelabeled
+examples for each classiﬁer range from a minimum of one example to a maximum
+of 2,275 examples. We return a random sense for those words that have no training
+examples in SemCor.
+10
+We have acquired two DMs, one from the BNC (i.e.,
+ˆ
+K
+bnc
+D
+;the
+same we used in the lexical-sample task) and one from SemCor (i.e.,
+ˆ
+K
+sem
+D
+), obtaining a
+slightlybetterperformancewiththelatter.
+Table 6 shows the performance of the individual kernels K
+BoW, K
+D, K
+Coll,andK
+PoS,
+andtheircompositekernelsK
+wsd,
+ˆ
+K
+bnc
+D
+and
+ˆ
+K
+sem
+D
+.
+Since for 210 words in the test set we have no training examples, to better under-
+standtheresultsobtained,weperformedanevaluationonthesubsetofthetestsetfor
+which at least one training example is available in SemCor. Evaluating onlyon these
+words the performance increases from 65.2% to 70.0%, and the most frequent baseline
+becomes 65.7%. Tables 7 and 8 present a more detailed analysis that considers results
+grouped according to the amount of training available and the mean polysemy of the
+wordsinthetestset,excludingfromthedatasetthemonosemouswords.Table7shows
+theresults(F1)of
+ˆ
+K
+sem
+wsd
+atdifferentrangesofpolysemy.Table8presentstheresults(F1)
+of
+ˆ
+K
+sem
+wsd
+onthosewordsthathaveagivennumberoftrainingexamples.Thisevaluation
+islimitedtothebestcompositekernel
+ˆ
+K
+sem
+wsd
+.
+4.2.2 Discussion. We compared our approach with the three best systems that par-
+ticipated in the English all-words task of Senseval-3. The best system (Decadt et al.2004) has comparable performance (65.2) to ours; however, it uses a larger training set
+composed of 563,129 sense-tagged words. The training corpus was built bymerging
+9 TextssemanticallyannotatedwithWordNet1.6senses(createdatPrincetonUniversity),and
+automaticallymappedtoWordNet1.7,WordNet1.7.1,andWordNet2.0.Downloadablefrom
+http://www.cs.unt.edu/∼rada/downloads.html.
+10 NotethatforthesewordstheWordNetﬁrstsenseisnotnecessarilythemostfrequentsense.
+525
+ComputationalLinguistics Volume35,Number4
+Table7
+Theperformance(F1)of
+ˆ
+K
+sem
+wsd
+atdifferentrangesofpolysemy.MostFrequentbaseline(MF)is
+alsoreported.
+Rangeofpolysemy
+2–5 6–10 11–15 16–20 21–25 26–30 31+
+ˆ
+K
+sem
+wsd
+73.2 61.4 59.1 33.8 55.2 50.2 37.3
+MF 70.0 53.4 56.4 25.7 47.2 39.0 21.7
+Table8
+Theperformance(F1)of
+ˆ
+K
+sem
+wsd
+onwordswithagivennumberoftrainingexamples.Most
+Frequentbaseline(MF)andmeanpolysemyforeachpartitionarealsoreported.
+Rangeoftrainingexamples
+1–10 11–50 51–100 101–200 201+
+ˆ
+K
+sem
+wsd
+76.1 70.8 54.2 67.4 60.0
+MF 73.5 66.4 49.4 63.2 53.0
+Meanpolysemy 3 5 7 9 15
+SemCor,andEnglishlexical-sampleandall-wordsdatasetstakenfromalltheprevious
+editionsofSenseval.ThesystemproposedbyMihalceaandFaruque(2004)scoredsec-
+ond(64.6).Thedimensionoftheirtrainingsetiscomparabletoours;however,theyalso
+use additional information drawn from WordNet to derive semantic generalizations
+usingsyntacticdependencies.Finally,thethirdsystem(Yuret2004)obtained64.1using
+a larger training data set (Semcor, DSO corpus of sense-tagged English, OpenMind
+WordExpert,Senseval-2,andSenseval-3lexical-sampletasks).
+The small difference between the two domain models seems to indicate that a
+limited amount of unlabeled data is sufﬁcient to improve the overall performance,
+and the use of unlabeled data taken from the training set helps to slightlyimprove
+theoverallperformance.However,thedomainmodelcanbeacquiredfromadifferent
+corpus(e.g.,theBNC)withoutsigniﬁcantlyaffectingtheoverallperformance.
+Finally,theresultsreportedinTables7and8showthatourapproachisabletodis-
+ambiguate with good accuracy( F1=76%) words with a number of training examples
+that ranges from 1 to 10, outperforming the most frequent baseline by3%. This is an
+interestingresultgiventheextremelysmallnumberoftrainingexamplesavailable.On
+the other hand, the more training is available for a given word, the more polysemous
+that word is. Nevertheless, the algorithm always outperforms the baseline and has a
+more signiﬁcant difference for increasing values of the mean polysemy (from 3% to
+16%). These results, together with the ones obtained in the lexical sample tasks, show
+thatthedomainkernelisabletoboosttheoverallperformancewhenlittletrainingdata
+areavailable,aswellaswithenoughtrainingdata.Thebeneﬁtisevenmorepronounced
+forthelattercase,eventhoughthedisambiguationtaskismorecomplexduetothehigh
+polysemyofhighlyfrequentwords.
+5.Conclusions
+This article summarizes the results of a word expert semi-supervised algorithm for
+WSDbasedonacombinationofkernelfunctions.First,weevaluatedourmethodology
+526
+Giuliano,Gliozzo,andStrapparava KernelMethodsforMinimallySupervisedWSD
+on four lexical-sample tasks of Senseval-3, signiﬁcantlyimproving the state of the art
+for all of them. In particular, we demonstrated that using external knowledge inside a
+supervised framework is a viable methodologyto reduce the amount of training data
+requiredforlearning.Inourapproach,theexternalknowledgeisrepresentedbymeans
+of domain models automaticallyacquired from corpora in a totallyunsupervised way.
+Then, we applied the method so deﬁned to the English all-words task of Senseval-
+3, achieving state-of-the-art performance while requiring less labeled training data
+comparedtotheothersystemswehavefoundintheliterature.
+Someslightimprovementmaybepossiblebyexploitingsyntacticinformationpro-
+ducedbyaparser.Intheframeworkofkernelmethods,thisexpansioncanbedoneby
+adding a tree kernel (i.e., a kernel function that evaluates the similarityamong parse
+trees)toourcompositekernel.However,theperformanceachievedisclosetotheupper
+bound, if we consider the inter-annotator agreement as an indication of the upper-
+boundperformance.
+Finally, we think that our semi-supervised approach is at the moment an effective
+solution for developing a sense-tagging system. Indeed, we tested the system on the
+Englishlexical-sampletaskofSemEval2007,stillobtainingstate-of-the-artperformance
+(Pradhan et al. 2007). Therefore, we plan to make available an optimized version of
+oursystem,andtoexploititforontologylearning,textualentailment,andinformation
+retrieval.
+Acknowledgments
+ClaudioGiulianowassupportedbythe
+X-Mediaproject(www.x-media-project.org),
+sponsoredbytheEuropeanCommissionas
+partoftheInformationSocietyTechnologies
+(IST)programmeunderECgrantIST-FP6-
+026978.AlﬁoMassimilianoGliozzoand
+CarloStrapparavaweresupportedbythe
+ONTOTEXTproject,sponsoredbythe
+AutonomousProvinceofTrentounderthe
+FUP-2004researchprogram.
+References
+Boser,Bernhard,IsabelleGuyon,and
+VladimirVapnik.1992.Atraining
+algorithmforoptimalmarginclassiﬁer.
+InProceedingsofthe5
+th
+AnnualACM
+WorkshoponComputationalLearning
+Theory,pages144–152,Pittsburgh,PA.
+Cancedda,Nicola,EricGaussier,Cyril
+Goutte,andJean-MichelRenders.2003.
+Word-sequencekernels.JournalofMachine
+LearningResearch,32(6):1059–1082.
+Chang,Chih-ChungandChih-JenLin,
+2001.LIBSVM:Alibraryforsupportvector
+machines.Softwareavailableatwww.csie.
+ntu.edu.tw/∼cjlin/libsvm.
+Chapelle,Olivier,BernhardSch¨olkopf,and
+AlexanderZien.2006.Semi-Supervised
+Learning.MITPress,Cambridge,MA.
+Cristianini,NelloandJohnShawe-Taylor.
+2000.AnIntroductiontoSupportVector
+Machines.CambridgeUniversityPress.
+Decadt,Bart,VeroniqueHoste,Walter
+Daelemans,andAntalvandenBosch.
+2004.GAMBL,geneticalgorithm
+optimizationofmemory-basedWSD.In
+ProceedingsofSenseval-3,pages108–112,
+Barcelona.
+Deerwester,Scott,SusanDumais,George
+Furnas,ThomasLandauer,andRichard
+Harshman.1990.Indexingbylatent
+semanticanalysis.JournaloftheAmerican
+SocietyofInformationScience,41:391–407.
+Giuliano,Claudio,AlﬁoGliozzo,andCarlo
+Strapparava.2006.Syntagmatickernels:A
+wordsensedisambiguationcasestudy.In
+InProceedingsoftheEACL-06Workshopon
+LearningStructuredInformationinNatural
+LanguageApplications,pages57–63,Trento.
+Giuliano,Claudio,AlbertoLavelli,and
+LorenzaRomano.2006.Exploitingshallow
+linguisticinformationforrelation
+extractionfrombiomedicalliterature.In
+ProceedingsoftheEleventhConferenceofthe
+EuropeanChapteroftheAssociationfor
+ComputationalLinguistics(EACL-2006),
+pages401–408,Trento.
+Gliozzo,Alﬁo,ClaudioGiuliano,andCarlo
+Strapparava.2005.Domainkernelsfor
+wordsensedisambiguation.InProceedings
+ofthe43
+rd
+AnnualMeetingoftheAssociation
+forComputationalLinguistics(ACL-05),
+pages403–410,AnnArbor,MI.
+Gliozzo,Alﬁo,CarloStrapparava,and
+IdoDagan.2004.Unsupervisedand
+supervisedexploitationofsemantic
+527
+ComputationalLinguistics Volume35,Number4
+domainsinlexicaldisambiguation.
+ComputerSpeechandLanguage,
+18(3):275–299.
+Lodhi,Huma,JohnShawe-Taylor,Nello
+Cristianini,andChrisWatkins.2002.Text
+classiﬁcationusingstringkernels.Journal
+ofMachineLearningResearch,2(3):419–444.
+Magnini,BernardoandGabrielaCavagli`a.
+2000.Integratingsubjectﬁeldcodesinto
+WordNet.InProceedingsofLREC-2000,
+pages1413–1418,Athens.
+Magnini,Bernardo,CarloStrapparava,
+GiovanniPezzulo,andAlﬁoGliozzo.2002.
+Theroleofdomaininformationinword
+sensedisambiguation.NaturalLanguage
+Engineering,8(4):359–373.
+Mihalcea,RadaandPhilEdmonds,editors.
+2004.ProceedingsofSenseval-3:Third
+InternationalWorkshopontheEvaluationof
+SystemsfortheSemanticAnalysisofText.
+Barcelona.
+Mihalcea,RadaandEhsanulFaruque.2004.
+SenseLearner:MinimallysupervisedWSD
+forallwordsinopentext.InSenseval-3:
+ThirdInternationalWorkshoponthe
+EvaluationofSystemsfortheSemantic
+AnalysisofText,pages155–158,Barcelona.
+Moschitti,Alessandro.2004.Astudyon
+convolutionkernelsforshallowstatistic
+parsing.InProceedingsofthe42
+nd
+Annual
+MeetingoftheAssociationforComputational
+Linguistics(ACL2004),pages335–342,
+Barcelona.
+Pradhan,Sameer,EdwardLoper,Dmitriy
+Dligach,andMarthaPalmer.2007.
+Semeval-2007task-17:Englishlexical
+sample,SRLandallwords.InProceedings
+oftheFourthInternationalWorkshopon
+SemanticEvaluations(SemEval-2007),
+pages87–92,Prague.
+Salton,GerardandMichaelJ.McGill.1983.
+IntroductiontoModernInformationRetrieval.
+McGraw-Hill,NewYork.
+Saunders,Craig,HaukeTschach,andJohn
+Shawe-Taylor.2002.Syllablesandother
+stringkernelextensions.InProceedingsof
+19
+th
+InternationalConferenceonMachine
+Learning(ICML02),pages530–537,Sydney.
+Sch¨olkopf,BernhardandAlexanderSmola.
+2002.LearningwithKernels.MITPress,
+Cambridge,MA.
+Shawe-Taylor,JohnandNelloCristianini.
+2004.KernelMethodsforPatternAnalysis.
+CambridgeUniversityPress.
+Snyder,BenjaminandMarthaPalmer.2004.
+TheEnglishall-wordstask.InSenseval-3:
+ThirdInternationalWorkshoponthe
+EvaluationofSystemsfortheSemantic
+AnalysisofText,pages41–43,Barcelona.
+Strapparava,Carlo,AlﬁoGliozzo,and
+ClaudioGiuliano.2004.Patternabstraction
+andtermsimilarityforwordsense
+disambiguation:Irstatsenseval-3.In
+Senseval-3:ThirdInternationalWorkshopon
+theEvaluationofSystemsfortheSemantic
+AnalysisofText,pages229–234,Barcelona.
+Vapnik,VladimirN.1999.TheNatureof
+StatisticalLearningTheory(Information
+ScienceandStatistics).Springer,Berlin.
+Wong,S.K.M.,WojciechZiarko,and
+PatrickC.N.Wong.1985.Generalized
+vectorspacemodelininformation
+retrieval.InProceedingsofthe8
+th
+ACM
+SIGIRConference,pages18–25,Montreal.
+Yarowsky,David.1994.Decisionlistsfor
+lexicalambiguityresolution:Application
+toaccentrestorationinSpanishand
+French.InProceedingsofthe32
+nd
+Annual
+MeetingoftheAssociationforComputational
+Linguistics(ACL1994),pages88–95,
+LasCruces,NM.
+Yuret,Deniz.2004.Someexperimentswitha
+naiveBayesWSDsystem.InSenseval-3:
+ThirdInternationalWorkshoponthe
+EvaluationofSystemsfortheSemantic
+AnalysisofText,pages265–268,Barcelona.
+Zhao,ShubinandRalphGrishman.2005.
+Extractingrelationswithintegrated
+informationusingkernelmethods.In
+Proceedingsofthe43
+rd
+AnnualMeetingofthe
+AssociationforComputationalLinguistics
+(ACL2005),pages419–426,AnnArbor,MI.
+528
+

@@ -1,0 +1,906 @@
+Proceedings of the 49th Annual Meeting of the Association for Computational Linguistics, pages 1597–1606,
+Portland, Oregon, June 19-24, 2011. c©2011 Association for Computational Linguistics
+PartialParsingfromBitextProjections
+PrashanthMannemandAswarthDara
+LanguageTechnologiesResearchCenter
+InternationalInstituteof InformationTechnology
+Hyderabad,AP, India500032
+{prashanth,abhilash.d}@research.iiit.ac.in
+Abstract
+Recent work has shown how a parallel
+corpus can be leveraged to build syntac-
+tic parserfor a target languageby project-
+ing automaticsourceparseonto the target
+sentenceusingword alignments.The pro-
+jectedtarget dependency parsesare not al-
+waysfullyconnectedto be usefulfortrain-
+ing traditionaldependency parsers.In this
+paper, we presenta greedynon-directional
+parsing algorithm which doesn’t need a
+fully connectedparse and can learn from
+partial parses by utilizingavailable struc-
+tural and syntactic informationin them.
+Our parser achieved statistically signifi-
+cant improvementsover a baselinesystem
+that trains on only fully connectedparses
+for Bulgarian, Spanishand Hindi. It also
+gave a significantimprovement over pre-
+viouslyreportedresultsfor Bulgarian and
+set a benchmarkfor Hindi.
+1 Introduction
+Parallel corpora have been used to transfer in-
+formation from source to target languages for
+Part-Of-Speech(POS)tagging,wordsensedisam-
+biguation(Yarowsky et al., 2001),syntacticpars-
+ing (Hwa et al., 2005;Ganchev et al., 2009;Jiang
+and Liu, 2010) and machine translation(Koehn,
+2005; Tiedemann,2002). Analysison the source
+sentenceswas inducedontothe target sentencevia
+projectionsacrossword alignedparallelcorpora.
+Equippedwith a source languageparser and a
+word alignmenttool, paralleldata can be used to
+build an automatictreebankfor a target language.
+The parse trees given by the parseron the source
+sentencesin theparalleldataareprojectedontothe
+target sentence using the word alignmentsfrom
+the alignmenttool. Due to the usageof automatic
+sourceparses,automaticword alignmentsanddif-
+ferencesin the annotationschemesof sourceand
+target languages,the projectedparses are not al-
+ways fully connectedand can have edgesmissing
+(Hwa et al., 2005; Ganchev et al., 2009). Non-
+literal translationsand divergences in the syntax
+of the two languagesalso lead to incomplete pro-
+jectedparsetrees.
+Figure 1 shows an English-Hindiparallel sen-
+tence with correct source parse, alignmentsand
+target dependency parse. For the same sentence,
+Figure2 is a samplepartialdependency parsepro-
+jectedusingan automaticsourceparseron aligned
+text. This parse is not fully connected with the
+words banaa, kottaige and dikhataaleft without
+any parents.
+para bahuta hai
+The cottagebuilton the hill looksverybeautiful
+pahaada banaahuaakottaige sundaradikhataa
+Figure 1: Word alignment with dependency
+parsesfor an English-Hindiparallelsentence
+To trainthe traditionaldependency parsers(Ya-
+madaand Matsumoto,2003; Eisner, 1996; Nivre,
+2003), the dependency parse has to satisfy four
+constraints: connectedness, single-headedness,
+acyclicityand projectivity(Kuhlmannand Nivre,
+2006).Projectivity can be relaxed in someparsers
+(McDonaldet al., 2005; Nivre, 2009). But these
+parserscan not directlybe used to learnfrompar-
+tiallyconnectedparses(Hwa et al.,2005;Ganchev
+et al., 2009).
+In the projectedHinditreebank(section4) that
+was extracted from English-Hindiparallel text,
+only 5.9% of the sentences had full trees. In
+1597
+Spanishand Bulgarianprojecteddataextractedby
+Ganchev et al. (2009), the figures are 3.2% and
+12.9%respectively. Learningfromdata withsuch
+high proportions of partially connected depen-
+dency parses requires special parsing algorithms
+which are not bound by connectedness. Its only
+duringlearningthat the constraintdoesn’t satisfy.
+For a new sentence (i.e. during inference), the
+parser should output fully connecteddependency
+tree.
+para bahuta haipahaada banaahuaakottaige sundaradikhataa
+on cottageverybeautifulbuild lookhill PastPart. Be.Pres.
+Figure2: A sampledependency parsewithpartial
+parses
+In this paper, we present a dependency pars-
+ing algorithmwhichcan train on partialprojected
+parses and can take rich syntacticinformationas
+featuresfor learning. The parsingalgorithmcon-
+structsthepartialparsesin a bottom-upmannerby
+performinga greedysearchover all possiblerela-
+tions and choosingthe best one at each step with-
+out following either left-to-right or right-to-left
+traversal. Thealgorithmis inspiredby earliernon-
+directionalparsingworksof ShenandJoshi(2008)
+and Goldberg and Elhadad(2010). We also pro-
+poseanextendedpartialparsingalgorithmthatcan
+learnfrompartialparseswhoseyieldsarepartially
+contiguous.
+Apartfrom bitext projections,this work can be
+extendedto other cases where learningfrom par-
+tial structures is required. For example, while
+bootstrappingparsers high confidenceparses are
+extractedand trainedupon(Steedmanet al., 2003;
+Reichart and Rappoport,2007). In cases where
+these parses are few, learningfrom partial parses
+mightbe beneficial.
+We trainour parseron projectedHindi,Bulgar-
+ian and Spanish treebanksand show statistically
+significant improvements in accuracies between
+trainingonfullyconnectedtreesandlearningfrom
+partialparses.
+2 RelatedWork
+Learningfrompartialparseshas beendealtin dif-
+ferent ways in the literature. Hwa et al. (2005)
+used post-projection completion/transformation
+rules to get full parse trees from the projections
+and train Collin’s parser(Collins,1999)on them.
+Ganchev et al. (2009) handle partial projected
+parsesby avoidingcommittingto entireprojected
+tree during training. The posteriorregularization
+based framework constrainsthe projectedsyntac-
+tic relationsto holdapproximatelyand onlyin ex-
+pectation. Jiang and Liu (2010) refer to align-
+ment matrix and a dynamicprogrammingsearch
+algorithmto obtain better projected dependency
+trees. They deal withpartialprojectionsby break-
+ing down the projectedparse into a set of edges
+andtrainingon the set of projectedrelationsrather
+thanon trees.
+WhileHwa et al. (2005)requiresfull projected
+parsesto train their parser, Ganchev et al. (2009)
+and Jiang and Liu (2010)can learn from partially
+projectedtrees. However, the discriminative train-
+ing in (Ganchev et al., 2009) doesn’t allow for
+richer syntacticcontext and it doesn’t learn from
+all the relationsin the partial dependency parse.
+By treatingeach relationin the projecteddepen-
+dency data independentlyas a classificationin-
+stancefor parsing,Jiang and Liu (2010)sacrifice
+the context of the relationssuch as global struc-
+turalcontext, neighboringrelationsthatarecrucial
+for dependency analysis. Due to this, they report
+thatthe parsersuffersfromlocaloptimizationdur-
+ing training.
+The parser proposed in this work (section 3)
+learns from partial trees by using the available
+structuralinformationin it and also in neighbor-
+ing partialparses. We evaluatedour system(sec-
+tion5) on BulgarianandSpanishprojecteddepen-
+dency datausedin (Ganchev et al., 2009)for com-
+parison. The same could not be carried out for
+Chinese(whichwas the language(Jiangand Liu,
+2010)worked on) due to the unavailabilityof pro-
+jected data used in their work. Comparisonwith
+the traditionaldependency parsers (McDonaldet
+al., 2005; Yamada and Matsumoto,2003; Nivre,
+2003;Goldberg andElhadad,2010)whichtrainon
+completedependency parsersis outof thescopeof
+this work.
+3 PartialParsing
+A standarddependency graphsatisfiesfour graph
+constraints: connectedness, single-headedness,
+acyclicityand projectivity(Kuhlmannand Nivre,
+2006). In our work, we assume the dependency
+graph for a sentence only satisfies the single-
+1598
+a)
+parapahaada banaahuaakottaigebahutasundaradikhataahai
+hill on buildPastPart.cottageverybeautifullookBe.Pres.
+b)
+para bahuta haipahaada banaahuaakottaige sundaradikhataa
+c)
+para haibanaahuaakottaige sundaradikhataapahaada
+bahuta
+d)
+haibanaahuaakottaige sundaradikhataapahaada
+bahutapara
+e)
+haibanaa kottaige sundaradikhataapahaada
+bahutapara huaa
+f)
+banaa kottaige sundaradikhataapahaada
+bahutapara huaa hai
+g) h)
+haipahaada
+para
+sundara
+bahuta
+banaa kottaige dikhataa
+huaa
+Figure 3: Steps taken by GNPPA. The dashed arcs indicatethe unconnectedwords in unConn. The
+dottedarcs indicatethe candidatearcs in candidateArcs and the solid arcs are the high scoringarcs that
+are storedin builtPPs
+headedness,acyclicityand projectivityconstraints
+while not necessarilybeing connectedi.e. all the
+wordsneednot have parents.
+Given a sentenceW=w0 ···wn with a set of
+directedarcsAon the words inW, wi →wj de-
+notes a dependency arc fromwi to wj, (wi,wj) epsilon1
+A. wi is the parentin the arc andwj is the childin
+the arc. ∗−→denotesthe reflexive andtransitive clo-
+sure of the arc. wi ∗−→ wj says thatwi dominates
+wj, i.e. there is (possibly empty)path fromwi to
+wj.
+A node wi is unconnectedif it does not have
+an incomingarc. R is the set of all such uncon-
+nected nodes in the dependency graph. For the
+example in Figure 2, R={banaa, kottaige,
+dikhataa}. A partial parse rooted at nodewi
+denotedbyρ(wi) is the set of arcs that can be tra-
+versed from nodewi. The yield of a partialparse
+ρ(wi) is the set of nodes dominatedby it. We
+use pi(wi) to refer to the yield of ρ(wi) arranged
+in the linear order of their occurrencein the sen-
+tence. The span of the partialtree is the first and
+last wordsin its yield.
+The dependency graph D can now be rep-
+resented in terms of partial parses by D =
+(W,R,rho1(R)) whereW={w0 ···wn}is the sen-
+tence, R={r1 ···rm} is the set of unconnected
+nodes andrho1(R)={ρ(r1)···ρ(rm)}is the set of
+partial parses rooted at these unconnectednodes.
+w0 is a dummy word added at the beginning of
+W to behave as a root of a fully connectedparse.
+A fully connecteddependency graph would have
+only one element w0 in R and the dependency
+graph rooted at w0 as the only (fully connected)
+parseinrho1(R).
+We assume the combinedyield of rho1(R) spans
+theentiresentenceandeachof thepartialparsesin
+rho1(R) to be contiguousand non-overlappingwith
+one another. A partial parse is contiguousif its
+yield is contiguousi.e. if a nodewjepsilon1pi(wi), then
+all the words betweenwi and wj also belong to
+pi(wi). A partialparseρ(wi) is non-overlappingif
+theintersectionof its yieldpi(wi) withyieldsof all
+otherpartialparsesis empty.
+3.1 GreedyNon-directionalPartialParsing
+Algorithm(GNPPA)
+Given the sentenceW and the set of unconnected
+nodes R, the parser follows a non-directional
+greedyapproachto establishrelationsin a bottom
+up manner. The parserdoes a greedy searchover
+all the possible relationsand picks the one with
+1599
+the highestscoreat eachstage. This processis re-
+peated until parents for all the nodes that do not
+belongtoRare chosen.
+Algorithm1 lists the outlineof the greedynon-
+directional partial parsing algorithm (GNPPA).
+builtPPs maintains a list of all the partial
+parses that have been built. It is initialized
+in line 1 by considering each word as a sep-
+arate partial parse with just one node. can-
+didateArcs stores all the arcs that are possi-
+ble at each stage of the parsing process in a
+bottom up strategy. It is initialized in line 2
+using the method initCandidateArcs(w0 ···wn).
+initCandidateArcs(w0 ···wn) addstwo candidate
+arcs for each pair of consecutive words with each
+other as parent(see Figure3b). If an arc has one
+of the nodesin R as the child, it isn’t includedin
+candidateArcs.
+Algorithm1 PartialParsingAlgorithm
+Input: sentencew0 ···wn and set of partialtree roots un-
+Conn={r1 ···rm}
+Output: set of partial parses whose roots are in unConn
+(builtPPs={ρ(r1)···ρ(rm)})
+1: builtPPs={ρ(r1)···ρ(rn)}←{w0 ···wn}
+2: candidateArcs = initCandidateArcs(w0 ···wn)
+3: whilecandidateArcs.isNotEmpty()do
+4: bestArc = argmax
+ciepsilon1candidateArcs
+score(ci,−→w)
+5: builtPPs.remove(bestArc.child)
+6: builtPPs.remove(bestArc.parent)
+7: builtPPs.add(bestArc)
+8: updateCandidateArcs(bestArc,
+candidateArcs, builtPPs, unConn)
+9: endwhile
+10: return builtPPs
+Once initialized, the candidate arc with the
+highest score (line 4) is chosen and accepted
+into builtPPs. This involves replacing the best
+arc’s child partial parse ρ(arc.child) and parent
+partial parse ρ(arc.parent) over which the arc
+has been formed with the arc ρ(arc.parent)→
+ρ(arc.child)itselfin builtPPs(lines5-7). In Figure
+3f, to acceptthe best candidatearcρ(banaa)→
+ρ(pahaada), the parserwould remove the nodes
+ρ(banaa) andρ(pahaada) in builtPPsand add
+ρ(banaa)→ρ(pahaada) to builtPPs(see Fig-
+ure 3g).
+Afterthebestarcis accepted,thecandidateArcs
+has to be updated(line 8) to remove the arcs that
+are no longer valid and add new arcs in the con-
+text of the updatedbuiltPPs. Algorithm2 shows
+the update procedure. First, all the arcs that end
+on the child are removed (lines 3-7) along with
+the arc from child to parent. Then, the immedi-
+ately previous and next partial parses of the best
+arc in builtPPsare retrieved (lines8-9)to addpos-
+sible candidatearcs betweenthem and the partial
+parse representingthe best arc (lines 10-23). In
+the example,betweenFigures3b and 3c, the arcs
+ρ(kottaige) → ρ(bahuta) and ρ(bahuta)
+→ ρ(sundara) are first removed and the arc
+ρ(kottaige) →ρ(sundara) is added to can-
+didateArcs. Careis taken to avoid addingarcsthat
+end on unconnectednodeslistedinR.
+The entire GNPPA parsingprocessfor the ex-
+amplesentencein Figure2 is shown in Figure3.
+Algorithm2 updateCandidateArcs(bestArc, can-
+didateArcs, builtPPs, unConn)
+1: baChild= bestArc.child
+2: baParent = bestArc.parent
+3: forallarcepsilon1candidateArcs do
+4: if arc.child= baChildor
+(arc.parent= baChildand
+arc.child= baParent) then
+5: remove arc
+6: endif
+7: endfor
+8: prevPP= builtPPs.previousPP(bestArc)
+9: nextPP= builtPPs.nextPP(bestArc)
+10: if bestArc.direction== LEFTthen
+11: newArc1 = new Arc(prevPP,baParent)
+12: newArc2 = new Arc(baParent,prevPP)
+13: endif
+14: if bestArc.direction== RIGHTthen
+15: newArc1 = new Arc(nextPP,baParent)
+16: newArc2 = new Arc(baParent,nextPP)
+17: endif
+18: if newArc1.parent/∈unConnthen
+19: candidateArcs.add(newArc1)
+20: endif
+21: if newArc2.parent/∈unConnthen
+22: candidateArcs.add(newArc2)
+23: endif
+24: return candidateArcs
+3.2 Learning
+The algorithmdescribedin the previous section
+uses a weight vector−→w to computethe best arc
+from the list of candidatearcs. This weight vec-
+tor is learnedusinga simplePerceptronlike algo-
+rithm similarto the one used in (Shen and Joshi,
+2008). Algorithm3 lists the learningframework
+for GNPPA.
+For a trainingsamplewith sentencew0 ···wn,
+projectedpartial parses projectedPPs={ρ(ri) ···
+ρ(rm)}, unconnectedwords unConn and weight
+vector−→w, the builtPPsand candidateArcs are ini-
+tiated as in algorithm1. Then the arc with the
+highest score is selected. If this arc belongs to
+the parses in projectedPPs, builtPPs and candi-
+dateArcs are updatedsimilar to the operationsin
+1600
+a) b)
+para haipahaada banaahuaakottaigebahutasundaradikhataa
+c)
+hai
+bahuta
+pahaadaparabanaahuaakottaige sundaradikhataa
+d)
+hai
+para bahuta
+pahaada banaahuaakottaige sundaradikhataa
+Figure4: First four stepstaken by E-GNPPA. The blue coloreddottedarcs are the additionalcandidate
+arcs that are addedto candidateArcs
+algorithm1. If it doesn’t, it is treated as a neg-
+ative sample and a correspondingpositive candi-
+date arc which is present both projectedPPsand
+candidateArcs is selected(lines11-12).
+Theweightsof the positive candidatearc are in-
+creasedwhilethatof thenegative sample(bestarc)
+are decreased. To reduceover fitting,we use aver-
+agedweights(Collins,2002)in algorithm1.
+Algorithm3LearningforNon-directionalGreedy
+PartialParsingAlgorithm
+Input: sentencew0 ···wn, projectedpartialparsesproject-
+edPPs, unconnectedwordsunConn, current−→w
+Output: updated−→w
+1: builtPPs={ρ(r1)···ρ(rn)}←{w0 ···wn}
+2: candidateArcs = initCandidateArcs(w0 ···wn)
+3: whilecandidateArcs.isNotEmpty()do
+4: bestArc = argmax
+ciepsilon1candidateArcs
+score(ci,−→w)
+5: if bestArc∈projectedPPsthen
+6: builtPPs.remove(bestArc.child)
+7: builtPPs.remove(bestArc.parent)
+8: builtPPs.add(bestArc)
+9: updateCandidateArcs(bestArc,
+candidateArcs, builtPPs, unConn)
+10: else
+11: allowedArcs={ci|ci epsilon1 candidateArcs && ci epsilon1
+projectedArcs}
+12: compatArc = argmax
+ciepsilon1allowedArcs
+score(ci,−→w)
+13: promote(compatArc,−→w)
+14: demote(bestArc,−→w)
+15: endif
+16: endwhile
+17: return builtPPs
+3.3 ExtendedGNPPA(E-GNPPA)
+The GNPPA describedin section3.1 assumesthat
+the partial parses are contiguous. The exam-
+ple in Figure 5 has a partial tree ρ(dikhataa)
+which isn’t contiguous. Its yield doesn’t con-
+tain bahutaand sundara. We call such non-
+contiguouspartialparseswhoseyieldsencompass
+the yieldof an otherpartialparseas partiallycon-
+tiguous. Partiallycontiguousparses are common
+in the projecteddataand wouldnot be parsableby
+the algorithm1 (ρ(dikhataa)→ρ(kottaige)
+wouldnot be identified).
+para bahuta haipahaada banaahuaakottaige sundaradikhataa
+hill on build cottageverybeautifullookPastPart. Be.Pres.
+Figure5: Dependency parse with a partiallycon-
+tiguouspartialparse
+In order to identify and learn from relations
+which are part of partially contiguous partial
+parses, we proposean extensionto GNPPA. The
+extendedGNPAA (E-GNPPA) broadensits scope
+while searchingfor possiblecandidatearcs given
+R and builtPPs. If the immediate previous or
+the next partial parses over which arcs are to
+be formedare designatedunconnectednodes,the
+parserlooksfurtherfor a partialparseover which
+it can form arcs. For example, in Figure 4b, the
+arc ρ(para) →ρ(banaa) can not be added to
+the candidateArcs since banaa is a designated
+unconnectednode in unConn. The E-GNPPA
+looksover the unconnectednodeand adds the arc
+ρ(para) →ρ(huaa) to the candidate arcs list
+candidateArcs.
+E-GNPPA differs from algorithm1 in lines 2
+and 8. The E-GNPPA uses an extendedinitializa-
+tion method initCandidateArcsExtended(w0) for
+1601
+Parent and Child par.pos,chd.pos,par.lex,chd.lex
+SentenceContext par-1.pos,par-2.pos,par+1.pos,par+2.pos,par-1.lex, par+1.lexchd-1.pos,chd-2.pos,chd+1.pos,chd+2.pos,chd-1.lex, chd+1.lex
+Structural Info leftMostChild(par).pos,rightMostChild(par).pos,leftSibling(chd).pos,rightSibling(chd).pos
+PartialParse Context previousPP().pos,previousPP().lex, nextPP().pos,nextPP().lex
+Table 1: Informationon whichfeaturesare defined.pardenotesthe parentin the relationandchdthe
+child. .pos and .lex is the POS and word-formof the correspondingnode. +/-i is the previous/next
+ith word in the sentence. leftMostChild()and rightMostChild() denote the left most and right most
+childrenof a node. leftSibling()and rightSibling()get the immediateleft and right siblingsof a node.
+previousPP()and nextPP()returnthe immediatepreviousand next partialparsesof the arc in builtPPsat
+the state.
+candidateArcs in line 2 and an extended proce-
+dure updateCandidateArcsExtendedto updatethe
+candidateArcs aftereachstep in line 8. Algorithm
+4 shows the changesw.r.t algorithm2. Figure 4
+presentsthe steps taken by the E-GNPPA parser
+for the exampleparsein Figure5.
+Algorithm4 updateCandidateArcsExtended
+( bestArc, candidateArcs, builtPPs,unConn)
+··· lines 1 to 7 of Algorithm2···
+prevPP= builtPPs.previousPP(bestArc)
+whileprevPP∈unConndo
+prevPP= builtPPs.previousPP(prevPP)
+endwhile
+nextPP= builtPPs.nextPP(bestArc)
+whilenextPP∈unConndo
+nextPP= builtPPs.nextPP(nextPP)
+endwhile
+··· lines 10 to 24 of Algorithm2···
+3.4 Features
+Featuresfor a relation(candidatearc) are defined
+on the POS tags and lexical items of the nodesin
+the relation and those in its context. Two kinds
+of context are used a) context from the input sen-
+tence(sentencecontext) b) context in builtPPsi.e.
+nearby partial parses (partial parse context). In-
+formationfrom the partialparses(structural info)
+such as left and right most children of the par-
+ent node in the relation,left and right siblingsof
+the child node in the relation are also used. Ta-
+ble 1 lists the informationon which featuresare
+definedin the various configurationsof the three
+languageparsers. The actual featuresare combi-
+nationsof theinformationpresentin thetable. The
+set varies dependingon the languageand whether
+its GNPPA or E-GNPPA approach.
+While training, no features are defined on
+whether a node is unconnected(present in un-
+Conn) or not as this informationisn’t available
+duringtesting.
+4 HindiProjectedDependencyTreebank
+We conductedexperimentson English-Hindipar-
+allel data by transferring syntactic information
+from Englishto Hindito build a projecteddepen-
+dency treebankfor Hindi.
+The TIDES English-Hindiparallel data con-
+taining 45,000 sentences was used for this pur-
+pose 1 (Venkatapathy, 2008). Word alignments
+forthesesentenceswereobtainedusingthewidely
+usedGIZA++toolkitin grow-diag-final-andmode
+(Och and Ney, 2003). Since Hindi is a morpho-
+logicallyrich language,root words were used in-
+stead of the word forms. A bidirectionalEnglish
+POS tagger (Shen et al., 2007) was used to POS
+tag the source sentencesand the parses were ob-
+tained using the first order MST parser (McDon-
+ald et al., 2005)trainedon dependenciesextracted
+from Penn treebank using the head rules of Ya-
+madaand Matsumoto(2003).A CRFbasedHindi
+POS tagger (PVS. and Gali, 2007) was used to
+POStag the target sentences.
+English and Hindi being morphologicallyand
+syntacticallydivergent makes the word alignment
+and dependency projection a challenging task.
+The source dependenciesare projectedusing an
+approach similar to (Hwa et al., 2005). While
+they use post-projectiontransformationson the
+projectedparse to account for annotationdiffer-
+ences, we use pre-projectiontransformationson
+the source parse. The projectionalgorithmpro-
+1The originaldata had 50,000parallelsentences. It was
+later refined by IIIT-Hyderabadto remove repetitions and
+othertrivial errors.The corpusis still noisywithtypographi-
+cal errors,mismatchedsentencesand unfaithfultranslations.
+1602
+ducesacyclic parseswhichcouldbe unconnected
+and non-projective.
+4.1 AnnotationDifferencesinHindiand
+English
+Before projectingthe source parses onto the tar-
+get sentence,the parsesare transformedto reflect
+the annotationschemedifferencesin Englishand
+Hindi. While English dependency parses reflect
+the PTB annotationstyle (Marcus et al., 1994),
+we projectthem to Hindito reflectthe annotation
+scheme described in (Begum et al., 2008). The
+differencesin the annotationschemesare with re-
+spectto threephenomena:a) headof a verb group
+containingauxiliaryand main verbs, b) preposi-
+tionsin a prepositionalphrase(PP) and c) coordi-
+nationstructures.
+In the Englishparses, the auxiliaryverb is the
+head of the main verb while in Hindi, the main
+verb is the headof the auxiliaryin the verb group.
+For example, in the Hindi parse in Figure 1,
+dikhataais the headof the auxiliaryverbhai.
+The prepositionsin English are realized as post-
+positions in Hindi. While prepositionsare the
+heads in a prepositionphrase, post-positionsare
+the modifiersof the precedingnounsin Hindi. In
+pahaada para(on the hill), hillis the head
+of para. In coordinationstructures, while En-
+glish differentiatesbetweenhow NP coordination
+and VP coordinationstructuresbehave, Hindian-
+notationschemeis consistentin its handling.Left-
+most verb is the head of a VP coordinationstruc-
+ture in Englishwhereasthe rightmostnoun is the
+headin caseof NPcoordination.In Hindi,thecon-
+junctis the headof the two verbs/nounsin the co-
+ordinationstructure.
+These three cases are identified in the source
+tree and appropriatetransformationsare made to
+the source parse itself before projectingthe rela-
+tionsusingword alignments.
+5 Experiments
+We carried out all our experiments on paral-
+lel corpora belongingto English-Hindi,English-
+Bulgarian and English-Spanishlanguage pairs.
+While the Hindi projectedtreebankwas obtained
+using the methoddescribedin section 4, Bulgar-
+ian and Spanishprojecteddatasetswere obtained
+usingthe approachin (Ganchev et al., 2009). The
+datasetsof Bulgarianand Spanishthatcontributed
+to the best accuraciesfor Ganchev et al. (2009)
+Statistic Hindi Bulgarian Spanish
+N(Words) 226852 71986 133124
+N(Parent==-1) 44607 30268 54815
+P(Parent==-1) 19.7 42.0 41.1
+N(Fulltrees) 593 1299 327
+N(GNPPA) 30063 10850 19622
+P(GNPPA) 16.4 26.0 25.0
+N(E-GNPPA) 35389 12281 24577
+P(E-GNPPA) 19.3 29.4 30.0
+Table 2: Statisticsof the Hindi, Bulgarian and Spanish
+projectedtreebanksused for experiments.Each of them has
+10,000randomlypicked parses. N(X) denotesnumberof X
+and P(X) denotespercentage of X. N(Words) is the number
+of words. N(Parents==-1)is the numberof words withouta
+parent. N(Fulltrees)is the numberof parseswhichare fully
+connected. N(GNPPA) is the numberof relations learnt by
+GNPPA parser and N(E-GNPPA) is the numberof relations
+learntby E-GNPPA parser. NotethatP(GNPPA) is calculated
+as N(GNPPA)/(N(Words)N(Parents==-1)).
+wereusedin our work (7 rulesdatasetfor Bulgar-
+ian and 3 rules dataset for Spanish). The Hindi,
+BulgarianandSpanishprojecteddependency tree-
+bankshave 44760,39516and 76958sentencesre-
+spectively. Sincewe don’t have confidencescores
+for the projectionson the sentences, we picked
+10,000 sentences randomly in each of the three
+datasetsfor trainingthe parsers2. Other methods
+of choosingthe 10K sentencessuch as thosewith
+the max. no. of relations,those with least no. of
+unconnectedwords, those with max. no. of con-
+tiguouspartialtreesthatcanbe learnedby GNPPA
+parser etc. were tried out. Amongall these, ran-
+dom selectionwas consistentand yieldedthe best
+results. The errors introduced in the projected
+parsesby errorsin word alignment, sourceparser
+and projectionare not consistentenoughto be ex-
+ploited to select the better parses from the entire
+projecteddata.
+Table 2 gives an accountof the randomlycho-
+sen10ksentencesin termsof thenumberof words,
+words without parents etc. Around 40% of the
+words spreadover 88% of sentencesin Bulgarian
+and 97% of sentencesin Spanishhave no parents.
+Traditionaldependency parsers which only train
+from fully connectedtrees would not be able to
+learn from thesesentences.P(GNPPA) is the per-
+centageof relationsin the data that are learnedby
+the GNPPA parser satisfyingthe contiguouspar-
+tial tree constraint and P(E-GNPPA) is the per-
+2Exactly10Ksentenceswereselectedin orderto compare
+our resultswiththoseof (Ganchev et al., 2009).
+1603
+Parser Hindi Bulgarian SpanishPunct NoPunct Punct NoPunct Punct NoPunct
+Baseline 78.70 77.39 51.85 55.15 41.60 45.61
+GNPPA 80.03* 78.81* 77.03* 79.06* 65.49* 68.70*
+E-GNPPA 81.10*† 79.94*† 78.93*† 80.11*† 67.69*† 70.90*†
+Table3: UAS for Hindi,BulgarianandSpanishwiththe baseline,GNPPA andE-GNPPA parserstrained
+on10kparsesselectedrandomly. PunctindicatesevaluationwithpunctuationwhereasNoPunctindicates
+withoutpunctuation.* next to an accuracy denotesstatisticallysignificant(McNemar’s and p < 0.05)
+improvementover the baseline.†denotessignificanceover GNPPA
+centagethat satisfiesthe partiallycontiguouscon-
+straint.E-GNPPA parserlearnsaround2-5%more
+no. of relationsthan GNPPA due to the relaxation
+in the constraints.
+The Hinditest data that was releasedas part of
+the ICON-2010SharedTask (Husainet al., 2010)
+was used for evaluation.For Bulgarianand Span-
+ish, we used the same test data that was used in
+the work of Ganchev et al. (2009). These test
+datasetshadsentencesfromthe trainingsectionof
+the CoNLLSharedTask (Nivre et al., 2007) that
+had lengthsless than or equal to 10. All the test
+datasetshave goldPOStags.
+A baselineparserwas built to comparelearning
+from partial parses with learningfrom fully con-
+nected parses. Full parses are constructedfrom
+partial parses in the projecteddata by randomly
+assigningparents to unconnectedparents,similar
+to the work in (Hwa et al., 2005). The uncon-
+nected words in the parse are selected randomly
+one by one and are assignedparentsrandomlyto
+completetheparse.Thisprocessis repeatedforall
+the sentencesin the three languagedatasets. The
+parser is then trainedwith the GNPPA algorithm
+on these fully connectedparses to be used as the
+baseline.
+Table 3 lists the accuracies of the baseline,
+GNPPA and E-GNPPA parsers. The accuracies
+are unlabeledattachmentscores (UAS): the per-
+centage of words with the correct head. Table
+4 comparesour accuracieswith those reportedin
+(Ganchev et al., 2009)for Bulgarianand Spanish.
+5.1 Discussion
+The baselinereportedin (Ganchev et al., 2009)
+significantlyoutperformsour baseline(see Table
+4) due to the different baselinesused in both the
+works. In our work, while creating the data for
+the baseline by assigningrandom parents to un-
+connectedwords, acyclicityand projectivity con-
+Parser Bulgarian Spanish
+Ganchev-Baseline 72.6 69.0
+Baseline 55.15 45.61
+Ganchev-Discriminative 78.3 72.3
+GNPPA 79.06 68.70
+E-GNPPA 80.11 70.90
+Table 4: Comparisonof baseline,GNPPA and E-
+GNPPA with baseline and discriminative model
+from (Ganchev et al., 2009) for Bulgarian and
+Spanish.Evaluationdidn’t includepunctuation.
+straintsare not enforced. Ganchev et al. (2009)’s
+baselineis similarto the first iterationof theirdis-
+criminative modeland henceperformsbetterthan
+ours. Our Bulgarian E-GNPPA parserachieved a
+1.8%gain over theirswhilethe Spanishresultsare
+lower. Thoughtheirtrainingdatasize is also 10K,
+the trainingdatais differentin bothour worksdue
+to the difference in the method of choosing10K
+sentencesfromthe large projectedtreebanks.
+The GNPPA accuracies(see table 3) for all the
+threelanguagesare significantimprovementsover
+the baselineaccuracies. This shows that learning
+from partialparsesis effective when comparedto
+imposingthe connectedconstrainton the partially
+projecteddependency parse. Even while project-
+ing source dependenciesduring data creation, it
+is better to projecthigh confidencerelationsthan
+look to project more relationsand thereby intro-
+ducenoise.
+The E-GNPPA whichalso learnsfrompartially
+contiguouspartialparsesachieved statisticallysig-
+nificant gains for all the three languages. The
+gains across languagesis due to the fact that in
+the 10Kdatathatwas usedfor training,E-GNPPA
+parser could learn 2−5% more relations over
+GNPPA (see Table2).
+Figure6 showstheaccuraciesof baselineandE-
+1604
+ 30 40 50 60 70 80  0
+ 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+ 10
+Unlabeled Accuracy
+Thousands of sentences
+Bulgarian Hindi Spanish hn-baseline bg-baseline es-baseline
+Figure 6: Accuracies(withoutpunctuation)w.r.t
+varying training data sizes for baseline and E-
+GNPPA parsers.
+GNPPA parserfor the threelanguageswhentrain-
+ingdatasizeis varied. Theparserspeakearlywith
+less than 1000 sentences and make small gains
+withthe additionof moredata.
+6 Conclusion
+We presenteda non-directionalparsingalgorithm
+that can learn from partial parses using syntac-
+tic and contextual information as features. A
+Hindi projecteddependency treebankwas devel-
+oped from English-Hindibilingual data and ex-
+periments were conducted for three languages
+Hindi, Bulgarian and Spanish. Statisticallysig-
+nificantimprovementswere achieved by our par-
+tial parsersover the baselinesystem. The partial
+parsingalgorithmspresentedin this paperare not
+specificto bitext projectionsand can be used for
+learningfrompartialparsesin any setting.
+References
+R. Begum, S. Husain, A. Dhwaj, D. Sharma, L. Bai,
+and R. Sangal. 2008. Dependency annotation
+schemefor indian languages. In In Proceedingsof
+TheThird InternationalJointConferenceon Natural
+Language Processing(IJCNLP), Hyderabad,India.
+MichaelJohn Collins. 1999. Head-drivenstatistical
+modelsfor natural language parsing. Ph.D. thesis,
+Universityof Pennsylvania,Philadelphia,PA, USA.
+AAI9926110.
+MichaelCollins. 2002. Discriminative trainingmeth-
+ods for hidden markov models: theory and experi-
+ments with perceptronalgorithms. In Proceedings
+of the ACL-02conference on Empiricalmethodsin
+natural language processingVolume 10, EMNLP
+’02, pages 1–8, Morristown, NJ, USA. Association
+for ComputationalLinguistics.
+Jason M. Eisner. 1996. Threenew probabilisticmod-
+els for dependency parsing:an exploration.In Pro-
+ceedingsof the 16th conference on Computational
+linguisticsVolume1, pages340–345,Morristown,
+NJ, USA. Associationfor ComputationalLinguis-
+tics.
+Kuzman Ganchev, Jennifer Gillenwater, and Ben
+Taskar. 2009. Dependency grammarinductionvia
+bitext projectionconstraints. In Proceedingsof the
+Joint Conference of the 47th AnnualMeetingof the
+ACL and the 4th InternationalJoint Conference on
+Natural Language Processing of the AFNLP: Vol-
+ume 1 Volume 1, ACL-IJCNLP’09, pages 369–
+377,Morristown,NJ,USA.Associationfor Compu-
+tationalLinguistics.
+Yoav Goldberg and MichaelElhadad. 2010. An effi-
+cientalgorithm for easy-firstnon-directionaldepen-
+dency parsing. In HumanLanguage Technologies:
+The2010AnnualConferenceof the NorthAmerican
+Chapterof the Associationfor ComputationalLin-
+guistics, HLT ’10, pages742–750,Morristown, NJ,
+USA.Associationfor ComputationalLinguistics.
+Samar Husain, PrashanthMannem, Bharath Ambati,
+and PhaniGadde. 2010. Icon 2010toolsconteston
+indian languagedependency parsing. In Proceed-
+ingsof ICON2010NLPToolsContest.
+Rebecca Hwa, Philip Resnik, Amy Weinberg, Clara
+Cabezas, and Okan Kolak. 2005. Bootstrapping
+parsersvia syntacticprojectionacrossparalleltexts.
+Nat.Lang. Eng., 11:311–325,September.
+WenbinJiangandQunLiu. 2010. Dependency parsing
+and projectionbasedon word-pairclassification.In
+Proceedingsof the 48th AnnualMeetingof the As-
+sociationfor ComputationalLinguistics, ACL ’10,
+pages12–20,Morristown,NJ,USA.Associationfor
+ComputationalLinguistics.
+P. Koehn. 2005. Europarl:A parallelcorpusfor statis-
+tical machinetranslation.In MT summit, volume5.
+Citeseer.
+Marco Kuhlmann and Joakim Nivre. 2006. Mildly
+non-projective dependency structures. In Proceed-
+ingsof the COLING/ACLon Mainconferenceposter
+sessions, pages507–514,Morristown,NJ,USA.As-
+sociationfor ComputationalLinguistics.
+Mitchell P. Marcus, Beatrice Santorini,and Mary A.
+Marcinkiewicz. 1994. Buildinga large annotated
+corpus of english: The penn treebank. Computa-
+tionalLinguistics, 19(2):313–330.
+R. McDonald,K. Crammer, and F. Pereira. 2005. On-
+line large-margin trainingof dependency parsers. In
+Proceedingsof the AnnualMeetingof the Associa-
+tion for ComputationalLinguistics(ACL).
+1605
+Jens Nilsson and Joakim Nivre. 2008. Malteval:
+an evaluationand visualizationtool for dependency
+parsing. In Proceedingsof the Sixth International
+Language Resources and Evaluation (LREC’08),
+Marrakech, Morocco, may. European Language
+Resources Association(ELRA). http://www.lrec-
+conf.org/proceedings/lrec2008/.
+Joakim Nivre, Johan Hall, Sandra K¨ubler, Ryan Mc-
+donald, Jens Nilsson, SebastianRiedel, and Deniz
+Yuret. 2007. The CoNLL2007 sharedtask on de-
+pendency parsing. In Proceedings of the CoNLL
+Shared TaskSessionof EMNLP-CoNLL2007, pages
+915–932,Prague, Czech Republic.Associationfor
+ComputationalLinguistics.
+JoakimNivre. 2003. An EfficientAlgorithmfor Pro-
+jective Dependency Parsing. In EighthInternational
+Workshopon ParsingTechnologies, Nancy, France.
+JoakimNivre. 2009. Non-projective dependency pars-
+ing in expectedlinear time. In Proceedingsof the
+Joint Conference of the 47th AnnualMeetingof the
+ACL and the 4th InternationalJoint Conference on
+Natural Language Processingof the AFNLP, pages
+351–359, Suntec, Singapore, August. Association
+for ComputationalLinguistics.
+Franz Josef Och and Hermann Ney. 2003. A sys-
+tematiccomparisonof various statisticalalignment
+models.ComputationalLinguistics, 29(1):19–51.
+AvineshPVS.andKarthikGali. 2007. Part-Of-Speech
+Tagging and Chunkingusing ConditionalRandom
+Fieldsand Transformation-BasedLearning.In Pro-
+ceedingsof the IJCAIandthe WorkshopOn Shallow
+Parsing for SouthAsianLanguages (SPSAL), pages
+21–24.
+Roi Reichartand Ari Rappoport. 2007. Self-training
+for enhancementand domainadaptation of statisti-
+cal parsers trained on small datasets. In Proceed-
+ings of the 45th Annual Meeting of the Associa-
+tion of ComputationalLinguistics, pages 616–623,
+Prague,CzechRepublic,June.AssociationforCom-
+putationalLinguistics.
+Libin Shen and Aravind Joshi. 2008. LTAG depen-
+dency parsing with bidirectionalincrementalcon-
+struction.In Proceedingsof the 2008Conferenceon
+EmpiricalMethods in Natural Language Process-
+ing, pages495–504,Honolulu,Hawaii,October. As-
+sociationfor ComputationalLinguistics.
+L. Shen, G. Satta, and A. Joshi. 2007. Guidedlearn-
+ing for bidirectionalsequenceclassification.In Pro-
+ceedingsof the 45thAnnualMeetingof the Associa-
+tion for ComputationalLinguistics(ACL).
+Mark Steedman, Miles Osborne, Anoop Sarkar,
+Stephen Clark, Rebecca Hwa, Julia Hockenmaier,
+Paul Ruhlen, Steven Baker, and Jeremiah Crim.
+2003. Bootstrappingstatisticalparsers from small
+datasets. In Proceedingsof the tenth conference on
+European chapter of the Associationfor Computa-
+tionalLinguisticsVolume1, EACL’03,pages331–
+338,Morristown,NJ,USA.Associationfor Compu-
+tationalLinguistics.
+Jrg Tiedemann. 2002. MatsLex a multilinguallex-
+ical databasefor machinetranslation. In Proceed-
+ings of the 3rd International Conference on Lan-
+guage Resources andEvaluation(LREC’2002), vol-
+ume VI, pages1909–1912,Las Palmasde GranCa-
+naria,Spain,29-31May.
+SriramVenkatapathy. 2008. Nlp tools contest2008:
+Summary. In Proceedingsof ICON2008NLPTools
+Contest.
+Hiroyasu Yamada and Yuji Matsumoto. 2003. Statis-
+ticalDependency AnalysiswithSupportVectorMa-
+chines. In In Proceedingsof IWPT, pages195–206.
+David Yarowsky, Grace Ngai, and Richard Wicen-
+towski. 2001. Inducingmultilingualtext analysis
+tools via robust projectionacross aligned corpora.
+In Proceedingsof the first internationalconference
+on Humanlanguage technology research, HLT ’01,
+pages 1–8, Morristown, NJ, USA. Associationfor
+ComputationalLinguistics.
+1606
+

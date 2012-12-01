@@ -1,0 +1,109 @@
+An Indexing Scheme for Typed Feature Structures Takashi NINOMIYA,†‡ Takaki MAKINO,#¶ and Jun’ichi TSUJII†‡ †Department of Computer Science, University of Tokyo ‡CREST, Japan Science and Technology Corporation #Department of Complexity Science and Engineering, University of Tokyo⁄ ¶BSI, RIKEN e-mail: fninomi, mak, tsujiig@is.s.u-tokyo.ac.jp Abstract This paper describes an indexing substrate for typed feature structures (ISTFS), which is an efficient retrieval engine for typed feature structures.
+Given a set of typed feature structures, the ISTFS efficiently retrieves its subset whose elements are unifiable or in a subsumption relation with a query feature structure.
+The efficiency of the ISTFS is achieved by calculating a unifiability checking table prior to retrieval and finding the best index paths dynamically.
+1 Introduction
+This paper describes an indexing substrate for typed feature structures (ISTFS), which is an efficient retrieval engine for typed feature structures (TFSs) (Carpenter, 1992).
+Given a set of TFSs, the ISTFS can efficiently retrieve its subset whose elements are unifiable or in a subsumption relation with a query TFS.
+The ultimate purpose of the substrate is aimed at the construction of large-scale intelligent NLP systems such as IR or QA systems based on unificationbased grammar formalisms (Emele, 1994).
+Recent studies on QA systems (Harabagiu et al., 2001) have shown that systems using a wide-coverage noun taxonomy, quasi-logical form, and abductive inference outperform other bag-of-words techniques in accuracy.
+Our ISTFS is an indexing substrate that enables such knowledge-based systems to keep and retrieve TFSs, which can represent symbolic structures such as quasi-logical forms or a taxonomy and the output of parsing of unification-based grammars for a very large set of documents.
+The algorithm for our ISTFS is concise and efficient.
+The basic idea used in our algorithm uses a necessary condition for unification.
+(Necessary condition for unification) Let PathF be the set of all feature paths defined in ⁄ This research is partially funded by JSPS Research Fellowship for Young Scientists.
+TFS F, and FollowedType(pi;F) be the type assigned to the node reached by following path pi.1 If two TFSs F and G are unifiable, then FollowedType(pi;F) and FollowedType(pi;G) are defined and unifiable for all pi 2(PathF [PathG).
+The Quick Check algorithm described in (Torisawa and Tsujii, 1995; Malouf et al., 2000) also uses this condition for the efficient checking of unifiability between two TFSs.
+Given two TFSs and statically determined paths, the Quick Check algorithm can efficiently determine whether these two TFSs are non-unifiable or there is some uncertainty about their unifiability by checking the path values.
+It is worth noting that this algorithm is used in many modern unification grammar-based systems, e.g., the LKB system (Copestake, 1999) and the PAGE system (Kiefer et al., 1999).
+Unlike the Quick Check algorithm, which checks unifiability between two TFSs, our ISTFS checks unifiability between one TFS and n TFSs.
+The ISTFS checks unifiability by using dynamically determined paths, not statically determined paths.
+In our case, using only statically determined paths might extremely degrades the system performance.
+Suppose that any statically determined paths are not defined in the query TFS.
+Because there is no path to be used for checking unifiability, it is required to unify a query with every element of the data set.
+It should also be noted that using all paths defined in a query TFS severely degrades the system performance because a TFS is a huge data structure comprised of hundreds of nodes and paths, i.e., most of the retrieval time will be consumed in filtering.
+The 1More precisely, FollowedType(pi;F) returns the type assigned to the node reached by following pi from the root node of FSPAT H(pi;F), which is defined as follows.
+FSPAT H(pi;F)= F tPV(pi) PV(pi)= n the least feature structure where path pi is defined That is, FollowedType(pi;F) might be defined even if pi does not exist in F.
+ISTFS dynamically finds the index paths in order of highest filtering rate.
+In the experiments, most ‘nonunifiable’ TFSs were filtered out by using only a few index paths found by our optimization algorithm.
+2 Algorithm
+Briefly, the algorithm for the ISTFS proceeds according to the following steps.
+1. When a set of data TFSs is given, the ISTFS prepares a path value table and a unifiability checking table in advance.
+2. When a query TFS is given, the ISTFS retrieves TFSs which are unifiable with the query from the set of data TFSs by performing the following steps.
+(a) The ISTFS finds the index paths by using the unifiability checking table.
+The index paths are the most restrictive paths in the query in the sense that the set of the data TFSs can be limited to the smallest one.
+(b) The ISTFS filters out TFSs that are nonunifiable by referring to the values of the index paths in the path value table.
+(c) The ISTFS finds exactly unifiable TFSs by unifying the query and the remains of filtering one-by-one, in succession.
+This algorithm can also find the TFSs that are in the subsumption relation, i.e., more-specific or more-general, by preparing subsumption checking tables in the same way it prepared a unifiability checking table.
+2.1 Preparing
+Path Value Table and Unifiability Checking Table Let D(= fF1;F2;:::;Fng) be the set of data TFSs.
+When D is given, the ISTFS prepares two tables, a path value table Dpi;σ and a unifiability checking table Upi;σ, for all pi 2PathD and σ 2Type.
+2 A
+TFS might have a cycle in its graph structure.
+In that case, a set of paths becomes infinite.
+Fortunately, our algorithm works correctly even if the set of paths is a subset of all existing paths.
+Therefore, paths which might cause an infinite set can be removed from the path set.
+We define the path value table and the unifiability checking table as follows: Dpi;σ · fFjF 2D ^ FollowedType(pi;F)= σg Upi;σ · ∑ τ (τ2Type ^ σtτ is defined) jDpi;τj 2Type is a finite set of types.
+Assuming that σ is the type of the node reached by following pi in a query TFS, we can limit D to a smaller set by filtering out ‘non-unifiable’ TFSs.
+We have the smaller set: U0pi;σ · [ τ (τ2Type ^ σtτ is defined) Dpi;τ Upi;σ corresponds to the size of U0pi;σ. Note that the ISTFS does not prepare a table of U0pi;σ statically, but just prepares a table of Upi;σ whose elements are integers.
+This is because the system’s memory would easily be exhausted if we actually made a table of U0pi;σ . Instead, the ISTFS finds the best paths by referring to Upi;σ and calculates only U0pi;σ where pi is the best index path.
+Suppose the type hierarchy and D depicted in Figure 1 are given.
+The tables in Figure 2 show Dpi;σ and Upi;σ calculated from Figure 1.
+2.2 Retrieval
+In what follows, we suppose that D was given, and we have already calculated Dpi;σ and Upi;σ . Finding Index Paths The best index path is the most restrictive path in the query in the sense thatD can be limited to the smallest set by referring to the type of the node reached by following the index path in the query.
+Suppose a query TFS X and a constant k, which is the maximum number of index paths, are given.
+The best index path in PathX is path pi such that Upi;σ is minimum where σ is the type of the node reached by following pi from the root node of X.
+We can also find the second best index path by finding the path pi s.t.
+Upi;σ is the second smallest.
+In the same way, we can find the i-th best index path s.t. i • k.
+Filtering Suppose k best index paths have already been calculated.
+Given an index path pi, let σ be the type of the node reached by following pi in the query.
+An element of D that is unifiable with the query must have a node that can be reached by following pi and whose type is unifiable with σ.
+Such TFSs (=U0pi;σ) can be collected by taking the union of Dpi;τ, where τ is unifiable with σ.
+For each index path, U0pi;σ can be calculated, and the D can be limited to the smaller one by taking their intersection.
+After filtering, the ISTFS can find exactly unifiable TFSs by unifying the query with the remains of filtering one by one.
+Suppose the type hierarchy and D in Figure 1 are ⊥ ⊥ :CDR:CAR F1 = 2 66 64 cons CAR: 1 CDR: 2 4 cons CAR: 2 CDR: • cons CAR: 3 CDR: nil ‚ 3 5 3 77 75 F2 = • cons CAR: 4 CDR: nil ‚ ; F3 = 2 4 cons CAR: 5 CDR: • cons CAR: 6 CDR: nil ‚ 3 5 D =fF1;F2;F3g Figure 1: An example of a type hierarchy and TFSs Dpi;σ σ pi ? integer 1 2 3 4 5 6 list cons nil ε ¢ ¢ ¢ ¢ ¢ ¢ ¢ ¢ ¢ fF1;F2;F3g ¢ CAR: ¢ ¢ fF1g ¢ ¢ fF2g fF3g ¢ ¢ ¢ CDR: ¢ ¢ ¢ ¢ ¢ ¢ ¢ ¢ ¢ fF1;F3g fF2g CDR:CAR: ¢ ¢ ¢ fF1g ¢ ¢ ¢ fF3g ¢ ¢ ¢ CDR:CDR: ¢ ¢ ¢ ¢ ¢ ¢ ¢ ¢ ¢ fF1g fF3g CDR:CDR:CAR: ¢ ¢ ¢ ¢ fF1g ¢ ¢ ¢ ¢ ¢ ¢ CDR:CDR:CDR: ¢ ¢ ¢ ¢ ¢ ¢ ¢ ¢ ¢ ¢ fF1g ¢ is an empty set.
+Upi;σ σ pi ? integer 1 2 3 4 5 6 list cons nil ε 3 0 0 0 0 0 0 0 3 *3 0CAR: 3 *3 1 0 0 1 1 0 0 0 0 CDR: 3 0 0 0 0 0 0 0 3 *2 1CDR:CAR: 2 2 0 1 0 0 0 *1 0 0 0 CDR:CDR: 2 0 0 0 0 0 0 0 *2 1 1CDR:CDR:CAR: 1 1 0 0 1 0 0 0 0 0 0 CDR:CDR:CDR: 1 0 0 0 0 0 0 0 1 0 1 Figure 2: An example of Dpi;σ and Upi;σ QuerySetA QuerySetB # of the data TFSs 249,994 249,994Avg.
+# of unifiables 68,331.58 1,310.70 Avg.
+# of more specifics 66,301.37 0.00 Avg.
+# of more generals 0.00 0.00 Table 1: The average number of data TFSs and answers for QuerySetA and QuerySetB given, and the following query X is given: X = 2 4 cons CAR: integer CDR: • cons CAR: 6 CDR: list ‚ 3 5 In Figure 2, Upi;σ where the pi and σ pair exists in the query is indicated with an asterisk.
+The best index paths are determined in ascending order of Upi;σ indicated with an asterisk in the figure.
+In this example, the best index path is CDR:CAR: and its corresponding type in the query is 6.
+Therefore the unifiable TFS can be found by referring to DCDR:CAR:;6, and this is fF3g.
+3 Performance
+Evaluation We measured the performance of the ISTFS on a IBM xSeries 330 with a 1.26-GHz PentiumIII processor and a 4-GB memory.
+The data set consisting of 249,994 TFSs was generated by parsing the Figure 3: The size of Dpi;σ for the size of the data set 800 bracketed sentences in the Wall Street Journal corpus (the first 800 sentences in Wall Street Journal 00) in the Penn Treebank (Marcus et al., 1993) with the XHPSG grammar (Tateisi et al., 1998).
+The size of the data set was 151 MB.
+We also generated two sets of query TFSs by parsing five randomly selected sentences in the Wall Street Journal corpus (QuerySetA and QuerySetB).
+Each set had 100 query TFSs.
+Each element of QuerySetA was the daughter part of the grammar rules.
+Each element of QuerySetB was the right daughter part of the grammar rules whose left daughter part is instantiated.
+Table 1 shows the number of data TFSs and the average number of unifiable, more-specific and moregeneral TFSs for QuerySetA and QuerySetB.
+The total time for generating the index tables (i.e., a set of paths, the path value table (Dpi;σ ), the unifiability checking table (Upi;σ ), and the two subsumption checking tables) was 102.59 seconds.
+The size of the path value table was 972 MByte, and the size of the unifiability checking table and the two subsumption checking tables was 13 MByte.
+The size of the unifiability and subsumption checking tables is negligible in comparison with that of the path value table.
+Figure 3 shows the growth of the size of the path value table for the size of the data set.
+As seen in the figure, it grows proportionally.
+Figures 4, 5 and 6 show the results of retrieval time for finding unifiable TFSs, more-specific TFSs and more-general TFSs respectively.
+In the figures, the X-axis shows the number of index paths that are used for limiting the data set.
+The ideal time means the unification time when the filtering rate is 100%, i.e., our algorithm cannot achieve higher efficiency than this optimum.
+The overall time is the sum of the filtering time and the unification time.
+As illustrated in the figures, using one to ten index paths achieves the best performance.
+The ISTFS achieved 2.84 times speed-ups in finding unifiables for QuerySetA, and 37.90 times speed-ups in finding unifiables for QuerySetB.
+Figure 7 plots the filtering rate.
+In finding unifiable TFSs in QuerySetA, more than 95% of nonunifiable TFSs are filtered out by using only three index paths.
+In the case of QuerySetB, more than 98% of non-unifiable TFSs are filtered out by using only one index path.
+4 Discussion
+Our approach is said to be a variation of path indexing.
+Path indexing has been extensively studied in the field of automated reasoning, declarative programming and deductive databases for term indexing (Sekar et al., 2001), and was also studied in the field of XML databases (Yoshikawa et al., 2001).
+In path indexing, all existing paths in the database are first enumerated, and then an index for each path is prepared.
+Other existing algorithms differed from ours in i) data structures and ii) query optimization.
+In terms of data structures, our algorithm deals with typed feature structures while their algorithms deal with PROLOG terms, i.e., variables and instantiated terms.
+Since a type matches not only the same type or variables but unifiable types, our problem is much more complicated.
+Yet, in our system, hierarchical relations like a taxonomy can easily be represented by types.
+In terms of query optimization, our algorithm dynamically selects index paths to minimize the searching cost.
+Basically, their algorithms take an intersection of candidates for all paths in a query, or just limiting the length of paths (McCune, 2001).
+Because such a set of paths often contains many paths ineffective for limiting answers, our approach should be more efficient than theirs.
+5 Conclusion
+and Future Work We developed an efficient retrieval engine for TFSs, ISTFS.
+The efficiency of ISTFS is achieved by calculating a unifiability checking table prior to retrieval and finding the best index paths dynamically.
+In future work, we are going to 1) minimize the size of the index tables, 2) develop a feature structure DBMS on a second storage, and 3) incorporate structure-sharing information into the index tables.
+

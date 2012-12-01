@@ -1,0 +1,714 @@
+Proceedings of the 6th Workshop on Statistical Machine Translation, pages 152–158,
+Edinburgh, Scotland, UK, July 30–31, 2011. c©2011 Association for Computational Linguistics
+TheRWTHSystemCombinationSystemfor WMT2011
+GregorLeusch,MarkusFreitag,andHermannNey
+RWTHAachenUniversity
+Aachen,Germany
+{leusch,freitag,ney}@cs.rwth-aachen.de
+Abstract
+RWTHparticipatedin the SystemCombi-
+nationtask of the SixthWorkshopon Sta-
+tisticalMachineTranslation(WMT2011).
+For three language pairs, we combined
+6 to 14 systems into a single consen-
+sus translation. A three-level meta-
+combinationscheme combining six dif-
+ferent system combination setups with
+threedifferentengineswas appliedon the
+French–Englishlanguagepair. Depend-
+ing on the language pair, improvements
+versus the best single system are in the
+range of +1.9% and +2.5% abs. on
+BLEU, and between−1.8% and−2.4%
+abs. on TER.Novel techniquescompared
+with RWTH’s submissionto WMT 2010
+include two additional system combina-
+tionengines,anadditionalwordalignment
+technique, meta combination,and addi-
+tionaloptimizationtechniques.
+1 Introduction
+RWTH’s main approachto SystemCombination
+(SC) for MachineTranslation(MT) is a refined
+version of the ROVER approach in Automatic
+Speech Recognition(ASR) (Fiscus, 1997), with
+additionalsteps to cope with reorderingbetween
+differenthypotheses,and to use true casinginfor-
+mationfromthe inputhypotheses.The basiccon-
+cept of the approachhas been describedby Ma-
+tusov et al. (2006). Several improvementshave
+been addedlater (Matusov et al., 2008). This ap-
+proach includes an enhancedalignmentand re-
+orderingframework. In contrast to existing ap-
+proaches (Jayaramanand Lavie, 2005; Rosti et
+al., 2007b),the context of the wholecorpusrather
+than a single sentenceis consideredin this itera-
+tive, unsupervisedprocedure,yieldinga morereli-
+able alignment.Majorityvotingon the generated
+lattice is performedusing prior weightsfor each
+system as well as other statistical models such
+as a specialn-gram languagemodel. True cas-
+ing is considereda separatestep in RWTH’s ap-
+proach,whichalsotakes the inputhypothesesinto
+account. The pipeline,and consequentlythe de-
+scriptionofthemainpipelinegiveninthispaper, is
+basedon ourpipelinefor WMT2010(Leuschand
+Ney, 2010), with extensionsas described. When
+necessary, we denote this pipeline as Align-to-
+Lattice, or A2L.
+For the French–Englishtask, we used two ad-
+ditionalsystemcombinationenginesfor the first
+time: The first one uses the same alignmentsas
+A2L,but generateslattices in theOpenFSTframe-
+work (Allauzenet al., 2007). The OpenFSTde-
+coder(fstshortestpath) is thenusedto find
+thebestpath(consensustranslation)in thislattice.
+Analogously, wecallthisengine A2FST. Thesec-
+ondadditionalengine,whichwecallSCUNC,uses
+a TER-basedalignment,similarto theapproachby
+Rosti et al. (2007b). Insteadof a lattice rescor-
+ing, finding the consensustranslationis consid-
+ered a per-node classificationproblem: For each
+slot, whichone is the “correct”one (i.e. will give
+the “best”output)? This approachis inspiredby
+iROVER (Hillardet al., 2007). Consensustrans-
+lationsfromdifferentsettingsof theseapproaches
+couldthenbe combinedagainby an additionalap-
+plicationof systemcombination– whichwe refer
+toasmetacombination(Rostiet al.,2007a).These
+three approachesare describedin more detail in
+Section2. In Section3 we describehow we tuned
+theparametersanddecisionsof oursystemcombi-
+nationapproachesfor WMT2011. Section4 then
+lists our experimentalsetupas well as the experi-
+mentalresultsweobtainedon theWMT2011sys-
+tem combinationtrack. We concludethis paperin
+Section5.
+2 SystemCombinationAlgorithm(A2L)
+In this sectionwe presentthe detailsof our main
+systemcombination method,A2L.Theupperpart
+ofFigure1 givesanoverview ofthesystemcombi-
+nationarchitecturedescribedin thissection.After
+preprocessingthe MT hypotheses,pairwisealign-
+152
+mentsbetweenthe hypothesesare calculated.The
+hypothesesare then reorderedto matchthe word
+orderof a selectedprimary(skeleton) hypothesis.
+From this, we create a confusionnetwork (CN)
+whichwe thenrescoreusingsystempriorweights
+and a languagemodel(LM).The singlebest path
+in this CN then constitutesthe consensustransla-
+tion. The consensustranslationis then true cased
+andpostprocessed.
+2.1 WordAlignment
+Themainproposedalignmentapproachis a statis-
+tical one. It takes advantage of multiple transla-
+tions for a wholecorpusto computea consensus
+translationfor eachsentencein thiscorpus.It also
+takes advantageof the fact thatthe sentencesto be
+alignedare in the samelanguage.
+For each of the K sourcesentencesin the test
+corpus, we select one of its N translationsfrom
+differentMT systemsE,m=1,...,N, as the pri-
+maryhypothesis.Thenwealignthesecondaryhy-
+pothesesEn(n=1,...,;nnegationslash=m) withEn to match
+the word orderin En. Since it is not clear which
+hypothesisshouldbe primary, i.e. has the “best”
+word order, we let several or all hypothesisplay
+the role of the primarytranslation,and align all
+pairsof hypotheses(En,Em); nnegationslash= m.
+The word alignmentis trained in analogy to
+the alignmenttrainingprocedurein statisticalMT.
+The differenceis that the two sentencesthat have
+to be alignedarein thesamelanguage.We usethe
+IBM Model 1 (Brown et al., 1993) and the Hid-
+den Markov Model(HMM,(Vogel et al., 1996))
+to estimatethe alignmentmodel.
+Thealignmenttrainingcorpusis createdfroma
+testcorpusof effectivelyN·(N−1)·K sentences
+translatedby the involved MTengines.Modelpa-
+rametersare trained iteratively using the GIZA++
+toolkit(Och and Ney, 2003). The trainingis per-
+formedin the directionsEm → En and En →
+Em. The final alignmentsare determinedusing
+a cost matrix C for each sentencepair (Em,En).
+Elementsof this matrixare the localcostsC(j,i)
+of aligninga word em,j fromEm to a word en,i
+from En. Following Matusov et al. (2004), we
+compute these local costs by interpolatingthe
+negated logarithmsof the state occupationproba-
+bilitiesfromthe “source-to-target”and “target-to-
+source”trainingof the HMMmodel.
+A different approachthat has e.g. been pro-
+posedby Rostiet al. (2007b)is the utilizationof a
+TER alignment(Snover et al., 2006)for this pur-
+pose. Becausethe originalTER is insensitive to
+small changesin spellings,synonyms etc., it has
+beenproposedto use morecomplex variants,e.g.
+TERp.For ourpurposes,weutilized“poor-man’s-
+stemming”,i.e. shorteningeach word to its first
+four characterswhen calculatingthe TER align-
+ment. Since a TER alignmentalreadyimpliesa
+reorderingbetweenthe primaryandthe secondary
+hypothesis,an explicitreorderingstep is not nec-
+essary.
+2.2 WordReorderingandConfusion
+NetworkGeneration
+After reorderingeach secondaryhypothesisEm
+and the rows of the correspondingalignmentcost
+matrix,we determineN−1 monotoneone-to-one
+alignmentsbetweenEn as the primarytranslation
+and Em,m = 1,...,N;m negationslash= n. We then con-
+structthe confusionnetwork.
+We considerwordswithouta correspondenceto
+the primarytranslation(and vice versa) to have a
+null alignmentwiththe emptywordε, whichwill
+be transformedto an ε-arc in the corresponding
+confusionnetwork.
+TheN−1 monotoneone-to-onealignmentscan
+then be transformedinto a confusionnetwork, as
+describedby Matusov et al. (2008).
+2.3 Votingin
+the ConfusionNetwork(A2L,
+A2FST)
+Insteadof choosinga fixed sentenceto definethe
+word orderfor the consensustranslation,we gen-
+erateconfusionnetworksforN possiblehypothe-
+sesas primary, andunitethemintoa singlelattice.
+In our experience,this approachis advantageous
+in termsof translationqualitycompared to a min-
+imumBayesriskprimary(Rostiet al., 2007b).
+Weighted majority voting on a single confu-
+sion network is straightforward and analogousto
+ROVER(Fiscus,1997). We sum up the probabil-
+ities of the arcs which are labeledwith the same
+word and have the same start state and the same
+endstate.
+Comparedto A2L, our new A2FSTengineal-
+lows for a highernumberof featuresfor eacharc.
+Consequently, we add a binarysystemfeaturefor
+eachsystemin additionto thelogarithmofthesum
+of system weights,as before. The advantage of
+thesefeaturesis that the weightsare linearwithin
+a log-linearmodel,as opposedto be partof a loga-
+rithmicsum. Consequentlythey can laterbe opti-
+mizedusingtechniquesdesignedforlinearfeature
+weights,suchas MERT, or MIRA.
+2.4 LanguageModels
+The latticerepresentinga unionof several confu-
+sion networks can then be directlyrescoredwith
+ann-gramlanguagemodel(LM).Whenregarding
+153
+alignment
+GIZA+-/
+TERNetwork 
+generation
+Weighting
+&
+Rescoring
+& Reordering
+Hyp 1
+Hyp k
+...
+Consensus
+Translation
+Creating
+Clasification
+Problem
+& Features
+Clasification
+within each
+slot
+Consensus
+Translation
+A2L, A2FST
+SCUNC
+Shortest
+Path
+Path of
+"recognized"
+arcs
+Figure1: Thesystemcombinationarchitecture.
+the lattice as a weightedFinite State Transducer
+(FST),this can be regarded(andimplemented)as
+compositionwitha LMFST.
+In our approach,we train a trigramLM on the
+outputsof the systemsinvolved in systemcombi-
+nation. For LM training, we take the systemhy-
+pothesesfor the same test corpus for which the
+consensustranslationsare to be produced. Using
+this “adapted”LM for lattice rescoringthus gives
+bonus to n-grams from the original system hy-
+potheses,in mostcasesfromthe originalphrases.
+Presumably, many of thesephraseshave a correct
+word order. Previous experimentalresults show
+that using this LM in rescoringtogether with a
+wordpenaltynotablyimproves translationquality.
+This even resultsin bettertranslationsthan using
+a “classical”LM trainedon a monolingualtrain-
+ing corpus. We attribute this to the fact that most
+of the systemswe combinealreadyincludesuch
+generalLMs.Nevertheless,oneof theSCsystems
+we use for the French–English task (IV in Sec-
+tion 4.1) uses a filteredfourgram LM trainedon
+GigaWord andotherconstrainedtrainingdatasets
+for thisWMTtasksas an additionalLM.
+2.5 ExtractingConsensusTranslations
+To generate our consensus translation, we ex-
+tract the single-bestpath from the rescored lat-
+tice,using“classical”decodingas in MT. In A2L,
+this is implementedas shortest-pathdecoderon a
+pruned lattice. In A2FST,we use the OpenFST
+fstshortestpathdecoder, whichdoesnotre-
+quirea pruningstepforlatticesofthesize andden-
+sityproducedhere.
+2.6 Classificationin
+the ConfusionNetwork
+(SCUNC)
+Instead of consideringthe selectionof the con-
+sensus problem as a shortest-pathproblem in a
+rescoredconfusionnetwork,wecantreatit instead
+as a classificationproblem: For each slot (set of
+outgoingarcsfromonenodein a CN),weconsider
+one or morearcs to be “correct”,and traina clas-
+sifierto identifythesecertainarcs. Thisis theidea
+of the iROVER approachin ASR (Hillardet al.,
+2007). We call our implementationSystemCom-
+binationUsingN-gram Classifiers, or SCUNC.
+For the WMT evaluation, we used the ICSI-
+Boostframework (Favre et al., 2007)as classifier
+(in binarymode,i.e. giving a yes/no-decision for
+each singlearc). We generated109 featuresfrom
+8 families: Pairwiseequalityof words from dif-
+ferentsystems,Numberof votesfor a word, word
+that would win a simple majorityvoting, empty
+word (also in previous two arcs), positionat be-
+ginningor end of sentence,cross-BLEU-Sscore
+of hypothesis,equalityof systemwith systemof
+last slot, and SRILMunito trigramscores. As
+thisapproachrequiresstrict CNinsteadof lattices,
+a union of CNs for different primaryhypotheses
+was no longer possible. We decided to select
+a fixed single primarysystem; other approaches
+would have been to train an additionalclassifier
+for this purpose,or to select a minimum-Bayes-
+risk(MBR)skeleton.
+2.7 ConsensusTrueCasing
+Previous approachesto achieve true cased output
+in systemcombinationoperatedon true-casedlat-
+tices,useda separateinput-independenttruecaser,
+or used a general true-casedLM to differentiate
+betweenalternative arcsin thelattice,as described
+by Leuschet al. (2009). For WMT2011,we use
+per-sentenceinformationfrom the input systems
+to determinethe consensuscase of each output
+word. Latticegeneration,rescoring,and rerank-
+ing are performedon lower-cased input, with a
+lower-cased consensushypothesisas their result.
+For each word in this hypothesis,we count how
+often each casing variant occurs in the input hy-
+pothesesfor this sentence. We then use the vari-
+antwiththehighestsupportforthefinalconsensus
+output.
+154
+Table1: CorpusandTask statistics.
+avg. # words #sys
+TUNE DEV TEST
+FR–EN 15670 11410 49832 25
+DE–EN 15508 10878 49395 24
+ES–EN 15989 11234 50612 15
+# sent 609 394 2000
+3 Tuning
+3.1 Feature
+weights
+For latticerescoring,we selecteda linearcombi-
+nationof BLEU(Papineniet al., 2002)and TER
+(Snover et al., 2006) as optimizationcriterion,
+ˆΘ := argmaxΘ{BLEU−TER} for the A2L
+engine,based on previous experience(Mauseret
+al., 2008). To achieve morestableresults,we use
+thecase-insensitive variantsforbothmeasures,de-
+spite the explicit use of case informationin the
+pipeline. Systemweightswere tuned to this cri-
+terionusingthe DownhillSimplex method.
+In the A2FSTsetup, we were able to generate
+fulllattices,withseparatecostsforeachindividual
+featureon all arcs(PowerSemiring).Thisallowed
+us to run LatticeMERT (Macherey et al., 2008)
+on the full lattice,with no need for pruning(and
+thus additionalouter iterationsfor re-generating
+lattices). We tried different strategies – random
+linesvs axis-parallellines,regularization,random
+restarts, etc, and selectedthe most stable results
+on TUNEand DEVfor this engine. Optimization
+criterionherewas BLEU.
+3.2 Traininga
+classifierfor SCUNC
+In MTsystemcombination,even withgiven refer-
+ence translations,there is no simpleway to iden-
+tify the “correct”arc in a slot. This renders a
+classifier-basedapproacheven moredifficultthan
+iROVERin ASR.Theproblemis even aggravated
+becauseboththe alignmentof words,andtheiror-
+der, can be incorrectalreadyin the CN. We thus
+consideran arc to be “correct”withinthistaskex-
+actlyif it gives us the best possibletotal BLEU-S
+score.1 These“correct”arcs,whichlie on suchan
+“oraclepath”for BLEU-S,werethereforeusedas
+referenceclasseswhentrainingthe classifier.
+3.3 SystemSelection
+With the large numbersof input systems– e.g.,
+25 for FR–EN– and their large spreadin transla-
+tion quality– e.g. from 22.2 to 31.4% in BLEU
+– not all systemsshouldparticipatein the system
+1We are lookingat the sentencelevel, so we use BLEU-
+S (LinandOch,2004)insteadof BLEU
+combinationprocess. This is especiallythe case
+since several of these e.g. 25 systemsare often
+only small variants of each other (contrastive vs.
+primarysubmissions),whichleads to a low vari-
+abilityofthesetranslations.We consideredseveral
+variantsof the set of inputsystems,oftenstarting
+fromthe top,andeitherreplacingsomeof the sys-
+tems very similar to others with systemsfurther
+down the list, or not consideringthoseas primary,
+addingfurthersystemsas additionalsecondaries.
+Dependingon the enginewe were using, we se-
+lectedbetween6 and14differentsystemsas input.
+4 ExperimentalResults
+Eachlanguagepair in WMT2011had its own set
+of systems,soweselectedandtuned separatelyfor
+each languagepair . Due to time constraints,we
+onlyparticipatedin taskswithEnglishas thetarget
+language. In preliminaryexperiments,it turned
+out that SystemCombinationwas not able to get
+a better result than the best single systemon the
+Czech–Englishtask. Consequently, we focused
+on the languagepairs French–English,German–
+English,andSpanish–English.
+We split the available tuning data document-
+wiseinto a 609-lineTUNEset (for tuning),and a
+394-lineDEVset (to verifytuningresults). More
+statisticson thesesetscan be foundin Table1.
+Unfortunately, late in the evaluationcampaign
+it turnedout that the qualityof several reference
+sentencesusedin TUNEandDEVwas ratherlow:
+Many referencesentencescontainedspellinger-
+rors, a few dozen lines even contained French
+phrases or sentenceswithin or after the English
+text. We correctedmany of theseerrorsmanually
+in thereferences.In total101of 690lines(16.6%)
+in TUNE and 58 of 394 lines (14.7%) in DEV
+wereaffectedby this. Whileit was too late to re-
+run all of the optimizationruns, we re-optimized
+at leasta few finalsystems.All scoreswithinthis
+sectionwerecalculatedon the correctedreference
+translations.
+4.1 FR–EN
+For French–English,we built in totalseven differ-
+entsystemcombinationsetupsto generatea single
+consensustranslationand two contrastive transla-
+tions. Figure 2 shows the structureand the data
+flow of our setup for FR–EN.Table 2 lists more
+detailsaboutthe individualengines.
+Ourprimarysubmissionwas focusedon ourex-
+periencethat whilerule-basedMT systems(such
+as RBMT-1..5and systran) tend to have
+lower BLEU scores than statistical (SMT) sys-
+tems, they usually give considerable improve-
+155
+II: A2L III: SCUNC IV: A2FST+ GW V: A2L VI: A2FST
+cmu-denkowski
+cmu-hanneman
+cu-zeman
+jhu
+kit
+lia-lig
+limsi
+lium
+online-A
+online-B
+rwth-huck
+systran
+udein
+rbmt-1
+rbmt-2
+rbmt-3
+rbmt-4
+rbmt-5
+I: A2L
+VII: A2L
+primary contrastive 2contrastive 1
+Boldarrowsdenotea systemthatis alwaysconsidered as skeleton.
+Notethatthere are twovariantsof setupII, see text.
+Figure 2: Systemcombinationpipelinesfor FR–EN
+Table2: Enginesandinputsystemsfor FR–EN.
+Engine # Input submitted?
+I A2L 6 RBMT
+II A2L I + 6 primary
+II’ A2L fix I + 6 for VII
+III SCUNC 6
+IV A2FST GW, 8
+V A2L 10 contrastive-2
+VI A2FST 14
+VII A2L II’–VI contrastive-1
+“GW”meansa 4-gram LM trainedon GigaWord.
+IIusesall skeletons,II’usesI as fixedskeleton.
+Table3: Resultsfor FR–EN.
+TUNE DEV
+BLEU TER BLEU TER
+kit 31.56 50.15 30.25 52.88
+systran 28.18 53.32 26.50 56.07
+I 27.37 54.73 26.72 57.73
+II 33.69 48.47 32.45 51.09
+II’ 33.39 48.77 31.81 51.57
+III 32.74 48.06 31.88 50.87
+IV 34.16 48.31 31.95 51.64
+V 33.17 48.95 32.60 51.14
+VI 33.86 48.69 31.56 52.25
+VII 34.41 48.20 32.15 51.49
+kitis the bestsinglesystem.
+systranis the bestsinglerule-basedsystem.
+All scores are case insensitive, and were calculatedon the
+correctedreferencetranslations.
+ments to the latter in a SC setup. Here, though,
+the numberof such systemswas too high to sim-
+ply add themto a reasonableset of SMTsystems.
+Consequently, we firstbuilt a SC system(I) com-
+biningall RBMT/Systransystems,andthena sec-
+ond SC system (II) which combinesthe output
+of I, and 6 SMT systems. As further experi-
+mentsshowed,allowingall hypothesesas primary
+(or skeleton)gave significantlybetterscoresthan
+forcingSC to use the outputof I as primaryonly.
+But vice versa, when lookingat the meta combi-
+nation scheme,VII, usingI as primaryonly (a
+setup which we will now denote as II’) gave
+measurableimprovements in the overall transla-
+tionquality. We assumethisis dueto thesimilarity
+of the outputofIIwiththatof the othersetups.
+SetupIIIis a SCUNCsetup,that is, we built
+a singleCN for each sentenceusing poor-man’s-
+stemming-TER,withrwth-huckas primaryhy-
+pothesis.We thengenerateda largenumberof fea-
+turesfor each arc, and trainedan ICSIBoostclas-
+sifierto recognizethearc(or system)thatgave the
+bestBLEU-Sscore.Thisthengave us the consen-
+sus translation.
+ForIV, webuiltanOpenFSTlatticeoutof eight
+systems,and rescoredit with both the Hypothe-
+sis LM(3-gram),and a 4-gramLMtrainedon Gi-
+gaWord and otherWMTconstrainedtrainingdata
+for this task. The log-linearweightswere trained
+usinglatticeMERT for BLEU.SetupV is a clas-
+sicalA2Lsetup,usingten differentinputsystems.
+This setup was tuned on BLEU– TER using the
+Downhill-Simplex algorithm. In setupVI, again
+the A2FSTengine was used, this time using the
+Hyp LM only, withoutan additionalLM. Tuning
+156
+Table4: Resultsfor DE–EN.
+TUNE DEV
+BLEU TER BLEU TER
+online-B 23.13 60.15 26.20 57.20
+Primary 24.57 58.51 28.11 54.83
+4 bestsys 23.85 58.22 27.47 54.96
+6 bestsys 24.46 57.74 27.82 54.50
+online-Bis the bestsinglesystem.
+was also performedusing lattice MERT towards
+BLEU.And finally, setupVIIcombinesthe out-
+put ofII’toIVusingthe A2Lengineagain.
+Allthe resultsof systemcombinationon TUNE
+and DEV are listed in Table 3. It turns out that
+with the exceptionof I, all system combination
+approacheswere able to achieve a significantim-
+provementof at least+1.8% abs. in BLEUcom-
+pared to the best input system. For I, we need
+to keep in mind that all other systemswere sev-
+eralBLEUpointsworsethanthe bestone – a sce-
+nario where we can expect system combination,
+whichis based on the consensustranslationafter
+all,to underperform.We alsoseethatbothA2FST
+and SCUNC,with their large numberof features,
+show a tendency to overfitting– we see large im-
+provements on TUNE, but significantlysmaller
+improvementson DEV. Thistendency is, unfortu-
+nately, also the casefor metacombination:While
+we see an additional+0.3% abs. in BLEUover
+the best first-level systemcombinationon TUNE,
+this improvementdoesnot reflectin the scoreson
+DEV: Whilewe still see a +0.2% abs. improve-
+mentin BLEUover the setupthat performedbest
+on TUNE,there is even a small deteriorationof
+−0.4% in BLEU over the setup that performed
+beston DEV. Becauseof thiseffect,we decidedto
+submitour meta combinationoutputonly as first
+contrastive, and the output that performedwell
+both on TUNEand DEV as our primarysubmis-
+sionfor WMT. As secondcontrastive submission,
+we selectedthesetupthatperformedbeston DEV.
+4.2 DE–EN
+24 systemswereavailablein the German–English
+languagepair, but incorporatingonly 7 of them
+turnedout to deliver optimalresultson DEV. We
+ran experimentson several settings of systems,
+but only in our tried and tested A2L framework.
+We settled for a combinationof seven systems
+(online-B,cmu-dyer,dfki-xu,limsi,
+online-A,rwth-wuebker,kit) as primary
+submission. Table 4 also lists two different set-
+tings.Onesettingconsistsof thefourbest systems
+Table5: Resultsfor ES–EN.
+TUNE DEV
+BLEU TER BLEU TER
+online-A 30.58 51.69 30.77 51.95
+Primary 34.29 48.47 33.41 49.71
+Contrastive 34.23 48.27 33.30 49.51
+online-Ais the bestsinglesystem.
+(online-B,cmu-dyer,rwth-wuebker,
+kit) and the other setting containsthe six best
+systems (online-B,cmu-dyer,dfki-xu,
+rwth-wuebker,online-A,kit). Whenwe
+added more systemsto system combination,we
+lostperformancein bothTUNEandDEV.
+4.3 ES–EN
+For Spanish–English,we tried several settings
+of systems. We sticked to our tried and tested
+A2L framework. We settled for a combination
+of six systems (alacant,koc,online-A,
+online-B,rbmt-1,systran) as contrastive
+submission, and a combinationof ten systems
+(+rbmt-2,rbmt-3,rbmt-4,udein) as pri-
+marysubmission.Table 5 lists the resultsfor this
+task. The difference betweenour primarysetup
+(10systems)andourcontrastive setup(6 systems)
+is rathersmall,lessthan0.1%abs. in BLEU.Nev-
+ertheless, we see significantimprovements over
+the best single systemof +2.4% abs. in BLEU,
+and−2.2% in TER.
+5 Conclusions
+We have shown that our systemcombinationap-
+proachleadsto significantimprovementsover sin-
+gle best MT outputwherea significantnumberof
+comparablygoodtranslationsis availableon a sin-
+gle languagepair. A meta combinationcan give
+additionalimprovement, but can be sensitive to
+overfitting;so in some cases, using one of its in-
+put systemcombinationhypothesismay be a bet-
+ter choice. In any way, both of our new engines
+have shownthatthey cancompetewithourpresent
+approach,so wehopeto make gooduseof thenew
+possibilitiesthey mayoffer.
+Acknowledgments
+This work was partly realized as part of the
+Quaero Programme, funded by OSEO, French
+State agency for innovation. This work was
+partly supportedby the Defense Advanced Re-
+searchProjectsAgency (DARPA) underContract
+No.HR0011-06-C-0023.
+157
+References
+C. Allauzen, M. Riley, J. Schalkwyk,W. Skut, and
+M. Mohri. 2007. OpenFst:A generaland efficient
+weightedfinite-statetransducerlibrary. In Proc. of
+the TwelfthInternationalConference on Implemen-
+tationand Applicationof Automata(CIAA), volume
+4783 of Lecture Notes in ComputerScience, pages
+11–23.Springer.
+P. F. Brown, S. A. DellaPietra,V. J. DellaPietra,and
+R. L. Mercer. 1993. The mathematicsof statistical
+machinetranslation:parameterestimation.Compu-
+tationalLinguistics, 19(2):263–311,June.
+B. Favre, D. Hakkani-T¨ur, and S. Cuendet. 2007.
+Icsiboost. http://code.google.come/p/
+icsiboost.
+J. Fiscus. 1997. A post-processingsystemto yieldre-
+ducedworderrorrates:Recognizeroutputvotinger-
+ror reduction(ROVER). In IEEEWorkshopon Au-
+tomaticSpeech RecognitionandUnderstanding.
+D. Hillard, B. Hoffmeister, M. Ostendorf,R. Schl¨uter,
+and H. Ney. 2007. iROVER: improving sys-
+tem combinationwith classification. In Human
+Language Technologies 2007: The Conference of
+the North American Chapter of the Association
+for ComputationalLinguistics;CompanionVolume,
+ShortPapers, NAACL-Short’07, pages65–68.As-
+sociationfor ComputationalLinguistics.
+S. Jayaramanand A. Lavie. 2005. Multi-enginema-
+chinetranslationguidedby explicit word matching.
+In Proc. of the 10th AnnualConf. of the European
+AssociationforMachineTranslation(EAMT), pages
+143–152,Budapest,Hungary, May.
+G. Leuschand H. Ney. 2010. The rwth systemcom-
+binationsystem for wmt 2010. In ACL 2010 Joint
+Fifth Workshopon StatisticalMachine Translation
+and MetricsMATR, pages315–320,Uppsala,Swe-
+den,July.
+G. Leusch, E. Matusov, and H. Ney. 2009. The
+RWTHsystemcombinationsystemfor WMT2009.
+In FourthWorkshopon StatisticalMachineTransla-
+tion, pages56–60,Athens,Greece,March.Associa-
+tionfor ComputationalLinguistics.
+C. Y. Lin and F. J. Och. 2004. Orange: a methodfor
+evaluationautomaticevaluationmetricsfor machine
+translation.In Proc.COLING2004, pages501–507,
+Geneva, Switzerland,August.
+W. Macherey, F. Och, I. Thayer, and J. Uszkoreit.
+2008. Lattice-basedminimumerrorratetrainingfor
+statisticalmachinetranslation.In Proc. of the 2008
+Conference on EmpiricalMethodsin Natural Lan-
+guage Processing(EMNLP), pages725–734.Asso-
+ciationfor ComputationalLinguistics.
+E. Matusov, R. Zens, and H. Ney. 2004. Symmetric
+word alignmentsfor statisticalmachinetranslation.
+In COLING’04: The 20th Int. Conf. on Computa-
+tionalLinguistics, pages219–225,Geneva, Switzer-
+land,August.
+E. Matusov, N. Ueffing,andH. Ney. 2006. Computing
+consensustranslationfrom multiplemachinetrans-
+lation systems using enhanced hypotheses align-
+ment. In Conferenceof theEuropeanChapterof the
+Associationfor ComputationalLinguistics(EACL),
+pages33–40,Trento,Italy, April.
+E. Matusov, G. Leusch, R. E. Banchs, N. Bertoldi,
+D. Dechelotte,M. Federico,M. Kolss, Y. S. Lee,
+J. B. Marino, M. Paulik, S. Roukos, H. Schwenk,
+andH. Ney. 2008. Systemcombinationformachine
+translationof spoken and written language. IEEE
+Transactionson Audio, Speech and Language Pro-
+cessing, 16(7):1222–1237,September.
+A. Mauser, S. Hasan, and H. Ney. 2008. Automatic
+evaluationmeasuresfor statisticalmachinetransla-
+tion systemoptimization. In InternationalConfer-
+ence on Language Resources and Evaluation, Mar-
+rakech,Morocco,May.
+F. J. Och and H. Ney. 2003. A systematiccomparison
+of various statisticalalignmentmodels. Computa-
+tionalLinguistics, 29(1):19–51,March.
+K. Papineni,S. Roukos, T. Ward,and W. J. Zhu. 2002.
+BLEU:a Methodfor AutomaticEvaluationof Ma-
+chineTranslation.In Proc.of the40thAnnualMeet-
+ingof theAssociationforComputationalLinguistics
+(ACL), pages311–318,Philadelphia,PA, July.
+A. V. Rosti,N. F. Ayan,B. Xiang,S. Matsoukas,R. M.
+Schwartz, and B. J. Dorr. 2007a. Combiningout-
+puts from multiplemachinetranslationsystems. In
+HLT-NAACL’07, pages228–235.
+A. V. Rosti, S. Matsoukas,and R. Schwartz. 2007b.
+Improved word-level system combinationfor ma-
+chinetranslation.In Proc. of the 45thAnnualMeet-
+ing of the Associationof ComputationalLinguis-
+tics(ACL), pages312–319,Prague,CzechRepublic,
+June.
+M. Snover, B. Dorr, R. Schwartz, L. Micciulla,and
+J. Makhoul. 2006. A Study of TranslationError
+Rate with TargetedHumanAnnotation.In Proc. of
+the 7th Conf. of the Associationfor Machine Trans-
+lation in the Americas (AMTA), pages 223–231,
+Boston,MA,August.
+S. Vogel, H. Ney, and C. Tillmann. 1996. HMM-
+based word alignmentin statisticaltranslation. In
+COLING’96: The16thInt.Conf. on Computational
+Linguistics, pages836–841,Copenhagen,Denmark,
+August.
+158
+

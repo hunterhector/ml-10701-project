@@ -1,0 +1,2509 @@
+Broad-CoverageParsingUsingHuman-Like
+MemoryConstraints
+WilliamSchuler
+∗
+UniversityofMinnesota
+SamirAbdelRahman
+∗∗
+CairoUniversity
+TimMiller
+∗
+UniversityofMinnesota
+LaneSchwartz
+∗
+UniversityofMinnesota
+Human syntactic processing shows many signs of taking place within a general-purpose
+short-term memory. But this kind of memory is known to have a severely constrained storage
+capacity — possibly constrained to as few as three or four distinct elements. This article describes
+a model of syntactic processing that operates successfully within these severe constraints, by
+recognizing constituents in a right-corner transformed representation (a variant of left-corner
+parsing)and mapping this representation to random variables in a Hierarchical Hidden Markov
+Model, a factored time-series model which probabilistically models the contents of a bounded
+memory store over time. Evaluations of the coverage of this model on a large syntactically
+annotated corpus of English sentences, and the accuracy of a bounded-memory parsing strategy
+based on this model, suggest this model may be cognitively plausible.
+1.Introduction
+Itisaninterestingpossibilitythathumansyntacticprocessingmayoccurentirelywithin
+a general-purpose short-term memory. Like other short-term memory processes, syn-
+tacticprocessingissusceptibletodegradationifshort-termmemorycapacityisloaded,
+for example, when readers are asked to retain lists of words while reading (Just
+and Carpenter 1992); and memory of words and syntax degrades over time within
+and across sentences (Sachs 1967; Jarvella 1971), unlike semantics and discourse
+information about referents from other sentences (Ericsson and Kintsch 1995). But
+short-term memory is known to have severe capacity limitations of perhaps no more
+thanthreetofourdistinctelements(Miller1956;Cowan2001).Theselimitsmayseem
+∗ DepartmentofComputerScienceandEngineering,200UnionSt.SE,Minneapolis,MN55455.
+E-mail:schuler@cs.umn.edu;tmill@cs.umn.edu;lane@cs.umn.edu.
+∗∗ ComputerScienceDepartment,FacultyofComputersandInformation,5Dr.AhmedZewailStreet,
+PostalCode:12613,Orman,Giza,Egypt.E-mail:s.abdelrahman@fci-cu.edu.eg.
+Submissionreceived:14February2008;revisedsubmissionreceived:31October2008;acceptedfor
+publication:27May2009.
+©2010AssociationforComputationalLinguistics
+ComputationalLinguistics Volume36,Number1
+tooausteretoprocesstherichtree-likephrasestructurecommonlyinvokedtoexplain
+word-orderregularitiesinnaturallanguage.
+This article aims to show that they are not. The article describes a comprehension
+model, based on a right-corner transform—a reversible tree transform related to the
+left-cornertransformofJohnson(1998a)—thatassociatesfamiliarphrasestructuretrees
+with the contents of a memory store of three to four partially completed constituents
+overtime.CoverageresultsonthelargesyntacticallyannotatedPennTreebankcorpus
+showavastmajorityofnaturallyoccurringsentencescanberecognizedusingamem-
+ory store containing a maximum of only three incomplete constituents, and nearly all
+sentencescanberecognizedusingfour,consistentwithestimatesofhumanshort-term
+memorycapacity.
+This transform reduces memory usage in incremental (left to right) processing
+by transforming right-branching constituent structures into left-branching structures,
+allowingchildconstituentstobecomposedwithparentconstituentsbeforeeitherhave
+been completely recognized. But because this composition identiﬁes an incomplete
+child as the awaited portion of an incomplete parent, it implicitly predicts that this
+child constituent will be the rightmost (i.e., last) child of the parent, before this child
+has been completely recognized. Parsing accuracy results on the Penn Treebank
+using a Hierarchical Hidden Markov Model (Murphy and Paskin 2001)—essentially a
+probabilistic pushdown automaton with a bounded pushdown store—show that this
+predictioncanbereliablylearnedfromtrainingdata.
+The remainder of this article is organized as follows: Section 2 describes some
+relatedmodelsofhumansyntacticprocessingusingaboundedmemorystore;Section3
+describes a Hierarchical Hidden Markov Model (HHMM) framework for statistical
+parsing using this bounded store of incomplete constituents; Section 4 describes the
+right-corner transform and how it relates conventional phrase structure to incomplete
+constituentsinaboundedmemorystore;Section5describesanexperimenttoestimate
+the level of coverage of the Penn Treebank corpus that can be achieved using this
+transformwithvariousmemorylimits,givenalinguisticallymotivatedbinarizationof
+thiscorpus;andSection6givesaccuracyresultsofthisbounded-memorymodeltrained
+onthiscorpus,giventhatsomeamountofincrementalprediction(asdescribedearlier)
+mustbeinvolved.
+2.Bounded-MemoryParsing
+One of the earliest bounded-memory parsing models is that of Marcus (1980). This
+modelmaintains abounded storeofcompletebutunattached constituentsasabuffer,
+andoperatesonthemusingavarietyofspecializedmemorymanipulationoperations,
+deferringcertainattachmentdecisionsuntilthecontentsofthisbufferindicateitissafe
+to do so. (In contrast, the model described in this article maintains a store of incom-
+plete constituents using ordinary stack-like push and pop operations, deﬁned to allow
+constituents to be composed before being completely recognized.) The Marcus parser
+provides a bounded-memory explanation for human difﬁculties in processing garden
+pathsentences:forexample,the horse raced past the barn fell,withintendedinterpretation
+[
+NP
+the horse [
+RC
+(which was)raced past the barn]] fell (Bever1970),inwhichracedseemslike
+themainverbofthesentenceuntilthewordfellisencountered.Butthisexplanationdue
+to memory exhaustion is not compatible with observations of unproblematic parsing
+of sentences such as these when contextual information is provided in advance: for
+example, two men on horseback had a race; one went by the meadow, and the other went by the
+barn (CrainandSteedman1985).
+2
+Schuleretal. ParsingUsingHuman-LikeMemoryConstraints
+AdesandSteedman(1982)introducetheideaofcomposingincompleteconstituents
+to reduce storage demands in incremental processing using Combinatorial Catego-
+rial Grammar (CCG), avoiding the need to maintain large buffers of complete but
+unattachedconstituents.Theright-cornertransformdescribedinthisarticlecomposes
+incomplete constituents in very much the same way, but CCG is essentially a compe-
+tencemodel,inthatitseekstounifylexicalcategoryrepresentationsusedinprocessing
+with learned generalizations about argument structure, whereas the model described
+herein is exclusively a performance model, allowing generalizations about lexical ar-
+gument structures to be learned in some other representation, then combined with
+probabilistic information about parsing strategies to yield a set of derived incomplete
+constituents. As a result, the model described in this article has a freer hand to satisfy
+strictworkingmemorybounds,whichmaynotpermitsomeofthealternativecompo-
+sitionoperationsproposedintheCCGaccount,thoughttobeassociatedwithavailable
+prosodyandquantiﬁerscopeanalyses.
+1
+Johnson-Laird (1983) and Abney and Johnson (1991) propose a pure processing
+account of memory capacity limits in parsing ordinary phrase structure trees. The
+Johnson-Laird and Abney and Johnson models adopt a left-corner parsing strategy, of
+whichtheright-cornertransformintroducedinthisarticleisavariant,inordertobring
+memory usage for most parsable sentences to within seven or so active or awaited
+phrase structure constituents. This account may be used to explain human processing
+difﬁcultiesinprocessingtriplycenter-embeddedsentenceslikethe rat that the cat that the
+dog chased killed ate the malt,withintendedinterpretation[
+NP
+the rat that [
+NP
+the cat that [
+NP
+the dog] chased] killed] ate the malt (ChomskyandMiller1963).Butthisexplanationdoes
+not account for examples of triply center-embedded sentences that typically do not
+causeprocessingproblems: [
+NP
+that [
+NP
+the food that [
+NP
+John] ordered] tasted good] pleased
+him (Gibson 1991). Moreover, the apparent competition between comprehension of
+center-embeddedobjectrelativesandretentionofunrelatedwordsingeneral-purpose
+memory (Just and Carpenter 1992) suggests that general-purpose memory is (or at
+least,canbe)usedtostoreincompleteconstituentsduringcomprehension.Thiswould
+predict three or four elements of reliable storage, rather than seven (Cowan 2001).
+Thetransform-basedmodeldescribedinthisarticleexploitsaconceptionofchunking
+(Miller 1956) to combine pairs of active and awaited constituents from the Abney
+and Johnson analysis, connected by recognized structure, in order to operate within
+estimatesofhumanshort-termmemorybounds.
+Becauseofthesecounterexamplestothememory-exhaustionexplanationofgarden
+path and center-embedding difﬁculties, recent work has turned to explanations other
+than memory exhaustion for these phenomena. Lewis and Vasishth (2005) attribute
+processing errors to activation interference among stored constituents that have sim-
+ilar syntactic and semantic roles. Hale’s surprisal (2001) and entropic model (2006)
+link human processing difﬁculties to signiﬁcant changes in the relative probability of
+competing hypotheses in incremental parsing, such that if activation is taken to be a
+mechanism for probability estimation, processing difﬁculties may be ascribed to the
+relativelyslowspeedofactivationchangewithinthebrain(ortocollapsingactivation
+when probabilities grow too small, as in the case of garden path sentences). These
+modelsexplainmanyprocessingdifﬁcultieswithoutinvokingmemorylimits,andare
+1 Thelackofsupportforsomeoftheseavailablescopeanalysesmaynotnecessarilybeproblematicforthe
+presentmodel.Thecomplexityofinterpretingnestedraisedquantiﬁersmayplacethembeyondthe
+capabilityofhumaninteractiveincrementalinterpretation,butnotbeyondthecapabilityofposthoc
+interpretation(understoodafterthelistenerhashadtimetothinkaboutit).
+3
+ComputationalLinguistics Volume36,Number1
+compatible with brain imaging evidence of increased cortical activity and recruitment
+ofauxiliarybrainareasduringperiodsofincreaseduncertaintyinsentenceprocessing
+(JustandVarma2007).Butifinterferenceorchangingactivationispositedasthesource
+of processing difﬁculty, and delays are not linked to memory exhaustion per se, then
+these theories do not explain how (or whether) syntactic processing operates within
+general-purposeshort-termmemory.
+Toward this end, this article will speciﬁcally evaluate the claim that syntactic
+processing can be performed entirely within general-purpose short-term memory by
+using this memory to store unassimilated incomplete syntactic constituents, derived
+through a right-corner transform from basic properties of phrase structure trees. As
+a probabilistic incremental parser, the model described in this article is compatible
+with surprisal-based explanations of processing difﬁculties; it is, however, in some
+sense orthogonal, because it models a different dimension of resource allocation. The
+surprisalframeworkmodelsallocationofprocessingresources(inthiscase,activation)
+amongdisjunctionsofcompetinghypotheses,whicharemaintainedforsomeamount
+of time in parallel, whereas the framework described here can be taken to model the
+allocationofprocessingresources(inthiscase,memoryelements)amongconjunctions
+of incompletely recognized constituents within each competing hypothesis.
+2
+Thus, in
+thisview,therearetwowaystosimultaneouslyactivatemultipleconcepts:disjunctively
+(sharingactivationamongcompetinghypotheses)andconjunctively(sharingactivation
+amongunassimilatedconstituentswithinahypothesis).Butonlytheinnerconjunctive
+allocation corresponds to the familiar discretely bounded store of short-term memory
+as described by Miller (1956); the outer disjunctive allocation treats activation as a
+continuous resource in which like-valued pockets expand and contract as they are
+reinforced or contradicted by incoming observations. Indeed, it would be surprising
+if these two dimensions of resource allocation did not exist: the former, because it
+wouldcontradictyearsofobservationsaboutthebehaviorofshort-termmemory;and
+the latter, because it would require neural activation spreading to be instantaneous
+and uniform, contradicting most neuropsychological evidence. Levy (2008) compares
+the allocation of activation in this kind of framework to the distributed allocation
+of resources in a particle ﬁlter (Gordon, Salmond, and Smith 1993), an approximate
+inferencetechniqueforprobabilistictime-seriesmodelsinwhichparticlesina(typically
+ﬁxed) reservoir are assigned randomly sampled hypotheses from learned transition
+probabilities,essentiallyfunctioningasunitsofactivation.Themodeldescribedinthis
+paper qualiﬁes this analogy by positing that each individual particle in this reservoir
+endorsesacoherenthypothesisaboutthecontentsofathree-tofour-elementmemory
+storeatanygiventime,ratherthanaboutanentireunboundedphrasestructuretree.
+3
+2 Probabilitydistributionsinentropy-basedmodelslikeHale’saretypicallyassumedtobedeﬁnedover
+setsofhypothesespursuedinparallel,butotherinterpretations(forexample,lookahead-based
+deterministicmodels)arepossible.Themodeldescribedinthisarticleisalsocompatiblewith
+deterministicparsingframeworks,inwhichcaseitmodelsallocationofprocessingresourcesamong
+incompletely-recognizedconstituentswithinasinglenon-competinghypothesis.
+3 Pureconnectionistmodelsofsyntacticprocessing(Elman1991;Berg1992;Rohde2002)attempttounify
+storageofconstituentstructurewiththatofambiguousalternativeanalyses,butthememorydemandsof
+systemsbasedonthisapproachtypicallydonotscalewelltobroad-coverageparsing.Recentresultsfor
+usingself-organizingmapsasauniﬁedmemoryresourceareencouraging(MayberryandMiikkulainen
+2003),butarestilllimitedtoparsingrelativelyshorttravelplanningquerieswithlimitedsyntactic
+complexity.Hybridsystemsthatgenerateexplicitalternativehypotheseswithexplicitstacked-up
+constituents,anduseconnectionistmodelsforprobabilityestimationoverthesehypotheses(Henderson
+2004)typicallyachievebetterperformanceinpractice.
+4
+Schuleretal. ParsingUsingHuman-LikeMemoryConstraints
+Previousmemory-basedexplanationsofproblematicsentences(explaininggarden
+patheffectsasexceedingaboundoffourcompletebutunattachedconstituents,orex-
+plainingcenterembeddingdifﬁcultiesasexceedingaboundofsevenactiveorawaited
+constituents) have been shown to underestimate human sentence processing capacity
+when equally complex but unproblematic sentences were examined. The hypothesis
+advanced in this article, that human sentence processing uses general-purpose short-
+term memory to store incomplete constituents as deﬁned by a right-corner transform,
+leavestheexplanationofseveralnegativeexamplesofunparsablegardenpathandcen-
+terembeddingsentencestoorthogonalmodelsofsurprisalorinterference.Butinorder
+todeterminewhetherthisright-cornermemoryhypothesisstillunderestimateshuman
+sentence processing capacity, a corpus study was performed on two complementary
+corpora of transcribed spontaneous speech and newspaper text, manually annotated
+with phrase structure trees (Marcus, Santorini, and Marcinkiewicz 1993). These spon-
+taneous speech and newspaper text corpora contain only attested positive examples
+of parsable sentences, but they may be considered complementary for this purpose
+becausethecomplexityofspontaneousspeechmaysomewhat understate humanrecog-
+nitioncapacity(potentiallylimitingittothecostofspontaneouslygeneratingsentences
+in an unusual social context), and the complexity of newspaper text may somewhat
+overstate humanrecognitioncapacity(thoughitiscomposedandeditedtobereadable,
+it is still composed and edited off-line), so results from these corpora may be taken
+together to suggest generous and conservative upper bounds on human processing
+capacity.
+3.Bounded-MemoryParsingwithaTimeSeriesModel
+TheframeworkadoptedinthisarticleisafactoredHMM-liketimeseriesmodel,which
+maintains a probability distribution over the contents of a bounded set of random
+variables over time, corresponding to hypothesized stores of memory elements. The
+randomvariablesinthisstoremaybeunderstoodassimultaneousactivationsinacog-
+nitivemodel(similartothesuperimposedrolesdescribedbySmolenskyandLegendre
+[2006]),andtheprobabilitydistributionoverthesestoresmaybethoughtofascompet-
+ingpocketsofactivation,asdescribedintheprevioussection.Someofthesevariables
+persistaselementsoftheshort-termmemorystore,andsomearetransientasresultsof
+hypothesizedcompositions,whichareestimatedandimmediatelydiscardedorfolded
+into the persistent store according to the dependencies in the model. The variables
+havevaluesorcontents(orﬁllers)—inthiscaseincompleteconstituentcategories—that
+changeovertime,andalthoughthesevaluesmaybeuncertain,thesetofhypothesized
+contentsofthismemorystoreatanygivenpointintimearecollectivelyconstrainedto
+formacoherent(butpossiblyincomplete)syntacticanalysisofasentence.
+The particular model used here is an HHMM (Murphy and Paskin 2001), which
+mimicsabounded-memorypushdownautomaton(PDA),supportingsimplepushand
+pop operations on a bounded stack-like memory store. A time-series model is used
+here instead of an explicit stack machine, ﬁrst because the probability model is well
+deﬁnedonaboundedmemorystore,andsecondbecausetheplasticityoftherandom
+variablesthatmimicstackbehaviorinthismodelmakesthemodelcross-linguistically
+attractive. By evoking additional random variables and dependencies, the model can
+bedeﬁned(orpresumably,trained)tomimicothertypesofautomata,suchasextended
+pushdown automata (EPDAs) recognizing tree-adjoining languages with crossed and
+nested dependencies, as have been hypothesized for languages like Dutch (Shieber
+5
+ComputationalLinguistics Volume36,Number1
+1985). However, the remainder of this article will only discuss random variables and
+dependenciesnecessarytomimicaboundedstackpushdownautomaton.
+3.1HierarchicalHMMs
+HierarchicalHiddenMarkovModels(MurphyandPaskin2001)areessentiallyHidden
+Markov Models factored into some ﬁxed number of stack-like elements at each time
+step.
+HMMs characterize speech or text as sequences of hidden states q
+t
+(which may
+consistofphones,words,orotherhypothesizedsyntacticorsemanticinformation),and
+observed states o
+t
+at corresponding time steps t (typically short, overlapping frames
+of an audio signal, or words or characters in a text processing application). A most
+likely sequence of hidden states ˆq
+1..T
+can then be hypothesized given any sequence of
+observedstates o
+1..T
+:
+ˆq
+1..T
+=argmax
+q
+1..T
+P(q
+1..T
+|o
+1..T
+)(1)
+=argmax
+q
+1..T
+P(q
+1..T
+)·P(o
+1..T
+|q
+1..T
+)(2
+def
+=argmax
+q
+1..T
+T
+productdisplay
+t=1
+P
+Θ
+A
+(q
+t
+|q
+t−1
+)·P
+Θ
+B
+(o
+t
+|q
+t
+)(3)
+using Bayes’ Law (Equation 2) and Markov independence assumptions (Equation 3)
+to deﬁne a full P(q
+1..T
+|o
+1..T
+) probability as the product of a Language Model (Θ
+A
+)
+priorprobabilityP(q
+1..T
+)
+def
+=
+producttext
+t
+P
+Θ
+A
+(q
+t
+|q
+t−1
+)andanObservationModel(Θ
+B
+)likelihood
+probabilityP(o
+1..T
+|q
+1..T
+)
+def
+=
+producttext
+t
+P
+Θ
+B
+(o
+t
+|q
+t
+)(Baker1975;Jelinek,Bahl,andMercer1975).
+Language model transitions P
+Θ
+A
+(q
+t
+|q
+t−1
+) over complex hidden states q
+t
+can be
+modeled using synchronized levels of stacked-upcomponent HMMs in an HHMM,
+analogous to a shift-reduce parser or pushdown automaton with a bounded stack.
+HHMMtransitionprobabilitiesarecalculatedintwophases:a“reduce”phase(result-
+ing in an intermediate, transient ﬁnal-state variable f
+t
+), modeling whether component
+HMMs terminate; and a “shift” phase (resulting in a persistent modeled state q
+t
+), in
+which unterminated HMMs transition and terminated HMMs are re-initialized from
+their parent HMMs. Variables over intermediate f
+t
+and modeled q
+t
+states are factored
+into sequences of depth-speciﬁc variables—one for each of D levels in the HHMM
+hierarchy:
+f
+t
+= 〈f
+1
+t
+...f
+D
+t
+〉 (4)
+q
+t
+= 〈q
+1
+t
+...q
+D
+t
+〉 (5)
+Transition probabilities are then calculated as a product of transition probabilities at
+eachlevel,usinglevel-speciﬁc‘reduce’Θ
+F,d
+and‘shift’ Θ
+Q,d
+models:
+P
+Θ
+A
+(q
+t
+|q
+t−1
+)=
+summationdisplay
+f
+t
+P(f
+t
+|q
+t−1
+)·P(q
+t
+|f
+t
+q
+t−1
+)(6)
+6
+Schuleretal. ParsingUsingHuman-LikeMemoryConstraints
+Figure1
+GraphicalrepresentationofaHierarchicalHiddenMarkovModel.Circlesdenoterandom
+variables,andedgesdenoteconditionaldependencies.Shadedcirclesdenotevariableswith
+observedvalues.
+def
+=
+summationdisplay
+f
+1
+t
+..f
+D
+t
+D
+productdisplay
+d=1
+P
+Θ
+F,d
+(f
+d
+t
+|f
+d+1
+t
+q
+d
+t−1
+q
+d−1
+t−1
+)·
+D
+productdisplay
+d=1
+P
+Θ
+Q,d
+(q
+d
+t
+|f
+d+1
+t
+f
+d
+t
+q
+d
+t−1
+q
+d−1
+t
+)(7)
+withf
+D+1
+t
+andq
+0
+t
+deﬁnedasconstants.Intheseequations,probabilitiesaremarginalized
+orsummedoverallcombinationsofintermediatevariables f
+1
+t
+...f
+D
+t,soonlythememory
+storecontentsq
+1
+t
+...q
+D
+t
+persistacrosstimesteps.
+4
+AgraphicalrepresentationofanHHMM
+withthreedepthlevelsisshowninFigure1.
+The independence assumptions in this model can be psycholinguistically moti-
+vated. Independence across time points t (Equation 3) arise naturally from causality:
+Any change to a memory store conﬁguration to generate a conﬁguration at time step
+t+1 should depend only on the current memory store conﬁguration at time step t;
+memoryoperationsshouldnotbeabletopeekbackwardorforwardintimetoconsult
+past or future memory stores. Independence across depth levels d (Equation 7) arise
+naturallyfromuncertaintyaboutthestructurebetweenincompleteconstituentchunks
+(thispropertyofright-cornertransformcategoriesiselaboratedinSection4).
+5
+Shift and reduce probabilities can now be deﬁned in terms of ﬁnitely recursive
+HMMs with probability distributions over recursive expansion, transition, and reduc-
+tion of states at each depth level. In the version of HHMMs used in this paper, each
+modeled variable is a syntactic state q
+d
+t
+∈ G×G (describing an incomplete constituent
+consistingofanactivegrammaticalcategoryfromdomain G andanawaitedgrammat-
+icalcategoryfromdomain G—forexample,anincompleteconstituentS/NPconsisting
+ofanactivesentenceSawaitinganounphraseconstituentNP);andeachintermediate
+4 InViterbidecoding,probabilitiesoverintermediatevariablesmaybemaximizedratherthan
+marginalized,butinanycasetheintermediatevariablesdonotpersist.
+5 Also,thefactthatthisisagenerativemodel,inwhichobservationsareconditionedonhypotheses,then
+ﬂippedusingBayes’Law(Equation2)—asopposedtoadiscriminativeorconditionalmodel,inwhich
+hypothesesareconditioneddirectlyonobservations—isalsoappealingasahumanmodel,inthatit
+allowsthesamearchitecturetobeusedforbothrecognitionandgeneration.Thisisadesirableproperty
+formodelingsplitutterances,inwhichinterlocutorscompleteoneanother’ssentences(Lerner1991;
+Helasvuo2004).
+7
+ComputationalLinguistics Volume36,Number1
+variable is a reduction or non-reduction state f
+d
+t
+∈ G∪{1,0} (indicating, respectively, a
+reduction of incomplete constituent q
+d
+t−1
+to a complete right child constituent of some
+grammaticalcategoryfromdomainG,oranon-reductionofq
+d
+t−1
+asaunaryorleftchild,
+asdeﬁnedinSection4).Anintermediatevariable f
+d
+t
+atdepth d mayindicatereduction
+or non-reduction according to Θ
+F-Reduction,d
+if there is a reduction at the depth level
+immediately below d, but must indicate non-reduction (f
+d
+t
+=0) with probability 1 if
+thereisnoreductionbelow:
+6
+P
+Θ
+F,d
+(f
+d
+t
+|f
+d+1
+t
+q
+d
+t−1
+q
+d−1
+t−1
+)
+def
+=
+braceleftBigg
+if f
+d+1
+t
+negationslash∈G :[f
+d
+t
+=0]
+if f
+d+1
+t
+∈G :P
+Θ
+F-Reduction,d
+(f
+d
+t
+|q
+d
+t−1,q
+d−1
+t−1
+)
+(8)
+where f
+D+1
+t
+=1and q
+0
+t
+=ROOT.
+Shiftprobabilitiesoverthemodeledvariableq
+d
+t
+ateachlevelaredeﬁnedusinglevel-
+speciﬁctransitionΘ
+Q-Transition,d
+andexpansionΘ
+Q-Expansion,d
+models:
+P
+Θ
+Q,d
+(q
+d
+t
+|f
+d+1
+t
+f
+d
+t
+q
+d
+t−1
+q
+d−1
+t
+)
+def
+=
+
+
+
+
+
+if f
+d+1
+t
+negationslash∈G, f
+d
+t
+negationslash∈G :[q
+d
+t
+=q
+d
+t−1
+]
+if f
+d+1
+t
+∈G, f
+d
+t
+negationslash∈G :P
+Θ
+Q-Transition,d
+(q
+d
+t
+|f
+d+1
+t
+f
+d
+t
+q
+d
+t−1
+q
+d−1
+t
+)
+if f
+d+1
+t
+∈G, f
+d
+t
+∈G :P
+Θ
+Q-Expansion,d
+(q
+d
+t
+|q
+d−1
+t
+)
+(9)
+where f
+D+1
+t
+=1and q
+0
+t
+=ROOT.Thismodelisconditionedonﬁnal-stateintermediate
+variables f
+d
+t
+and f
+d+1
+t
+at and immediately below each HHMM level. If there is no re-
+duction immediately below a given level (the ﬁrst case provided), it deterministically
+copies the current HHMM state forward to the next time step. If there is a reduction
+immediately below the current level but no reduction at the current level (the second
+case provided), it transitions the HHMM state at the current level, according to the
+distributionΘ
+Q-Transition,d
+.Andifthereisareductionatthecurrentlevel(thethirdcase
+above), it re-initializes this state given the state at the level above, according to the
+distributionΘ
+Q-Expansion,d
+.
+ModelsΘ
+F-Reduction,d,Θ
+Q-Transition,d,andΘ
+Q-Expansion,d
+aredeﬁneddirectlyfromtrain-
+ing examples, for example (in the experiments described in this article), using relative
+frequency estimation. The overall effect is that higher-level HMMs are allowed to
+transitiononlywhenlower-levelHMMsterminate.AnHHMMthereforebehaveslike
+aprobabilisticimplementationofashift–reduceparserorpushdownautomatonwitha
+boundedstack,wherethemaximumstackdepthisequaltothenumberofdepthlevels
+intheHHMMhierarchy.
+4.Right-CornerTransformandIncompleteConstituents
+The model described in this article recognizes trees in a right-corner transformed
+representation to minimize usage of a bounded short-term memory store. This right-
+cornertransformisavariantoftheleft-cornertransformdescribedbyJohnson(1998a),
+but whereas the left-corner transform changes left-branching structure into right-
+branchingstructure,theright-cornertransformchangesright-branchingstructureinto
+6Here[·]isanindicatorfunction:[φ]=1ifφistrue,0otherwise.
+8
+Schuleretal. ParsingUsingHuman-LikeMemoryConstraints
+left-branching structure. Recognition using this transformed grammar, extracted from
+atransformedcorpus,issimilartorecognitionusingaleft-cornerparsingstrategy(Aho
+and Ullman 1972). This kind of strategy was shown to reduce memory requirements
+forparsingsentenceswithmainlyleft-orright-recursivephrasestructuretofewerthan
+sevenactiveorawaitedconstituentcategories(AbneyandJohnson1991).Thisiswithin
+Miller’s (1956) estimate of human short-term memory capacity (if memory elements
+store individual categories), whereas parsing heavily center-embedded sentences
+(knowntobedifﬁcultforhumanreaders)wouldrequiresevenormoreelementsatthe
+frontierofthiscapacity.
+Butrecentresearchsuggeststhathumanmemorycapacitymaybelimitedtoasfew
+as three or four distinct items (Cowan 2001), with longer estimates of seven or more
+possiblyduetothehumancapacitytochunkremembereditemsintoassociatedgroups
+(Miller 1956). The right-corner strategy described in this paper therefore assumes
+constituentcategoriescansimilarlybechunkedinto incomplete constituents A/B formed
+bypairinganactivecategoryAwithanawaitedcategory Bsomewherealongtheactive
+category’srightprogeny(so,forexample,atransitiveverbmaybecomeanincomplete
+constituentVP/NPconsistingofanactiveverbphraselackinganawaitednounphrase
+yet to come).
+7
+These chunked incomplete constituent categories A and B are naturally
+related through ﬁxed contiguous phrase structure between them, established during
+thecourseofparsingpriortothebeginningof B,andtheseincompleteconstituentscan
+becomposedwithotherincompleteconstituentsB/Ctoformsimilarlyrelatedcategory
+pairs A/C.
+These chunks are not only contiguous sections of phrase structure trees, they also
+havecontiguousstringyields,sotheycorrespondtothefamiliarnotionoftextchunks
+used in shallow parsing approaches (Hobbs et al. 1996). For example, a hypothesized
+memory store may contain incomplete constituents S/NP (a sentence without a noun
+phrase), followed by NP/NN (a noun phrase lacking a common noun), with cor-
+responding string yields demand for bonds propped up and the municipal, respectively,
+formingacompletecontiguoussegmentationofasentenceatanypointinprocessing.
+AlthoughthesetwochunkscouldbecomposedintoanincompleteconstituentS/NN,
+doingsoatthispointwouldcloseoffthepossibilityofintroducinganotherconstituent
+betweenthesetwo,containingtherecognizednounphraseasaleftchild(e.g., demand
+for bonds propped up [
+NP
+[
+NP
+the municipal bonds]’s prices]).
+Thisconceptionofchunkingappliedtoright-branchingprogenyinphrasestructure
+treesdoesnothavethepowertoeliminatetheboundsofamemorystore,however.Ina
+largercognitivemodel,syntacticprocessingisassumedtooccuraspartofaninteractive
+semantic interpretation process, in which referents of constituents are calculated as
+these constituents are recognized, and are used to constrain subsequent processing
+decisions (Tanenhaus et al. 1995; Brown-Schmidt, Campana, and Tanenhaus 2002).
+8
+Thechunkedcategorypairs A and B intheseincompleteconstituents A/B result from
+successful compositions of other such constituents earlier in the recognition process,
+whichmeansthattherelationshipbetweenthereferentsof A and B isknownandﬁxed
+7 Incompleteconstituentsmayalsobedeﬁnedthroughaleft-cornertransform,butleft-cornertransformed
+categoriesareincompleteintheotherdirection—agoalcategoryyettocomelackingan
+already-recognizedconstituent—sostoredincompleteconstituentcategoriesresultingfromaleft-corner
+transformwouldhavethecharacteroffuturegoalevents,ratherthanrememberedpastevents.Thisis
+discussedingreaterdetailinSection4.4.
+8 Thiscanbeimplementedinatime-seriesmodelbyfactoringthemodeltoincludeadditionalrandom
+variablesoverreferents,asdescribedinSchuler,Wu,andSchwartz(2009).
+9
+ComputationalLinguistics Volume36,Number1
+in any hypothesized incomplete constituent. But syntactic and semantic relationships
+between chunks in a hypothesized memory store are unspeciﬁed. Chunking beyond
+thelevelofincompleteconstituentswouldthereforeinvolvegroupingreferentswhose
+interrelations have not necessarily been established by the parser. Because the set
+of referents is presumably much larger than the set of syntactic categories, one may
+assume there are real barriers to reliably chunking them in the absence of these ﬁxed
+relationships.
+Therecertainlymaybecaseswheresyntacticallyunconnectedreferents(belonging
+to different incomplete constituents) could be grouped together as chunks. But for
+simplicity,thisarticlewillassumeaverystrictconditionthatonlyasingleincomplete
+constituent can be stored in each short-term memory element. Experimental results
+described in Section 5 suggest that a vast majority of English sentences can be recog-
+nized within these human-like memory bounds, even with this strict condition on
+chunking. If parsing can be performed in bounded memory under such strict condi-
+tions, it can reasonably be assumed to operate at least as well under more permissive
+circumstances, where some amount of syntactically-unrelated referential chunking is
+allowed.
+Several existing incremental systems are organized around a left-corner parsing
+strategy(Roark2001;Henderson2004).Butthesesystemsgenerallykeeplargenumbers
+ofconstituentsopenformodiﬁerattachmentineachhypothesis.Thisallowsmodiﬁers
+to be attached as right children of any such open constituent. But if any number of
+open constituents are allowed, then either the assumption that stored elements have
+ﬁxedsyntactic(andsemantic)internalstructurewillbeviolated,ortheassumptionthat
+syntaxoperateswithinaboundedmemorystorewillbeviolated,bothofwhicharepsy-
+cholinguistically attractive as simplifying assumptions. The HHMM model described
+in this article upholds both the ﬁxed-element and bounded-memory assumptions by
+hypothesizingﬁxedreductionsofrightchildconstituentsintoincompleteparentsinthe
+samememoryelement,tomakeroomfornewconstituentsthatmaybeintroducedata
+latertime.Thesein-elementreductionsaredeﬁnednaturallyonphrasestructuretrees
+astheresultofaligningright-cornertransformedconstituentstructurestosequencesof
+randomvariablesinafactoredtime-seriesmodel.Thesuccessofthispredictivestrategy
+in corpus-based coverage and accuracy results described in Sections 5 and 6 suggests
+thatitmaybeplausibleasacognitivemodel.
+Other accounts may model reductions in bounded memory as occurring as soon
+as possible, by maintaining the option of undoing them when necessary (Stevenson
+1998).Thisseemsunattractiveinthecontextofaninteractivesemanticmodel,however,
+where syntactic constituents and semantic referents are composed in tandem, because
+potentiallyveryrichreferentialconstraintsintroducedbycomposingachildconstituent
+intoaparentwouldhavetobesystematicallyundone.Aninterestingpossibilitymight
+bethattheappearanceofsyntacticrestructuringmayarisefromacollectionofhypoth-
+esized stores of syntactically ﬁxed incomplete constituents, pursued in parallel. The
+results presented in this article suggest that this mechanism is possible, but these two
+possibilitiesmightbeverydifﬁculttodistinguishempirically.
+There is also a tradition of deﬁning incomplete constituents as head-driven—
+introduced in parsing only at the point in incremental recognition at which they can
+beassociatedwithaheadword(Gibson1991:Pritcher1991:Gorrell1995).Intypically
+head-initial languages such as English, incomplete constituents derived from these
+head-driven models resemble those derived from a right-corner transform. But head-
+drivenincompleteconstituentsdonotappeartoobeygeneral-purposememorybounds
+inhead-ﬁnallanguagessuchasJapanese,anddonotappeartoobeyattachmentprefer-
+10
+Schuleretal. ParsingUsingHuman-LikeMemoryConstraints
+encespredictedbyahead-drivenaccount(KamideandMitchell1999),favoringapre-
+headattachmentaccount,asaright-cornertransformwouldpredict.
+4.1TreeTransformsUsingRewriteRules
+The incomplete constituents used in the present model are deﬁned in terms of tree
+transforms,whichconsistofrecursiveoperationsthatchangetreestructuresintoother
+tree structures. These transforms are not cognitive processes—syntax in this model is
+learned and used entirely as time-series probabilities over random variable values in
+thememorystore.Theroleofthesetransformsisasameanstoassociatesequencesof
+conﬁgurationsofincompleteconstituentsinamemorystorewithlinguisticallyfamiliar
+phrasestructurerepresentations,suchasthosestudiedincompetencemodelsorfound
+inannotatedcorpora.
+Thetransformspresentedinthisarticlewillbedeﬁnedintermsofdestructive rewrite
+rulesappliediterativelytoeachconstituentofasourcetree,fromleavestoroot,andfrom
+left to right among siblings, to derive a target tree. These rewrites are ordered; when
+multiple rewrite rules apply to the same constituent, the later rewrites are applied to
+theresultsoftheearlierones.
+9
+Forexample,therewrite
+A
+0
+... A
+1
+α
+2
+α
+3
+... ⇒
+A
+0
+... α
+2
+α
+3
+...
+couldbeusedtoiterativelyeliminateallbinary-branchingnonterminalnodesinatree,
+excepttheroot.
+Inthenotationusedinthisarticle,
+a114
+Romanuppercaseletters(A
+i
+)arevariablesmatchingconstituentlabels,
+a114
+Romanlowercaseletters(a
+i
+)arevariablesmatchingterminalsymbols,
+a114
+Greeklowercaseletters(α
+i
+)arevariablesmatchingentiresubtreestructure,
+a114
+Romanlettersfollowedbycolons,followedbyGreekletters(A
+i
+:α
+i
+)are
+variablesmatchingthelabelandstructure,respectively,ofthesame
+subtree,and
+a114
+ellipses(...)aretakentomatchzeroormoresubtreestructures,
+preservingtheorderofellipsesincaseswheretherearemorethanone(as
+intherewriteshownherein).
+Many of the transforms used in this article are reversible, meaning that the result
+of applying a transform to a tree, then applying the reverse of that transform to the
+resulting tree, will be the original tree itself. In general, a transform can be reversed
+if the direction of its rewrite rules is reversed, and if each constituent in a target tree
+9 TheappropriateanalogyhereistoaUnixsedscript,madesensitivetothebeginningandendbracketsof
+aconstituentandthoseofitschildren.
+11
+ComputationalLinguistics Volume36,Number1
+matches a unique rewrite rule in the reversed transform. The fact that not all rewrites
+canbeunambiguouslymatchedtoHHMMoutputmeansthatparseaccuracymustbe
+evaluated on partially-binarized gold-standard trees, in order to remove the effect of
+this ambiguous matching from the evaluation. This will be discussed in greater detail
+inSection6.
+4.2Right-CornerTransformUsingRewriteRules
+Rewrite rules for the right-corner transform are shown here, ﬁrst to ﬂatten out right-
+recursivestructure,
+A
+1
+α
+1
+A
+2
+α
+2
+A
+3
+a
+3
+⇒
+A
+1
+A
+1
+/A
+2
+α
+1
+A
+2
+/A
+3
+α
+2
+A
+3
+a
+3,
+A
+1
+α
+1
+A
+2
+A
+2
+/A
+3
+α
+2
+...
+⇒
+A
+1
+A
+1
+/A
+2
+α
+1
+A
+2
+/A
+3
+α
+2
+...
+thentoreplaceitwithleft-recursivestructure,
+A
+1
+A
+1
+/A
+2
+:α
+1
+A
+2
+/A
+3
+α
+2
+α
+3
+... ⇒
+A
+1
+A
+1
+/A
+3
+A
+1
+/A
+2
+:α
+1
+α
+2
+α
+3
+...
+Here,theﬁrsttworewriterulesareappliediteratively(bottom-uponthetree)toﬂatten
+all right recursion, using incomplete constituents to record the original nonterminal
+ordering.Thesecondruleisthenappliedtogenerateleft-recursivestructure,preserving
+this ordering. Note that the last rewrite leaves a unary branch at the leftmost child of
+eachﬂattenednode.Thispreservesthesimplecategorylabelsofnodesthatcorrespond
+directly to nodes in the original tree, so the original tree can be reconstructed when
+theright-cornertransformconcatenatesmultipleright-recursivesequencesintoasingle
+left-recursivesequence.
+Anexampleofaright-cornertransformedtreeisshowninFigure2(c).Animportant
+property of this transform is that it is reversible. Rewrite rules for reversing a right-
+corner transform are simply the converse of those shown here. The correctness of this
+can be demonstrated by dividing a tree into maximal sequences of right-recursive
+branches(thatis,maximalsequencesofadjacentrightchildren).Theﬁrsttwo“ﬂatten-
+ing”rewritesoftheright-cornertransform,appliedtoanysuchsequence,willreplace
+the right-branching nonterminal nodes with a ﬂat sequence of nodes labeled with
+slashcategories,whichpreservestheorderofthenonterminalcategorysymbolsinthe
+original nodes. Reversing this rewrite will therefore generate the original sequence of
+nonterminalnodes.Theﬁnalrewritesimilarlypreservestheorderofthesenonterminal
+symbols while grouping them from the left to the right, so reversing this rewrite will
+reproducetheﬂattenedtree.
+12
+Schuleretal. ParsingUsingHuman-LikeMemoryConstraints
+Figure2
+Asamplephrasestructuretree(a)asitappearsinthePennTreebank,(b)afterithasbeen
+binarized,and(c)afterithasbeenright-cornertransformed.
+4.3MappingTreestoHHMMDerivations
+AnytreecanbemappedtoanHHMMderivationbyaligningthenonterminalswith q
+d
+t
+categories.First,itisnecessarytodeﬁnerightwarddepth d,rightindexposition t,and
+ﬁnal(rightmost)childstatus f
+d
+t+1,foreverynonterminalnode A inatree,where
+a114
+d isdeﬁnedtobethenumberofrightbranchesbetweennode A andthe
+root,
+13
+ComputationalLinguistics Volume36,Number1
+a114
+t isdeﬁnedtobethenumberofwordsbeneathortotheleftofnode A,and
+a114
+f
+d
+t+1
+isdeﬁnedtobe0if A isaleftchild,1if A isaunarychild,and A if A is
+right.
+Anyright-cornertransformedtreecanthenbeannotatedwiththesevaluesandrewrit-
+ten to deﬁne labels and ﬁnal-state values for every combination of d and t covered by
+thetree.Thisisdoneusingtherewriterule
+d,t,A
+0,0
+d,t,A
+1,1
+⇒ d,t,A
+1,1
+toreplaceunarybrancheswith f
+d
+t+1
+ﬂags,and
+d,t,A
+0,f
+d
+t+1
+d,t
+prime,A
+1,f
+d
+t
+prime
++1
+d+1,t,A
+2,A
+2
+⇒
+d,t,A
+0,f
+d
+t+1
+d,t−1,A
+1,0
+d,t
+prime
++1,A
+1,0
+d,t
+prime,A
+1,f
+d
+t
+prime
++1
+d+1,t,A
+2,A
+2
+to copy stacked-up left child constituents over multiple time steps, while lower-level
+(rightchild)constituentsarebeingrecognized.Thedashedlineontherightsideofthe
+rewriterulerepresentsthevariablenumberoftimestepsforastacked-uphigher-level
+constituent(asseen,forexample,intimesteps4–7atdepth1inFigure3).Coordinates
+d,t ≤ D,andT thathave f
+d
+t+1
+=1areassignedlabel‘−’,andcoordinatesnotcoveredby
+thetreeareassignedlabel‘−’andf
+d
+t+1
+=1.
+The resulting label and ﬁnal-state values at each node now deﬁne a value of q
+d
+t
+and f
+d
+t
+for each depth d and time step t of the HHMM (see Figure 3). Probabilities for
+HHMMmodelsΘ
+Q-Expansion,d,Θ
+Q-Transition,d,andΘ
+F-Reduction,d
+canthenbeestimatedfrom
+these values directly. Like the right-corner transform, this mapping is reversible, so q
+d
+t
+and f
+d
+t
+valuescanbetakenfromahypothesizedmostlikelysequenceandmappedback
+Figure3
+SampletreefromFigure2mappedto q
+d
+t
+variablepositionsofanHHMMateachstackdepth d
+(vertical)andtimestep t (horizontal).Thistreeusesonlytwolevelsofstackmemory.Valuesfor
+ﬁnal-statevariables f
+d
+t
+arenotshown.Notethatthemappingtransformomitssomenonterminal
+labels;labelsforthesenodescanbereconstructedfromtheirchildren.
+14
+Schuleretal. ParsingUsingHuman-LikeMemoryConstraints
+to trees (which can then undergo the reverse of the right-corner transform to become
+ordinaryphrasestructuretrees).Inspectionofthisrewriterulewillrevealthereverseof
+this transform simply involves deleting unary-branching sequences that differ only in
+thevalueof t andrestoringunarybrancheswhen f
+d
+t+1
+=1.
+This alignment of right-corner transformed trees also has the interesting property
+thatthecategories onthestackatanygiventimesteprepresentasegmentationofthe
+inputuptothattimestep.Forexample,inFigure3att =12thestackcontainsasentence
+lackingaverbphrase:S/VP(strongdemandfor...bonds),followedbyaverbprojection
+lackingaparticle:VBN/PRT(propped).
+4.4ComparisonwithLeft-CornerTransform
+A right-corner transform is used in this study, rather than a left-corner transform,
+mainlybecausetheright-cornerversioncoincideswithanintuitionabouthowincom-
+plete constituents might be stored in human memory. Stacked-up constituents in the
+right-corner form correspond to chunks of words that have been encountered, rather
+than hypothesized goal constituents. Intuitively, in the right-corner view, after a sen-
+tencehasbeenrecognized,thestackmemorycontainsacompletesententialconstituent
+(andsomeassociatedreferent).Intheleftcornerview,ontheotherhand,thestackmem-
+oryafterasentencehasbeenrecognizedcontainsonlythelower-rightmostconstituent
+in the corresponding phrase structure tree (see Figure 4). This is because a time-order
+Figure4
+Aleft-cornertransformedversionofthetree(a)andmemorystore(b)fromFigures2and3.
+15
+ComputationalLinguistics Volume36,Number1
+alignment ofa left-corner tree toelements ina bounded memory store corresponds to
+atop-downtraversalofthetree,whereasatime-orderalignmentofaright-cornertree
+to elements in a bounded memory store corresponds to a bottom-up traversal of the
+tree. If referential semantics are assumed to be calculated in tandem (as suggested by
+the Tanenhaus et al. [1995] results), a top-down traversal through time requires some
+efforttoreconcilewiththetraditionalcompositionalsemanticnotionthatthemeanings
+ofconstituentsarecomposedfromthemeaningsoftheirparts(Frege1892).
+4.5ComparisonwithCCG
+Theincompleteconstituentcategoriesgeneratedintheright-cornertransformhavethe
+same form and much of the same meaning as non-constituent categories in a CCG
+(Steedman2000).
+10
+BothCCGoperationsofforwardfunctionapplication:
+A
+1
+shortrightarrow A
+1
+/A
+2
+A
+2
+andforwardfunctioncomposition:
+A
+1
+/A
+3
+shortrightarrow A
+1
+/A
+2
+A
+2
+/A
+3
+appearinthebranchingstructureofright-cornertransformedtrees.Nestedoperations
+canalsooccurinCCGderivations:
+A
+1
+/A
+2
+shortrightarrow A
+1
+/A
+2
+/A
+3
+A
+3
+as well as in right-corner transformed trees (using underscore delimiters to denote
+sequencesofconstituentcategories,describedinSection5.1):
+A
+1
+/A
+2
+shortrightarrow A
+1
+/A
+3
+A
+2
+A
+3
+Therearealsocorrelatesoftype-raising(unarybranchesintroducedbytheright-corner
+transformoperationsdescribedinSection4):
+A
+1
+/A
+2
+shortrightarrow A
+3
+But, importantly, the right-corner transform generates no correlates to the CCG
+operationsofbackwardfunctionapplicationorcomposition:
+A
+1
+shortrightarrow A
+2
+A
+1
+\A
+2
+A
+1
+\A
+3
+shortrightarrow A
+2
+\A
+3
+A
+1
+\A
+2
+Thishastwoconsequences.First,right-cornertransformmodelsdonotintroduceam-
+biguitybetweentype-raisedforwardandbackwardoperations,asCCGderivationsdo.
+Second, because leftward dependencies (as between a verb and its subject in English)
+cannotbeincorporatedintolexicalcategories,right-cornertransformmodelscannotbe
+takentoexplicitlyencodeargumentstructure,asCCGsare.Theright-cornertransform
+model described in this article is therefore perhaps better regarded as a performance
+model of processing, given subcategorizations speciﬁed in some other grammar (such
+asinthiscasetheTreebankgrammar),ratherthanaconstraintongrammaritself.
+10 Infact,oneoftheoriginalmotivationsforCCGasamodeloflanguagewastominimizestackusagein
+incrementalprocessing(AdesandSteedman1982).
+16
+Schuleretal. ParsingUsingHuman-LikeMemoryConstraints
+4.6ComparisonwithCascadedFSAsinInformationExtraction
+Hierarchies of weighted ﬁnite-state automata (FSA)–equivalent HMMs may also be
+viewed as probabilistic implementations of cascaded FSAs, used for modeling syntax
+in information extraction systems such as FASTUS (Hobbs et al. 1996). Indeed, the left-
+branching sequences of transformed constituents recognized by this model (as shown
+inFigure3)bearastrongresemblancetotheﬂattenedphrasestructurerepresentations
+recognized by cascaded FSA systems, in that most phrases are consolidated to ﬂat
+sequencesatonehierarchylevel.ThisﬂatstructureisdesirableincascadedFSAsystems
+becauseitallowsinformationtobeextractedfromnounorverbphrasesusingstraight-
+forwardpatternmatchingrules,implementedasFSA-equivalentregularexpressions.
+Like FASTUS, this system produces layers of ﬂat phrases that can be searched
+using regular expression pattern-matching rules. It also has a ﬁxed number of levels
+and linear-time recognition complexity. But unlike FASTUS, the model described here
+can produce—and can be trained on—complete phrase structure trees (accessible by
+reversingthetransformsdescribedpreviously).
+5.Coverage
+The coverage of this model was evaluated on the large Penn Treebank corpus of
+syntactically annotated sentences from the Switchboard corpus of transcribed speech
+(Godfrey,Holliman,andMcDaniel1992)andthe Wall Street Journal (Marcus,Santorini,
+andMarcinkiewicz1993).Thesesentenceswereright-cornertransformedandmapped
+to a time-aligned bounded memory store as described in Section 4 to determine the
+amountofmemoryeachsentencewouldrequire.
+5.1BinaryBranchingStructure
+In order to obtain a linguistically plausible right-corner transform representation of
+incomplete constituents, the corpus is subjected to another pre-process transform to
+introduce binary-branching nonterminal projections, and fold empty categories into
+nonterminalsymbolsinamannersimilartothatproposedbyJohnson(1998b)andKlein
+and Manning (2003). This binarization is done in such a way as to preserve linguistic
+intuitionsofheadprojection,sothatthedepthrequirementsofright-cornertransformed
+trees will be reasonable approximations to the working memory requirements of a
+humanreaderorlistener.
+First, ordinary phrases and clauses are decomposed into head projections, each
+consisting of one subordinate head projection and one argument or modiﬁer, for
+example:
+A
+0
+... VB:α
+1
+NP:α
+2
+...
+⇒
+A
+0
+... VB
+VB:α
+1
+NP:α
+2
+...
+TheselectionofheadconstituentsisdoneusingrewriterulessimilartotheMagerman-
+Black head rules (Magerman 1995). Any new constituent created by this process is
+17
+ComputationalLinguistics Volume36,Number1
+assigned thelabel ofthesubordinate head projection. Thesubordinate projection may
+betheleftorcompletelistofhead-projectionrewriterulesisprovidedinAppendixA.
+11
+Conjunctions are decomposed into purely right-branching structures using non-
+terminalsappendedwitha“-LIST”sufﬁx:
+A
+0
+... A
+1
+:α
+1
+CC A
+1
+:α
+2
+⇒
+A
+0
+... A
+1
+-LIST
+A
+1
+:α
+1
+CC A
+1
+:α
+2
+A
+0
+... A
+1
+:α
+1
+A
+1
+-LIST:α
+2
+⇒
+A
+0
+... A
+1
+-LIST
+A
+1
+:α
+1
+A
+1
+-LIST:α
+2
+This right-branching decomposition of conjoined lists is motivated by the general
+preference in English toward right branching structure, and the distinction of right
+children as “-LIST” categories is motivated by the asymmetry of conjunctions such as
+and and or generallyoccurringonlybetweenconstituentsattheendofalist,notatthe
+beginning. (Thus, in decomposing coffee, tea or milk, the words tea or milk form an NP-
+LISTconstituent,whereasthewords coffee, tea donot.)
+Empty constituents are removed outright, along with any unary projections that
+mayarisefromthisremoval.Inthecaseofemptyconstituentsrepresentingtraces,the
+extractedcategorylabelisannotatedontothelowestnonterminaldominatingthetrace
+using the sufﬁx “-extrX,” where “X” is the category of the extracted constituent. To
+preservegrammaticality,thisannotationisthenpassedupthetreeandeliminatedwhen
+awh-,topicalized,orothermovedconstituentisencountered,inamannersimilartothat
+used in Head-driven Phrase Structure Grammar (Pollard and Sag 1994), but this does
+notaffectbranchingstructure.
+Together these rewrites remove about 65% of super-binary branches from the un-
+processedTreebank.Allremainingsuper-binarybranchesare“nominally”decomposed
+into right-branching structures by introducing intermediate nodes, each with a label
+concatenatedfromthelabelsofitschildren,delimitedbyunderscores:
+A
+0
+... A
+1
+:α
+1
+A
+2
+:α
+2
+⇒
+A
+0
+... A
+1
+A
+2
+A
+1
+:α
+1
+A
+2
+:α
+2
+Thisdecompositionis“nominal”inthattheconcatenatedlabelsleavetheresultingbi-
+narybranchesjustascomplexastheoriginaln-arybranchespriortothisdecomposition.
+It is equivalent to leaving super-binary branches intact and using dot rules in parsing
+11 Althoughitispossiblethatinsomecasestheserulesmaygeneratecounterintuitivebranchingpatterns,
+inspectionoftransformedtreesduringthisexperimentshowednounusualbranchingstructure,exceptin
+thecaseofnounsequencesinbasenounphrases(e.g. [general obligation] bonds or general [obligation
+bonds]),whichwereleftﬂatintheTreebank.Correctbinarizationofthesestructureswouldrequire
+extensiveannotatoreffort.However,becausebasenounphrasesareoftenverysmall,andseldomcontain
+anysub-structure,itseemssafetoassumethatstructuralerrorsinthesebasenounphraseswouldnot
+drasticallyaltercoverageresultsreportedinthissection.
+18
+Schuleretal. ParsingUsingHuman-LikeMemoryConstraints
+(Earley1970).Thisdecompositionthereforedoesnothingtoreducesparsedataeffects
+instatisticalparsing.
+5.2CoverageResults
+Sections 2 and 3 (the standard training set) of the Penn Treebank Switchboard corpus
+werebinarizedasdescribedinSection5.1,thenright-cornertransformedandmapped
+toelementsinaboundedmemorystoreasdescribedinSection4.Punctuationaddedby
+transcriberswasremoved.Coverageofthiscorpus,insentences,forarecognizerusing
+right-corner transform chunking with one to ﬁve levels of stack memory, is shown in
+Table 1. These results show that a simple syntax-based chunking into incomplete con-
+stituents, using the right-corner transform deﬁned in Section 4 of this article, allows a
+vastmajorityofSwitchboardsentences(over99%)toberecognizedusingthreeorfewer
+elements of memory, with no sentences requiring more than ﬁve elements, essentially
+aspredictedbystudiesofhumanshort-termmemory.
+Although spontaneous speech is arguably more natural test data than prepared
+speech or edited text, it is possible that coverage results on these data may under-
+estimate processing requirements, due to the preponderance of very short sentences
+andsentencefragmentsinspontaneousspeech(forexample,nearly30%ofsentencesin
+the Switchboard corpus are only one word long). It may also be argued that coverage
+resultsonthiscorpusmoreaccuratelyreﬂectthecomplexityofspeechplanningunder
+somewhat awkward social circumstances (being asked to start a conversation with
+a stranger), which may be more cognitively demanding than recognition. For these
+reasons,theright-cornertransformchunkingwasalsoevaluatedonSections2–21(the
+standard training set) of the Penn Treebank Wall Street Journal (WSJ) text corpus (see
+Table2,column1).
+The WSJ text corpus results appear to show substantially higher memory
+requirementsthanSwitchboard,withonly93%ofsentencesrecognizableusingthreeor
+fewermemoryelements.Butmuchofthisincreaseisduetoarguablyarbitrarytreebank
+conventions in annotating punctuation (for example, commas between phrases are
+attached to the leftmost phrase: ([Pierre Vinken ...[61 years old] ,] joined ...) which
+can lead to psycholinguistically implausible analyses in which phrases (in this case
+61 years old)arecenter-embeddedbylonepunctuationmarksononesideortheother.
+Ingeneral,branchingstructureforpunctuationcanbedifﬁculttomotivateonlinguistic
+grounds, because punctuation marks do not have lexical projections or argument
+structure in most linguistic theories. In spoken language, punctuation corresponds to
+Table1
+Percentcoverageofright-cornertransformedSwitchboardTreebankSections2–3.
+memorycapacity(right-corner,nopunct) sentences coverage
+nostackmemory 26,201 28.38%
+1stackelement 53,740 58.21%
+2stackelements 85,068 92.14%
+3stackelements 91,890 99.53%
+4stackelements 92,315 99.99%
+5stackelements 92,328 100.00%
+TOTAL 92,328 100.00%
+19
+ComputationalLinguistics Volume36,Number1
+Table2
+Percentcoverageofleft-andright-cornertransformedWSJTreebankSections2–21.
+memorycapacity right-corner,withpunct right-corner,nopunct left-corner,nopunct
+sentences coverage sentences coverage sentences coverage
+nostackelements 35 0.09% 127 0.32% 127 0.32%
+1stackelements 3,021 7.57% 3,550 8.90% 4,284 10.74%
+2stackelements 21,916 54.95% 25,948 65.06% 26,750 67.07%
+3stackelements 37,203 93.28% 38,948 97.66% 38,853 97.42%
+4stackelements 39,703 99.54% 39,866 99.96% 39,854 99.93%
+5stackelements 39,873 99.97% 39,883 100.00% 39,883 100.00%
+6stackelements 39,883 100.00% ----
+TOTAL 39,883 100.00% 39,883 100.00% 39,883 100.00%
+pausesorpatternsofinﬂection,distributedthroughoutanutterance.Itthereforeseems
+questionable to account for punctuation marks in a psycholinguistic model as explicit
+composable concepts in a memory store. In order to counter possible undesirable
+effects of an arbitrary branching analysis of punctuation, a second evaluation of the
+modelwasperformedonaversionoftheWSJcorpuswithpunctuationremoved.
+An analysis (Table 2, column 2) of the Penn Treebank WSJ corpus Sections 2–21
+without punctuation, using the right-corner transformed trees just described, shows
+that 97.66% of trees can be recognized using three hidden levels, and 99.96% can be
+recognized using four, and again (similar to the Switchboard results), no sentences
+requiremorethanﬁverememberedincompleteconstituents.Table2,column3,shows
+similar results for a left-corner transformed corpus, using left-right reﬂections of the
+rewriterulespresentedinSection4.
+Cowan(2001)documentsempiricallyobservedshort-termmemorylimitsofabout
+fourelementsacrossawidevarietyoftasks.Itisthereforenotsurprisingtoﬁndasimilar
+limitinthememoryrequiredtoparsetheTreebank,assumingelementscorresponding
+toright-corner-transformedincompleteconstituents.
+As the table shows, some quintuply center-embedded constituents were found in
+both corpora, suggesting that a threeto four-element limit may be soft, and can be
+relaxed for short durations. Indeed, all quintuply embedded constituents were only a
+few words long. Interestingly, many of the most heavily embedded words seemed to
+stronglyco-occur,whichmaysuggestthatthesewordsarisefromﬁxedexpressionsand
+arenotcompositional.Forexample,Figure5showsoneofthe13phrasestructuretrees
+in the Switchboard corpus which require ﬁve stack elements in right-corner parsing.
+Thecompletesentenceis:
+So if there’s no one else around and I have a chance to listen to something I’ll turn that on.
+If the construction there ’s NP AP in this sentence is parsed non-compositionally as a
+singleexpression(andthusisrenderedleft-branchingbytheright-cornertransformas
+deﬁnedinSection4),thesentencecouldbeparsedusingonlyfourmemoryelements.
+Even constrained to only four center embeddings, the existence of such sentences
+confounds explanations of the center-embedding difﬁculties as directly arising from
+stack limits in a left-corner (or right-corner) parser (Abney and Johnson 1991). It is
+also interesting to note that three of the incomplete constituents in this example are
+recursivelynestedorself-embeddedinstancesofsententialprojections,essentiallywith
+20
+Schuleretal. ParsingUsingHuman-LikeMemoryConstraints
+Figure5
+Aphrasestructuretreerequiringﬁvestackelements.Categoriesinboldwillbeincompleteata
+pointafterrecognizing so if there’s no ...
+thesamecategory,similartothecenter-embeddedconstructionswhichhumanreaders
+founddifﬁculttoprocess.Thissuggeststhatrestrictionsonself-embeddingofidentical
+constituentcategorieswouldalsofailtopredictreadability.
+Instead, these data seem to argue in favor of an explanation due to probability:
+Althoughtheﬁve-elementsentencesfoundintheTreebankusemostlycommonphrase
+structure rules, problematic center-embedded sentences like the salmon the man the dog
+chased smoked fell maycausedifﬁcultysimplybecausetheyareexamplesofanunusual
+construction:anestedobjectrelativeclause.Thefactthatthisisanunusualconstruction
+may in turn be a result of the fact that speakers tend to avoid nesting object relative
+clauses because they can lead to memory exhaustion, though such constructions may
+becomereadablewithpractice.
+6.In-ElementCompositionAmbiguityandParsingAccuracy
+Theright-cornertransformdescribedinSection4savesmemorybecauseittransforms
+anyright-branchingsequencewithleft-childsubtreesintoaleft-branchingsequenceof
+incompleteconstituents,withthesamesequenceofsubtreesasrightchildren.Theleft-
+branching sequences of siblings resulting from this transform can then be composed
+bottom-upthrough time by replacing each left child category with the category of the
+resulting parent, within the same memory element (or depth level). For example, in
+Figure 6(a) a left-child category NP/NP at time t =4 is composed with a noun new of
+category NP/NNP (a noun phrase lacking a proper noun yet to come), resulting in a
+newparentcategoryNP/NNPattime t =5replacingtheleftchildcategoryNP/NPin
+thetopmost d =1memoryelement.
+Thisin-elementcompositionpreserveselementsoftheboundedmemorystorefor
+use in processing descendants of this composed constituent, yielding the human-like
+memorydemandsreportedinSection5.Butwheneveranin-elementcompositionlike
+this is hypothesized, it isolates an intermediate constituent (in this example, the noun
+phrasenew york city)fromsubsequentcomposition.Allowingaccesstothisintermediate
+constituent—for example, to allow new york city to become a modiﬁer of bonds, which
+itself becomes an argument of for—requires an analysis in which the intermediate
+21
+ComputationalLinguistics Volume36,Number1
+Figure6
+Alternativeanalysesof strong demand for new york city ...:(a)usingin-elementcomposition,
+compatiblewith strong demand for new york city is ... (inwhichthedemandisforthecity);and(b)
+usingcross-element(ordelayed)composition,compatiblewitheither strong demand for new york
+city is ... (inwhichthedemandisforthecity)or strong demand for new york city bonds is ... (in
+whichaforthcomingreferent—inthiscase,bonds—isassociatedwiththecity,andisin
+demand).In-elementcomposition(a)savesmemorybutclosesoffaccesstothenounphrase
+headedby city,andsoisnotincompatiblewiththe ...bonds completion.Cross-element
+composition(b)requiresmorememory,butallowsaccesstothenounphraseheadedby city,so
+iscompatiblewitheithercompletion.Thisambiguityisintroducedat t =4andpropagateduntil
+atleast t =7.Anordinary,non-right-cornerstackmachinewouldexclusivelyuseanalysis(b),
+avoidingambiguity.
+constituentisstoredinaseparatememoryelement,showninFigure6(b).Thiscreates
+a local ambiguity in the parser (in this case, from time step t =4) that may have to be
+propagated across several words before it can be resolved (in this case, at time step
+t =7).Thisisessentiallyanambiguitybetweenarc-eager(in-element)andarc-standard
+(cross-element) composition strategies, as described by Abney and Johnson (1991). In
+contrast,anordinary(purelyarc-standard)parserwithanunboundedstackwouldonly
+hypothesizeanalysis(b),avoidingthisambiguity.
+12
+The right-corner HHMM approach described in this article relies on a learned
+statistical model to predict when in-element (arc-eager) compositions will occur, in
+additiontohypothesizingparsetrees.Themodelencodesamixedstrategy:withsome
+probability arc-eager or arc-standard for each possible expansion. Accuracy results on
+aright-cornerHHMMmodeltrainedonthePenn Wall Street Journal Treebanksuggest
+thatthiskindofoptionallyarc-eagerstrategycanbereliablystatisticallylearned.
+6.1Evaluation
+Inordertodeterminewhetheramemory-preservingparsingstrategy,liketheoptionally
+arc-eager strategy, can be reliably learned, a baseline Cocke-Kasami-Younger (CKY)
+parserandbounded-memory right-cornerHHMMparserwereevaluatedonthestan-
+dardPennTreebankWSJSection23parsingtask,usingthebinarizedtreesetdescribed
+in Section 5.2 (WSJ Sections 2–21) as training data. Training examples requiring more
+12 Itisimportanttonotethatneithertheright-cornernorleft-cornerparsingstrategybyitselfcreatesthis
+ambiguity.Theambiguityarisesfromthedecisiontousethisoptionallyarc-eagerstrategytoreduce
+memorystoreallocationinaboundedmemoryparser.Implementationsofleft-cornerparserssuchas
+thatofHenderson(2004)adoptanarc-standardstrategy,essentiallyalwayschoosinganalysis(b),and
+thusdonotintroducethiskindoflocalambiguity.Butinadoptingthisstrategy,suchparsersmust
+maintainastackmemoryofunboundedsize,andthusarenotattractiveasmodelsofhumanparsingin
+short-termmemory(Resnik1992).
+22
+Schuleretal. ParsingUsingHuman-LikeMemoryConstraints
+than four stack elements were excluded from training, in order to avoid generating
+inconsistent model probabilities (e.g., from expansions that could not be re-composed
+withintheboundedmemorystore).
+Most likely sequences of HHMM stack conﬁgurations are evaluated by reversing
+the binarization, right-corner, and time-series mapping transforms described in Sec-
+tions 4 and 5. But some of the binarization rewrites cannot be completely reversed,
+becausetheycannotbeunambiguouslymatchedtooutputtrees.Automaticallyderived
+lexical projections below the annotated phrase level (e.g., binarizations of base noun
+phrases) can be completely reversed, because the derived categories are character-
+istically labeled with terminal symbols. So, too, can the conjunction and “nominal”
+binarizations described in Section 5.1, because they can be identiﬁed by characteristic
+“-LIST” and underscore delimiters. But automatically derived projections above the
+annotated phrase level cannot be reliably identiﬁed in parser output (for example, an
+intermediateprojection“SshortrightarrowPPS”mayormaynotbeannotatedinthecorpus).Inorder
+toisolatetheevaluationfromtheeffectsoftheseambiguousmatchings,theevaluation
+was performed using trees in a partially binarized format, obtained by reversing only
+those rewrites that result in unambiguous matches. Evaluating on this partially bina-
+rized data does not seem to unfairly increase parsing performance compared to other
+publishedresults—quitethecontrary:anevaluationusingthestate-of-the-artCharniak
+(2000)parserscoresabouthalfapoint worse onlabeledF-score(89.3%vs.89.9%)when
+itshypothesesandgoldstandardtreesareconvertedintothisformat.
+13
+BothCKYbaselineandHHMMtestsystemswererunwithasimplepartofspeech
+(POS) model using relative frequency estimates from the training set, backed off to a
+discriminative (decision tree) model conditioned on the last ﬁve letters of each word,
+normalizedoverunigramPOSprobabilities.TheCKYbaselineandHHMMresultswere
+obtainedbytrainingandevaluatingonbinarizedtrees,whichisanecessarycondition
+fortheright-cornertransform.TheCKYbaselineresultsappeartobebetterthanthose
+forabaselineprobabilisticcontext-freegrammar(PCFG)systemreportedbyKleinand
+Manning (2003) using no modiﬁcations to the corpus, and no parent or sibling condi-
+tioning (see Table 3, top) because the binarization process allows the parser to avoid
+somesparsedataeffectsduetolargeﬂatbranchingstructuresintheTreebank,resulting
+in improved parsing accuracy. Klein and Manning note that applying linguistically
+motivatedbinarizationtransformscanyieldsubstantialimprovementsinaccuracy—as
+muchasninepoints,intheirstudy(incomparison,binarizationonlyseemstoimprove
+accuracybyaboutsevenpointsaboveanunmodiﬁedbaselineinthepresentstudy).But
+the Klein and Manning results for binarization are provided only for models already
+augmented with Markov dependencies (that is, conditioning on parent and sibling
+categories, analogous to HHMM dependencies), so it was not possible to compare to
+abinarizedandun-Markovizedbenchmark.
+The results for HHMM parsing, training, and evaluating on these same binarized
+trees (modulo right-corner and variable-mapping transforms) were substantially bet-
+ter than binarized CKY, most likely due to the expanded HHMM dependencies on
+previous (q
+d
+t−1
+) and parent (q
+d−1
+t
+) variables at each q
+d
+t
+. For example, binarized PCFG
+probabilities may be deﬁned in terms of three category symbols A, B,andC: P(A shortrightarrow
+BC|A);whereassomeoftheHHMMprobabilitiesaredeﬁnedintermsofﬁvecategory
+13 Thisispresumablybecausetheprobabilitythatahumanannotatorwillannotatephrasestructure
+bracketsataparticularprojectionornotissomethingexistingparserslearnandexploittoimprovetheir
+accuracy.Butitisnotclearthatthisdistinctionislinguisticallymotivated.
+23
+ComputationalLinguistics Volume36,Number1
+Table3
+Labeledrecall(LR),labeledprecision(LP),weightedaverage(F-score),andparsefailure
+(%ofsentencesyieldingnotreeoutput)resultsforbasicCKYparserandHHMMparseron
+unmodiﬁedandbinarizedWSJSections22(sentences1–393:“devset”)and23–24(allsentences).
+Resultsareshownwithandwithoutpunctuation,comparedtoKleinandManning2003
+(KM’03)usingbaselineandparent+sibling(par+sib)conditioning,andRoark2001(R’01)using
+parent+siblingconditioning.BaselineCKYandtest(parent+sibling)casesfortheHHMM
+systemstartoutatahigheraccuracythanfortheKlein-ManningsystembecausetheHHMM
+systemrequiresbinarizationoftrees,whichremovessomedatasparsityintherawTreebank
+annotation,whereastheKlein-Manningresultsarecomputedpriortobinarization.Becauseitis
+incremental,theparseroccasionallyeliminatesallcontinuableanalysesfromthebeam,and
+thereforefailstoﬁndaparse.HHMMparsefailuresareaccountedaszerosintherecallstatistics,
+butarealsolistedseparately,becauseinprincipleitmightbepossibletorecoverusefulsyntactic
+structurefrompartialsequences.
+withpunctuation:(≤40wds) LR LP F-score sentence error
+failure reduction
+KM’03:unmodiﬁed,devset −−72.6 0
+KM’03:par+sib,devset −−77.4 0 17.5%
+CKY:binarized,devset 80.3 79.9 80.1 0.8
+HHMM:par+sib,devset 84.1 83.5 83.8 0.5 18.6%
+CKY:binarized,sect23 78.8 79.4 79.1 0.1
+HHMM:par+sib,sect23 83.4 83.7 83.5 0.1 21.1%
+nopunctuation:(≤120wds) LR LP F fail
+R’01:par+sib,sect23–24 75.2 77.4 − 0.1
+HHMM:par+sib,sect23–24 77.2 78.3 77.7 0.0
+labels: P(A/B|C/D, E) (transitioning from incomplete constituent C/D to incomplete
+constituent A/B inthecontextofanexpandingcategory E).Thisincreasesthenumber
+offreeparameters (estimatedconditional probabilities) inthemodel,
+14
+butapparently
+nottothepointofsparsity;thisissimilartotheeffectofhorizontalMarkovization(con-
+ditioning on the sibling category immediately previous to an expanded category) and
+verticalMarkovization(conditioningontheparentofanexpandedcategory)commonly
+usedinPCFGparsingmodels(Collins1999).
+TheimprovementduetoHHMMparsingoverthePCFGbaseline(18.6%reduction
+in error) is comparable to that reported by Klein and Manning for parent and sibling
+dependencies(ﬁrst-orderverticalandhorizontalMarkovization)overabaselinePCFG
+without binarization (17.5% reduction in error). However, because it is not possible
+to run the HHMM parser without binarization, and because Klein and Manning do
+not report results for binarization transforms in the absence of parent and sibling
+Markovization,itispotentiallymisleadingtocomparetheresultsdirectly.Forexample,
+it is possible that the binarization transforms described here may have performance-
+optimizingeffectsthatarelatentinthebinarizedPCFG,butarebroughtoutinHHMM
+parsing.
+ResultsonSection23ofthiscorpusshowcloseto84%recallandprecision,compa-
+rable to that reported for state-of-the-art cubic-time parsers (with no constant bounds
+14 Withoutpunctuation,theHHMMmodelhas50,429freeparameters(includingbothQandFmodels),
+whereasthebinarizedPCFGhas12,373.
+24
+Schuleretal. ParsingUsingHuman-LikeMemoryConstraints
+onprocessingstorage)usingsimilarconﬁgurationsofconditioninginformation,thatis,
+withoutlexicalizationorsmoothing.
+Roark (2001) describes a similar incremental parser based on left-corner trans-
+formed grammars, and also reports results for parsing with and without parent and
+siblingMarkovization.Againtheperformanceiscomparableundersimilarconditions
+(Table3,bottom).
+This system was run with a beam width of 2,000 hypotheses. This beam width
+was selected in order to compare the performance of the bounded-memory model,
+which predicts in-element or cross-element composition, with that of conventional
+broad-coverage parsers, which also maintain large beams. With better modeling and
+vastly more data from which to learn, it is possible that the human processor may
+need to maintain far fewer alternative analyses, or perhaps only one, conditioned on
+alookaheadwindowofobservations(Henderson2004).
+15
+These experiments used a maximum stack depth of four, and conditioned expan-
+sion and transition probabilities for each q
+d
+t
+on only the portion of the parent category
+following the slash (that is, only A
+2
+of A
+1
+/A
+2
+), in order to avoid sparse data effects.
+Examples requiring more than four stack elements were excluded from training. This
+is because in the basic relative frequency estimation used here, training examples are
+depth-speciﬁc. Because the (unpunctuated) training set contains only about a dozen
+sentences requiring more than four depth levels, each occupying that level for only a
+few words, the data on which the ﬁfth level of this model would be trained are very
+sparse.Modelsatgreaterstackdepths,andmodelsdependingoncompleteparentcate-
+gories(orgrandparentcategories,etc.,asinstate-of-the-artparsers)couldbedeveloped
+usingsmoothingandbackofftechniquesorfeature-basedlog-linearmodels,butthisis
+leftforlaterwork(seeSection7).
+7.Conclusion
+Thisarticlehasdescribedamodelofhumansyntacticprocessingthatrecognizescom-
+plete phrase structure trees using only a small store of memory elements of limited
+complexity.Sequencesofhypothesizedcontentsofthismemorystorecanbemappedto
+andfromconventionalphrasestructuretreesusingareversibleright-cornertransform.
+If this syntactic processing model is combined with a bounded-memory interpreter
+(Schuler, Wu, and Schwartz 2009), however, allowing the contents of this store to be
+incrementally interpreted within the same bounded memory, it stands to reason that
+complete,explicitphrasestructuretreeswouldnotneedtobeconstructedatanytime
+inprocessing,inkeepingwithexperimentalresultsshowingsimilarlackofretentionof
+wordsandsyntacticstructureduringhumanprocessing(Sachs1967;Jarvella1971).
+Initialresultsshowtheuseofamemorystoreconsistingofonlythreetofourmem-
+ory elements within this framework provides nearly complete coverage of the Penn
+Treebank Switchboard and WSJ corpora, consistent with recent estimates of general-
+purpose short-term memory capacity. This suggests that, unlike some earlier mod-
+els, the hypothesis that human sentence processing uses general-purpose short-term
+15 Although,ifmostcompetinganalysesareunconscious,theywouldbedifﬁculttodetect.Formally,the
+competingpocketsofactivationhypothesizedinaparallel-processingversionofthismodelcouldbe
+arbitrarilysmallandnumerous,butitseemsunlikelythatverysmallpocketsofactivationwouldpersist
+forverylong(justaslowprobabilityanalyseswouldbeunlikelytoremainontheHHMMbeam).This
+possibilityisdiscussedintheparticleﬁlteraccountofLevy(2008).
+25
+ComputationalLinguistics Volume36,Number1
+memorytostoreincompleteconstituents,asdeﬁnedbyaright-cornertransform,does
+notseemtosubstantiallyunderestimatehumanprocessingcapacity.Moreover,despite
+additionalpredictionsthatmusttakeplacewithinthismodeltomanageparsinginsuch
+closequarters,preliminaryaccuracyresultsforanunlexicalized,un-smoothedversion
+of this model, using only a four-element memory store, show close to 84% recall and
+precisiononthestandardparsingevaluation.Thisresultiscomparabletothatreported
+forstate-of-the-artcubic-timeparsers(withnoconstantboundsonprocessingstorage)
+usingsimilarconﬁgurationsofconditioninginformation,namely,withoutlexicalization
+orsmoothing.
+Thismodeldoesnotattempttoderiveprocessingdifﬁcultiesfrommemorybounds,
+following evidence that garden path and center-embedding processing difﬁculties are
+causedbyinterferenceorlocalprobabilityestimatesratherthanencounterswithmem-
+orycapacitylimits.Butthisdoesnotmeanthatmemorystorecapacityandprobabilistic
+explanations of processing difﬁculty are completely independent. Probability estima-
+tionseemslikelytobedependentonstructuralinformationfromthememorystore(for
+example, incomplete object relative clauses seem to be very improbable in the context
+of other incomplete object relative clauses). As hypotheses use more elements in the
+memory store, the distribution over these hypotheses will tend to become broader,
+taxing the reservoir of activation capacity, and making it more likely for low proba-
+bility hypotheses to disappear, increasing the incidence of garden path errors. Further
+investigations into how the memory store elements are allocated in various syntactic
+contextsmayallowtheseapparentlydisparatedimensionsofprocessingcapacitytobe
+uniﬁed.
+The model described here may be promising as an engineering tool as well. But
+to achieve competitive performance with unconstrained state-of-the-art parsers will
+require the development of additional approximation algorithms beyond the scope of
+this article. This is because most modern parsers are lexicalized, incorporating head-
+worddependenciesintoparsingdecisions,andemployingﬁnelytunedsmoothingand
+backoff techniques to integrate these potentially sparse head-word dependencies with
+denser unlexicalized models. The bounded-memory right-corner HHMM described
+inthisarticlecanalsobelexicalizedinthisway,butbecauseheadworddependencies
+are most straightforwardly deﬁned in terms of top-down PCFG-like dependency
+structures, this lexicalization requires theintroduction ofadditional formal machinery
+to transform PCFG probabilities into right-corner form (Schuler 2009). In other
+words, rather than transforming a training set of trees and mapping them to a time
+series model, it is necessary to transform a consistent probabilistically weighted
+grammar (in some sense, an inﬁnite set of trees) into appropriately weighted and
+consistent right-corner PCFG and HHMM models. This requires the introduction of
+an approximate inference algorithm, similar to that used in value iteration (Bellman
+1957), which estimates probabilities of inﬁnite left-recursive or right-recursive chains
+byexploitingthefactthatincreasinglylongerchainsofeventscontributeexponentially
+decreasing probability mass. On top of this, preserving head-word dependencies in
+incremental processing also requires the introduction of a framework for storing head
+words of modiﬁer constituents that precede the head word of a parent constituent;
+includingsomemechanismtoensurethatprobabilityassignmentsarefairlydistributed
+among competing hypotheses (e.g., by marginalizing over possible head words) in
+cases where the calculation of accurate dependency probabilities must be deferred
+until the head word of the parent constituent is encountered. For these reasons, a
+completelexicalizedmodelisconsideredbeyondthescopeofthisarticle,andisleftfor
+futurework.
+26
+Schuleretal. ParsingUsingHuman-LikeMemoryConstraints
+AppendixA:HeadTransformRules
+Theexperimentsdescribedinthisarticleusedabinarizationprocessthatincludedthe
+following rewrite rules, designed to binarize ﬂat Treebank constituents into linguisti-
+callymotivatedheadprojections:
+1. NP:right-binarizebasalNPsasmuchaspossible;thenleft-binarizeNPs
+afterleftcontextreducedtonil:
+A
+0
+=NP|WHNP
+... A
+1
+=[A-Z]*:α
+1
+A
+2
+=NN[A-Z]*:α
+2
+...
+⇒
+A
+0
+... A
+2
+A
+1
+:α
+1
+A
+2
+:α
+2
+...
+A
+0
+=NP
+A
+1
+=NN[A-Z]*|NP:α
+1
+A
+2
+=PP|S|VP|WHSBAR:α
+2
+...
+⇒
+A
+0
+A
+1
+A
+1
+:α
+1
+A
+2
+:α
+2
+...
+2. VP:left-binarizebasalVPsasmuchaspossible;thenright-binarizeVPs
+afterrightcontextreducedtonil:
+A
+0
+=VP|SQ
+... A
+1
+=VB[A-Z]*|BES:α
+1
+A
+2
+=[A-Z]*:α
+2
+...
+⇒
+A
+0
+... A
+1
+A
+1
+:α
+1
+A
+2
+:α
+2
+...
+A
+0
+=VP
+... A
+1
+=ADVP|RB[A-Z]*|PP:α
+1
+A
+2
+=VB[A-Z]*|VP:α
+2
+⇒
+A
+0
+... A
+2
+A
+1
+:α
+1
+A
+2
+:α
+2
+3. ADJP:right-binarizebasalADJPsasmuchaspossible;thenleft-binarize
+ADJPsafterleftcontextreducedtonil:
+A
+0
+=ADJP[A-Z]*
+... A
+1
+=RB[A-Z]*:α
+1
+A
+2
+=JJ[A-Z]*:α
+2
+...
+⇒
+A
+0
+... A
+2
+A
+1
+:α
+1
+A
+2
+:α
+2
+...
+A
+0
+=ADJP
+A
+1
+=JJ[A-Z]*|ADJP:α
+1
+A
+2
+=PP|S:α
+2
+...
+⇒
+A
+0
+A
+1
+A
+1
+:α
+1
+A
+2
+:α
+2
+...
+4. ADVP:right-binarizebasalADVPsasmuchaspossible;thenleft-binarize
+ADVPsafterleftcontextreducedtonil:
+A
+0
+=ADVP
+... A
+1
+=RB[A-Z]*:α
+1
+A
+2
+=RB[A-Z]*:α
+2
+...
+⇒
+A
+0
+... A
+2
+A
+1
+:α
+1
+A
+2
+:α
+2
+...
+A
+0
+=ADVP
+A
+1
+=RB[A-Z]*|ADVP:α
+1
+A
+2
+=PP|S:α
+2
+...
+⇒
+A
+0
+A
+1
+A
+1
+:α
+1
+A
+2
+:α
+2
+...
+27
+ComputationalLinguistics Volume36,Number1
+5. PP:left-binarizePPsasmuchaspossible;thenright-binarizePPsafter
+rightcontextreducedtonil:
+A
+0
+=PP|SBAR
+... A
+1
+=IN|TO:α
+1
+A
+2
+=[A-Z]*:α
+2
+...
+⇒
+A
+0
+... A
+1
+A
+1
+:α
+1
+A
+2
+:α
+2
+...
+A
+0
+=PP
+... A
+1
+=ADVP|RB|PP:α
+1
+A
+2
+=PP:α
+2
+⇒
+A
+0
+... A
+2
+A
+1
+:α
+1
+A
+2
+:α
+2
+6. S:groupsubjectNPandpredicateVPofasentence;thengroupmodiﬁers
+torightandleft:
+A
+0
+=S[A-Z]*
+... A
+1
+=NP:α
+1
+A
+2
+=VP:α
+2
+...
+⇒
+A
+0
+... S
+A
+1
+:α
+1
+A
+2
+:α
+2
+...
+A
+0
+=S[A-Z]*
+... A
+1
+=ADVP|RB[A-Z]*|PP:α
+1
+A
+2
+=VB[A-Z]*|VP:α
+2
+...
+⇒
+A
+0
+... A
+2
+A
+1
+:α
+1
+A
+2
+:α
+2
+...
+A
+0
+=S[A-Z]*
+... A
+1
+=ADVP|RB[A-Z]*|PP:α
+1
+A
+2
+=A
+0
+:α
+2
+...
+⇒
+A
+0
+... A
+2
+A
+1
+:α
+1
+A
+2
+:α
+2
+...
+A
+0
+=S[A-Z]*
+... A
+1
+=A
+0
+:α
+1
+A
+2
+=ADVP|RB[A-Z]*|PP:α
+2
+...
+⇒
+A
+0
+... A
+1
+A
+1
+:α
+1
+A
+2
+:α
+2
+...
+Acknowledgments
+Theauthorswouldliketothank
+theanonymousreviewersfortheirinput.
+ThisresearchwassupportedbyNational
+ScienceFoundationCAREER/PECASE
+award0447685andbyNASAaward
+NNX08AC36A.Theviewsexpressedarenot
+necessarilyendorsedbythesponsors.
+References
+Abney,StevenP.andMarkJohnson.1991.
+Memoryrequirementsandlocal
+ambiguitiesofparsingstrategies.
+J. Psycholinguistic Research,20(3):233–250.
+Ades,AnthonyE.andMarkSteedman.1982.
+Ontheorderofwords. Linguistics and
+Philosophy,4:517–558.
+Aho,AlfredV.andJefferyD.Ullman.1972.
+The Theory of Parsing, Translation and
+Compiling; Volume. I: Parsing.Prentice-Hall,
+EnglewoodCliffs,NJ.
+Baker,James.1975.TheDragonsystem:an
+overview. IEEE Transactions on Acoustics,
+Speech and Signal Processing,23(1):24–29.
+Bellman,Richard.1957. Dynamic
+Programming.PrincetonUniversityPress,
+Princeton,NJ.
+Berg,George.1992.Aconnectionistparser
+withrecursivesentencestructureand
+lexicaldisambiguation.In Proceedings of the
+Tenth National Conference on Artiﬁcial
+Intelligence,pages32–37,SanJose,CA.
+Bever,ThomasG.˙1970.Thecognitivebasis
+forlinguisticstructure.InJ.
+˜
+R.Hayes,
+editor, Cognition and the Development of
+Language.Wiley,NewYork,pages279–362.
+Brown-Schmidt,Sarah,EllenCampana,and
+MichaelK.Tanenhaus.2002.Reference
+resolutioninthewild:Online
+circumscriptionofreferentialdomainsina
+28
+Schuleretal. ParsingUsingHuman-LikeMemoryConstraints
+naturalinteractiveproblem-solvingtask.
+In Proceedings of the 24th Annual Meeting of
+the Cognitive Science Society,pages148–153,
+Fairfax,VA.
+Charniak,Eugene.2000.Amaximum-
+entropyinspiredparser.In Proceedings
+of the First Meeting of the North American
+Chapter of the Association for Computational
+Linguistics (ANLP-NAACL’00),
+pages132–139,Seattle,WA.
+Chomsky,NoamandGeorgeA.Miller.
+1963.Introductiontotheformal
+analysisofnaturallanguages.
+In Handbook of Mathematical Psychology.
+Wiley,NewYork,pages269–321.
+Collins,Michael.1999. Head-driven
+statistical models for natural language parsing.
+Ph.D.thesis,UniversityofPennsylvania.
+Cowan,Nelson.2001.Themagical
+number4inshort-termmemory:
+Areconsiderationofmentalstorage
+capacity. Behavioral and Brain Sciences,
+24:87–185.
+Crain,StephenandMarkSteedman.
+1985.Onnotbeingledupthegardenpath:
+Theuseofcontextbythepsychological
+syntaxprocessor.InD.R.Dowty,
+L.Karttunen,andA.M.Zwicky,editors,
+Natural Language Parsing: Psychological,
+Computational, and Theoretical Perspectives,
+number1inStudiesinNaturalLanguage
+Processing.CambridgeUniversity
+Press,Cambridge,pages320–358.
+Earley,Jay.1970.Anefﬁcientcontext-free
+parsingalgorithm. CACM,13(2):94–102.
+Elman,JeffreyL.1991.Distributed
+representations,simplerecurrent
+networks,andgrammaticalstructure.
+Machine Learning,7:195–225.
+Ericsson,K.AndersandWalterKintsch.
+1995.Long-termworkingmemory.
+Psychological Review,102:211–245.
+Frege,Gottlob.1892.Ubersinn
+undbedeutung. Zeitschrift fur Philosophie
+und Philosophischekritik,100:25–50.
+Gibson,Edward.1991. A computational theory
+of human linguistic processing: Memory
+limitations and processing breakdown.
+Ph.D.thesis,CarnegieMellonUniversity.
+Godfrey,JohnJ.,EdwardC.Holliman,
+andJaneMcDaniel.1992.Switchboard:
+Telephonespeechcorpusforresearch
+anddevelopment.In Proceedings of
+ICASSP,pages517–520,SanFrancisco,CA.
+Gordon,N.J.,D.J.Salmond,andA.F.M.
+Smith.1993.Novelapproachtononlinear/
+non-gaussianbayesianstateestimation.
+IEE Proceedings F (Radar and Signal
+Processing),140(2):107–113.
+Gorrell,Paul.1995. Syntax and Parsing.
+CambridgeUniversityPress,Cambridge.
+Hale,John.2001.Aprobabilisticearleyparser
+asapsycholinguisticmodel.In Proceedings
+of the Second Meeting of the North American
+Chapter of the Association for Computational
+Linguistics,pages159–166,Pittsburgh,PA.
+Hale,John.2006.Uncertaintyaboutthe
+restofthesentence. Cognitive Science,
+30(4):609–642.
+Helasvuo,Marja-Liisa.2004.Shared
+syntax:thegrammarofco-constructions.
+Journal of Pragmatics,36:1315–1336.
+Henderson,James.2004.Lookahead
+indeterministicleft-cornerparsing.
+In Proceedings Workshop on Incremental
+Parsing: Bringing Engineering and
+Cognition Together,pages26–33,Barcelona.
+Hobbs,JerryR.,DouglasE.Appelt,JohnBear,
+DavidIsrael,MegumiKameyama,Mark
+Stickel,andMabryTyson.1996.Fastus:
+Acascadedﬁnite-statetransducerfor
+extractinginformationfromnatural-
+languagetext.InYvesSchabes,editor,
+Finite State Devices for Natural Language
+Processing.MITPress,Cambridge,MA,
+pages383–406.
+Jarvella,RobertJ.1971.Syntactic
+processingofconnectedspeech. Journal
+of Verbal Learning and Verbal Behavior,
+10:409–416.
+Jelinek,Frederick,LalitR.Bahl,andRobertL.
+Mercer.1975.Designofalinguistic
+statisticaldecoderfortherecognition
+ofcontinuousspeech. IEEE Transactions
+on Information Theory,21:250–256.
+Johnson,Mark.1998a.Finitestate
+approximationofconstraint-based
+grammarsusingleft-cornergrammar
+transforms.In Proceedings of COLING/ACL,
+pages619–623,Montreal.
+Johnson,Mark.1998b.PCFGmodels
+oflinguistictreerepresentation.
+Computational Linguistics,24:613–632.
+Johnson-Laird,P.N.1983. Mental Models:
+Towards a Cognitive Science of Language,
+Inference and Consciousness.Harvard
+UniversityPress,Cambridge,MA.
+Just,MarcelAdamandPatriciaA.
+Carpenter.1992.Acapacitytheory
+ofcomprehension:Individualdifferences
+inworkingmemory. Psychological Review,
+99:122–149.
+Just,MarcelAdamandSashankVarma.
+2007.Theorganizationofthinking:
+Whatfunctionalbrainimaging
+revealsabouttheneuroarchitectureof
+complexcognition. Cognitive, Affective,
+& Behavioral Neuroscience,7:153–191.
+29
+ComputationalLinguistics Volume36,Number1
+Kamide,YukiandDonC.Mitchell.1999.
+Incrementalpre-headattachmentin
+Japaneseparsing. Language and
+Cognitive Processes,14:631–662.
+Klein,DanandChristopherD.Manning.
+2003.Accurateunlexicalizedparsing.In
+Proceedings of the 41st Annual Meeting of the
+Association for Computational Linguistics,
+pages423–430,Sapporo.
+Lerner,GeneH.1991.Onthesyntaxof
+sentencesinprogress. Language in
+Society,20:441–458.
+Levy,Roger.2008.Modelingtheeffectsof
+memoryonhumanonlinesentence
+processingwithparticleﬁlters.In
+Proceedings of NIPS,pages937–944,
+Vancouver.
+Lewis,RichardL.andShravanVasishth.
+2005.Anactivation-basedmodelof
+sentenceprocessingasskilled
+memoryretrieval. Cognitive Science,
+29(3):375–419.
+Magerman,David.1995.Statisticaldecision-
+treemodelsforparsing.InProceedings of the
+33rd Annual Meeting of the Association
+for Computational Linguistics (ACL’95),
+pages276–283,Cambridge,MA.
+Marcus,Mitch.1980. Theory of Syntactic
+Recognition for Natural Language.MITPress,
+Cambridge,MA.
+Marcus,MitchellP.,BeatriceSantorini,and
+MaryAnnMarcinkiewicz.1993.Building
+alargeannotatedcorpusofEnglish:the
+PennTreebank. Computational Linguistics,
+19(2):313–330.
+Mayberry,III,MarshallR.andRisto
+Miikkulainen.2003.Incremental
+nonmonotonicparsingthroughsemantic
+self-organization.In Proceedings of the
+25
+th
+Annual Conference of the Cognitive
+Science Society,pages798–803,
+Boston,MA.
+Miller,GeorgeA.1956.Themagicalnumber
+seven,plusorminustwo:Somelimits
+onourcapacityforprocessinginformation.
+Psychological Review,63:81–97.
+Murphy,KevinP.andMarkA.Paskin.2001.
+Lineartimeinferenceinhierarchical
+HMMs.In Proceedings of NIPS,
+pages833–840,Vancouver.
+Pollard,CarlandIvanA.Sag.1994.
+Head-Driven Phrase Structure
+Grammar.Chicago:UniversityofChicago
+PressandStanford:CSLIPublications.
+Pritchett,BradleyL.1991.Headposition
+andparsingambiguity. Journal of
+Psycholinguistic Research,20:251–270.
+Resnik,Philip.1992.Left-cornerparsingand
+psychologicalplausibility.In Proceedings
+of COLING,pages191–197,Nantes.
+Roark,Brian.2001.Probabilistictop-down
+parsingandlanguagemodeling.
+Computational Linguistics,27(2):249–276.
+Rohde,DouglasL.T.2002. A connectionist
+model of sentence comprehension and
+production.Ph.D.thesis,ComputerScience
+Department,CarnegieMellonUniversity.
+Sachs,Jacqueline.1967.Recognitionmemory
+forsyntacticandsemanticaspectsof
+connecteddiscourse. Perception and
+Psychophysics,2:437–442.
+Schuler,William.2009.Parsingwitha
+boundedstackusingamodel-based
+right-cornertransform.In Proceedings
+of the North American Association for
+Computational Linguistics (NAACL ’09),
+pages344–352,Boulder,CO.
+Schuler,William,StephenWu,and
+LaneSchwartz.2009.Aframeworkfor
+fastincrementalinterpretationduring
+speechdecoding. Computational
+Linguistics,35(3):313–343.
+Shieber,Stuart.1985.Evidence
+againstthecontext-freenessofnatural
+language. Linguistics and Philosophy,
+8:333–343.
+Smolensky,P.andG.Legendre.2006. The
+Harmonic Mind: From Neural Computation
+to Optimality-Theoretic Grammar.MITPress,
+Cambridge,MA.
+Steedman,Mark.2000. The Syntactic
+Process.MITPress/BradfordBooks,
+Cambridge,MA.
+Stevenson,Suzanne.1998.Parsingas
+incrementalrestructuring.InJ.D.Fodor
+andF.Ferreira,editors, Reanalysis in
+Sentence Processing.KluwerAcademic,
+Boston,MA,pages327–363.
+Tanenhaus,MichaelK.,MichaelJ.
+Spivey-Knowlton,KathyM.Eberhard,
+andJulieE.Sedivy.1995.Integrationof
+visualandlinguisticinformationin
+spokenlanguagecomprehension. Science,
+268:1632–1634.
+30
+

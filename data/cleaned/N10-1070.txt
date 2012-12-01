@@ -1,0 +1,757 @@
+Human Language Technologies: The 2010 Annual Conference of the North American Chapter of the ACL, pages 465–473,
+Los Angeles, California, June 2010. c©2010 Association for Computational Linguistics
+Term Weighting Schemes for Latent Dirichlet Allocation
+Andrew T. Wilson
+SandiaNationalLaboratories
+POBox5800,MS1323
+Albuquerque,NM87185-1323,USA
+atwilso@sandia.gov
+Peter A. Chew
+MossAdamsLLP
+6100UptownBlvd. NE,Suite400
+Albuquerque,NM87110-4489,USA
+Peter.Chew@MossAdams.com
+Abstract
+ManyimplementationsofLatentDirichletAl-
+location (LDA), including those described in
+Blei et al. (2003), rely at some point on the
+removal of stopwords, words which are as-
+sumed to contribute little to the meaning of
+thetext. Thisstepisconsiderednecessarybe-
+causeotherwisehigh-frequencywordstendto
+endupscatteredacrossmanyofthelatenttop-
+ics without much rhyme or reason. We show,
+however,thatthe‘problem’ofhigh-frequency
+words can be dealt with more elegantly, and
+in a way that to our knowledge has not been
+consideredinLDA,throughtheuseofappro-
+priateweightingschemescomparabletothose
+sometimes used in Latent Semantic Indexing
+(LSI). Our proposed weighting methods not
+only make theoretical sense, but can also be
+showntoimproveprecisionsignificantlyona
+non-trivialcross-languageretrievaltask.
+1 Introduction
+LatentDirichletAllocation(LDA)(Bleietal.,2003),
+likeitsmoreestablishedcompetitorsLatentSeman-
+tic Indexing (LSI) (Deerwester et al., 1990) and
+ProbabilisticLatentSemanticIndexing(PLSI)(Hof-
+mann, 1999), is a model which is applicable to the
+analysisoftextcorpora. Itisclaimedtodifferfrom
+LSIinthatLDAisagenerativeBayesianmodel(Blei
+et al., 2003), although this may depend upon the
+mannerinwhichoneapproachesLSI(seeforexam-
+ple Chew et al. (2010)). In LDA as applied to text
+analysis,eachdocumentinthecorpusismodeledas
+amixtureoveranunderlyingsetoftopics,andeach
+topicismodeledasaprobabilitydistributionoverthe
+termsinthevocabulary.
+As the newest among the above-mentioned tech-
+niques,LDAisstillinarelativelyearlystageofde-
+velopment. ItisalsosufficientlydifferentfromLSI,
+probablythemostpopularandwell-knowncompres-
+sion technique for information retrieval (IR), that
+manypractitionersofLSImayperceivea‘barrierto
+entry’toLDA.Thisinturnperhapsexplainswhyno-
+tionssuchastermweighting,whichhavebeencom-
+monplaceinLSIforsometime(Dumais,1991),have
+notyetfoundaplaceinLDA.Infact,itisoftenas-
+sumed that weighting is unnecessary in LDA. For
+example, Blei et al. (2003) contrast the use of tf-
+idfweightinginbothnon-reducedspace(Saltonand
+McGill, 1983) and LSI on the one hand with PLSI
+andLDAontheother,wherenomentionismadeof
+weighting. Ramage et al. (2008) propose a simple
+term-frequency weighting scheme for tagged docu-
+mentswithintheframeworkofLDA,althoughterm
+weighting is not their focus and their scheme is in-
+tended to incorporate document tags into the same
+modelthatrepresentsthedocumentsthemselves.
+In this paper, we produce evidence that term
+weighting should be given consideration within
+LDA. First and foremost, this is shown empiri-
+callythroughanon-trivialmultilingualretrievaltask
+which has previously been used as the basis for
+tests of variants of LSI. We also show that term
+weightingallowsonetoavoidmaintenanceofstop-
+lists,whichcanbeawkwardespeciallyformultilin-
+gual data. With appropriate term weighting, high-
+frequency words (which might otherwise be elimi-
+natedasstopwords)areassignednaturallytotopics
+465
+byLDA,ratherthandominatingandbeingscattered
+acrossmanytopicsashappenswiththestandarduni-
+form weighting. Our approach belies the usually
+unstated, but widespread, assumption in papers on
+LDA that the removal of stopwords is a necessary
+pre-processingstep(seee.g. Bleietal.(2003);Grif-
+fithsandSteyvers(2004)).
+Itmightseemthattodemonstratethisitwouldbe
+necessarytoperformatestthatdirectlycomparesthe
+resultswhenstoplistsareusedtothosewhenweight-
+ing are used. However, we believe that stopwords
+arehighlyad-hoctobeginwith. Assumingavocab-
+ularyof n wordsandastoplistof x items, thereare
+(atleastintheory) (nx) possiblestoplists. Tobesure
+that no stoplistimprovesonaparticulartermweight-
+ingschemewewouldhavetotesteveryoneofthese.
+Inaddition,ourtestsarewithamultilingualdataset,
+whichraisestheissuethatadomain-appropriatesto-
+plistforaparticularcorpusandlanguagemaynotbe
+available. This is even more true if we pre-process
+thedatasetmorphologically(forexample,withstem-
+ming). Therefore, rather than attempting a direct
+comparisonofthistype, wetakethepositionthatit
+ispossibletosidesteptheneedforstoplistsandtodo
+soinanon-ad-hocway.
+The paper is organized as follows. Section 2 de-
+scribes the general framework of LDA, which has
+only very recently been applied to cross-language
+IR. In Section 3, we look at alternatives to the
+‘standard’ uniform weighting scheme (i.e., lack of
+weighting scheme) commonly used in LDA. Sec-
+tion 4 discusses the framework we use for empiri-
+caltestingofourhypothesisthataweightingscheme
+would be beneficial. We present the results of this
+comparisoninSection5alongwithanimpressionis-
+ticcomparisonoftheoutputofthedifferentalterna-
+tives. WeconcludeinSection6.
+2 Latent
+Dirichlet Allocation
+Our IR framework is multilingual Latent Dirich-
+let Allocation (LDA), first proposed by Blei et al.(2003)asageneralBayesianframeworkwithinitial
+applicationtotopicmodeling. Itisonlyveryrecently
+that variants of LDA have been applied to cross-
+languageIR:examplesareCimianoetal.(2009)and
+Nietal.(2009).
+Asanapproachtotopicmodeling,LDArelieson
+theideathatthetokensinadocumentaredrawnin-
+dependentlyfromasetoftopicswhereeachtopicis
+a distribution over types (words) in the vocabulary.
+Themixingcoefficientsfortopicswithineachdocu-
+mentandweightsfortypesineachtopiccanbespec-
+ified a priori orlearnedfromatrainingcorpus. Blei
+et al. initially proposed a variational model (2003)
+forlearningtopicsfromdata. GriffithsandSteyvers
+(2004)laterdevelopedaMarkovchainMonteCarlo
+approachbasedoncollapsedGibbssampling.
+Inthismodel,themixingweightsfortopicswithin
+eachdocumentandthemultinomialcoefficientsfor
+termswithineachtopicarehidden(latent)andmust
+belearnedfromatrainingcorpus. Bleietal.(2003)
+proposedLDAasageneralBayesianframeworkand
+gave a variational model for learning topics from
+data. GriffithsandSteyvers(2004)subsequentlyde-
+velopedastochasticlearningalgorithmbasedoncol-
+lapsed Gibbs sampling. In this paper we will focus
+ontheGibbssamplingapproach.
+2.1 Generative
+Document Model
+The LDA algorithm models the D documents in a
+corpus as mixtures of K topics where each topic is
+in turn a distribution over W terms. Given θ, the
+matrixofmixingweightsfortopicswithineachdoc-
+ument,and ϕ,thematrixofmultinomialcoefficients
+for each topic, we can use this formulation to de-
+scribeagenerativemodelfordocuments(Alg. 1).
+Restating the LDA model in linear-algebraic
+terms,wecansaythattheproductof ϕ(the K ×W
+column-stochastic topic-by-type matrix) and θ (the
+D × K column-stochastic topic-by-document ma-
+trix)istheoriginal D×W term-by-documentmatrix.
+In this sense, LDA computes a matrix factorization
+oftheterm-by-documentmatrixinthesamewaythat
+LSIornon-negativematrixfactorization(NMF)do.
+Infact,LDAisaspecialcaseofNMF,butunlikein
+NMF,thereisauniquefactorizationinLDA.Wesee
+thisasafeaturerecommendingLDAaboveNMF.
+Ourobjectiveistoreversethegenerativemodelto
+learnthecontentsof θand ϕgivenatrainingcorpus
+D, a number of topics K, and symmetric Dirichlet
+priordistributionsoverboth θ and ϕ withhyperpa-
+rametersαand β,respectively.
+466
+for k = 1 to K do
+Drawϕk ∼ Dirichlet (β)
+end for
+for d = 1 to D do
+Drawθ ∼ Dirichlet (α)
+DrawN ∼ Poisson (ξ)
+for i = 1 to N do
+Drawz ∼ Multinomial (θ)
+Draww ∼ Multinomial (ϕ(z))
+end for
+end for
+Algorithm 1: Generative algorithm for LDA. This will
+generate D documents with N tokens each. Each token
+is drawn from one of K topics. The distributions over
+topics and terms have Dirichlet hyperparameters α and
+β respectively. The Poisson distribution over the token
+count may be replaced with any other convenient distri-
+bution.
+2.2 Learning
+Topics via Collapsed Gibbs
+Sampling
+Ratherthanlearn θ and ϕdirectly,weusecollapsed
+Gibbssampling(Gemanetal.(1993), Chatterjiand
+Pachter(2004))tolearnthelatentassignmentofto-
+kenstotopics zgiventheobservedtokens x .
+The algorithm operates by repeatedly sampling
+each zij from a distribution conditioned on the val-
+ues of all other elements of z. This requires main-
+taining counts of tokens assigned to topics globally
+andwithineachdocument. Weusethefollowingno-
+tationforthesesums:
+Nijk: Numberoftokensoftype wi indocument dj
+assignedtotopic k
+N−stijk : Thesum Nijk withthecontributionoftoken
+xst excluded
+Weindicatesummationoverallvaluesofanindex
+with (·).
+Giventhecurrentstateof ztheconditionalproba-
+bilityof zij is:
+p(zij = k|z−ij,x ,d,α,β) =
+p(xij|ϕk) p(k|dj) ∝
+N−iji(·)k + β
+N−ij(·)(·)k + Wβ
+N−ij(·)jk + α
+N(·)j(·) + Tα
+(1)
+AsGriffithsandSteyvers(2004)pointout,thisis
+an intuitive result. The first term, p(xij|ϕk), indi-
+catestheimportanceofterm xij intopic k. Thesec-
+ondterm, p(k|dj),indicatestheimportanceoftopic
+kindocument j. Thesumofthetermsisnormalized
+implicitlyto1whenwedraweachnew zij.
+Wesampleanewvaluefor zij foreverytoken xij
+duringeachiterationofGibbssampling. Werunthe
+samplerforaburn-inperiodofafewhundreditera-
+tionstoallowittoreachitsconvergedstateandthen
+estimateθ and ϕfrom zasfollows:
+θjk = N(·)jk + αN
+(·)j(·) + Tα
+(2)
+ϕki = Ni(·)k + βN
+(·)(·)k + Wβ
+(3)
+2.3 Classifying
+New Documents
+In LSI, new documents not in the original training
+setcanbe‘projected’intothesemanticspaceofthe
+training set. The equivalent process in LDA is one
+of classification : given a corpus D′ of one or more
+newdocumentsweusetheexistingtopics ϕtocom-
+puteamaximumaposterioriestimateofthemixing
+coefficients θ′. This follows the same Monte Carlo
+process of repeatedly resampling a set of token-to-
+topicassignments z′ forthetokens x ′ inthenewdoc-
+uments. These new tokens are used to compute the
+first term p(k|dj) in Eq. 1. We re-use the topic as-
+signments zfromthetrainingcorpustocomputethe
+second term p(xij|ϕk). Tokens with new types that
+were not present in the vocabulary of the training
+corpusdonotparticipateinclassification.
+The resulting distribution θ′ essentially encodes
+howlikelyeachnewdocumentistorelatetoeachof
+the K topics. We can use this matrix to compute
+pairwise similarities between any two documents
+from either corpus (training or newly-classified).
+WhereasinLSIitmaymakesensetocomputesim-
+ilarity between documents using the cosine met-
+ric (since the ‘dimensions’ defining the space are
+orthogonal), we compute similarities in LDA us-
+ing either the symmetrized Kullback-Leibler (KL)
+or Jensen-Shannon (JS) divergences (Kullback and
+Leibler(1951),Lin(2002))sincethesearemethods
+ofmeasuringthesimilaritybetweenprobabilitydis-
+tributions.
+467
+3 Term
+Weighting Schemes and LDA
+Thestandardapproachpresentedaboveassumes,ef-
+fectively,thateachtokenisequallyimportantincal-
+culatingtheconditionalprobabilities. Frombothan
+information-theoreticandalinguisticpointofview,
+however, it is clear that this is not the case. In En-
+glish, a term such as ‘the’ which occurs with high
+frequencyinmanydocumentsdoesnotcontributeas
+much to the meaning of each document as a lower-
+frequency term such as ‘corpus’. It is an axiom of
+informationtheorythatanevent a’sinformationcon-
+tent(inbits)isequaltolog 2 1p(a) = −log 2 p(a).
+Treatingtokensasevents,wecansaythatthein-
+formation content of a particular token of type t is
+−log 2 p(t). Furthermore,asiswell-known,wecan
+estimatep(t)fromobservedfrequenciesinacorpus:
+itissimplythenumberoftokensoftype tinthecor-
+pus,dividedbythetotalnumberoftokensinthecor-
+pus. Forhigh-probabilitytermssuchas‘the’,there-
+fore, −log 2 p(t) islow. Ourbasichypothesisisthat
+recalculating p(zij|z,x ,α,β)totaketheinformation
+contentofeachtokenintoaccountwillimprovethe
+results of LDA. Specifically, we have incorporated
+aweightingtermintoEq. 1byreplacingthecounts
+denoted N withweightsdenoted M.
+p(zij = k|z−ij,x ,d,α,β) ∝
+M−iji(·)k + β
+M−ij(·)(·)k + Wβ
+M−ij(·)jk + α
+M(·)j(·) + Tα
+(4)
+Here Mijk is the total weight of tokens of type i
+indocument j assignedtotopic kinsteadofthetotal
+number of tokens. All of the machinery for Gibbs
+sampling and the estimation of θ and ϕ from z re-
+mainsunchanged.
+Weappealtoanurnmodeltoexplaintheintuition
+behindthisapproach. IntheoriginalLDAformula-
+tion,eachtopic ϕcanbemodeledasanurncontain-
+ing a large number of balls of uniform size. Each
+ballassumesoneof W differentcolors(onecolorfor
+each term in the vocabulary). The frequency of oc-
+currenceofeachcolorintheurnisproportionaltothe
+corresponding term’s weight in topic ϕ. We incor-
+porateatermweightingschemebymakingthesize
+of each ball proportional to the weight of its corre-
+spondingterm. Thismakestheprobabilityofdraw-
+ingtheballforaterm wproportionaltoboththeterm
+weight m(w) anditsmultinomialweight ϕw:
+p(w|ϕ,β,m) = ϕ
+w m(w)
+∑
+w∈W m(w)
+(5)
+WecannowexpandEq. 4toobtainanewsampling
+equationforusewiththeGibbssampler.
+p(zij = k|z−ij,x ,d,m,α,β) =
+m(xi)N−iji(·)k + β
+∑
+w m(w)N
+−ij
+w(·)k + Wβ
+∑
+w m(w)N
+−ij
+wjk + α∑
+w m(w)Nwj(·) + Tα
+(6)
+Ifallweights m(w) = 1thisreducesimmediately
+tothestandardLDAformulationinEq. 1.
+The information measure we describe above is
+constant for a particular term across the entire cor-
+pus,butitispossibletoconceiveofother,moreso-
+phisticated weighting schemes as well, for example
+thosewheretermweightsvarybydocument. Point-
+wise mutual information (PMI) is one such weight-
+ing scheme which has a solid basis in information
+theoryandhasbeenshowntoworkwellinthecon-
+text of LSI (Chew et al., 2010). According to PMI,
+the weight of a given term w in a given document
+d is the pointwise mutual information of the term
+anddocument,or −log 2 p(w|d)p(w) . ExtendingtheLDA
+modeltoaccommodatePMIisstraightforward. We
+replace m(xi) and m(w) in Eq. 4 with m(xi,d) as
+follows.
+m(xi,d) = −log 2 p(xi|d)p(x
+i)
+= −log 2 # [tokensoftype xi in d]# [tokensoftype x
+i]
+(7)
+ItispossibleforPMIofatermwithinadocument
+to be negative. When this happens, we clamp the
+weight of the offending term to zero in that docu-
+ment. In practice, we observe this only with com-
+mon words (e.g. ‘and’, ‘in’, ‘of’, ‘that’, ‘the’ and
+‘to’inEnglish)thatareassignedverylowweightev-
+erywhereelseinthecorpus. Thisclampingdoesnot
+noticeablyaffecttheresults.
+Inthenextsections,wedescribetestswhichhave
+enabled us to evaluate empirically which of these
+formulationsworksbestinpractice.
+468
+4 Testing
+Framework
+In this paper, we chose to test our hypotheses with
+thesamecross-languageretrievaltaskusedinanum-
+berofpreviousstudiesofLSI(e.g. ChewandAbde-
+lali(2007)). Briefly,thetaskistotrainanIRmodel
+on one particular multilingual corpus, then deploy
+it on a separate multilingual corpus, using a docu-
+ment in one language to retrieve related documents
+in other languages. This task is difficult because of
+the size of the datasets involved. Its usefulness be-
+comesapparentwhenweconsiderthefollowingtwo
+usecases: ahumanwishing(1)touseasearchengine
+toretrieverelevantdocumentsinmanylanguagesre-
+gardlessofthelanguageinwhichthequeryisposed;
+or(2)toproduceaclusteringorvisualizationofdoc-
+umentsaccordingtotheirtopicsevenwhenthedoc-
+umentsareindifferentlanguages.
+ThetrainingcorpusconsistsofthetextoftheBible
+in 31,226 parallel chunks, corresponding generally
+to verses, in Arabic, English, French, Russian and
+Spanish. These data were obtained from the Un-
+boundBibleproject(BiolaUniversity(2006)). The
+test data, obtained fromhttp://www.kuran.gen.
+tr/,isthetextoftheQuraninthesame5languages,
+in114parallelchunkscorrespondingtosuras(chap-
+ters). The task, in short, is to use the training data
+toinformwhateverlinguistic,semantic,orstatistical
+model is being tested, and then to infer characteris-
+ticsofthetestdatainsuchawaythatthetestdocu-
+mentscanautomaticallybematchedwiththeirtrans-
+lations in other languages. Though the documents
+comefromaspecificdomain(scripturaltexts),what
+is of interest is comparative results using different
+weighting schemes, holding the datasets and other
+settings constant. The training and test datasets are
+largeenoughtoallowstatisticallysignificantobser-
+vationstobemade,andifasignificantdifferenceis
+observedbetweenexperimentsusingtwosettings,it
+istobeexpectedthatsimilarbasicdifferenceswould
+be observed with any other set of training and test
+data. In any case, it should be noted that the Bible
+andQuranwerewrittencenturiesapart,andindiffer-
+ent original languages; we believe this contributes
+to a clean separation of training and test data, and
+makesforanon-trivialretrievaltask.
+In our framework, a term-by-document matrix is
+formed from the Bible as a parallel verse-aligned
+corpus. We employed two different approaches
+to tokenization, one (word-based tokenization) in
+which text was tokenized at every non-word char-
+acter, and the other(unsupervised morpheme-based
+tokenization) in which after word-based tokeniza-
+tion, a further pre-processing step (based on Gold-
+smith (2001)) was performed to add extra breaks at
+everymorpheme. Itisshownelsewhere(Chewetal.,
+2010) that this step leads to improved performance
+with LSI. In each verse, all languages are concate-
+natedtogether,allowingterms(eithermorphemesor
+words)fromalllanguagestoberepresentedinevery
+verse. Cross-language homographs such as ‘mien’
+in English and French are treated as distinct terms
+in our framework. Thus, if there are L languages,
+D documents(eachofwhichistranslatedintoeach
+ofthe Llanguages),and W distinctlinguisticterms
+acrossalllanguages,thentheterm-by-documentma-
+trixisofdimensions W by D(not W by D×L);with
+theBibleasatrainingcorpus,theactualnumbersin
+ourcaseare160,345 ×31,226. AsdescribedinSec.
+2.2, we use this matrix as the input to a collapsed
+Gibbssamplingalgorithmtolearnthelatentassign-
+ment of tokens in all five languages to language-
+independenttopics,aswellasthelatentassignment
+of language-independent topics to the multilingual
+(parallel)documents. Ingeneral,wespecified,arbi-
+trarilybutconsistentlyacrossalltests,thatthenum-
+beroftopicstobelearnedshouldbe200. Otherpa-
+rameters for the Gibbs sampler held constant were
+the number of iterations for burn-in (200) and the
+numberofiterationsforsampling(1).
+Toevaluateourdifferentapproachestoweighting,
+weuseclassificationasdescribedinSec. 2.3toob-
+tain,foreachdocumentfromtheQurantestcorpus,
+a probability distribution across the topics learned
+fromtheBible. Whileintrainingwehave D multi-
+lingualdocuments,intestingwehave D′ ×Ldocu-
+ments,eachinaspecificlanguage,forwhichadistri-
+butioniscomputed. FortheQurandata,thisamounts
+to 114 × 5 = 570 documents. This is because our
+goal is to match documents with their translations
+in other languages using just the probability distri-
+butions. For each source-language/target-language
+pair L1 and L2, we obtain the similarity of each of
+the 114 documents in L1 to each of the 114 doc-
+uments in L2. We found that similarity here is
+bestcomputedusingtheJensen-Shannondivergence
+469
+Tokenization
+WeightingScheme Word Morpheme
+Unweighted 0.505 0.544
+log p(w|L) 0.616 0.641
+PMI 0.612 0.686
+Table 1: Summary of comparison results. This table
+shows the average precision at one document (P1) for
+eachofthetokenizationandweightingschemesweeval-
+uated. DetailedresultsarepresentedinTable2.
+(Lin, 2002) and so this measure was used in all
+tests. Ultimately, the measureof how well a partic-
+ularmethodperformsisaverageprecisionat1doc-
+ument (P1). Among the various measurements for
+evaluating the performance of IR systems (Salton
+and McGill (1983), van Rijsbergen (1979)), this is
+a fairly standard measure. For a particular source-
+target pair, this is the percentage (out of 114 cases)
+where a document in L1 is most similar to its mate
+in L2. With 5 languages, there are 25 source-target
+pairs, and we can also calculate average P1 across
+all language pairs. Here, we average across 114 ×
+25 (or 2,850) cases. This is why even small differ-
+encesinP1canbestatisticallysignificant.
+5 Results
+First,wepresentasummaryofourresultsinTable1
+whichclearlydemonstratesthatitisbetterinLDAto
+use some kind of weighting scheme rather than the
+uniform weights in the standard LDA formulation
+from Eq. 1. This is true whether tokenization is by
+wordorbymorpheme. Allincreasesfromthebase-
+line precision at 1 document (0.505 and 0.544 re-
+spectively),whetherunderlogorPMIweighting,are
+highlysignificant(p < 10−11). Furthermore,allin-
+creasesinprecisionwhenmovingfromword-based
+to morphology-based tokenization are also highly
+significant (p < 5 × 10−5 without weighting, p <
+5×10−3 withlog-weighting,andp <2×10−15 with
+PMIweighting). Thebestresultoverall,whereP1is
+0.686, is obtained with morphological tokenization
+andPMIweighting(paralleltotheresultsin(Chew
+etal., 2010)withLSI),andagainthedifferencebe-
+tweenthisresultanditsnearestcompetitorof0.641
+is highly significant (p < 3 × 10−6). We return to
+comment below on lack of an increase in P1 when
+movingfromlog-weightingtoPMI-weightingunder
+word-basedtokenization.
+Theseresultscanalsobebrokenoutbylanguage
+pair, as shown in Table 2. Here, it is apparent that
+Arabic,andtoalesserextentRussian,areharderlan-
+guages in the IR problem at hand. Our intuition is
+thatthisisconnectedwiththefactthatthesetwolan-
+guages have a more complex morphological struc-
+ture: wordsareformedbyaprocessofagglutination.
+AconsequenceofthisisthatsingleArabicandRus-
+sian tokens can less frequently be mapped to single
+tokens in other languages, which appears to “con-
+fuse” LDA (and also, as we have found, LSI). The
+complex morphology of Russian and Arabic is also
+reflectedinthetype-tokenratiosforeachlanguage:
+inourEnglishBible,thereare12,335types(unique
+words) and 789,744 tokens, a type-token ratio of
+0.0156. TheratiosforFrench,Spanish,Russianand
+Arabic are 0.0251, 0.0404, 0.0843 and 0.1256 re-
+spectively. Though the differences may not be ex-
+plicableinpurelystatisticalterms(theremaybelin-
+guistic factors at play which cannot be reduced to
+statistics),itseemsplausiblethatchoosingasubop-
+timal term-weighting scheme could exacerbate any
+intrinsic problems of statistical imbalance. Consid-
+ering this, it is interesting to note that the greatest
+gains, when moving from unweighted LDA to ei-
+ther form of weighted LDA, are often to be found
+whereRussianand/orArabicareinvolved. This, to
+us, shows the value of using a multilingual dataset
+as a testbed for our different formulations of LDA:
+itallowsproblemswhichmaynotbeapparentwhen
+working with a monolingual dataset to come more
+easilytolight.
+We have mentioned that the best results are with
+PMI and morphological tokenization, and also that
+thereisanincreaseinprecisionformanylanguageof
+thepairswhenmorphological(asopposedtoword-
+based) tokenization is employed. To us, the results
+leave little doubt that both weighting and morpho-
+logicaltokenizationareindependentlybeneficial. It
+appears,though,thatmorphologyandweightingare
+also complementary and synergistic strategies for
+improvingtheresultsofLDA:forexample,asubop-
+timalapproachintokenizationmayatbestplacean
+upperboundontheoverallprecisionachievable,and
+perhapsatworstundothebenefitsofagoodweight-
+ing scheme. This may explain the one apparently
+anomalousresult,whichisthelackofanincreasein
+470
+OriginalWords MorphologicalTokenization
+EN ES RU AR FR EN ES RU AR FR
+LDA
+EN 1.000 0.500 0.447 0.132 0.816 1.000 0.500 0.658 0.211 0.640 EN
+ES 0.649 1.000 0.307 0.175 0.781 0.605 1.000 0.482 0.175 0.737 ES
+RU 0.430 0.316 1.000 0.149 0.430 0.553 0.421 1.000 0.272 0.553 RU
+AR 0.070 0.149 0.114 1.000 0.096 0.123 0.105 0.228 1.000 0.114 AR
+FR 0.781 0.693 0.421 0.175 1.000 0.693 0.640 0.667 0.211 1.000 FR
+Log-WLDA
+EN 1.000 0.518 0.518 0.228 0.658 1.000 0.675 0.561 0.219 0.754 EN
+ES 0.558 1.000 0.605 0.254 0.763 0.711 1.000 0.570 0.289 0.860 ES
+RU 0.605 0.615 1.000 0.298 0.702 0.684 0.667 1.000 0.289 0.728 RU
+AR 0.404 0.430 0.526 1.000 0.439 0.430 0.439 0.535 1.000 0.404 AR
+FR 0.667 0.667 0.658 0.281 1.000 0.711 0.667 0.561 0.289 1.000 FR
+PMI-WLDA
+EN 1.000 0.579 0.658 0.272 0.702 1.000 0.719 0.658 0.342 0.851 EN
+ES 0.596 1.000 0.623 0.246 0.693 0.816 1.000 0.675 0.272 0.798 ES
+RU 0.649 0.579 1.000 0.307 0.693 0.702 0.693 1.000 0.360 0.772 RU
+AR 0.351 0.368 0.421 1.000 0.351 0.456 0.474 0.509 1.000 0.377 AR
+FR 0.693 0.667 0.605 0.254 1.000 0.825 0.772 0.719 0.333 1.000 FR
+Table 2: Full results for precision at one document for all combinations of LDA, Log-WLDA, PMI-WLDA, word
+tokenizationandmorphologicaltokenization.
+precision moving from log-WLDA to PMI-WLDA
+under word-based tokenization: if word-based tok-
+enizationissuboptimal,PMIweightingcannotcom-
+pensate for that. Effectively, for best results, the
+rightstrategieshavetobepursuedwithrespect both
+tomorphology and toweighting.
+Finally, we can illustrate the differences between
+weighted and unweighted LDA in another way. As
+discussed earlier, each topic in LDA is a probabil-
+ity distribution over terms. For each topic, we can
+list the most probable terms in decreasing order of
+probability; this gives a sense of what each topic
+is ‘about’ and whether the groupings of terms ap-
+pear reasonable. Since we use 200 topics, an ex-
+haustive listing is impractical here, but in Table 3
+we present some representative examples from un-
+weighted LDA and PMI-WLDA that we judged to
+beofinterest. Itappearstousthatthegroupingsare
+notperfectundereitherLDAorPMI-WLDA;under
+bothmethods,wefindexamplesofratherheteroge-
+neoustopics,whereaswewouldlikeeachtopictobe
+semanticallyfocused. Still,acomparisonoftheout-
+putwithLDAandPMI-WLDAshedssomelighton
+whyPMI-WLDAmakesitlessnecessarytoremove
+stopwords. Notethatallwordslistedforthetoptwo
+topics under LDA would commonly be considered
+stopwords. This might also be true of the words in
+topic 1 for PMI-WLDA, but in the latter case, the
+topicisactuallyoneofthemostsemanticallyfocused
+in that the top words have a clear semantic connec-
+tion to one another. This cannot be said of topics 1
+and2inLDA.Foronething,manyofthesameterms
+thatappearintopic1reappearintopic2,makingthe
+twotopicshardtodistinguishfromoneanother. Sec-
+ondly,thetermshaveonlyaloosesemanticconnec-
+tiontooneanother: ‘the’,‘and’,and‘of’areallhigh-
+frequencyandlikelytoco-occur,buttheyarediffer-
+entpartsofspeechandhaveverydifferentfunctions
+inEnglish. Onemightsaythattopics1and2inLDA
+arearag-bagofhigh-frequencywords,anditisun-
+surprising that these topics do little to help charac-
+terizedocumentsinourcross-languageIRtask. The
+samecannotbesaidofanyofthetop5topicsinPMI-
+WLDA.Webelievethisillustrateswell,andatafun-
+damental level, why weighted forms of LDA work
+betterinpracticethanunweightedLDA.
+6 Conclusion
+Wehaveconductedaseriesofexperimentstoevalu-
+atetheeffectofdifferentweightingschemesonLa-
+tent Dirichlet Allocation. Our results demonstrate,
+perhaps contrary to the conventional wisdom that
+weighting is unnecessary in LDA, that weighting
+schemes (and other pre-processing strategies) simi-
+471
+WeightingScheme
+LDA(noweighting) PMI-WLDA
+Topic 1 2 3 4 5 1 2 3 4 5
+Terms
+the the vanité as cárcel under city coeur sat colère
+et de vanidad comme prison sous ville heart assis ira
+and et vanity como نجسلا под ciudad corazón vent wrath
+los of لطاب как prison تحت ةنيدمل сердце wind anger
+и and суета un темницу debajo город сердца viento furor
+y y aflicción a prisonniers ombre twelve هبلق sentado гнев
+les de poursuite one темницы bases douze بلق ветер fureur
+á и لطابلا امك bound basas doce يبلق حيرلا بضغ
+de la prédicateur une prisión sombra ةنيد كبلق sitting гнева
+of la ضبقو دحاو prisoners dessous города сердцем сел contre
+Table3: Top10termswithintop5topicsforeachofLDAandPMI-WLDA.Termsthatappeartwicewithinthesame
+topic(e.g. ‘la’inLDAtopic2)arewordsfromdifferentlanguageswiththesamespelling(hereSpanishandFrench).
+lartothosecommonlyemployedinotherapproaches
+to IR (such as LSI) can significantly improve the
+performance of a system. Our approach also runs
+counter to the standard position in LDA that it is
+necessaryordesirabletoremovestopwordsasapre-
+processing step, and we have presented an alterna-
+tive approach of applying an appropriate weighting
+schemewithinLDA.Thisapproachispreferablebe-
+causeitisconsiderablylessad-hocthantheconstruc-
+tion of stoplists. We have shown mathematically
+how alternative weighting schemes can be incorpo-
+ratedintothe Gibbs samplingmodel. Wehave also
+demonstrated that, far from being arbitrary, the in-
+troduction of weighting into the LDA model has a
+solidandrationalbasisininformationandprobabil-
+itytheory,justasthebasicLDAmodelitselfhas.
+In future work, we would like to explore further
+enhancementstoweightinginLDA.Therearemany
+variants which can be considered: one example is
+theincorporationofwordorderandcontextthrough
+an n-grammodelbasedonconditionalprobabilities.
+WealsoaimtoevaluateLDAagainstLSIwithaview
+toestablishingwhetheronecanbesaidtooutperform
+theotherconsistentlyintermsofprecision,withap-
+propriate settings held constant. Finally, we would
+like to determine whether other techniques which
+havebeenshowntobenefitLSIcanalsobeusefully
+broughttobearinLDA,justaswehaveshownhere
+inthecaseoftermweighting.
+References
+David M. Blei, Andrew Y. Ng, and Michael I. Jordan.
+2003. LatentDirichletAllocation. JournalofMachine
+Learning Research 3 ,pages993–1022.
+Sourav Chatterji and Lior Pachter. 2004. Multiple Or-
+ganism Gene Finding by Collapsed Gibbs Sampling.
+In RECOMB ’04: Proceedings of the eighth annual in-
+ternational conference on Research in computational
+molecular biology , pages 187–193, New York, NY,
+USA.ACM.
+Peter A. Chew and Ahmed Abdelali. 2007. Bene-
+fits of the ‘Massively Parallel Rosetta Stone’: Cross-
+Language Information Retrieval with Over 30 Lan-
+guages. InAssociationforComputationalLinguistics,
+editor, Proceedings of the 45th meeting of the Associ-
+ation of Computational Linguistics ,pages872–879.
+Peter A. Chew, Brett W. Bader, Stephen Helmreich,
+Ahmed Abdelali, and Stephen J. Verzi. 2010.
+An Information-Theoretic, Vector-Space-Model Ap-
+proach to Cross-Language Information Retrieval.
+Journal of Natural Language Engineering . Forthcom-
+ing.
+Philipp Cimiano, Antje Schultz, Sergej Sizov, Philipp
+Sorg, and Steffen Staab. 2009. Explicit Versus
+Latent Concept Models for Cross-Language Informa-
+tion Retrieval. In Proceedings of the 21st Inter-
+national Joint Conference on Artificial Intelligence ,
+pages1513–1518.
+Scott Deerwester, Susan T. Dumais, George W. Fur-
+nas, Thomas K. Landauer, and Richard Harshman.
+1990. Indexing by Latent Semantic Analysis. Jour-
+nal of the American Society of Information Science ,
+41(6):391–407.
+Susan T. Dumais. 1991. Improving the Retrieval of In-
+formation from External Sources. Behavior Research
+Methods, Instruments and Computers ,23(2):229–236.
+472
+Stuart Geman, Donald Geman, K. Abend, T. J. Harley,
+and L. N. Kanal. 1993. Stochastic Relaxation, Gibbs
+DistributionsandtheBayesianRestorationofImages*.
+Journal of Applied Statistics ,20(5):25–62.
+J.Goldsmith. 2001. UnsupervisedLearningoftheMor-
+phology of a Natural Language. Computational Lin-
+guistics ,27(2):153–198.
+Thomas L. Griffiths and Mark Steyvers. 2004. Find-
+ing Scientific Topics. In Proceedings of the Na-
+tional Academy of Sciences USA , volume 101, pages
+5228–5235.
+Thomas Hofmann. 1999. Probablistic Latent Semantic
+Indexing. In Proceedings of the 22nd Annual Interna-
+tional SIGIR Conference ,pages53–57.
+Solomon Kullback and Richard A. Leibler. 1951. On
+InformationandSufficiency. Annals of Mathematical
+Statistics ,22:49–86.
+J.Lin. 2002. DivergenceMeasuresbasedontheShannon
+Entropy. IEEE Transactions on Information Theory ,
+37(1):145–151,August.
+Xiaochuan Ni, Jian-Tao Sun, Jian Hu, and Zheng Chen.
+2009. MiningMultilingualTopicsfromWikipedia. In
+18th International World Wide Web Conference ,pages
+1155–1155,April.
+Daniel Ramage, Paul Heymann, Christopher D. Man-
+ning,andHectorGarcia-Molina. 2008. Clusteringthe
+Tagged Web. In Second ACM International Confer-
+ence on Web Search and Data Mining (WSDM 2009) ,
+November.
+G.SaltonandM.McGill,editors. 1983. Introduction to
+Modern Information Retrieval . McGraw-Hill.
+Biola University. 2006. The Unbound Bible.
+http://www.unboundbible.com.
+C.J. van Rijsbergen. 1979. Information Retrieval .
+Butterworth-Heinemann.
+473
+

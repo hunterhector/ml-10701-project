@@ -1,0 +1,1617 @@
+HybridReinforcement/SupervisedLearning
+ofDialoguePoliciesfromFixedDataSets
+JamesHenderson
+∗
+UniversityofGeneva
+OliverLemon
+∗∗
+UniversityofEdinburgh
+KallirroiGeorgila
+∗∗
+UniversityofEdinburgh
+Weproposeamethodforlearningdialoguemanagementpoliciesfromaﬁxeddataset.Themethod
+addressesthechallengesposedbyInformationStateUpdate(ISU)-baseddialoguesystems,which
+representthestateofadialogueasalargesetoffeatures,resultinginaverylargestatespace
+and a huge policy space. To address the problem that any ﬁxed data set will only provide
+informationaboutsmallportionsofthesestateandpolicyspaces,weproposeahybridmodelthat
+combinesreinforcementlearningwithsupervisedlearning.Thereinforcementlearningisused
+tooptimizeameasureofdialoguereward,whilethesupervisedlearningisusedtorestrictthe
+learnedpolicytotheportionsofthesespacesforwhichwehavedata.Wealsouselinearfunction
+approximationtoaddresstheneedtogeneralizefromaﬁxedamountofdatatolargestatespaces.
+Todemonstratetheeffectivenessofthismethodonthischallengingtask,wetrainedthismodel
+ontheCOMMUNICATORcorpus,towhichwehaveaddedannotationsforuseractionsandIn-
+formationStates.Whentestedwithausersimulationtrainedonadifferentpartofthesamedata
+set,ourhybridmodeloutperformsapuresupervisedlearningmodelandapurereinforcement
+learningmodel.Italsooutperformsthehand-craftedsystemsonthe COMMUNICATORdata,
+according to automatic evaluation measures, improving over the average COMMUNICATOR
+system policy by 10%. The proposed method will improve techniques for bootstrapping and
+automaticoptimizationofdialoguemanagementpoliciesfromlimitedinitialdatasets.
+1.Introduction
+In the practical development of dialogue systems it is often the case that an initial
+corpus of task-oriented dialogues is collected, either using “Wizard of Oz” methods
+or a prototype system deployment. This data is usually used to motivate and inspire
+a new hand-built dialogue system or to modify an existing one. However, given the
+∗ Universit´edeGen`eve,D´epartementd’Informatique,Battelle-bˆatimentA,7routedeDrize,1227Carouge,
+Switzerland.E-mail:james.henderson@cui.unige.ch.
+∗∗ UniversityofEdinburgh,2BuccleuchPlace,EdinburghEH89LW,UK.E-mail:{olemon,kgeorgil}@
+inf.ed.ac.uk.
+Submissionreceived:18November2005;revisedsubmissionreceived:18October2006;acceptedfor
+publication:21September2007.
+©2008AssociationforComputationalLinguistics
+ComputationalLinguistics Volume34,Number4
+existence of such data, it should be possible to exploit machine learning methods to
+automatically build and optimize a new dialogue system. This objective poses two
+questions: what machine learning methods are effective for this problem? and how
+can we encode the task in a way which is appropriate for these methods? For the
+latter challenge, we exploit the Information State Update (ISU) approach to dialogue
+systems(Bohlinetal.1999;LarssonandTraum2000),whichprovidesthekindofrich
+and ﬂexible feature-based representations of context that are used with many recent
+machine learning methods, including the linear function approximation method we
+use here. For the former challenge, we propose a novel hybrid method that combines
+reinforcementlearning(RL)withsupervisedlearning(SL).
+The focus of this article is to establish effective methods for using ﬁxed corpora
+of dialogues to automatically optimize complex dialogue systems. To avoid the need
+for extensive hand-crafting, we allow rich representations of context that include all
+the features that might be relevant to dialogue management decisions, and we allow
+a broad set of dialogue management decisions with very few constraints on when a
+decision is applicable. This ﬂexibility simpliﬁes system design, but it leads to a huge
+space of possible dialogue management policies, which poses severe difﬁculties for
+existingapproachestomachinelearningfordialoguesystems(seeSection1.1).Ourpro-
+posedmethodaddressesthesedifﬁcultieswithouttheuseofusersimulations,feature
+engineering,orfurtherdatacollections.
+We demonstrate the effectiveness of the proposed method on the COMMUNICA-
+TOR corpora of ﬂight-booking dialogues. Our method (“hybrid learning” with linear
+functionapproximation)canlearndialoguestrategiesthatarebetterthanthoselearned
+by standard learning methods, and that are better than the (in this case hand-coded)
+strategiespresentintheoriginalcorpora,accordingtoavarietyofmetrics.Toevaluate
+learned strategies we run them with simulated users that are also trained on (differ-
+ent parts of) the COMMUNICATOR corpora, and automatically score the simulated
+dialogues based on how many information “slots” they manage to collect from users
+(“ﬁlledslots”),whetherthoseslotswereconﬁrmed(“conﬁrmedslots”),andhowmany
+dialogueturnswererequiredtodoso.Laterworkhasshownthesemetricstocorrelate
+stronglywithtaskcompletionforrealusersofthedifferentpolicies(Lemon,Georgila,
+andHenderson2006).
+Themaincontributionsoftheworkarethereforeinempiricallydemonstratingthat:
+a114
+limitedinitialdatasetscanbeusedtotraincomplexdialoguepolicies,
+usinganovelcombinationofsupervisedandreinforcementlearning;and
+a114
+large,feature-basedrepresentationsofdialoguecontextcanbeused
+intractablelearningofdialoguepolicies,usinglinearfunction
+approximation.
+Inthisarticle,afteradiscussionofrelatedwork,weoutlinetheannotationswehave
+added to the COMMUNICATORdata, then present the proposed learning method, and
+describeourevaluationmethod.Finally,wepresenttheevaluationresultsanddiscuss
+theirimplications.
+1.1RelatedWork
+As in previous work on learning for dialogue systems, in this article we focus on
+learning dialogue management policies. Formally, a dialogue management policy is a
+488
+Henderson,Lemon,andGeorgila HybridReinforcement/SupervisedLearning
+mapping from a dialogue context (a.k.a. a state) to an action that the system should
+takeinthatcontext.Becausemostpreviousworkondialoguesystemshasbeendonein
+thecontextofhand-craftedsystems,weuserepresentationsofthedialoguecontextand
+the action set based on previous work on hand-crafted dialogue systems. Our main
+novel contribution is in the area of learning, where we build on previous work on
+automaticallylearningdialoguemanagementpolicies,discussedsubsequently.
+TheISUapproachtodialogue(Bohlinetal.1999;LarssonandTraum2000)employs
+richrepresentationsofdialoguecontextforﬂexibledialoguemanagement.Information
+Statesarefeaturestructuresintendedtorecordalltheinformationaboutthepreceding
+portionofthedialoguethatisrelevanttomakingdialoguemanagementdecisions.An
+exampleofsomeofthetypesofinformationrecordedinourInformationStatesisshown
+in Figure 1, including ﬁlled slots, conﬁrmed slots, and previous speech acts. Previous
+workhasraisedthequestionofwhetherdialoguemanagementpoliciescanbelearned
+(Levin and Pieraccini 1997) for systems that have only a limited view of the dialogue
+context,forexample,notincludingpriorspeechacthistory(seethefollowing).
+One prominent representation of the set of possible system actions is the DATE
+scheme(WalkerandPassonneau2001).Inparticular,thisrepresentationisusedinthe
+COMMUNICATORcorpusannotation(Walker,Passonneau,andBoland2001),discussed
+herein. The DATE scheme classiﬁes system actions in terms of their Conversational
+Domain,SpeechAct,andTask.Forexample,onepossiblesystemactionis〈about task,
+Figure1
+ExampleﬁeldsfromanInformationStateannotation.User-providedinformationisin
+squarebrackets.
+489
+ComputationalLinguistics Volume34,Number4
+request info, dest city〉, which corresponds to a system utterance such as Whatis
+yourdestinationcity?Thespeciﬁcinstantiationofthisscheme,andourextensionstoit,
+arediscussedinSection1.2.
+Machine-learning approaches to dialogue management attempt to learn optimal
+dialogue policies from corpora of simulated or real dialogues, or by generating such
+data during automatic trial-and-error exploration of possible policies. Automatic op-
+timization is desirable because of the high cost of developing and maintaining hand-
+codeddialoguemanagers,andbecausethereisnoguaranteethathand-codeddialogue
+management strategies are good. Several research groups have developed reinforce-
+mentlearningapproachestodialoguemanagement,startingwithLevinandPieraccini
+(1997) and Walker, Fromer, and Narayanan (1998). Previous work has been restricted
+tolimiteddialoguecontextrepresentationsandlimitedsetsofactionstochooseamong
+(Walker,Fromer,andNarayanan1998;GoddeauandPineau2000;Levin,Pieraccini,and
+Eckert2000;Roy,Pineau,andThrun2000;SchefﬂerandYoung2002;Singhetal.2002;
+WilliamsandYoung2005;Williams,Poupart,andYoung2005a).
+Much of the prior work in RL for dialogue management focuses on the problem
+of choosing among a particular limited set of actions (e.g., conﬁrm, don’t conﬁrm)
+in speciﬁc problematic states (see, e.g., Singh et al. 2000a). This approach augments,
+ratherthanreplaces,hand-crafteddialoguesystems,becausethevastmajorityofdeci-
+sions, which are not learned, need to be speciﬁed by hand. In contrast, we tackle the
+problem of learning to choose among any possible dialogue actions for almost every
+possiblestate.
+In addition, all prior work has used only a limited representation of the dialogue
+context, often consisting only of the states of information slots (e.g., destination city
+ﬁlled with high conﬁdence) in the application (Goddeau and Pineau 2000; Levin,
+Pieraccini, and Eckert 2000; Singh et al. 2000a, 2000b, 2002; Young 2000; Schefﬂer and
+Young 2002; Williams, Poupart, and Young 2005a, 2005b; Williams and Young 2005;
+PietquinandDutoit2006b),withperhapssomeadditionallow-levelinformation(such
+asacousticfeatures[Pietquin2004]).Onlyrecentlyhaveresearchersexperimentedwith
+using enriched representations of dialogue context (Gabsdil and Lemon 2004; Lemon
+et al. 2005; Frampton and Lemon 2006; Rieser and Lemon 2006c), as we do in this
+article.Fromthisworkitisknownthataddingcontextfeaturesleadstobetterdialogue
+strategies, compared to, for example, simply using the status of ﬁlled or conﬁrmed
+information slots as has been studied in all prior work (Frampton and Lemon 2006).
+In this article we explore methods for scalable, tractable learning when using all the
+availablecontextfeatures.
+Reinforcement Learning requires estimating how good different actions will be
+in different dialogue contexts. Because most previous work has only differentiated
+between a small number of possible dialogue contexts, they have been able to per-
+form these estimates for each state independently (e.g., Singh et al. 2002; Pietquin
+2004). In contrast, we use function approximation to allow generalization to states
+that were not in the training data. Function approximation was also applied to RL by
+Denecke, Dohsaka, and Nakano (2005), but they still use a relatively small state space
+(6 features, 972 possible states). They also only exploit data for the 50 most frequent
+states,usingwhatisineffectaGaussiankerneltocomputeestimatesfortheremaining
+statesfromthese50states.Thisisaseriouslimitationtotheirmethod,becausealarge
+percentage of the data is likely to be from less frequent states, and thus would be
+ignored.Inourdataset,wefoundthatstatefrequenciesfollowedaZipﬁan(i.e.,large-
+tailed)distribution,with61%ofthesystemturnshavingstatesthatonlyoccurredonce
+inthedata.
+490
+Henderson,Lemon,andGeorgila HybridReinforcement/SupervisedLearning
+Anothersourceofvariationbetweenlearningapproachesistheextenttowhichthey
+trainondatafromsimulatedusersofdifferentkinds,ratherthantrainondatagathered
+from real user interactions (as is done in this article). Simulated users are generally
+preferredduetothemuchsmallerdevelopmenteffortinvolved,andthefactthattrial-
+and-error training with humans is tedious for the users. However, the issues of how
+to construct and then evaluate simulated users are open problems. Clearly there is a
+dependencybetweentheaccuracyofthesimulationusedfortrainingandtheeventual
+dialogue policy that is learned (Schatzmann et al. 2005). Current research attempts to
+develop metrics for user simulation that are predictive of the overall quality of the
+ﬁnal learned dialogue policy (Schatzmann, Georgila, and Young 2005; Schatzmann
+et al. 2005; Georgila, Henderson, and Lemon 2005; Georgila, Henderson, and Lemon
+2006; Rieser and Lemon 2006a; Schatzmann et al. 2006; Williams 2007). Furthermore,
+several approaches use simple probabilistic simulations encoded by hand, using intu-
+itionsaboutreasonableuserbehaviors(e.g.,Pietquin2004;FramptonandLemon2005;
+Pietquin and Dutoit 2006a), whereas other work (e.g., Schefﬂer and Young 2001, 2002;
+Georgila, Henderson, and Lemon 2005; Georgila, Henderson, and Lemon 2006; Rieser
+and Lemon 2006a) builds simulated users from dialogue corpora. We use the latter
+approach,butonlyintheevaluationofourlearnedpolicies.
+No matter which method is chosen for user simulation, a simulated user is still
+clearlydifferentfromahumanuser.Therefore,itisimportanttolearnasmuchaspossi-
+blefromthedatawehavefromhumanusers.Inaddition,thehugepolicyspacemakes
+policyexplorationwithsimulatedusersintractable,unlesswecaninitializethesystem
+withagoodpolicyandconstrainthepolicyexploration.Thisalsorequireslearningas
+much as possible from the initial set of data. Therefore, in this article we investigate
+usingaﬁxedcorpusofdialoguestoautomaticallyoptimizedialoguesystems.Nouser
+simulationisinvolvedintraining,thusavoidingtheissueofdependencyonthequality
+andavailabilityofusersimulations.
+PreviousworkonRLhasmadeuseofpolicyexploration(SuttonandBarto1998),
+where new data is generated for each policy that is considered during the course
+of learning (for example using simulated users). Indeed, this is often considered an
+integral part of RL. In contrast, we choose to learn from a ﬁxed data set, without
+policy exploration. This is motivated by the fact that real dialogue corpora are very
+expensivetoproduce,anditisoftennotpracticaltoproducenewrealdialoguesduring
+the course of learning. Singh et al. (2002) manage to perform one iteration of policy
+explorationwithrealdata,butmostworkonRLrequiresmanythousandsofiterations.
+As discussed previously, this motivates using simulated data for training, but even if
+accurate dialogues can be automatically generated with simulated users, training on
+simulated dialogues does not replace the need to fully exploit the real data, and does
+notsolvethesparsedataproblemsthatweaddresshere.Withaverylargestatespace,
+itwillneverbetractableforpolicyexplorationtotestanewpolicyonevenareasonable
+proportion of the states. Thus we will inevitably need to stop policy exploration with
+apolicythathasnotbeensufﬁcientlytested.Inthissense,wewillbeinaverysimilar
+situationtolearningfromaﬁxeddataset,wherewedon’thavetheoptionofgenerating
+newdatafornewstates.Forthisreason,thesolutionweproposeforlearningfromﬁxed
+datasetsisalsousefulforlearningwithpolicyexploration.
+There have been some proposals in RL for learning a policy that is different from
+that used to generate the data (called “off-policy” learning), but these methods have
+been found not to work well with linear function approximation (Sutton and Barto
+1998). They also do not solve the problem of straying from the region of state space
+thathasbeenobservedinthedata,discussedsubsequently.
+491
+ComputationalLinguistics Volume34,Number4
+1.2TheCOMMUNICATORDomainandDataAnnotation
+To empirically evaluate our proposed learning method, we apply it to the COMMU-
+NICATOR domain using the COMMUNICATOR corpora. The COMMUNICATOR corpora
+(2000 [Walker et al. 2001] and 2001 [Walker et al. 2002b]) consist of human–machine
+dialogues(approximately2,300dialoguesintotal).Theusersalwaystrytobookaﬂight,
+but they may also try to select a hotel or car rental. The dialogues are primarily “slot-
+ﬁlling”dialogues,withsomeinformationbeingpresentedtotheuserafterthesystem
+thinksithasﬁlled(orconﬁrmed)therelevantslots.Thesecorporahavebeenpreviously
+annotated using the DATE scheme, for the Conversational Domain, Speech Act, and
+Task of eachsystemutterance (Walker and Passonneau 2001; Walker, Passonneau, and
+Boland2001).Inaddition,theresultsofuserquestionnairesareavailable,butonlyfor
+the2001corpus.
+Table1showssomestatisticsforthetwocollections.Inthe2000collectioneachturn
+contains only one utterance but in the 2001 corpus a turn may contain more than one
+utterance. More details about the COMMUNICATOR corpora can be found in Walker,
+Passonneau,andBoland(2001)andWalkeretal.(2001,2002a).
+Weusedahand-craftedautomaticsystem(Georgila,Lemon,andHenderson2005;
+Georgilaetal.,submitted)toassignSpeechActsandTaskstotheuserutterances,andto
+computestaterepresentationsforeachpointinthedialogue(i.e.,aftereveryutterance).
+Althoughweannotatedthewhole2000and2001corpora,becauseweneedtheresults
+ofuserquestionnaires(asdiscussedsubsequently),weonlymakeuseofthe2001data
+fortheexperimentsreportedhere.The2001datahaseightsystems,1,683dialogues,and
+125,388totalstates,twothirdsofwhichresultfromsystemactionsandonethirdfrom
+useractions.TheannotationsystemisimplementedusingDIPPER(Bosetal.2003)and
+OAA(CheyerandMartin2001),usingseveralOAAagents(seeGeorgila,Lemon,and
+Henderson, 2005, and Georgila et al., submitted, for more details). Following the ISU
+approach,werepresentedstatesusingInformationStates,whicharefeaturestructures
+intendedtorecordalltheinformationabouttheprecedingportionofthedialoguethat
+isrelevanttomakingdialoguemanagementdecisions.Anexampleofsomeofthetypes
+of information recorded in an Information State is shown in Figure 1, including ﬁlled
+slots,conﬁrmedslots,andpreviousspeechacts.
+Giventhiscorpus,weneedtolearnadialoguemanagementpolicythatmapsthese
+staterepresentationstoeffectivesystemactions.AstheexampleinFigure1illustrates,
+there are a large number of features in dialogue states that are potentially relevant to
+Table1
+Statisticsforthe2000and2001COMMUNICATORdata.
+Year
+2000 2001 Total
+Numberofdialogues 648 1683 2331
+Numberofturns 24,728 78,718 103,446
+Numberofsystemturns 13,013 39,419 52,432
+Numberofuserturns 11,715 39,299 51,014
+Numberofutterances 24,728 89,666 114,394
+Numberofsystemutterances 13,013 50,159 63,172
+Numberofuserutterances 11,715 39,507 51,222
+Numberofsystemdialogueacts 22,752 85,881 108,633
+492
+Henderson,Lemon,andGeorgila HybridReinforcement/SupervisedLearning
+dialoguemanagement,andthusshouldnotbeexcludedfromthestaterepresentations
+weuseinlearning.Thisleadstoaverylargespaceofpossiblestates(over10
+386
+statesare
+theoretically possible in our model), with a very high chance that a state encountered
+in testing will not be exactly the same as any state encountered in training. This fact
+motivates,ifnotrequires,theuseofapproximationmethods.
+ThecomplexityoftheCOMMUNICATORdomainisalsomanifestedinthelargenum-
+ber of system actions that the dialogue management policy needs to choose between.
+TheDATEschemerepresentationofsystemactionsimpliesthateachpossibletripleof
+values for the Conversational Domain, Speech Act, and Task is a different action. In
+addition,wehaveadded release turn and end dialogue actions.Thereareatotalof
+74systemactionsthatoccurintheannotatedCOMMUNICATORdata.
+2.ReinforcementLearningwithaFixedDataSet
+WeusetheannotatedCOMMUNICATORdatatotrainaReinforcementLearningsystem.
+In RL, the objective of the system is to maximize the reward it gets during entire dia-
+logues.Rewardsaredeﬁnedtoreﬂecthowsuccessfuladialoguewas,sobymaximizing
+thetotalrewardthesystemoptimizesthequalityofdialogues.Thedifﬁcultyisthat,at
+anypointinthedialogue,thesystemcannotbesurewhatwillhappenintheremainder
+of the dialogue, and thus cannot be sure what effect its actions will have on the total
+rewardattheendofthedialogue.Thusthesystemmustchooseanactionbasedonthe
+average reward it has observed previously after it has performed that action in states
+similartothecurrentone.Thisaverageistheexpectedfuturereward.
+The core component of any RL system is the estimation of the expected future
+reward(calledtheQ-function).Givenastateandanactionthatcouldbetakeninthat
+state, the Q-function tells us what total reward, on average, we can expect between
+takingthatactionandtheendofthedialogue.
+1
+Oncewehavethisfunction,theoptimal
+dialoguemanagementpolicyreducestosimplychoosingtheactionthatmaximizesthe
+expectedfuturerewardforthecurrentstate.
+OurproposalforRLwithﬁxeddatasetsusestwomaintechniques.Theﬁrstisthe
+use of function approximation to estimate the expected future reward. We claim that
+linearfunctionapproximationisaneffectivewaytogeneralizefromalimiteddataset
+to a large space of state–action pairs. The second technique is a novel hybrid learning
+methodthatcombinesRLwithsupervisedlearning(SL).SLisusedtocharacterizehow
+much data we have for each area of the state–action space (also using linear function
+approximation).OurhybridpolicyusesSLtoavoidstate–actionpairsforwhichwedo
+nothaveenoughdata,whileusingRLtomaximizerewardwithinthepartsofthespace
+wherewedohaveenoughdata.Weclaimthatthisisaneffectivesolutiontotheproblem
+oflearningcomplextasksfromﬁxeddatasets.
+2.1DeﬁningDialogueReward
+ToapplyRLtotheCOMMUNICATORdata,weﬁrsthavetodeﬁneamappingr(d,i)from
+adialoguedandapositioninthatdialogueitoarewardvalue.Thisrewardfunctionis
+computedusingtherewardlevelofannotationintheCOMMUNICATORdata,whichwas
+1 Theexpectedfuturerewardalsodependsonthedialoguemanagementpolicythatthesystemwillusein
+thefuture.Thisself-referentialnatureofRListhetopicofmuchRLresearch,andwillbediscussedmore
+inthefollowing.
+493
+ComputationalLinguistics Volume34,Number4
+extracted from user questionnaires and task completion measures. For all states other
+thantheﬁnalstate,weprovidearewardof−1ifthestatefollowsasystemaction,and
+0 otherwise. This encodes the idea that, all other things being equal, short dialogues
+are better than long ones. For the ﬁnal state we provide a reward that is the sum of
+the rewards foreach feature in thereward annotation. “Actual Task Completion” and
+“PerceivedTaskCompletion”arebothwortharewardof100iftheyarenon-zero(i.e.,
+true),and0otherwise.Theremainingrewardfeatureshavevaluesrangingfrom1to5
+intheannotation(where5isthebest),whichwerescaletotherange0to1(1converts
+to 0, 5 converts to 1). Their reward is their rescaled value times the weight shown in
+Table 2. The relative values of these later weights were determined by the empirical
+analysis reported in Walker et al. (2001) within the PARADISE evaluation framework
+(Walker,Kamm,andLitman2000).
+2.2EstimatingtheExpectedFutureReward
+Given this deﬁnition of reward, we want to ﬁnd an estimate Q(s
+i,a) of the expected
+future reward, which is the expected value (“E[ ]” in Equation 1) of the total reward
+betweentakingactionainstates
+i
+andtheendofthedialogue.Thisexpectationisasum
+overallpossiblefuturedialoguesd,weightedbytheprobabilityofthedialoguegiven
+thatwehaveperformedactionainstates
+i
+.
+Q(s
+i,a) ≈E
+d|s
+i,a
+[
+summationdisplay
+j>i
+r(d,j)]=
+summationdisplay
+d
+(P(d|s
+i,a)
+summationdisplay
+j>i
+r(d,j)) (1)
+Giventhatthenumberofpossiblefuturedialoguesd=〈s
+i+1,...,s
+n
+d
+〉 isexponentialin
+thelengthofthesequences,itisnotsurprisingthatestimatingtheexpectedrewardover
+thesesequencescanbeverydifﬁcult.
+TheISUframeworkissigniﬁcantlydifferentfromtheframeworksusedinprevious
+work on reinforcement learning for dialogue management, in that the rich context
+representation makes the number of possible states extremely large. Having a large
+numberofstatesisamorerealisticscenarioforpractical,ﬂexible,andgenericdialogue
+systems, butitalsomakes manyRLapproaches intractable. Inparticular, withalarge
+numberofstatesitisnotpossibletolearnestimatesoftheexpectedfuturerewardfor
+everystate,unlesswecanexploitcommonalitiesbetweendifferentstates.Thefeature-
+based nature of ISU state representations expresses exactly these commonalities be-
+tweenstatesthroughthefeaturesthatthestatesshare.Thereareanumberoftechniques
+thatcouldbeusedforRLwithfeature-basedrepresentationsofstates,butthesimplest
+andmostefﬁcientislinearfunctionapproximation.
+Table2
+Theweightsusedtocomputeadialogue’sﬁnalrewardvalue,multipliedbyvaluesbetween0
+and1computedfromuserresponses.
+Actualtaskcompletion 100
+Perceivedtaskcompletion 100
+Taskease 36
+Comprehensionease 28
+Systembehavedasexpected 32
+Futureuse 36
+494
+Henderson,Lemon,andGeorgila HybridReinforcement/SupervisedLearning
+Weuselinearfunctionapproximationtomapfromavectorofrealvaluedfeatures
+f(s) for the statesto a vector of estimatesQ(s,a), one estimate for eacha. The trained
+parameters of the linear function are a vector of weights w
+a
+for each action a.Given
+weightstrainedonagivendataset,anestimateQ
+data
+(s,a)oftheexpectedfuturereward
+givenastatesandanactionaistheinnerproductofthestatevectorf(s)andtheweight
+vectorw
+a
+.
+2
+Q
+data
+(s,a)=f(s)
+T
+w
+a
+=
+summationdisplay
+i
+f
+i
+(s)w
+ai
+(2)
+This approximation method has the effect of treating two states as similar if they
+sharefeatures.Duringlearning,updatingtheestimateQ
+data
+(s,a)foroneobservedstate
+s will also update the estimate Q
+data
+(s
+prime,a) for all other states s
+prime
+to the extent that s
+prime
+sharesfeatureswiths.Thisupdatinghappensviatheweightsw
+a
+;ifshasfeatureithen
+updatingtheestimateQ
+data
+(s,a)willchangew
+ai,whichwillinturnchangeQ
+data
+(s
+prime,a)for
+anys
+prime
+thatalsohasfeaturei.Thuseachfeaturerepresentsadimensionwithrespectto
+whichtwostatescanbesimilarordifferent.Thissimilaritymeasureisknownasalinear
+kernel.
+Thisistheﬁrsttimethatlinearfunctionapproximationhasbeenusedforlearning
+dialogue strategies. Denecke, Dohsaka, and Nakano (2005) also use function approxi-
+mation, but there the notion of similarity used during learning is Euclidean distance,
+rather than shared features. In effect, Denecke, Dohsaka, and Nakano use a Gaussian
+kernel,whereasweusealinearkernel.
+TotraintheweightsofthelinearapproximationQ
+data
+(s,a),weemployedastandard
+RL learning method called SARSA(λ) (Sutton and Barto 1998). This method learns
+based on two criteria, with a parameter λ used to weight their relative inﬂuence. The
+ﬁrst criterion comes from temporal-difference learning: the current estimate for the
+Q-functionshould(onaverage)equaltherewardfromthenextstateplustheestimate
+for the expected future reward at the next state. The second criterion comes directly
+fromtheobservedreward:ThecurrentestimatefortheQ-functionshould(onaverage)
+equaltherewardobservedfortheremainderofthedialogue.Thecombinationofthese
+twocriteriamakeslearningfasterthanusingeitheronealone.Gradientdescentlearning
+isappliedtotheweights;ateachstepoflearning,theweightsareupdatedsoastomake
+theQ-functionbetterﬁtthiscombinedcriterion.
+Whereastheweightsw
+a
+arelearnedfromdata,themappingf(s)fromstatestovec-
+torsmustbespeciﬁedbeforehand.Becauseeachvaluef
+i
+(s)inthesevectorsrepresentsa
+possiblecommonalitybetweenstates,itisthroughthedeﬁnitionoff(s)thatwecontrol
+the notion of similarity that will be used by the linear function approximation. The
+deﬁnition off(s) we are currently using is a straightforward mapping from attribute–
+valuepairsintheInformationStatestovaluesinthevectorf(s).
+Thestatevectormappingf(s)wascomputedusingtheﬁrstfourlevelsofourstate
+annotations for the COMMUNICATOR data (i.e., the Dialogue, Task, Low, and History
+levels shown in Figure 1). The values of the attributes in these annotations were con-
+verted to features of three types. For attributes that take numbers as values, we used
+a simple function to map these numbers to a real number between 0 and 1, with the
+absence of any value being mapped to 0 (resulting in six features, e.g., StateNumber).
+2 Wewillusethenotationx
+T
+ytodenotetheinnerproductbetweenvectorsxandy(i.e.,“xtranspose
+timesy”).w
+ai
+istheithelementofthevectorw
+a
+.
+495
+ComputationalLinguistics Volume34,Number4
+For attributes that can have arbitrary text as their values, we used 1 to represent the
+presenceoftextand0torepresentnovalue(resultingintwofeatures,e.g., AsrInput).
+Theremaining attributesallhave eitheraﬁniteset ofpossible values, oralist ofsuch
+values.
+The vast majority of our features are constructed from this third set of attributes.
+First, to reﬂect the importance of speech act–task pairs (which we use to deﬁne both
+system and user actions), we construct a new SpeechAct-Task attribute whose value
+is the concatenation of the values for the SpeechAct and Task attributes. The same is
+done for the SpeechActsHist and TasksHist attributes. Second, attributes with a list
+value (i.e., the ...Hist and ...Status attributes, plus user actions
+3
+) are converted to a
+setofattribute–valuepairsconsistingoftheattributeandeachvalueinthelist(result-
+ing in 509 features, e.g., FilledSlotsStatus:[orig city]). Note that this conversion
+loses the ordering between the values in the list. In the case of SpeechAct, Task,and
+SpeechAct-Task attributes that have list values (which result from turns in which a
+user performs more than one action), we also include the whole list as a value for
+the attribute
+4
+(resulting in 364 features, e.g., SpeechAct:[no answer,provide info]).
+Finally,attributeswithsinglevaluesareassignedfeatures(whichresultin401features,
+e.g.,Speaker:user).
+Fromthissetofpotentialfeatures,weonlyusethosethatoccurinthedataatleast
+ﬁve times.
+5
+(Only these features are included in the feature counts given previously.)
+Eachfeatureisassignedanelementofthevectorf(s)thatis1ifthatfeatureispresentin
+thestateand0ifitisnot.Intotalthereare1,282features.
+Oneadvantageofusinglinearfunctionapproximationisthatthelearningmethod
+can be kept fairly simple, while still incorporating domain knowledge in the design
+of the mapping to feature vectors. One area of future research is to investigate more
+complicatedmappingstofeaturevectorsf(s).Thiswouldinvolvemakinguseofkernel-
+based methods. Kernels are used to compensate for the oversimplicity of linear func-
+tions, and can be used to express more complicated notions of commonality between
+states(Shawe-TaylorandCristianini2004).
+2.3PureRLandSLPolicies
+Given the estimate of the expected future reward Q
+data
+(s,a) discussed in the previous
+section, one obvious approach would use this estimate to deﬁne the dialogue policy.
+This “pure RL” policy simply selects the action a with the highest Q
+data
+(s,a)giventhe
+states.AsdemonstratedbytheevaluationinSection3,thispolicyperformsverybadly.
+InspectionoftheactionschosenbythepureRLpolicyindicatesthatthispolicyis
+verydifferentfromthepolicyobservedintheCOMMUNICATORdata;thepureRLpolicy
+almostneverchosethesameactionaswasinthedata.Thismeansthattheactionsthat
+havebeenlearnedtohavethebestfuturerewardforastatearenottheonesthatwere
+3 Becauseinthe2001COMMUNICATORdatausersmayperformmorethanoneactioninasingleturn,a
+user’sactionispotentiallyalistofspeechact–taskpairs.Theseareannotatedaslistsofspeechactsplus
+listsoftasks,towhichweaddlistsofspeechact–taskpairs.Historiesoftheselists(i.e.,listsoflists)are
+ﬁrstﬂattenedandthentreatedlikeotherlists.
+4 These“list”valuesaremoreaccuratelydescribedassetvalues,becausewedonotencodetheordering
+ofthevaluesinthelist.
+5Wealsodonotincludethe...Value...attributes,suchasFilledSlotValue,whichspecifytheactual
+ﬁllersforslots.
+496
+Henderson,Lemon,andGeorgila HybridReinforcement/SupervisedLearning
+typicallychosenbytheCOMMUNICATORsystemsinthatstate.Thisdifferenceresultsin
+twoproblems:
+a114
+suchatypicalactionsthenleadtostatesunlikeanythingobservedinthe
+data,
+a114
+thepolicythatthesystemwilluseforfutureactionsisdifferentfromthat
+observedinthedata,and
+TheﬁrstproblemmakestheQ
+data
+(s,a)estimatesforthevisitedstateshighlyunreliable,
+becausewedon’thavedataforthesestates.Becausethefuturerewarddependsonthe
+policythatthesystemwilluseinthefuture,thesecondproblemmeansthattheestimate
+Q
+data
+(s,a)isnotevenrelevanttotheexpectedfuturerewardofthepureRLpolicy.Wewill
+returntotheseproblemswhenwedevelopourproposedmethodinSection2.4.
+These problems are a result of the fact that we are training on a ﬁxed data set,
+and therefore cannot generate new data that is appropriate for the new policy. The
+solution to these problems that is typically used in RL research is to generate new
+dataaslearningprogressesandthepolicychanges,asdiscussedinSection1.1.TheRL
+systemcanthusexplorethespaceofpossiblepoliciesandstates,generatingnewdata
+thatisrelevanttoeachexploredpolicyanditsstates.Theproblemwithlearningwith
+policy exploration, even when using simulated users, is that it is not tractable with a
+largestatespaceandactionset.Considerthatwith10
+386
+statesand74actions,thereare
+74
+10
+386
+possiblepolicies.Ifwewereabletoexplorepoliciesatarateof1policyasecond,
+after 1 year we would have visited only one policy in every 74
+10
+385.6
+policies. Policy
+exploration algorithms are only partially random, so to some extent they can make
+accuratechoicesaboutwhichpartsofthepolicyspacetoexploreandwhichtoignore,
+butthesenumbersareindicativeofthescaleoftheproblemfacedbypolicyexploration.
+In addition, experiments with a random policy achieved an average score of −66,
+showing that the vast majority of policies are very bad. This indicates that starting
+policy exploration with a random policy would require an extremely large amount of
+exploration to move from there to a policy which is as good as the policy found with
+theproposaldiscussedherein(whichachievedascoreof140,outofamaximum197).
+Thereforeitiscrucialthatexploratorylearningatleastbeinitializedwithapolicythat
+wealreadyknowtobegood.Themethodproposedinthisarticleforlearningapolicy
+fromapre-existingcorpusofdialoguescanbeusedtoﬁndsuchaninitialpolicy.
+Given these problems with using RL with a ﬁxed data set, an obvious alternative
+wouldbetosimplytrainapolicytomimicthepoliciesofthesystemsusedtogenerate
+thedata.Onereasonfortrainingapolicy,ratherthanusingoneoftheoriginalpolicies,
+is that learning allows us to merge the policies from all the different systems, which
+canleadtoabetterpolicythananyonesystem(aswewillshowinSection3).Another
+reason is that learning results in a policy that generalizes from the original policies in
+interestingways.Mostnotably,ourlearningmethodcanbeusedtodeﬁneaprobabilis-
+ticpolicy,notjustthe(presumably)deterministicpoliciesusedtogeneratethedata.A
+thirdreasoncouldbe(asinourcase)thatwedonothaveaccesstoanyoftheoriginal
+systemsthatgeneratedthedata.Insomesensewecanuselearningtoreverseengineer
+thesystems.
+Wetrainapolicytomimicthepolicyobservedinthedatausingsupervisedlearning
+with linear function approximation. This “pure SL” policy simply selects the action
+a with the highest probability P(a|s) of being chosen given the state s.Weestimate
+P(a|s)withlinearfunctionapproximation,justasforQ
+data
+(s,a),exceptthatanormalized
+497
+ComputationalLinguistics Volume34,Number4
+exponentialfunction(a.k.a.“softmax”)isusedsothattheresultisaprobabilitydistri-
+butionoveractionsa.
+P(a|s) ≈S
+data
+(s,a)=
+exp(f(s)
+T
+w
+prime
+a
+)
+summationtext
+a
+prime exp(f(s)
+T
+w
+prime
+a
+prime
+)
+(3)
+This gives us a log-linear model, also known as a maximum entropy model. The
+parametersofthismodel(thew
+prime
+a
+)aretrainedusingsupervisedlearningontheCOMMU-
+NICATORdata.AswiththeQ-function,theuseoflinearfunctionapproximationmeans
+thatwehaveestimatesforP(a|s)evenforstatessthathaveneveroccurredinthedata,
+basedonsimilarstatesthatdidoccur.
+2.4AHybridApproachtoRL
+In this work we focus on solving the ﬁrst of the two problems we have discussed,
+namely,preventingthesystemfromstrayingintoportionsofthestatespaceforwhich
+we do not have sufﬁcient data. To do this, we propose a novel hybrid approach that
+combinesRLwithsupervisedlearning.SLisusedtomodelwhichactionswilltakethe
+system into a portion of the state space for which we don’t have sufﬁcient data. RL
+is used to choose between the remaining actions. A discriminant functionQ
+hybrid
+(s,a)is
+derivedthatcombinesthesetwocriteriainaprincipledway.Theresultingpolicycanbe
+adjustedtobeassimilarasnecessarytothepolicyinthedata,therebyalsoaddressing
+thesecondproblemdiscussedpreviously.
+As with the pure SL policy, supervised learning is used to model the policy that
+the systems in the data actually use. Because in general multiple policies were used,
+wemodelthedata’spolicyasaprobabilisticpolicy,usingtheestimateS
+data
+(s,a)ofP(a|s)
+presentedintheprevioussection.S
+data
+(s,a)isanestimateoftheprobabilitythatarandom
+systemselectedfromthosethatgeneratedthedatawouldchooseactionagiventhatitis
+instates.BecauseweareusingfunctionapproximationtolearnS
+data
+(s,a)fromthedata,
+it will generalize (or “smooth”) the policies actually used to generate the data so that
+similarstateswillallowsimilarsetsofactions.
+6
+ThehybridapproachwehaveinvestigatedisbasedontheassumptionthattheQ-
+function trained on the data is a poor model of the expected future reward for states
+in the portion of the state space not covered by the data. Thus we need an alternative
+method for estimating the future reward for these unobserved states. We have exper-
+imented with two such methods. The ﬁrst method simply speciﬁes a ﬁxed reward U
+forthesestates.Bysettingthisﬁxedrewardtoalowvalue,itamountstoapenaltyfor
+strayingfromtheobservedportionofthestatespace.
+Thesecondmethodestimatedtherewardforunobservedstatesbyaddingaﬁxed
+reward offset UO to the reward estimates for ending the dialogue immediately. This
+methodcompensatesfortheuseofadialogue-ﬁnalrewardscheme,wheremanythings
+thatthedialoguehasalreadyaccomplishedaren’treﬂectedintherewardgivensofar.
+Forexample,inourrewardscheme,ﬁllingaslotdoesnotresultinimmediatereward,
+but instead results in reward at the end of the dialogue if it leads to a successful
+dialogue.Theestimatedrewardforendingthedialogueimmediatelyreﬂectshowmuch
+6 Forthisreason,wewillgetaprobabilisticpolicyevenifonlyasingledeterministicpolicyisused
+togeneratethedata.Thismakesthismethodapplicableevenfordatasetsgeneratedwithasingle
+deterministicprototypesystem.
+498
+Henderson,Lemon,andGeorgila HybridReinforcement/SupervisedLearning
+rewardisstoredupinthestateinthisway.Iftheﬁxedrewardaddedtothisestimateis
+settonegative,thenwecanbesurethattherewardestimatedforunobservedstatesis
+alwayslessthanthatforthebestobservedstate,sothismethodalsoresultsinapenalty
+forstrayingfromtheobservedportionofthestatespace.
+Givenanestimatedrewarduforunobservedstates,theexpectedfuturerewardis
+thentheaveragebetweenuforthecaseswhereperformingainsleadstoanunobserved
+stateandtheexpectedrewardQ
+data
+(s,a)forthecaseswhereitleadstoanobservedstate.
+Formally,thisaverageisamixtureoftheestimateuwiththeestimateQ
+data
+(s,a),where
+themixturecoefﬁcientistheprobabilityP
+observed
+(s,a)thatperformingainswillleadtoan
+observedstate.
+E
+d|s
+i,a
+[
+summationtext
+j>i
+r(d,j)]
+≈Q
+data
+(s,a)P
+observed
+(s,a)+u(1−P
+observed
+(s,a))
+(4)
+Because this estimate of the expected future reward is only needed for choosing
+the next action given the current states, we only need to estimate a function that dis-
+criminatesbetweendifferentactionsinthesamewayasthisestimate.Toderivesucha
+discriminantfunction,weﬁrstapproximateP
+observed
+(s,a)withaﬁrst-orderapproximation
+intermsoftheprobabilitydistributioninthedataP(s,a)andthesizeofthedatasetN,
+undertheassumptionthatthenumberofpossiblestate–actionpairsismuchlargerthan
+thesizeofthedataset(soP(s,a)N lessmuch 1).
+P
+observed
+(s,a)=1−(1−P(s,a))
+N
+≈P(s,a)N ≈S
+data
+(s,a)P(s)N
+(5)
+Giventhisapproximation,thediscriminantfunctionneedstoordertwoactionsa
+1,a
+2
+in
+thesamewayasthisestimateoftheexpectedfuturereward.
+Q
+data
+(s,a
+1
+)S
+data
+(s,a
+1
+)P(s)N+u(1−S
+data
+(s,a
+1
+)P(s)N)
+≤Q
+data
+(s,a
+2
+)S
+data
+(s,a
+2
+)P(s)N+u(1−S
+data
+(s,a
+2
+)P(s)N)
+ifandonlyif
+S
+data
+(s,a
+1
+)(Q
+data
+(s,a
+1
+)−u) ≤S
+data
+(s,a
+2
+)(Q
+data
+(s,a
+2
+)−u)
+(6)
+WecallthisdiscriminantfunctionQ
+hybrid
+(s,a).
+Q
+hybrid
+(s,a)=S
+data
+(s,a)(Q
+data
+(s,a)−u)(7)
+WeusethisQ
+hybrid
+(s,a)functiontochoosetheactionsforourhybridpolicy.Byadjust-
+ingthevalueoftheunobservedstatepenaltyu,wecanadjusttheextenttowhichthis
+modelfollowsthesupervisedpolicydeﬁnedbyS
+data
+(s,a)orthereinforcementlearning
+policydeﬁnedbyQ
+data
+(s,a).Inparticular,ifuisverylow,thenmaximizingQ
+hybrid
+(s,a)is
+equivalent to maximizing S
+data
+(s,a). Thus a very low u is equivalent to the policy that
+alwayschoosesthemostprobableaction,whichwewillcallthe“SLpolicy.”
+TheprocedurefortrainingQ
+hybrid
+(s,a)issimplytotrainQ
+data
+(s,a)withRLandS
+data
+(s,a)
+with SL. These two models are then combined using Equation (7), given a value foru
+computed with one of the two methods presented previously. Both of these methods
+involve setting a constant that determines the relative importance of RL versus SL. In
+thenextsectionwewillempiricallyinvestigategoodvaluesfortheseconstants.
+499
+ComputationalLinguistics Volume34,Number4
+3.EmpiricalEvaluation
+Weevaluatethetraineddialoguemanagementpoliciesbyrunningthemagainsttrained
+user simulations. The policies and the user simulations were trained using different
+parts of the annotated COMMUNICATOR data (using two-fold and ﬁve-fold cross val-
+idation). We compare our results against each other and against the performance of
+theeightCOMMUNICATORsystems,usinganevaluationmetricdiscussedsubsequently.
+TheInformationStatesforthesimulateddialogueswerecomputedwiththesamerules
+usedtocomputetheInformationStatesfortheannotateddata.
+3.1TheTestingSetup
+For these experiments, we restrict our attention to users who only want single-leg
+and return ﬂight bookings. This allows us to do the evaluation using only the four
+essential slots included in both these types of bookings: origin city, destination city,
+departuredate,anddeparturetime.Toachievethisrestriction,weﬁrstselectedallthose
+COMMUNICATORdialoguesthatconsistedonlyofsingle-legorreturnﬂightbookings.
+Thissubsetcontained217ATTdialogues,116BBNdialogues,126CMUdialogues,159
+Colorado dialogues, 77 IBM dialogues, 192 Lucent dialogues, 180 MITdialogues, and
+185SRIdialogues,foratotalof1,252dialogues(outof1,683).Thissubsetwasusedfor
+evaluatingtheCOMMUNICATORsystemsandfortrainingtheusermodels.Thesystem
+models were trained on the full set of dialogues, because they should not know the
+user’sgoalsinadvance.So,foreachfoldofthedata,theusermodelwastrainedononly
+thesingle-legandreturndialoguesfromthatfoldandthesystemmodelwastrainedon
+thefullsetofdialoguesfromasubsetoftheremainingfolds(onefoldforthetwo-fold
+experimentsandthreefoldsfortheﬁve-foldexperiment,asdiscussedsubsequently).
+The user models were trained in the same way as the S
+data
+(s,a) function for the
+pure SL model discussed in Section 2.3, using linear function approximation and a
+normalizedexponentialoutputfunction.Thestatesthatprecedeuseractionsareinput
+asvectorsoffeaturesvirtuallyidenticaltothoseusedforthesystem.However,unlike
+theactionsetforthesystem,theuseronlychoosesoneactionperturn,andthataction
+canincludemultiple〈SpeechAct,Task〉pairs.Theoutputofthemodelisaprobability
+distributionovertheseactions.Theusersimulationselectsanactionrandomlyaccord-
+ing to this distribution. We also trained a user model based on n-grams of user and
+system actions, which produced similar results in our testing (Georgila, Henderson,
+andLemon2006).
+In our initial experiments with the hybrid policy, we found that it never closed
+the dialogue. We think that this was due to the system action (annotated in DATE)
+meta greeting goodbye, which is used both as the ﬁrst action and as the last action
+of a dialogue. The hybrid policy expects this action to be chosen before it will close
+thedialogue,butthesystemneverchoosesthisactionattheendofadialoguebecause
+it is so strongly associated with the beginning of the dialogue. This is an example of
+thelimitationsoflinearfunctionapproximation, andourdependenceontheprevious
+COMMUNICATOR annotations. We could address this problem by splitting this action
+intotwoactions,onefor“greeting”andonefor“goodbye.”Butbecausewedonotwant
+toembarkonthetaskoffeatureengineeringatthisstage,wehaveinsteadaugmented
+thehybridpolicywitharulethatclosesthedialogueafterthesystemchoosestheaction
+offer, to offer the user a ﬂight. After this ﬁrst ﬂight offer, the user has one turn to
+reply, and then the dialogue is ended. For practical reasons we have also added rules
+500
+Henderson,Lemon,andGeorgila HybridReinforcement/SupervisedLearning
+that close the dialogue after 100 states (i.e., total of user and system actions), and that
+releasetheturnifthesystemhasdone10actionsinarowwithoutreleasingtheturn.
+3.2TheEvaluationMetrics
+To evaluate the success of a dialogue, we take the ﬁnal state of the dialogue and use
+it to compute a scoring function. We want the scoring function to be similar to the
+reward we compute from the quality measures provided with the COMMUNICATOR
+data(e.g.,theuserquestionnaires),butbecausewedonothavethesequalitymeasures
+forthesimulateddialogues, wecannotusetheexactsamerewardfunction.Whenwe
+compare the hybrid policy against the COMMUNICATOR systems, we apply the same
+scoring function to both types of dialogues so that we have a comparable evaluation
+metricforboth.
+Becausecurrentlyweareonlyconsideringuserswhoonlywantsingle-legorreturn
+ﬂight bookings, the scoring function only looks at the four essential slots for these
+bookings: origin city, destination city, departure date, and departure time. We give
+25 points for each slot that is ﬁlled, plus another 25 points for each slot that is also
+conﬁrmed.Wealsodeduct1pointforeachactionperformedbythesystem,topenalize
+longer dialogues. Thus the maximum possible score is 197 (i.e., 200 minus 3 system
+actions:askforalltheuserinformationinoneaction,thenconﬁrmallthefourslotsin
+oneactionandofferaﬂight).
+Themotivationbehindthisevaluationmetricisthatconﬁrmedslotsaremorelikely
+to be correct than slots that are just ﬁlled. If we view the score as proportional to the
+probabilitythataslotisﬁlledcorrectly,thenthisscoringassumesthatconﬁrmedslots
+aretwiceaslikelytobecorrect.Althoughotherscoringmetricsareclearlypossible,this
+one is a simple and reasonable approximation of the relative expected correctness of
+conﬁrmedversusnon-conﬁrmedinformationindialoguesystems.Ontheotherhand,
+noneofourconclusionsdependonthisexactscoringfunction,asindicatedbyresultsfor
+the“no-conf”versionofourscoringfunction(discussedsubsequently),whichignores
+conﬁrmations.
+When combining the scores for different slots, we do not try to model the all-or-
+nothingnatureofthe COMMUNICATORtask-completionqualitymeasures,butinstead
+sumthescoresfortheindividualslots.Thissummakesourscoringmetricvaluepartial
+completions more highly, but inspection of the distributions of scores indicates that
+thisdifferencedoesnotfavoreitherthehybridpolicyortheoriginalCOMMUNICATOR
+systems.
+Although this evaluation metric could reﬂect the relative quality of individual
+dialoguesmoreaccurately,webelieveitprovidesagoodmeasureoftherelativequality
+of the systems we wish to compare. First, the exact same metric is applied to every
+system.Additionalinformationthatwehaveforsomesystems,butnotall,isnotused
+(e.g., the COMMUNICATOR user questionnaires, which we do not have for simulated
+dialogues).Second,thesystemsarebeingrunagainstapproximatelyequivalentusers.
+Theusersimulationistrainedonexactlythesameuseractionsthatareusedtoevaluate
+the COMMUNICATOR systems, so the user simulations mimic exactly these users. In
+particular, the simulation is able to mimic the effects of speech recognition errors,
+becauseitisjustaslikelyastherealuserstodisagreewithaconﬁrmationorprovidea
+newvalueforapreviouslyﬁlledslot.Thenatureofthesimulationmodelmaymakeit
+systematicallydifferentfromrealusersinsomeway,butweknowofnoargumentfor
+whythiswouldbiasourresultsinfavorofonesystemoranother.
+501
+ComputationalLinguistics Volume34,Number4
+Oneconcernaboutthisevaluationmetricisthatitdoesnotreﬂectthequalityofthe
+speechrecognizerbeingusedbythesystem.Ifasystemhasagoodspeechrecognizer,
+thenitmaynotbenecessaryforittoconﬁrmaslotvalue,butourscoringfunctionwill
+stillpenalizeitfornotconﬁrming.Thiswouldcertainlybeaproblemifthismetricwere
+tobeusedtocomparedifferentsystemswithintheCOMMUNICATORdataset.However,
+theintentionofthemetricissimplytofacilitatecomparisonsbetweendifferentversions
+of our proposed system, and between our proposed systems and those in the data.
+Because the user simulations are trained on the COMMUNICATOR data, they simulate
+speechrecognitionerrorsatthesamerateasthedata,therebycontrollingforthequality
+ofthespeechrecognizer.
+Nonetheless,itisworthconsideringanotherevaluationmetricthatdoesnotpenal-
+ize for missing conﬁrmations. For this reason we also evaluate the different systems
+basedontheirscoresforonlyﬁlledslotsandlength,whichwecallthe“no-conf”score.
+3.3TheInﬂuenceofReinforcementLearning
+In our ﬁrst set of experiments, we evaluated the success of our hybrid policy relative
+totheperformanceofthepurereinforcementlearningpolicyandthepuresupervised
+learningpolicy.Wealsoinvestigatedhowtobestsettheparametersforcombiningthe
+supervisedandreinforcementlearningpoliciesinahybridpolicy.
+Weﬁrstcomparedthetwoproposedhybridmethodsusingtwo-foldcrossvalida-
+tion. We trained models of both Q
+data
+(s,a)andS
+data
+(s,a), and then used them to deﬁne
+policies. We trained both models for 100 iterations through the training portion of the
+data, at which point there was little change in the training error. We trained Q
+data
+(s,a)
+usingSARSA(λ)withλ =0.9.Thistrainingwasrepeatedtwice,onceforeachfoldofthe
+completedataset.ThereinforcementlearningpolicyusesonlyQ
+data
+(s,a),theSLpolicy
+usesonlyS
+data
+(s,a),andthehybridpoliciescombinethetwousingEquation(7).Forthe
+hybridpolicies,weusedthetwomethodsforestimatingtheunobservedstatepenalty
+uandvariousvaluesfortheﬁxedrewardUorrewardoffsetUO.
+During testing, each policy was run for 2,000 dialogues against a linear function
+approximation user model trained on the opposite half of the data. The ﬁnal state for
+each one of these dialogues was then fed through the scoring function and averaged
+across dialogues and across data halves. The results are plotted in Figure 2. To allow
+directcomparisonsbetweenthedifferentvaluesofUandUO,thesescoresareplotted
+againsttheproportionofdecisionsthataredifferentfromthatwhichthepureSLpolicy
+would choose. Thus the SL policy (average reward 139.8) is plotted at 0 (which is
+Figure2
+AveragedialoguescoreplottedagainsttheproportionofdecisionsthatdivergefromtheSL
+policy,fordifferentvaluesoftheunobservablestaterewardUandrewardoffsetUO.Averages
+overtwofolds,2,000dialoguesperfold.
+502
+Henderson,Lemon,andGeorgila HybridReinforcement/SupervisedLearning
+Figure3
+AveragedialoguescoreplottedagainsttheproportionofdecisionsthatdivergefromtheSL
+policy,fordifferentvaluesoftheunobservablestaterewardoffsetUO.Averagesoverﬁvefolds,
+2,000dialoguesperfold.
+equivalent to a large negativeU orUO). Additional points for the hybrid policies are
+shownfor(fromlefttoright,respectively)U=0,40,80,and100,andUO=–300,–100,
+–60,–40,–20,–10,and0.Thepurereinforcementlearningpolicyisnotshownbecause
+itsaveragescorefallswellbelowthebottomofthegraph,at44.4.
+Figure 2 indicates that, for both hybrid methods, adding some inﬂuence from RL
+increases performance over pure SL, but too much RL results in degradation. Using a
+rewardoffsetUOforugenerallydoesbetterthanaﬁxedrewardU,andallowsagreater
+inﬂuencefromRLbeforedegradation.
+We found that the results for our two folds were very different,
+7
+so we repeated
+theexperimentsusingﬁve-foldcrossvalidation,wherethedialoguesfromeachsystem
+were split randomly (rather than chronologically).
+8
+For each fold, we trained models
+ofbothQ
+data
+(s,a)andS
+data
+(s,a)onthreeofthefolds,usingafourthfoldtodecidewhen
+to stop training. The ﬁfth fold was then used to train a linear function approximation
+usermodel,whichwasusedtogenerate2,000simulateddialogues.Combiningtheﬁve
+folds, this gave us 10,000 dialogues per model. Because, in the previous experiments,
+usingarewardoffsetUOperformedbetterthanusingaﬁxedrewardU,weonlytested
+modelsusingdifferentvaluesoftherewardoffsetUO.
+The validation performance of the trained models for Q
+data
+(s,a)andS
+data
+(s,a)per-
+formedsimilarlyacrossthedifferentsplits.Takentogether,themodelsofS
+data
+(s,a)hada
+perplexityof4.4.Intuitively,thismeansthatthesupervisedmodelswereabletonarrow
+downthelistofpossibleactionsfrom74toabout4choices,onaverage.Thissuggests
+thattheISUrepresentationofstateisdoingagoodjobofrepresentingtheinformation
+being used by the systems to make dialogue management decisions, but that there is
+stillagoodamountofuncapturedvariability.Presumablymostofthisvariabilityisdue
+to differences between the policies for the different systems. The models of Q
+data
+(s,a)
+hadameansquared error of8,242, whosesquare root is91. Thismeasure isharder to
+interpretbecauseitisdominatedbylargeerrors,butsuggeststhattheexpectedfuture
+rewardisratherhardtopredict,asistobeexpected.
+Figure 3 shows the average scores for the pure SL policy (at 0) and for hybrid
+policies(fromlefttoright)withUO=−300, −100, −60, −40, −20, −10, −5and0.The
+7 Forthetwo-foldexperiments,thedataweresplitbyputtingtheﬁrsthalfofthedialoguesforeachsystem
+inonefoldandthesecondhalfintheother,undertheconstraintthatnouserhaddialoguesinmorethan
+onefold.Itappearsthattheusersthatwererunatthebeginningofthe2001COMMUNICATORdata
+collectionwereverydifferentfromthoserunattheend.
+8 Tobemoreprecise,foreachsystemwesplitthesetofusersrandomlyintoﬁvegroups.Thenallthe
+dialoguesforagivengroupofuserswereputinthesamefold.
+503
+ComputationalLinguistics Volume34,Number4
+hybrid policies perform consistently better than the SL policy. The difference between
+the hybrid policy and the SL policy is statistically signiﬁcant at the 5% level for the
+threebesthybridpoliciestested(p < 0.01forUO=−40,p < 0.001forUO=−10,and
+p< 0.007forUO=−5).Ifwecombineallthetestedhybridpoliciestogether,thentheir
+averagescore(139.4)isalsosigniﬁcantlybetterthantheSLpolicy(p< 0.014).Allthese
+resultsaresigniﬁcantlybetterthantheaveragescoreofthepureRLpolicy(34.9).
+3.4ComparisonswithCOMMUNICATORSystems
+In our second set of experiments, we evaluated the success of our learned policies
+relativetotheperformanceoftheCOMMUNICATORsystemsthattheyweretrainedon.
+ToevaluatetheperformanceoftheCOMMUNICATORsystems,weextractedﬁnalstates
+from all the dialogues that only contain single-leg or return ﬂight bookings and fed
+them through the scoring function. The average scores are shown in Tables 3 and 4,
+along with the average scores for the pure SL policy, the pure RL policy, and the best
+hybrid policy (UO=−10). The total score, the score excluding conﬁrmations, and the
+threecomponentsofthetotalscoreareshown.
+Table 3 shows the results computed from the complete dialogues. These results
+show a clear advantage for the hybrid policy over the average across the COMMUNI-
+CATORsystems,aswellasovereachindividualCOMMUNICATORsystem.Inparticular,
+the hybrid policy uses fewer steps. Because the number of steps is doubtless affected
+by the hybrid policy’s built-in strategy of stopping the dialogue after the ﬁrst ﬂight
+offer, we also evaluated the performance of the COMMUNICATOR systems if we also
+stopped these dialogues after the ﬁrst ﬂight offer, shown in Table 4. The COMMUNI-
+CATOR systems do better when stopped at the ﬁrst ﬂight offer, but still their average
+(“all COMMUNICATOR”) is not nearly as good as the hybrid or SL policies, under all
+measures.
+AlthoughtheaveragescoreoftheCOMMUNICATORsystemsinTable4iswellbelow
+those of the hybrid and SL policies, under this measure the single best system (BBN)
+beats our proposed system. Also, if we ignore conﬁrmations (the “no-conf” measure),
+Table3
+Theaveragescoresfromthedifferentsystemsforsingle-legandreturndialogues,thescore
+excludingconﬁrmations,andthethreecomponentsofthesescores.
+System Totalscore No-conf Filled Conﬁrmed Length
+score slots slots penalty
+hybridRL/SL 140.3 70.3 88.0 70.0 −17.7
+pureSL 138.3 69.2 89.2 69.1 −20.0
+pureRL 34.9 25.6 56.9 8.3 −31.3
+allCOMMUNICATOR 103.6 40.6 85.0 63.0 −44.4
+SRI 115.3 50.5 83.4 64.9 −32.9
+MIT114.3 43.2 87.1 71.1 −43.9
+LUC 110.3 36.1 91.1 74.1 −55.0
+COL 105.9 47.0 90.6 59.0 −43.6
+BBN 102.4 27.1 82.5 75.2 −55.4
+ATT 94.0 38.7 78.3 55.3 −39.6
+CMU 92.1 24.0 81.7 68.1 −57.7
+IBM 77.0 61.8 85.4 15.3 −23.6
+504
+Henderson,Lemon,andGeorgila HybridReinforcement/SupervisedLearning
+Table4
+Theaveragescoresaftertheﬁrstﬂightofferforsingle-legandreturndialogues,thescore
+excludingconﬁrmations,andthethreecomponentsofthesescores.
+System Totalscore No-conf Filled Conﬁrmed Length
+score slots slots penalty
+hybridRL/SL 140.3 70.3 88.0 70.0 −17.7
+pureSL 138.3 69.2 89.2 69.1 −20.0
+pureRL 34.9 25.6 56.9 8.3 −31.3
+allCOMMUNICATOR 127.1 63.2 84.5 63.9 −21.3
+BBN 148.9 73.2 88.6 75.6 −15.4
+LUC 138.5 59.1 91.1 79.4 −32.1
+MIT136.4 66.9 82.8 69.4 −15.9
+COL 132.9 71.4 89.9 61.5 −18.6
+SRI 128.2 61.7 84.2 66.5 −22.5
+CMU 123.8 58.7 77.2 65.1 −18.5
+ATT 109.1 53.6 78.3 55.4 −24.7
+IBM 86.4 71.2 85.1 15.3 −13.9
+thenthreeoftheindividualsystemsbeatourproposedsystembysmallamounts.How-
+ever,asdiscussedinSection3.2,ourevaluationmethodologyisnotreallyappropriate
+forcomparingagainstindividualCOMMUNICATORsystems,duetolikelydifferencesin
+speech recognition performance across systems. To test this explanation, we looked at
+theworderrorratesforthespeechrecognitionoutputsforthedifferentsystems.BBN
+has the highest percentage of user utterances with no speech recognition errors (79%,
+versusanaverageof66%),andthesecondlowestaverageworderrorrate(12.1versus
+anaverageof22.1).Becauseoursimulateduserssimulatespeechrecognitionerrorsat
+the average rate, the difference in performance between BBN and our systems could
+easilybeexplainedsimplybydifferencesinthespeechrecognizers,andnotdifferences
+inthedialoguemanagementpolicies.
+3.5Discussion
+The most obvious conclusion to draw from these results is not a surprising one: Pure
+reinforcement learning with such a huge state space and such limited data does not
+performwell.GiventhepureRLpolicy’sscoreof34.9,allthepoliciesinFigure3andall
+theCOMMUNICATORsystemsinTables3and4performbetterbyquitealargemargin.
+InspectionofthedialoguesindicatesthatthepureRLpolicydoesnotresultinacoherent
+sequenceofactions.Thispolicytendstochooseactionsthatareassociatedwiththeend
+of the dialogue, even at the beginning of the dialogue. Perhaps this is because these
+actions are only chosen by the COMMUNICATOR systems during relatively successful
+dialogues. This policy also tends to repeat the same actions many times, for example
+repeatedly requesting information even after the user has supplied this information.
+Thesephenomenaareexamplesoftheproblemweusedtomotivateourhybridlearning
+method,inthattheybothinvolvestate–actionpairsthatthelearnerwouldneverhave
+seenintheCOMMUNICATORtrainingdata.
+GiventhedisappointingperformanceofthepureRLpolicy,itissurprisingthatour
+hybridpoliciesoutperformthepureSLpolicy,asshowninFigures2and3.Thoughthe
+increaseinperformanceissmall,itisstatisticallysigniﬁcant,andconsistentacrossthe
+505
+ComputationalLinguistics Volume34,Number4
+twohybridmethodsandacrossarangeofdegreesofinﬂuencefromRL.
+9
+Thisindicates
+thatourhybridpoliciesaresucceedingingettingusefulinformationfromtheresultsof
+reinforcement learning, even under these extremely difﬁcult circumstances. Perhaps,
+under less severe circumstances for RL, a greater gain can be achieved with hybrid
+policies.Forthesecondhybridpolicy(unobservedstaterewardoffset),thefactthatthe
+bestresultwasachievedwithaUOvalue(UO=−10)thatisveryclosetothetheoretical
+limitofthismethod(UO=0)suggeststhatfutureimprovementstothismethodcould
+resultinevenmoreusefulinformationbeingextractedfromtheRLpolicy.
+Thedifferentcomponentsofthescoringfunctiongivesomeindicationofhowthe
+hybrid policies differ from the SL policy. As indicated in the top two rows of Table 4,
+thehybridpoliciesmostlyimproveovertheSLpolicyindialoguelength,withaslight
+increaseinconﬁrmedslotsandaslightdecreaseinﬁlledslots.
+Onestrikingconclusionfromtheresultscomparingthelearnedpoliciestothepoli-
+ciesoftheCOMMUNICATORsystems,showninTables3and4,isthatthelearnedpolicies
+score better than the policies they were trained on. This is particularly surprising for
+the pure SL policy, given that this policy is simply trying to mimic the behavior of
+these same systems. This can be explained by the fact that the SL policy is the result
+of merging all policies of the COMMUNICATOR systems. Thus it can be thought of as
+aformofmulti-versionsystem,wheredecisionsaremadebasedonwhatthemajority
+of systems would do.
+10
+Multi-version systems are well known to perform better than
+theircomponentsystems,becausethemistakestendtobedifferentacrossthedifferent
+component systems. They remove errors made by any one system that are not shared
+bymostoftheothersystems.
+ThegoodperformanceoftheSLpolicycomparedtotheCOMMUNICATORsystems
+makes the better performance of the hybrid policies even more impressive. As shown
+on the x axis of Figure 3, the best hybrid systems choose a different action from the
+SL policy about one action out of four. Despite the good performance of the action
+chosenbytheSLpolicy,RLisableto(onaverage)ﬁndabetteractionbylookingatthe
+rewards achieved by the systems in the data when they chose those actions in similar
+states. By following different systems’ choices at different points in the dialogue, the
+learnedpolicycanpotentiallyperformbetterthananyindividualsystem.Althoughour
+currentevaluationmethodologyisnotﬁne-grainedenoughtodetermineifthisisbeing
+achieved,themostpromisingaspectofapplyingRLtoﬁxeddatasetsisinlearningto
+combinethebestaspectsofeachsysteminthedataset.
+Although we believe that these results provide an accurate picture of the relative
+strengths of the different types of systems we compare, it should be noted that the
+reliance on evaluation with simulated dialogues inevitably leads to some lack of pre-
+cisionintheevaluation.Alltheseresultsarecomputedwithuserswhohavethesame
+goal(bookingareturnﬂight)andwithanevaluationmetricthatonlylooksatdialogue
+lengthandwhetherthefourmainslotswereﬁlledand(optionally)conﬁrmed.Onthe
+9 Wepreviouslyreportedresultsthatshowedthataddinginﬂuencefromreinforcementlearningalways
+degradedperformanceslightlycomparedtothepureSLpolicy(Henderson,Lemon,andGeorgila2005).
+However,theseresultswereobtainedwithapreliminaryversionofthedataannotation,whichgave
+alessaccurateindicationofwhenslotswereﬁlledandconﬁrmed.Thescoresweareachievingwith
+thenewdataannotation(Georgilaetal.submitted)areallhigherthanthosereportedinHenderson,
+Lemon,andGeogila(2005),includingthescorescalculatedfromthedatafortheCOMMUNICATOR
+systemsthemselves.
+10 Tobemoretechnicallyaccurate,wecanthinkoftheSLpolicyasineffectaskingeachCOMMUNICATOR
+systemforaprobabilitydistributionoverstate–actionpairsforthecurrentstate,summingthese
+probabilitiesacrosssystems,andchoosingtheactionwiththehighestprobability.
+506
+Henderson,Lemon,andGeorgila HybridReinforcement/SupervisedLearning
+other hand, all the systems were trained to handle a more complicated task than this,
+including multi-leg ﬂights, hotel bookings, and rental-car bookings. They were also
+designed or trained to complete the task, rather than to ﬁll the slots. Therefore the
+evaluation does not reﬂect all the capabilities or behaviors of the systems. However,
+thereisnoapparentreasontobelievethatthisfactbiasesourresultstowardsonetype
+of system or another. This claim is easiest to support for the comparisons between
+the hybrid method and the two trained baselines, pure RL and pure SL. For all these
+systems, the same data was used to train the systems, the same user models were
+used to generate simulated dialogues, and the same evaluation metric was applied to
+these simulated dialogues. For the comparisons between the hybrid method and the
+COMMUNICATORsystems,onlytheevaluationmetricisexactlythesame,buttheuser
+models used for testing the hybrid method were trained to mimic exactly the users
+in the dialogues used to evaluate the COMMUNICATOR systems. Because we know of
+no evaluation bias introduced when moving from real users to their simulation, we
+concludethatthiscomparisonisalsoindicativeoftherelativeperformanceofthesetwo
+typesofsystems(particularlygiventhesizeoftheimprovement).
+A more general methodological objection could be raised against any evaluation
+thatusessimulatedusers.Despitethesubstantialamountofdialoguesystemworkthat
+has relied on simulated users (e.g., Schefﬂer and Young 2002; Pietquin 2004; Georgila,
+Henderson, and Lemon 2006; Schatzmann et al. 2006), to date there has not been a
+systematic experiment that validates this methodology against results from human
+users. However, in related work (Lemon, Georgila, and Henderson 2006), we have
+demonstrated that a hybrid policy learned as proposed in this article performs better
+thanastate-of-the-arthand-codedsysteminexperimentswithhumanusers.Theexper-
+imentsweredoneusingthe“TownInformation”multimodaldialoguesystemofLemon
+et at. (2006) and Lemon, Georgila, and Stuttle (2005). The hybrid policy reported here
+(trainedonthe COMMUNICATORdata)wasportedtothisdomain,andthenevaluated
+with human subjects. The learned policy achieved an average gain in perceived task
+completion of 14.2% (from 67.6% to 81.8% at p < 0.03) compared to a state-of-the-art
+hand-codedsystem(Lemon,Georgila,andHenderson2006).Thisdemonstratesthata
+policythatperformswellinsimulationalsoperformswellinrealdialogues.
+11
+Theseexperimentsdemonstrateimprovementsgivenaninitialﬁxeddatasetwhich
+hasbeengeneratedfromexistingsystems.Forapplicationswheretherearenoexisting
+systems, an alternative would be to generate the initial data with a Wizard-of-Oz
+experiment,whereahumanplaysthepartofthesystem,asexploredbyWilliamsand
+Young(2003)andRieserandLemon(2006b).Themethodsproposedinthisarticlecan
+beusedtotrainapolicyfromsuchdatawithouthavingtoﬁrstbuildaninitialsystem.
+4.Conclusions
+Inthisarticle,wehaveinvestigatedhowreinforcementlearningcanbeappliedtolearn
+dialoguemanagementpolicieswithlargeactionsetsandverylargestatespacesgiven
+onlyaﬁxeddatasetofdialogues.Underavarietyofmetrics,ourproposedhybridre-
+inforcementlearningmethodoutperformsbothapolicytrainedwithstandardRLanda
+11 Futureworkistoportthehand-codedpolicybacktotheCOMMUNICATORdomainforuseinsimulation.
+Thiswillinvestigatewhetherarelativeimprovementinsimulateddialoguestranslatesintoarelative
+improvementinrealdialogues.
+507
+ComputationalLinguistics Volume34,Number4
+policytrainedwithsupervisedlearning,aswellastheCOMMUNICATORsystemswhich
+generatedthedataitwastrainedon.Thisperformanceisachieveddespitetheextremely
+challenging task, with 74 actions to choose between, over 10
+386
+possible states, and
+veryfewhand-codedpolicydecisions.Thetwomainfeaturesofourmodelthatmake
+thispossiblearetheincorporationofsupervisedlearningintoareinforcementlearning
+model,andtheuseoflinearfunctionapproximationwithstatefeaturesprovidedbythe
+InformationStateUpdateapproachtodialoguemanagement.Thesupervisedlearning
+isusedtoavoidstatesnotcoveredbythedataset,andthelinearfunctionapproximation
+isusedtohandletheverylargestatespaces.
+Withsuchalargespaceofpossiblestate–actionpairs,andthereforeahugepolicy
+space,purereinforcementlearningwouldrequireanenormousamountofdatatoﬁnd
+goodpolicies.WehavesucceededinusingRLwithfairlysmalldatasetsofonlyaround
+1,000dialogues(intheportionusedfortraining).Thisisachievedbyusingsupervised
+learning to model when an action would lead to a state for which we do not have
+enoughdata.Weproposedtwomethodsforestimatingadefaultvaluefortheseunseen
+states,andderivedaprincipledwaytocombinethisvaluewiththevalueestimatedby
+RL,usingtheprobabilityprovidedbySLtoweightthiscombination.Thisgaveustwo
+hybrid RL/SL methods, both of which outperform both the RL and SL policies alone.
+The best hybrid policy performs 302% better than the standard RL policy, and 1.4%
+better than the SL policy, according to our automatic evaluation method. In addition,
+according to our automatic evaluation method, the hybrid RL/SL policy outperforms
+thesystemsusedtogeneratethedata.Thebesthybridpolicyimprovesovertheaverage
+COMMUNICATOR system policy by 10% on our metric. This good performance has
+beencorroboratedinseparateexperimentswithhumansubjects(Lemon,Georgila,and
+Henderson 2006), where the learned policy outperforms a state-of-the-art hand-coded
+system.
+The success of the hybrid method (and of pure supervised learning) on this chal-
+lengingtaskindicatesthatlinearfunctionapproximationisaviableapproachtothevery
+largestatespacesproducedbytheISUframework.Italsodemonstratestheutilityofa
+feature-based representation of states, such as that used in the ISU approach. Further
+improvement should be possible by tailoring the representation of states and actions
+basedonourexperiencesofar(e.g.,byincludinginformationaboutspeciﬁcsequences
+ofmoves),andbyusingautomaticfeatureselectiontechniques.Weshouldalsobeable
+to get some improvement from more sophisticated function approximation methods,
+suchaskernel-basedmethods.
+The next step is to better exploit the advantages of reinforcement learning. One
+promisingapproachistoapplyRLwhilerunningthelearnedpolicyagainstsimulated
+users, thereby allowing RL to explore parts of the policy and state spaces that are
+not included in the COMMUNICATORdata. The hybrid policy we have learned on the
+COMMUNICATORdataisagoodstartingpointforthisexploration.Also,thesupervised
+component within the hybrid system can be used to constrain the range of policies
+that need to be explored when training the RL component. All of these advances will
+improvetechniquesforbootstrappingandautomaticoptimizationofdialoguemanage-
+mentpoliciesfromlimitedinitialdatasets.
+Acknowledgments
+Thisworkwaspartiallysupportedbythe
+EuropeanCommissionundertheFP6project
+“TALK:TalkandLook,ToolsforAmbient
+LinguisticKnowledge”(507802)andtheFP7
+project“CLASSIC:Computational
+LearninginAdaptiveSystemsforSpoken
+Conversation”(216594),bytheEPSRC
+undergrantEP/E019501/1,andbySHEFC
+HR04016—WellcomeTrustVIPAward.
+508
+Henderson,Lemon,andGeorgila HybridReinforcement/SupervisedLearning
+WethankJohannaMooreforproposing
+theuseoftheCOMMUNICATORdatasetfor
+thiswork.
+References
+Bohlin,Peter,RobinCooper,Elisabet
+Engdahl,andStaffanLarsson.1999.
+Informationstatesanddialogmove
+engines.ElectronicTransactionsinAI,
+3(9).Availableatwww.ep.liu.se/ej/
+etai/1999/D/.
+Bos,Johan,EwanKlein,OliverLemon,and
+TetsushiOka.2003.DIPPER:Description
+andformalisationofaninformation-state
+updatedialoguesystemarchitecture.In
+Proceedingsofthe4thSIGdialWorkshopon
+DiscourseandDialogue,pages115–124,
+Sapporo.
+Cheyer,AdamandDavidMartin.2001.
+Theopenagentarchitecture.Journalof
+AutonomousAgentsandMulti-Agent
+Systems,4(1/2):143–148.
+Denecke,Matthias,KohjiDohsaka,and
+MikioNakano,2005.Fastreinforcement
+learningofdialoguepoliciesusingstable
+functionapproximation.InK.Y.Su,
+J.Tsujii,J.-H.Lee,andO.Y.Kwong,
+NaturalLanguageProcessing,IJCNLP2004.
+Springer,Berlin,pages1–11.
+Frampton,MatthewandOliverLemon.
+2005.Reinforcementlearningofdialogue
+strategiesusingtheuser’slastdialogue
+act.InProceedingsofthe4thWorkshopon
+KnowledgeandReasoninginPracticalDialog
+Systems,InternationalJointConferenceon
+ArtiﬁcialIntelligence(IJCAI),pages83–90,
+Edinburgh.
+Frampton,MatthewandOliverLemon.
+2006.Learningmoreeffectivedialogue
+strategiesusinglimiteddialoguemove
+features.InProceedingsofthe44thMeeting
+oftheAssociationforComputational
+Linguistics,pages185–192,Sydney.
+Gabsdil,MalteandOliverLemon.2004.
+Combiningacousticandpragmatic
+featurestopredictrecognition
+performanceinspokendialoguesystems.
+InProceedingsofthe42ndMeetingofthe
+AssociationforComputationalLinguistics,
+pages344–351,Barcelona.
+Georgila,Kallirroi,JamesHenderson,and
+OliverLemon.2005.Learninguser
+simulationsforInformationState
+Updatedialoguesystems.InProceedings
+ofthe9thEuropeanConferenceon
+SpeechCommunicationandTechnology
+(Interspeech–Eurospeech),pages893–896,
+Lisbon.
+Georgila,Kallirroi,JamesHenderson,and
+OliverLemon.2006.Usersimulation
+forspokendialoguesystems:Learning
+andevaluation.InProceedingsofthe
+9thInternationalConferenceonSpoken
+LanguageProcessing(Interspeech–ICSLP),
+pages1065–1068,Pittsburgh,PA.
+Georgila,Kallirroi,OliverLemon,and
+JamesHenderson.2005.Automatic
+annotationofCOMMUNICATOR
+dialoguedataforlearningdialogue
+strategiesandusersimulations.
+InProceedingsoftheNinthWorkshop
+ontheSemanticsandPragmaticsof
+Dialogue(SEMDIAL),pages61–68,
+Nancy.
+Georgila,Kallirroi,OliverLemon,James
+Henderson,andJohannaMoore.
+(submitted).Automaticannotationof
+contextandspeechactsfordialogue
+corpora.
+Goddeau,D.andJ.Pineau.2000.Fast
+reinforcementlearningofdialogstrategies.
+InProceedingsoftheIEEEInternational
+ConferenceonAcousticsSpeechandSignal
+Processing(ICASSP),pagesII–1233–1236,
+Istanbul.
+Henderson,James,OliverLemon,and
+KallirroiGeorgila.2005.Hybrid
+reinforcement/supervisedlearningfor
+dialoguepoliciesfromCOMMUNICATOR
+data.InProceedingsofthe4thWorkshopon
+KnowledgeandReasoninginPracticalDialog
+Systems,InternationalJointConferenceon
+ArtiﬁcialIntelligence(IJCAI),pages68–75,
+Edinburgh.
+Larsson,StaffanandDavidTraum.2000.
+Informationstateanddialogue
+managementintheTRINDIDialogue
+MoveEngineToolkit.NaturalLanguage
+Engineering,6(3–4):323–340.
+Lemon,Oliver,KallirroiGeorgila,andJames
+Henderson.2006.Evaluatingeffectiveness
+andportabilityofreinforcementlearned
+dialoguestrategieswithrealusers:the
+TALKTownInfoevaluation.InProceedings
+oftheIEEE/ACL2006WorkshoponSpoken
+LanguageTechnology,pages178–181,
+Aruba.
+Lemon,Oliver,KallirroiGeorgila,James
+Henderson,MalteGabsdil,Ivan
+Meza-Ruiz,andSteveYoung.2005.
+Integrationoflearningandadaptivitywith
+theISUapproach.TechnicalReportD4.1,
+TALKProject.
+Lemon,Oliver,KallirroiGeorgila,James
+Henderson,andMatthewStuttle.2006.
+AnISUdialoguesystemexhibiting
+reinforcementlearningofdialogue
+policies:genericslot-ﬁllingintheTALK
+509
+ComputationalLinguistics Volume34,Number4
+in-carsystem.InProceedingsofthe
+DemonstrationsofEACL,pages119–122,
+Trento.
+Lemon,Oliver,KallirroiGeorgila,and
+MatthewStuttle.2005.Showcase
+exhibitingreinforcementlearningfor
+dialoguestrategiesinthein-cardomain.
+TechnicalReportD4.2,TALKProject.
+Levin,EstherandRobertoPieraccini.1997.
+Astochasticmodelofcomputer-human
+interactionforlearningdialoguestrategies.
+InProceedingsofthe5thEuropeanConference
+onSpeechCommunicationandTechnology
+(Interspeech–Eurospeech),pages1883–1886,
+Rhodes.
+Levin,Esther,RobertoPieraccini,and
+WielandEckert.2000.Astochasticmodel
+ofhuman-machineinteractionforlearning
+dialogstrategies.IEEETransactionson
+SpeechandAudioProcessing,8(1):11–23.
+Pietquin,Olivier.2004.AFrameworkfor
+UnsupervisedLearningofDialogueStrategies.
+PressesUniversitairesdeLouvain,
+SIMILARCollection.
+Pietquin,OlivierandThierryDutoit.2006a.
+DynamicBayesiannetworksforNLU
+simulationwithapplicationtodialog
+optimalstrategylearning.InProceedings
+oftheIEEEInternationalConferenceon
+AcousticsSpeechandSignalProcessing
+(ICASSP),pages49–52,Toulouse.
+Pietquin,OlivierandThierryDutoit.2006b.
+Aprobabilisticframeworkfordialog
+simulationandoptimalstrategylearning.
+IEEETransactionsonSpeechandAudio
+Processing,14(2):589–599.
+Rieser,VerenaandOliverLemon.2006a.
+Cluster-basedusersimulationsfor
+learningdialoguestrategiesandthe
+SUPERevaluationmetric.InProceedings
+ofthe9thInternationalConferenceonSpoken
+LanguageProcessing(Interspeech–ICSLP),
+pages1766–1769,Pittsburgh,PA.
+Rieser,VerenaandOliverLemon.2006b.
+Usinglogisticregressiontoinitialise
+reinforcement-learning-baseddialogue
+systems.InProceedingsoftheIEEE/ACL
+2006WorkshoponSpokenLanguage
+Technology,pages190–193,Aruba.
+Rieser,VerenaandOliverLemon.2006c.
+Usingmachinelearningtoexplore
+humanmultimodalclariﬁcation
+strategies.InProceedingsofthePoster
+Sessionofthe44thMeetingofthe
+AssociationforComputationalLinguistics,
+pages659–666,Sydney.
+Roy,Nicholas,JoellePineau,andSebastian
+Thrun.2000.Spokendialogmanagement
+forrobots.InProceedingsofthe38thMeeting
+oftheAssociationforComputational
+Linguistics,pages93–100,HongKong.
+Schatzmann,Jost,KallirroiGeorgila,
+andSteveYoung.2005.Quantitative
+evaluationofusersimulationtechniques
+forspokendialoguesystems.In
+Proceedingsofthe6thSIGdialWorkshop
+onDiscourseandDialogue,pages45–54,
+Lisbon.
+Schatzmann,Jost,MatthewN.Stuttle,
+KarlWeilhammer,andSteveYoung.
+2005.Effectsoftheusermodelon
+simulation-basedlearningofdialogue
+strategies.InProceedingsoftheIEEE
+AutomaticSpeechRecognitionand
+UnderstandingWorkshop,pages220–225,
+SanJuan,PuertoRico.
+Schatzmann,Jost,KarlWeilhammer,
+MatthewN.Stuttle,andSteveYoung.
+2006.Asurveyofstatisticaluser
+simulationtechniquesfor
+reinforcement-learningofdialogue
+managementstrategies.TheKnowledge
+EngineeringReview,21:97–126.
+Schefﬂer,KonradandSteveYoung.2001.
+Corpus-baseddialoguesimulation
+forautomaticstrategylearningand
+evaluation.InProceedingsoftheNAACL
+WorkshoponAdaptationinDialogue
+Systems,pages64–70,Pittsburgh,PA.
+Schefﬂer,KonradandSteveYoung.
+2002.Automaticlearningofdialogue
+strategyusingdialoguesimulation
+andreinforcementlearning.InProceedings
+oftheHumanLanguageTechnology
+Conference,pages12–19,SanDiego,CA.
+Shawe-Taylor,JohnandNelloCristianini.
+2004.KernelMethodsforPatternAnalysis.
+CambridgeUniversityPress.
+Singh,Satinder,MichaelKearns,Diane
+Litman,andMarilynWalker.2000a.
+Empiricalevaluationofareinforcement
+learningdialoguesystem.InProceedings
+oftheAAAI,pages645–651,Whistler.
+Singh,Satinder,MichaelKearns,Diane
+Litman,andMarilynWalker.2000b.
+Reinforcementlearningforspoken
+dialoguesystems.InAdvancesinNeural
+InformationProcessingSystems,12:956–962.
+Singh,Satinder,DianeLitman,Michael
+Kearns,andMarilynWalker.2002.
+Optimizingdialoguemanagementwith
+reinforcementlearning:Experiments
+withtheNJFunsystem.Journalof
+ArtiﬁcialIntelligenceResearch(JAIR),
+16:105–133.
+Sutton,RichardandAndrewBarto.1998.
+ReinforcementLearning.MITPress,
+Cambridge,MA.
+510
+Henderson,Lemon,andGeorgila HybridReinforcement/SupervisedLearning
+Walker,M.,J.Aberdeen,J.Boland,E.Bratt,
+J.Garofolo,L.Hirschman,A.Le,S.Lee,
+S.Narayanan,K.Papineni,B.Pellom,
+B.Polifroni,A.Potamianos,P.Prabhu,
+A.Rudnicky,G.Sanders,S.Seneff,
+D.Stallard,andS.Whittaker.2001.
+DARPAcommunicatordialogtravel
+planningsystems:TheJune2000data
+collection.InProceedingsofthe7thEuropean
+ConferenceonSpeechCommunicationand
+Technology(Interspeech–Eurospeech),
+pages1371–1374,Aalborg.
+Walker,M.andR.Passonneau.2001.DATE:
+Adialogueacttaggingschemefor
+evaluationofspokendialoguesystems.
+InProceedingsoftheHumanLanguage
+TechnologyConference,pages1–8,San
+Diego,CA.
+Walker,M.,A.Rudnicky,J.Aberdeen,
+E.Bratt,J.Garofolo,H.Hastie,A.Le,
+B.Pellom,A.Potamianos,R.Passonneau,
+R.Prasad,S.Roukos,G.Sanders,S.Seneff,
+D.Stallard,andS.Whittaker.2002a.
+DARPACommunicatorEvaluation:
+Progressfrom2000to2001.InProceedings
+ofthe7thInternationalConferenceonSpoken
+LanguageProcessing(Interspeech–ICSLP),
+pages273–276,Denver,CO.
+Walker,M.,A.Rudnicky,R.Prasad,
+J.Aberdeen,E.Bratt,J.Garofolo,
+H.Hastie,A.Le,B.Pellom,A.Potamianos,
+R.Passonneau,S.Roukos,G.Sanders,
+S.Seneff,andD.Stallard.2002b.DARPA
+Communicator:Cross-systemresults
+forthe2001evaluation.InProceedingsof
+the7thInternationalConferenceonSpoken
+LanguageProcessing(Interspeech–ICSLP),
+pages269–272,Denver,CO.
+Walker,MarilynA.,JeanneC.Fromer,and
+ShrikanthNarayanan.1998.Learning
+optimaldialoguestrategies:Acasestudy
+ofaspokendialogueagentforemail.
+InProceedingsofthe17thInternational
+ConferenceonComputationalLinguistics,
+pages1345–1351,Montreal.
+Walker,MarilynA.,CandaceA.Kamm,
+andDianeJ.Litman.2000.Towards
+developinggeneralmodelsofusability
+withPARADISE.NaturalLanguage
+Engineering,6(3):363–377.
+Walker,MarilynA.,RebeccaJ.Passonneau,
+andJulieE.Boland.2001.Quantitative
+andqualitativeevaluationofDARPA
+Communicatorspokendialoguesystems.
+InProceedingsofthe39thMeetingofthe
+AssociationforComputationalLinguistics,
+pages515–522,Toulouse.
+Williams,Jason.2007.Amethodfor
+evaluatingandcomparinguser
+simulations:TheCramer-vonMises
+divergence.InProceedingsoftheIEEE
+AutomaticSpeechRecognitionand
+UnderstandingWorkshop,pages508–513,
+Kyoto.
+Williams,Jason,PascalPoupart,and
+SteveYoung.2005a.Factoredpartially
+observableMarkovdecisionprocessesfor
+dialoguemanagement.InProceedingsofthe
+4thWorkshoponKnowledgeandReasoningin
+PracticalDialogSystems,InternationalJoint
+ConferenceonArtiﬁcialIntelligence(IJCAI),
+pages76–82,Edinburgh.
+Williams,Jason,PascalPoupart,andSteve
+Young.2005b.PartiallyobservableMarkov
+decisionprocesseswithcontinuous
+observationsfordialoguemanagement.
+InProceedingsofthe6thSIGdialWorkshop
+onDiscourseandDialogue,pages25–34,
+Lisbon.
+Williams,JasonandSteveYoung.2003.Using
+Wizard-of-Ozsimulationstobootstrap
+reinforcement-learning-baseddialog
+managementsystems.InProceedingsofthe
+4thSIGdialWorkshoponDiscourseand
+Dialogue,pages135–139,Sapporo.
+Williams,JasonandSteveYoung.2005.
+ScalingupPOMDPsfordialog
+management:The“SummaryPOMDP”
+method.InProceedingsoftheIEEE
+AutomaticSpeechRecognitionand
+UnderstandingWorkshop,pages177–182,
+SanJuan,PuertoRico.
+Young,Steve.2000.Probabilisticmethodsin
+spokendialoguesystems.Philosophical
+TransactionsoftheRoyalSociety(SeriesA),
+358(1769):1389–1402.
+511
+
+

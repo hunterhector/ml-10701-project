@@ -1,0 +1,1796 @@
+Recognizing Contextual Polarity:
+An Exploration of Features for Phrase-Level
+Sentiment Analysis
+Theresa Wilson
+∗
+University ofEdinburgh
+JanyceWiebe
+∗∗
+University ofPittsburgh
+Paul Hoffmann
+∗∗
+University ofPittsburgh
+Many approaches to automatic sentiment analysis begin with a large lexicon of words marked
+withtheirpriorpolarity(alsocalledsemanticorientation).However,thecontextualpolarityof
+the phrase in which a particular instance of a word appears may be quite different from the
+word’s prior polarity. Positive words are used in phrases expressing negative sentiments, or
+vice versa. Also, quite often words that are positive or negative out of context are neutral in
+context,meaningtheyarenotevenbeingusedtoexpressasentiment.Thegoalofthisworkisto
+automaticallydistinguishbetweenpriorandcontextualpolarity,withafocusonunderstanding
+which features are important for this task. Because an important aspect of the problem is
+identifying when polar terms are being used in neutral contexts, features for distinguishing
+betweenneutralandpolarinstancesareevaluated,aswellasfeaturesfordistinguishingbetween
+positive and negative contextual polarity. The evaluation includes assessing the performance
+of features across multiple machine learning algorithms. For all learning algorithms except
+one, the combination of all features together gives the best performance. Another facet of the
+evaluationconsidershowthepresenceofneutralinstancesaffectstheperformanceoffeaturesfor
+distinguishingbetweenpositiveandnegativepolarity.Theseexperimentsshowthatthepresence
+of neutral instances greatly degrades the performance of these features, and that perhaps the
+bestwaytoimproveperformanceacrossallpolarityclassesistoimprovethesystem’sabilityto
+identifywhenaninstanceisneutral.
+1.Introduction
+Sentiment analysis is a type of subjectivity analysis (Wiebe 1994) that focuses on iden-
+tifying positive and negative opinions, emotions, and evaluations expressed in natural
+language. It has been a central component in applications ranging from recognizing
+∗ SchoolofInformatics, Edinburgh EH89LW,U.K. E-mail:twilson@inf.ed.ac.uk.
+∗∗ Department ofComputerScience, Pittsburgh,PA15260,USA.E-mail: {wiebe,hoffmanp}@cs.pitt.edu.
+Submissionreceived:14November2006;revisedsubmissionreceived:8March2008;acceptedforpublication:
+16April2008.
+©2009AssociationforComputationalLinguistics
+ComputationalLinguistics Volume35,Number3
+inﬂammatory messages (Spertus 1997), to tracking sentiments over time in online
+discussions (Tong 2001), to classifying positive and negative reviews (Pang, Lee, and
+Vaithyanathan 2002; Turney 2002). Although a great deal of work in sentiment analy-
+sis has targeted documents, applications such as opinion question answering (Yu and
+Hatzivassiloglou 2003; Maybury 2004; Stoyanov, Cardie, and Wiebe 2005) and re-
+view mining to extract opinions about companies and products (Morinaga et al. 2002;
+Nasukawa and Yi 2003) require sentence-level or even phrase-level analysis. For exam-
+ple, if a question answering system is to successfully answer questions about people’s
+opinions, it must be able not only to pinpoint expressions of positive and negative
+sentiments,suchasweﬁndinsentence(1),butalsotodeterminewhenanopinionisnot
+being expressed by a word or phrase that typically does evoke one, such as condemned
+in sentence (2).
+(1)African observers generally approved (positive) of his victory while
+Western governments denounced (negative)it.
+(2)Gavin Elementary School was condemned in April 2004.
+A common approach to sentiment analysis is to use a lexicon with information
+about which words and phrases are positive and which are negative. This lexicon may
+be manually compiled, as is the case with the General Inquirer (Stone et al. 1966), a
+resource often used in sentiment analysis. Alternatively, the information in the lexicon
+may be acquired automatically. Acquiring the polarity of words and phrases is itself
+an active line of research in the sentiment analysis community, pioneered by the
+work of Hatzivassiloglou and McKeown (1997) on predicting the polarity or semantic
+orientation of adjectives. Various techniques have been proposed for learning the
+polarity of words. They include corpus-based techniques, such as using constraints
+on the co-occurrence in conjunctions of words with similar or opposite polarity
+(Hatzivassiloglou and McKeown 1997) and statistical measures of word association
+(Turney and Littman 2003), as well as techniques that exploit information about lexical
+relationships (Kamps and Marx 2002; Kim and Hovy 2004) and glosses (Esuli and
+Sebastiani 2005; Andreevskaia and Bergler 2006) in resources such as WordNet.
+Acquiring the polarity of words and phrases is undeniably important, and there
+are still open research challenges, such as addressing the sentiments of different senses
+of words (Esuli and Sebastiani 2006b; Wiebe and Mihalcea 2006), and so on. However,
+what the polarity of a given word or phrase is when it is used in a particular context is
+another problem entirely. Consider, for example, the underlined positive and negative
+words in the following sentence.
+(3)Philip Clapp, president ofthe National Environment Trust, sums up well
+the general thrust of the reaction of environmental movements: “There is
+no reason at all to believe that the polluters are suddenly going to become
+reasonable.”
+The ﬁrst underlined word is Trust. Although many senses of the word trust express a
+positive sentiment, in this case, the word is not being used to express a sentiment at
+all. It is simply part of an expression referring to an organization that has taken on
+the charge of caring for the environment. The adjective wellis considered positive, and
+indeed it is positive in this context. However, the same is not true for the words reason
+400
+Wilson,Wiebe, and Hoffmann RecognizingContextual Polarity
+and reasonable. Out of context, we would consider both of these words to be positive.
+1
+In context, the word reason is being negated, changing its polarity from positive to
+negative.Thephrasenoreasonatalltobelievechangesthepolarityofthepropositionthat
+follows; because reasonable falls within this proposition, its polarity becomes negative.
+The wordpollutershas a negative connotation, but here in the context of the discussion
+of the article and its position in the sentence, polluters is being used less to express a
+sentiment and more to objectively refer to companies that pollute. To clarify how the
+polarityofpollutersisaffectedbyitssubjectrole,considerthepurelynegativesentiment
+that emerges when it is used as an object:Theyarepolluters.
+We call the polarity that would be listed for a word in a lexicon the word’s prior
+polarity, and we call the polarity of the expression in which a word appears, con-
+sidering the context of the sentence and document, the word’s contextual polarity.
+Although words often do have the same prior and contextual polarity, many times
+a word’s prior and contextual polarities differ. Words with a positive prior polarity
+may have a negative contextual polarity, or vice versa. Quite often words that are
+positive or negative out of context are neutral in context, meaning that they are not
+evenbeingusedtoexpressasentiment.Similarly,wordsthatareneutraloutofcontext,
+neither positive or negative, may combine to create apositive or negative expression in
+context.
+The focus of this work is on the recognition of contextual polarity—in particular,
+disambiguating the contextual polarity of words with positive or negative prior polar-
+ity. We begin by presenting an annotation scheme for marking sentiment expressions
+and their contextual polarity in the Multi-perspective Question Answering (MPQA)
+opinion corpus. We show that, given a set of subjective expressions (identiﬁed from
+the existing annotations in the MPQA corpus), contextual polarity can be annotated
+reliably.
+Usingthecontextualpolarityannotations,weconductexperimentsinautomatically
+distinguishing between prior and contextual polarity. Beginning with a large lexicon of
+clues tagged with prior polarity, we identify the contextual polarity of the instances
+of those clues in the corpus. The process that we use has two steps, ﬁrst classifying
+each clue as being in a neutral or polar phrase, and then disambiguating the contextual
+polarityofthecluesmarkedaspolar.Foreachstepintheprocess,weexperimentwitha
+variety of features and evaluate the performance of the features using several different
+machine learning algorithms.
+Our experiments reveal a number of interesting ﬁndings. First, being able to accu-
+ratelyidentifyneutralcontextualpolarity—whenapositiveornegativeclueisnotbeing
+used to express a sentiment—is an important aspect of the problem. The importance of
+neutralexampleshaspreviouslybeennotedforclassifyingthesentimentofdocuments
+(Koppel and Schler 2006), but ours is the ﬁrst work to explore how neutral instances
+affect classifying the contextual polarity of words and phrases. In particular, we found
+that the performance of features for distinguishing between positive and negative po-
+larity greatly degrades when neutral instances are included in the experiments.
+We also found that achieving the best performance for recognizing contextual po-
+larity requires a wide variety of features. This is particularly true for distinguishing
+1Itisopentoquestionwhetherreasonshouldbe listedaspositive inasentiment lexicon, because themore
+frequent senses ofreasoninvolve intention,notsentiment. However,any existing sentiment lexiconone
+wouldstartwithwillhave somenoise and errors.The task inthis articleis todisambiguateinstances of
+the entriesin agiven sentiment lexicon.
+401
+ComputationalLinguistics Volume35,Number3
+between neutral and polar instances. Although some features help to increase polar or
+neutral recall or precision, it is only the combination of features together that achieves
+signiﬁcantimprovementsinaccuracyoverthebaselines.Ourexperimentsshowthatfor
+distinguishingbetweenpositiveandnegativeinstances,featurescapturingnegationare
+clearly the most important. However, there is more to the story than simple negation.
+Features that capture relationships between instances of clues also perform well, indi-
+catingthatidentifyingfeaturesthatrepresentmorecomplexinterdependenciesbetween
+sentiment clues may be an important avenue for future research.
+The remainder of this article is organized as follows. Section 2 gives an overview
+of some of the things that can inﬂuence contextual polarity. In Section 3, we describe
+our corpus and present our annotation scheme and inter-annotator agreement study
+for marking contextual polarity. Sections 4 and 5 describe the lexicon used in our
+experiments and how the contextual polarity annotations are used to determine the
+gold-standardtagsforinstancesfromthelexicon.InSection6,weconsiderwhatkindof
+performancecanbeexpectedfromasimple,prior-polarityclassiﬁer.Section7describes
+the features that we use for recognizing contextual polarity, and our experiments
+and results are presented in Section 8. In Section 9we discuss related work, and we
+conclude in Section 10.
+2.Polarity Inﬂuencers
+Phrase-level sentiment analysis is not a simple problem. Many things besides negation
+can inﬂuence contextual polarity, and even negation is not always straightforward.
+Negation may be local (e.g.,notgood), or involve longer-distance dependencies such as
+thenegationoftheproposition(e.g.,doesnotlookverygood)orthenegationofthesubject
+(e.g.,noonethinksthatit’sgood).Inaddition,certainphrasesthatcontainnegationwords
+intensifyratherthanchangepolarity(e.g.,notonlygoodbutamazing).Contextualpolarity
+mayalsobeinﬂuencedbymodality:whetherthepropositionisassertedtobereal(realis)
+or not real (irrealis)(no reason at all to believe is irrealis, for example); word sense (e.g.,
+EnvironmentalTrust vs. Hehaswonthepeople’strust); the syntactic role of a word in the
+sentence: whether the word is the subject or object of a copular verb (considerpolluters
+are versus theyarepolluters); and diminishers such as little (e.g., littletruth, littlethreat).
+PolanyiandZaenen(2004)giveadetaileddiscussionofmanyofthesetypesofpolarity
+inﬂuencers.Manyofthesecontextualpolarityinﬂuencersarerepresentedasfeaturesin
+our experiments.
+Contextual polarity may also be inﬂuenced by the domain or topic. For example,
+the word cool is positive if used to describe a car, but it is negative if it is used to
+describesomeone’sdemeanor.Similarly,awordsuchasfeverisunlikelytobeexpressing
+a sentiment when used in a medical context. We use one feature in our experiments to
+represent the topic of the document.
+Another important aspect of contextual polarity is the perspective of the person
+who is expressing the sentiment. For example, consider the phrase failed to defeat
+in the sentence Israel failed to defeat Hezbollah. From the perspective of Israel, failed
+to defeat is negative. From the perspective of Hezbollah, failed to defeat is positive.
+Therefore, the contextual polarity of this phrase ultimately depends on the perspec-
+tive of who is expressing the sentiment. Although automatically detecting this kind
+of pragmatic inﬂuence on polarity is beyond the scope of this work, this as well as
+the other types of polarity inﬂuencers all are considered when annotating contextual
+polarity.
+402
+Wilson,Wiebe, and Hoffmann RecognizingContextual Polarity
+3.Data and Annotations
+For the experiments in this work, we need a corpus that is annotated comprehensively
+for sentiment expressions and their contextual polarity. Rather than building a corpus
+from scratch, we chose to add contextual polarity annotations to the existing annota-
+tions in the Multi-perspective Question Answering (MPQA) opinion corpus
+2
+(Wiebe,
+Wilson, and Cardie 2005).
+The MPQA corpus is a collection of English-language versions of news documents
+from the world press. The documents contain detailed, expression-level annotations
+of attributions and private states (Quirk et al. 1985). Private states are mental and
+emotional states; they include beliefs, speculations, intentions, and sentiments, among
+others. Although sentiments are not distinguished from other types of private states
+in the existing annotations, they are a subset of what already is annotated. This makes
+the annotations in the MPQA corpus a good starting point for annotating sentiment
+expressions and their contextual polarity.
+3.1 Annotation
+Scheme
+When developing our annotation scheme for sentiment expressions and contextual
+polarity,therewerethreemainquestionstoaddress.First,whichoftheexistingannota-
+tions in the MPQA corpus have the possibility ofbeing sentiment expressions? Second,
+which of the possible sentiment expressions actually are expressing sentiments? Third,
+what coding scheme should be used for marking contextual polarity?
+TheMPQAannotationschemehasfourtypesofannotations:objectivespeechevent
+frames, two types of private state frames, and agent frames that are used for marking
+speakers of speech events and experiencers of private states. A full description of
+the MPQA annotation scheme and an agreement study evaluating key aspects of the
+scheme are found in Wiebe, Wilson, and Cardie (2005).
+Thetwotypesofprivatestateframes, direct subjective frames and expressive sub-
+jective element frames,arewherewewillﬁndsentimentexpressions.Directsubjective
+frames are used to mark direct references to private states as well as speech events in
+whichprivatestatesarebeingexpressed.Forexample,inthefollowingsentences,fears,
+praised,andsaidare all marked as direct subjective annotations.
+(4) TheU.S. fears a spill-over of the anti-terrorist campaign.
+(5) Italian senator Renzo Gubert praised the Chinese government’s efforts.
+(6) “The report isfull of absurdities,” he said.
+The word fears directly refers to a private state; praised refers to a speech event
+in which a private state is being expressed; and said is marked as direct subjective
+because a private state is being expressed within the speech event referred to by
+said. Expressive subjective elements indirectly express private states through the way
+something is described or through a particular wording. In example (6), the phrase
+fullofabsurditiesisanexpressivesubjectiveelement. Subjectivity (Banﬁeld1982;Wiebe
+2 Availableathttp://nrrc.mitre.org/NRRC/publications.htm.
+403
+ComputationalLinguistics Volume35,Number3
+1994) refers to the linguistic expression of private states, hence the names for the two
+types of private state annotations.
+All expressive subjective elements are included in the set of annotations that have
+thepossibilityofbeingsentimentexpressions,butthedirectsubjectiveframestoinclude
+inthissetcanbepareddownfurther.Directsubjectiveframeshaveanattribute, expres-
+sion intensity, that captures the contribution of the annotated word or phrase to the
+overall intensity of the private state being expressed. Expression intensity ranges from
+neutral to high. In the given sentences, fears and praised have an expression intensity of
+medium, andsaidhas an expression intensity of neutral. A neutral expression intensity
+indicates that the direct subjective phrase itself is not contributing to the expression
+of the private state. If this is the case, then the direct subjective phrase cannot be
+a sentiment expression. Thus, only direct subjective annotations with a non-neutral
+expression intensity are included in the set of annotations that have the possibility of
+being sentiment expressions. We call this set of annotations, the union of the expres-
+sive subjective elements and the direct subjective frames with a non-neutral intensity,
+the subjective expressions in the corpus; these are the annotations we will mark for
+contextual polarity.
+Table 1 gives a sample of subjective expressions marked in the MPQA corpus.
+Although many of the words and phrases express what we typically think of as
+sentiments, others do not, for example, believes, very deﬁnitely, and unconditionally and
+withoutdelay.
+Now that we have identiﬁed which annotations have the possibility of being sen-
+timent expressions, the next question is which of these annotated words and phrases
+are actually expressing sentiments. We deﬁne a sentiment as a positive or negative
+emotion,evaluation,orstance.OntheleftofTable2areexamplesofpositivesentiments;
+examples of negative sentiments are on the right.
+Table 1
+Sampleof subjectiveexpressions fromtheMPQAcorpus.
+victoryofjustice and freedom such a disadvantageoussituation
+growntremendously must
+such animosity not trueat all
+throttlingthevoice imperativeforharmonioussociety
+disdainand wrath glorious
+so exciting disastrousconsequences
+could not havewished forabetter situation believes
+freakshow theembodimentof two-sidedjustice
+if you’renot withus, you’reagainst us appalling
+vehementlydenied verydeﬁnitely
+everythinggood and nice onceand forall
+undernocircumstances shamefulmum
+most fraudulent,terroristand extremist enthusiasticallyasked
+numberonedemocracy hate
+seems tothink grossmisstatement
+indulginginblood-shedand theirlunaticism surprised,toputit mildly
+takejustice topre-historictimes unconditionallyandwithoutdelay
+so conservativethatit makesPat Buchanan lookvegetarian
+thosedigginggravesforothers,get engravedthemselves
+lost thereputationof commitmenttoprinciplesof humanjustice
+ultimatelythedemontheyhavereared willeat uptheir ownvitals
+404
+Wilson,Wiebe, and Hoffmann RecognizingContextual Polarity
+Table 2
+Examplesofpositiveand negativesentiments.
+Positivesentiments Negativesentiments
+Emotion I’mhappy I’m sad
+Evaluation Great idea! Bad idea!
+Stance Shesupportsthebill She’s against thebill
+The ﬁnal issue to address is the actual annotation scheme for marking contextual
+polarity. The scheme we developed has four tags: positive, negative, both,andneutral.
+The positive tag is used to mark positive sentiments. The negative tagisusedtomark
+negativesentiments.Thebothtagisappliedtoexpressionsinwhichbothapositiveand
+negativesentimentarebeingexpressed.Subjectiveexpressionswithpositive,negative,or
+both tags are our sentiment expressions. The neutral tag is used for all other subjective
+expressions, including emotions, evaluations, and stances that are neither positive or
+negative. Instructions for the contextual-polarity annotation scheme are available at
+http://www.cs.pitt.edu/mpqa/databaserelease/polarityCodingInstructions.txt.
+Followingareexamplesfromthecorpusofeachofthedifferentcontextual-polarity
+annotations.Eachunderlinedwordorphraseisasubjectiveexpressionthatwasmarked
+in the original MPQA annotations.
+3
+In bold following each subjective expression is the
+contextual polarity with which itwas annotated.
+(7) Thousands of coup supporters celebrated(positive) overnight, waving
+ﬂags, blowing whistles ...
+(8) Thecriteria set byRice are the following: the three countries in question are
+repressive (negative) and grave human rights violators (negative)...
+(9) Besides, politicians refer to good and evil (both) only for purposes of
+intimidation and exaggeration.
+(10) Jerome says the hospital feels (neutral) no different than ahospital in the
+states.
+As a ﬁnal note on the annotation scheme, annotators are asked to judge the con-
+textual polarity of the sentiment that is ultimately being conveyed by the subjective
+expression, that is, once the sentence has been fully interpreted. Thus, the subjective
+expression, they have not succeeded, and will never succeed, is marked as positive in the
+following sentence:
+(11) Theyhave not succeeded, and will never succeed (positive), in breaking
+the will ofthis valiant people.
+Thereasoning is that breaking the will of avaliant people is negative, so to not succeed
+in breaking their will is positive.
+3 Somesentences
+contain additionalsubjective expressions thatarenotunderlined as examples.
+405
+ComputationalLinguistics Volume35,Number3
+Table 3
+Contingencytableforcontextualpolarityagreement.
+Neutral Positive Negative Both Total
+Neutral 123 14 24 0 161
+Positive 16 73 5296
+Negative 14 2 167 1 184
+Both 0 3 0 3 6
+Total 153 92 196 6 447
+Table 4
+Contingencytableforcontextualpolarityagreement,borderlinecases removed.
+Neutral Positive Negative Both Total
+Neutral 113 7 8 0 128
+Positive 9 59 3071
+Negative 5 2 156 1 164
+Both 0 2 0 2 4
+Total 127 70 167 3 367
+3.2 Agreement
+Study
+To measure the reliability of the polarity annotation scheme, we conducted an agree-
+ment study with two annotators
+4
+using 10 documents from the MPQA corpus. The 10
+documents contain 447 subjective expressions. Table 3 shows the contingency table for
+the two annotators’ judgments. Overall agreement is 82%, with akappa value of 0.72.
+As part of the annotation scheme, annotators are asked to judge how certain they
+are in their polarity tags. For 18% of the subjective expressions, at least one annotator
+usedtheuncertaintagwhenmarkingpolarity.Ifweconsiderthesecasestobeborderline
+andexcludethemfromthestudy,percentagreementincreasesto90%andkapparisesto
+0.84.Table4showstherevisedcontingencytablewiththeuncertaincasesremoved.This
+showsthatannotatoragreementisespeciallyhighwhenbothannotatorsarecertain,and
+that annotators are certain for over 80% of their tags.
+Note that all annotations are included in the experiments.
+3.3 Contextual
+Polarity Annotations
+In total, all 19,962 subjective expressions in the 535 documents (11,112 sentences) of the
+MPQA corpus were annotated with their contextual polarity as just described.
+5
+Three
+annotators carried out the task: the two who participated in the annotation study and
+a third who was trained later.
+6
+Table 5 gives the distribution of the contextual polarity
+tags.Lookingatthistable,weseethatasmallmajorityofsubjectiveexpressions(54.6%)
+4 Bothannotatorsareauthorsofthisarticle.
+5 Therevised
+versionofthe MPQAcorpuswiththe contextualpolarityannotationsisavailableat
+http://www.cs.pitt.edu/mpqa.
+6 Thethirdannotatorreceived
+training untilherreliabilityofperformanceonthe task wascomparableto
+thatofthe ﬁrsttwoannotatorswhoparticipatedinthe study.
+406
+Wilson,Wiebe, and Hoffmann RecognizingContextual Polarity
+Table 5
+Distributionof contextualpolaritytags.
+Neutral Positive Negative Both Total
+9,057 3,311 7,294 299 19,961
+45.4% 16.6% 36.5% 1.5% 100%
+are expressing apositive,negative,orboth(positive and negative) sentiment. We refer to
+these expressions as polar in context. Many of the subjective expressions are neutral
+and do not express a sentiment. This suggests that, although sentiment is a major type
+of subjectivity, distinguishing other prominent types of subjectivity will be important
+forfutureworkinsubjectivityanalysis.
+As many NLP applications operate at the sentence level, one important issue to
+consider is the distribution of sentences with respect to the subjective expressions
+they contain. In the 11,112 sentences in the MPQA corpus, 28% contain no subjective
+expressions,24%containonlyone,and48%containtwoormore.Ofthe5,304sentences
+containing two or more subjective expressions, 17% contain mixtures of positive and
+negative expressions, and 61% contain mixtures of polar (positive/negative/both) and
+neutral subjective expressions.
+4.Prior-Polarity Subjectivity Lexicon
+For the experiments in this article, we use a lexicon of over 8,000 subjectivity clues.
+Subjectivity clues are words and phrases that may be used to express private states. In
+other words, subjectivity clues have subjective usages, though they may have objective
+usages as well. For this work, only single-word clues are used.
+To compile the lexicon, we began with the list of subjectivity clues from Riloff and
+Wiebe(2003),whichincludesthepositiveandnegativeadjectivesfromHatzivassiloglou
+and McKeown (1997). The words in this list were grouped in previous work according
+to their reliability as subjectivity clues. Words that are subjective in most contexts are
+considered strong subjective clues, indicated by the strongsubj tag. Words that may
+only have certain subjective usages are considered weak subjective clues, indicated by
+theweaksubjtag.
+Weexpandedthelistusingadictionaryandathesaurus,andaddedwordsfromthe
+GeneralInquirerpositiveandnegativewordlists(Stoneetal.1966)thatwejudgedtobe
+potentially subjective.
+7
+We also gave the new words strongsubj and weaksubj reliability
+tags. The ﬁnal lexicon has a coverage of 67% of subjective expressions in the MPQA
+corpus, where coverage is the percentage of subjective expressions containing one or
+more instances of clues from the lexicon. The coverage of just sentiment expressions is
+even higher: 75%.
+The next step was to tag the clues in the lexicon with their prior polarity: positive,
+negative, both, or neutral. A word in the lexicon is tagged as positive if out of context
+it seems to evoke something positive, and negative if it seems to evoke something
+negative. If a word has both positive and negative meanings, it is tagged with the
+polarity that seems the most common. A word is tagged asbothif it is at the same time
+7 In
+the end, about70%ofthe wordsfromthe GeneralInquirer positivewordlistand 80%ofthe words
+fromthenegative wordlistwereincludedin the subjectivitylexicon.
+407
+ComputationalLinguistics Volume35,Number3
+both positive and negative. For example, the word bittersweet evokes something both
+positive and negative. Words like brag are also tagged as both, because the one who is
+bragging is expressing something positive, yet at the same time describing someone as
+braggingisexpressinganegativeevaluationofthatperson.Awordistaggedasneutral
+if itdoes not evoke anything positive or negative.
+For words that came from positive and negative word lists (Stone et al. 1966;
+Hatzivassiloglou and McKeown 1997), we largely retained their original polarity.
+However, we did change the polarity of a word if we strongly disagreed with its
+original class.
+8
+For example, the word apocalypse is listed as positive in the General
+Inquirer; we changed its prior polarity to negative for our lexicon.
+By far, the majority of clues in the lexicon (92.8%) are marked as having either
+positive (33.1%) or negative (59.7%) prior polarity. Only a small number of clues (0.3%)
+are marked as having both positive and negative polarity. We refer to the set of clues
+marked as positive, negative,orboth as sentiment clues. A total of 6.9% of the clues in
+the lexicon are marked as neutral. Examples of neutral clues are verbs such as feel,look,
+and think, and intensiﬁers such as deeply, entirely,andpractically. Although the neutral
+clues make up a small proportion of the total words in the lexicon, we retain them for
+ourlaterexperimentsinrecognizingcontextualpolaritybecausemanyofthemaregood
+clues that a sentiment is being expressed (e.g., feelsslighted, feelssatisﬁed, lookkindlyon,
+lookforwardto). Including themincreases the coverage ofthe system.
+Attheendoftheprevioussection,weconsideredthedistributionofsentencesinthe
+MPQA corpus with respect to the subjective expressions they contain. It is interesting
+to compare that distribution with the distribution of sentences with respect to the
+instances they contain of clues from the lexicon. We ﬁnd that there are more sentences
+with two or more clue instances (62%) than sentences with two or more subjective
+expressions (48%). More importantly, many more sentences have mixtures of positive
+and negative clue instances than actually have mixtures of positive and negative sub-
+jective expressions. Only 880 sentences have a mixture of both positive and negative
+subjectiveexpressions,whereas3,234sentenceshaveamixtureofpositiveandnegative
+clueinstances.Thus,alargenumberofpositiveandnegativeinstancesareeitherneutral
+in context, or they are combining to form more complex polarity expressions. Either
+way,thisprovidesstrongevidenceoftheneedtobeabletodisambiguatethecontextual
+polarity of subjectivity and sentiment clues.
+5.Deﬁnition of the Gold Standard
+In the experiments described in the following sections, the goal is to classify the con-
+textual polarity of the expressions that contain instances of the subjectivity clues in our
+lexicon.However,determiningwhichclueinstancesarepartofthesameexpressionand
+identifyingexpressionboundariesarenotthefocusofthiswork.Thus,insteadoftrying
+to identify and label each expression, in the following experiments, each clue instance
+is labeled individually as to its contextual polarity.
+We deﬁne the gold-standard contextual polarity of a clue instance in terms of the
+manual annotations (Section 3) as follows. If a clue instance is not in a subjective
+expression (and therefore not in a sentiment expression), its gold class is neutral.If
+a clue instance appears in just one subjective expression or in multiple subjective
+8 Wedecided
+ona differentpolarityforabout80ofthe wordsinourlexiconthatappeared onother
+positiveandnegative wordlists.
+408
+Wilson,Wiebe, and Hoffmann RecognizingContextual Polarity
+expressions with the same contextual polarity, its gold class is the contextual polarity
+of the subjective expression(s). If a clue instance appears in a mixture of negative and
+neutralsubjectiveexpressions,itsgoldclassisnegative;ifitisinamixtureofpositiveand
+neutralsubjectiveexpressions,itsgoldclassispositive.Finally,ifaclueinstanceappears
+in at least one positive and one negative subjective expression (or in a subjective ex-
+pressionmarkedasboth),thenitsgoldclassisboth.Aclueinstancecanappearinmore
+than one subjective expression because in the MPQA annotation scheme, it is possible
+for direct subjective frames and expressive subjective elements frames to overlap.
+6.A Prior-Polarity Classiﬁer
+Before delving into the task of recognizing contextual polarity, an important question
+to address is how useful prior polarity alone is for identifying contextual polarity. To
+answer this question, we create a classiﬁer that simply assumes the contextual polarity
+of a clue instance is the same as the clue’s prior polarity. We explore this classiﬁer’s
+performanceonasmallamountofdevelopmentdata,whichisnotpartofthedataused
+in the subsequent experiments.
+This simple classiﬁer has an accuracy of 48%. From the confusion matrix given in
+Table6,we seethat 76%oftheerrors result fromwords with non-neutral prior polarity
+appearinginphraseswithneutralcontextualpolarity.Only12%oftheerrorsresultfrom
+wordswithneutralpriorpolarityappearinginexpressionswithnon-neutralcontextual
+polarity, and only 11% of the errors come from words with a positive or negative prior
+polarity appearing in expressions with the opposite contextual polarity. Table 6 also
+shows that positive clues tend to be used in negative expressions far more often than
+negative clues tend to be used in positive expressions.
+Given that by far the largest number of errors come from clues with positive,
+negative,orboth prior polarity appearing in neutral contexts, we were motivated to try
+a two-step approach to the problem of sentiment classiﬁcation. The ﬁrst step, Neutral–
+Polar Classiﬁcation, tries to determine if an instance is neutral or polar in context. The
+second step, Polarity Classiﬁcation, takes all instances that step one classiﬁed as polar,
+andtriestodisambiguatetheircontextualpolarity.Thistwo-stepapproachisillustrated
+in Figure 1.
+7.Features
+The features used in our experiments were motivated both by the literature and by
+exploration of the contextual-polarity annotations in our development data. A number
+Table 6
+Confusionmatrixfortheprior-polarityclassiﬁer onthedevelopment set.
+Prior-Polarity Classiﬁer
+Neutral Positive Negative Both Total
+Neutral 798 784 698 4 2284
+Gold Positive 81 371 40 0 492
+Class Negative 149181 622 0952
+Both 4 11 13 5 33
+Total 1032 1347 1373 9 3761
+409
+ComputationalLinguistics Volume35,Number3
+Figure 1
+Two-step approachtorecognizingcontextualpolarity.
+of features were inspired by the paper on contextual-polarity inﬂuencers by Polanyi
+and Zaenan (2004). Other features are those that have been found useful in the past
+for recognizing subjective sentences (Wiebe, Bruce, and O’Hara 1999; Wiebe and Riloff
+2005).
+7.1 Features
+for Neutral–Polar Classiﬁcation
+For distinguishing between neutral and polar instances, we use the features listed in
+Table 7. For ease of description, we group the features into six sets: word features, gen-
+eral modiﬁcation features, polarity modiﬁcation features, structure features, sentence
+features, and one document feature.
+Word Features In addition to the word token (the token of the clue instance being
+classiﬁed),thewordfeaturesincludethepartsofspeechofthepreviousword,theword
+itself, and the next word. The prior polarity and reliability class features represent those
+pieces ofinformation about the clue which are taken from the lexicon.
+General Modiﬁcation Features These are binary features that capture different
+types of relationships involving the clue instance.
+Theﬁrstfourfeaturesinvolverelationshipswiththewordimmediatelybeforeoraf-
+tertheclueinstance.Theprecededbyadjectivefeatureistrueiftheclueinstanceisanoun
+preceded by an adjective. The preceded by adverb feature is true if the preceding word
+is an adverb other than not.Thepreceded by intensiﬁer feature is true if the preceding
+wordisanintensiﬁer,andtheselfintensiﬁerfeatureistrueiftheclueinstanceitselfisan
+intensiﬁer. A word is considered to be an intensiﬁer if it appears in a list of intensiﬁers
+and if it precedes a word of the appropriate part of speech (e.g., an intensiﬁer adjective
+mustcomebeforeanoun).ThelistofintensiﬁersisacompilationofthoselistedinQuirk
+et al. (1985), intensiﬁers identiﬁed from existing entries in the subjectivity lexicon, and
+intensiﬁers identiﬁed during explorations of the development data.
+The modiﬁes/modifedby features involve the dependency parse tree of the sentence,
+obtained by ﬁrst parsing the sentence (Collins 1997) and then converting the tree into
+its dependency representation (Xia and Palmer 2001). In a dependency representation,
+every node in the tree structure is a surface word (i.e., there are no abstract nodes such
+asNPorVP).Theparentwordiscalledthe head,anditschildrenareits modiﬁers.The
+410
+Wilson,Wiebe, and Hoffmann RecognizingContextual Polarity
+Table 7
+Featuresforneutral–polarclassiﬁcation.
+Word Features
+wordtoken
+wordpartof speech
+previouswordpart ofspeech
+next wordpartof speech
+priorpolarity:positive,negative,both,neutral
+reliabilityclass:strongsubjorweaksubj
+General ModiﬁcationFeatures
+precededbyadjective:binary
+precededbyadverb(otherthannot):binary
+precededbyintensiﬁer:binary
+self intensiﬁer:binary
+modiﬁesstrongsubj:binary
+modiﬁesweaksubj:binary
+modiﬁedbystrongsubj:binary
+modiﬁedbyweaksubj:binary
+PolarityModiﬁcationFeatures
+modiﬁespolarity:positive,negative,neutral,both,notmod
+modiﬁedbypolarity:positive,negative,neutral,both,notmod
+conjunctionpolarity:positive,negative,neutral,both,notmod
+StructureFeatures
+insubject:binary
+incopular:binary
+inpassive:binary
+SentenceFeatures
+strongsubjclues in currentsentence:0,1,2,3(ormore)
+strongsubjclues in previoussentence:0,1,2,3(ormore)
+strongsubjclues in next sentence:0,1,2,3(ormore)
+weaksubjclues incurrent sentence:0,1,2,3(ormore)
+weaksubjclues inprevioussentence:0,1,2,3(ormore)
+weaksubjclues innext sentence:0,1,2,3(ormore)
+adjectivesin sentence:0,1,2,3(ormore)
+adverbsinsentence (otherthannot):0,1,2,3(ormore)
+cardinalnumberin sentence:binary
+pronounin sentence:binary
+modalinsentence (otherthanwill):binary
+DocumentFeature
+documenttopic/domain
+edge between a parent and a child speciﬁes the grammatical relationship between the
+twowords.Figure2showsanexampleofadependencyparsetree.Instancesofcluesin
+the tree are marked with the clue’s prior polarity and reliability class fromthe lexicon.
+For each clue instance, the modiﬁes/modifed by features capture whether there are
+adj, mod,orvmod relationships between the clue instance and any other instances from
+the lexicon. Speciﬁcally, the modiﬁes strongsubj feature is true if the clue instance and
+its parent share an adj, mod,orvmod relationship, and if its parent is an instance of
+a strongsubj clue from the lexicon. The modiﬁes weaksubj feature is the same, except
+that it looks in the parent for an instance of a weaksubj clue. The modiﬁed by strongsubj
+411
+ComputationalLinguistics Volume35,Number3
+Figure 2
+ThedependencytreeforthesentenceThehumanrightsreportposesasubstantialchallengetothe
+U.S.interpretationofgoodandevil.Priorpolarityandreliabilityclass aremarkedin parentheses
+forwordsthat matchclues fromthelexicon.
+feature is true for a clue instance if one of its children is an instance of a strongsubj
+clue, and if the clue instance and its child share an adj, mod,orvmod relationship. The
+modiﬁed by weaksubj feature is the same, except that it looks for instances of weaksubj
+clues in the children. Although the adj and vmod relationships are typically local, the
+modrelationship involves longer-distance as well as local dependencies. Figure 2 helps
+to illustrate these features. The modiﬁes weaksubj featureistrueforsubstantial, because
+substantial modiﬁes challenge, which is an instance of a weaksubj clue. For rights, the
+modiﬁesweaksubjfeature is false, becauserightsmodiﬁesreport,which is not an instance
+of aweaksubjclue. Themodiﬁedbyweaksubjfeature is false forsubstantial,because it has
+no modiﬁers that are instances of weaksubj clues. For challenge, the modiﬁedbyweaksubj
+feature is true because it is being modiﬁed by substantial, which is an instance of a
+weaksubjclue.
+Polarity Modiﬁcation Features The modiﬁes polarity, modiﬁed by polarity,andconj
+polarityfeaturescapturespeciﬁcrelationshipsbetweentheclueinstanceandothersenti-
+mentcluesitmayberelatedto.Iftheclueinstanceanditsparentinthedependencytree
+share anobj,adj,mod,orvmodrelationship, themodiﬁespolarityfeature issettotheprior
+polarity of the parent. If the parent is not in the prior-polarity lexicon, its prior polarity
+is considered neutral. If the clue instance is at the root of the tree and has no parent,
+the value of the feature is notmod.Themodiﬁed by polarity feature is similar, looking
+foradj,mod,andvmodrelationshipsandothersentimentcluesinthechildrenoftheclue
+instance.Theconjpolarityfeaturedeterminesiftheclueinstanceisinaconjunction.Ifso,
+thevalueofthisfeatureisitssibling’spriorpolarity.Asbefore,ifthesiblingisnotinthe
+412
+Wilson,Wiebe, and Hoffmann RecognizingContextual Polarity
+lexicon, its prior polarity isneutral. If the clue instance is not in a conjunction, the value
+forthisfeatureisnotmod.Figure2alsohelpstoillustratethesemodiﬁcationfeatures.The
+word substantial with positive prior polarity modiﬁes the word challenge with negative
+prior polarity. Therefore the modiﬁes polarity feature is negative for substantial,andthe
+modiﬁedbypolarityfeature is positive forchallenge. The wordsgoodandevilare in a con-
+junction together; thus theconjpolarityfeature is negative forgoodand positive forevil.
+Structure Features These are binary features that are determined by starting with
+the clue instance and climbing up the dependency parse tree toward the root, looking
+for particular relationships, words, or patterns. The insubject featureistrueifweﬁnd
+a subj relationship on the path to the root. The in copular featureistrueifin subject is
+false and if a node along the path is both a main verb and a copular verb. Theinpassive
+feature is true if apassive verb pattern is found on the climb.
+The insubject and incopular features were motivated by the intuition that the syn-
+tacticroleofawordmayinﬂuencewhetherawordisbeingusedtoexpressasentiment.
+For example, consider the wordpollutersin each of the following two sentences.
+(12) Under the application shield, polluters are allowed to operate ifthey have
+a permit.
+(13) “The big-city folks are pointing at the farmers and saying you are
+polluters ...”
+In the ﬁrst sentence, polluters is simply being used as a referring expression. In the
+second sentence, polluters is clearly being used to express a negative evaluation of the
+farmers.ThemotivationfortheinpassivefeaturewaspreviousworkbyRiloffandWiebe
+(2003),whofoundthatdifferentwordsaremoreorlesslikelytobesubjectivedepending
+on whether they are in the active or passive.
+Sentence Features These are features that previously were found useful for
+sentence-level subjectivity classiﬁcation (Wiebe, Bruce, and O’Hara 1999; Wiebe and
+Riloff 2005). They include counts of strongsubj and weaksubj clue instances in the cur-
+rent, previous and next sentences, counts of adjectives and adverbs other than not in
+the current sentence, and binary features to indicate whether the sentence contains a
+pronoun, a cardinal number, and a modal other thanwill.
+Document Feature Thereisonedocumentfeaturerepresentingthetopicordomain
+of the document. The motivation for this feature is that whether or not a word is
+expressing a sentiment or even a private state in general may depend on the subject
+of the discourse. For example, the words fever and sufferer may express a negative
+sentiment in certain contexts, but probably not in a health or medical context, as is the
+case in the following sentence.
+(14) The disease can be contracted if aperson is bitten byacertain tickor ifa
+person comes into contact with the blood ofa congo fever sufferer.
+In the creation of the MPQA corpus, about two-thirds of the documents were
+selectedtobeononeofthe10topicslistedinTable8.Thedocumentsforeachtopicwere
+identiﬁed by human searches and by an information retrieval system. The remaining
+documents were semi-randomly selected from a very large pool of documents from
+the world press. In the corpus, these documents are listed with the topic miscellaneous.
+Rather than leaving these documents unlabeled, we chose to label them using the
+413
+ComputationalLinguistics Volume35,Number3
+Table 8
+Topics intheMPQA corpus.
+Topic Description
+argentina Economiccollapse inArgentina
+axisofevil U.S.President’sStateof theUnionAddress
+guantanamo DetentionofprisonersinGuantanamoBay
+humanrights U.S.StateDepartmentHumanRightsReport
+kyoto KyotoProtocolratiﬁcation
+settlements Israeli settlementsin Gaza andtheWest Bank
+space Space missionsof variouscountries
+taiwan Relationship between Taiwan and China
+venezuela Presidentialcoup in Venezuela
+zimbabwe Presidentialelection inZimbabwe
+following general domain categories: economics, general politics, health, report events,
+and war and terrorism.
+7.2 Features
+for Polarity Classiﬁcation
+Table 9lists the features that we use for step two, polarity classiﬁcation. Word token,
+wordpriorpolarity, and the polarity-modiﬁcation features are the same as described for
+neutral–polar classiﬁcation.
+We use two features to capture two different types of negation. Thenegatedfeature
+is a binary feature that is used to capture more local negations: Its value is true if a
+negation word or phrase is found within the four words preceding the clue instance,
+and if the negation word is not also in a phrase that acts as an intensiﬁer rather than a
+negator.Examplesofphrasesthatintensifyratherthannegatearenotonlyandnothingif
+not.Thenegatedsubjectfeature captures a longer-distance type of negation. This feature
+Table 9
+Featuresfor polarityclassiﬁcation.
+Word Features
+wordtoken
+wordpriorpolarity:positive,negative,both,neutral
+Negation Features
+negated:binary
+negated subject:binary
+PolarityModiﬁcationFeatures
+modiﬁespolarity:positive,negative,neutral,both,notmod
+modiﬁedbypolarity:positive,negative,neutral,both,notmod
+conjpolarity:positive,negative,neutral,both,notmod
+PolarityShifters
+generalpolarityshifter:binary
+negativepolarityshifter:binary
+positivepolarityshifter:binary
+414
+Wilson,Wiebe, and Hoffmann RecognizingContextual Polarity
+is true if the subject of the clause containing the clue instance is negated. For example,
+thenegatedsubjectfeatureistrueforsupportin the following sentence.
+(15) No politically prudent Israeli could support either of them.
+The last three polarity features look in a window of four words before the clue
+instance, searching for the presence of particular types of polarity inﬂuencers. Gen-
+eral polarity shifters reverse polarity (e.g., little truth, little threat). Negative polarity
+shifters typically make the polarity of an expression negative (e.g.,lackof understand-
+ing). Positive polarity shifters typically make the polarity of an expression positive
+(e.g., abate the damage). The polarity inﬂuencers that we used were identiﬁed through
+explorations of the development data.
+8.Experiments in Recognizing Contextual Polarity
+We have two primary goals with our experiments in recognizing contextual polarity.
+The ﬁrst is to evaluate the features described in Section 7 as to their usefulness for
+thistask.Thesecondistoinvestigatetheimportanceofrecognizingneutralinstances—
+recognizing when a sentiment clue is not being used to express a sentiment—for classi-
+fyingcontextual polarity.
+To evaluate features, we investigate their performance, both together and sep-
+arately, across several different learning algorithms. Varying the learning algorithm
+allows us to verify that the features are robust and that their performance is not the
+artifact of a particular algorithm. We experiment with four different types of machine
+learning: boosting, memory-based learning, rule learning, and support vector learning.
+For boosting, we use BoosTexter (Schapire and Singer 2000) AdaBoost.MH. For rule
+learning, we use Ripper (Cohen 1996). For memory-based learning, we use TiMBL
+(Daelemans et al. 2003b) IB1 (k-nearest neighbor). For support vector learning, we
+use SVM-light and SVM-multiclass (Joachims 1999). SVM-light is used for the experi-
+mentsinvolvingbinaryclassiﬁcation(neutral–polarclassiﬁcation),andSVM-multiclass
+isusedforexperimentswithmorethantwoclasses.Thesemachinelearningalgorithms
+werechosenbecausetheyhavebeenusedsuccessfullyforanumberofnaturallanguage
+processing tasks, and they represent several different types of learning.
+For all of the classiﬁcation algorithms except for SVM, the features for a clue in-
+stance are represented as they are presented in Section 7. For SVM, the representations
+for numeric and discrete-valued features are changed. Numeric features, such as the
+count of strongsubj clue instances in a sentence, are scaled to range between 0 and 1.
+Discrete-valued features, such as thereliabilityclassfeature, are converted into multiple
+binary features. For example, the reliability class feature is represented by two binary
+features: one for whether the clue instance is a strongsubj clue and one for whether the
+clue instance is aweaksubjclue.
+Toinvestigatetheimportanceofrecognizingneutralinstances,weperformtwosets
+of polarity classiﬁcation (step two) experiments. First, we experiment with classifying
+the polarity of all gold-standard polar instances—the clue instances identiﬁed as polar
+in context by the manual polarity annotations. Second, we experiment with using the
+polar instances identiﬁed automatically by the neutral–polar classiﬁers. Because the
+second set of experiments includes the neutral instances misclassiﬁed in step one, we
+can compare results for the two sets of experiments to see how the noise of neutral
+instances affects the performance of the polarity features.
+415
+ComputationalLinguistics Volume35,Number3
+All experiments are performed using 10-fold cross validation over a test set of
+10,287sentencesfrom494MPQAcorpusdocuments.Wemeasureperformanceinterms
+of accuracy, recall, precision, and F-measure. Accuracy is simply the total number of
+instances correctly classiﬁed. Recall, precision, and F-measure for a given class C are
+deﬁnedasfollows.RecallisthepercentageofallinstancesofclassCcorrectlyidentiﬁed.
+Rec(C)=
+| instances of Ccorrectly identiﬁed |
+| all instances of C |
+Precision is the percentage ofinstances classiﬁed as classCthat are classCin truth.
+Prec(C)=
+| instances of C correctly identiﬁed |
+| all instances identiﬁed as C |
+F-measure is the harmonic mean of recall and precision.
+F(C)=
+2 ×Rec(C)×Prec(C)
+Rec(C)+Prec(C)
+All results reported are averages over the 10 folds.
+8.1 Neutral–Polar Classiﬁcation
+Inourtwo-stepprocessforrecognizingcontextualpolarity,theﬁrststepisneutral–polar
+classiﬁcation,determiningwhethereachinstanceofacluefromthelexiconisneutralor
+polar in context. In our test set, there are 26,729instances of clues from the lexicon. The
+features we use for this step were listed above in Table 7and described in Section 7.1.
+In this section, we perform two sets of experiments. In the ﬁrst, we compare
+the results of neutral–polar classiﬁcation using all the neutral–polar features against
+two baselines. The ﬁrst baseline uses just the word token feature. The second baseline
+(word+priorpol) uses the word token and prior polarity features. In the second set of
+experiments, we explore the performance of different sets of features for neutral–polar
+classiﬁcation.
+Research has shown thattheperformance oflearning algorithms forNLPtasks can
+vary widely depending on their parameter settings, and that the optimal parameter
+settings can also vary depending on the set of features being evaluated (Daelemans
+et al. 2003a; Hoste 2005). Although the goal of this work is not to identify the optimal
+conﬁguration for each algorithm and each set of features, we still want to make a rea-
+sonableattempttoﬁndagoodconﬁgurationforeachalgorithm.Todothis,weperform
+10-fold cross validation of the more challenging baseline classiﬁer (word+priorpol)
+on the development data, varying select parameter settings. The results from those
+experiments are then used to select the parameter settings for each algorithm. For
+BoosTexter, we vary the number of rounds of boosting. For TiMBL, we vary the value
+for k (the number of neighbors) and the distance metric (overlap or modiﬁed value
+difference metric [MVDM]). For Ripper, we vary whether negative tests are disallowed
+fornominal(-!n)andset(-!s)valuedattributesandhowmuchtosimplifythehypothesis
+(-S).ForSVM,weexperimentwithlinear,polynomial,andradialbasisfunctionkernels.
+Table 10 gives the settings selected for the neutral–polar classiﬁcation experiments for
+the different learning algorithms.
+416
+Wilson,Wiebe, and Hoffmann RecognizingContextual Polarity
+Table 10
+Algorithmsettings forneutral–polarclassiﬁcation.
+Algorithm Settings
+BoosTexter 2,000roundsof boosting
+TiMBL k=25,MVDM distancemetric
+Ripper -!n,-S0.5
+SVM linearkernel
+8.1.1 Classiﬁcation Results. The results for the ﬁrst set of experiments are given in
+Table11.Foreachalgorithm,wegivetheresultsforthetwobaselineclassiﬁers,followed
+by the results for the classiﬁer trained using all the neutral–polar features. The results
+showninboldaresigniﬁcantlybetterthanbothbaselines(two-sidedt-test,p≤ 0.05)for
+the given algorithm.
+Workingtogether,howwelldotheneutral–polarfeaturesperform?ForBoosTexter,
+TiMBL, and Ripper, the classiﬁers trained using all the features improve signiﬁcantly
+over the two baselines in terms of accuracy, polar recall, polar F-measure, and neutral
+precision. Neutral F-measure is also higher, but not signiﬁcantly so. These consistent
+results across three of the four algorithms show that the neutral–polar features are
+helpful for determining when a sentiment clue is actually being used to express a
+sentiment.
+Interestingly, Ripper is the only algorithm for which the word-token baseline per-
+formed better than the word+priorpol baseline. Nevertheless, the prior polarity feature
+is an important component in the performance of the Ripper classiﬁer using all the
+features. Excluding prior polarity from this classiﬁer results in a signiﬁcant decrease in
+Table 11
+Results forneutral–polarclassiﬁcation (step one).
+Polar Neutral
+Acc Rec Prec F Rec Prec F
+BoosTexter
+wordtoken baseline 74.0 41.977.0 54.3 92.7 73.3 81.8
+word+priorpolbaseline 75.0 55.6 70.2 62.1 86.2 76.981.3
+neutral–polarfeatures 76.5 58.3 72.4 64.6 87.1 78.2 82.4
+TiMBL
+wordtoken baseline 74.6 47.973.958.1 90.1 74.8 81.8
+word+priorpolbaseline 74.6 48.2 73.7 58.3 90.0 74.9 81.7
+neutral–polarfeatures 76.5 59.5 71.7 65.0 86.3 78.5 82.3
+Ripper
+wordtoken baseline 66.3 11.2 80.6 19.6 98.4 65.6 78.7
+word+priorpolbaseline 65.5 07.7 84.5 14.1 99.1 64.8 78.4
+neutral–polarfeatures 71.4 49.4 64.6 56.0 84.2 74.1 78.8
+SVM
+wordtoken baseline 74.6 47.973.958.1 90.1 74.8 81.8
+word+priorpolbaseline 75.6 54.5 72.5 62.2 88.0 76.8 82.0
+neutral–polarfeatures 75.3 52.6 72.7 61.0 88.5 76.2 81.9
+417
+ComputationalLinguistics Volume35,Number3
+performance for every metric. Decreases range from 2.5% for neutral recall to 9.5% for
+polar recall.
+The best SVM classiﬁer is the word+priorpol baseline. In terms of accuracy, this
+classiﬁer does not perform much worse than the BoosTexter and TiMBL classiﬁers that
+use all the neutral–polar features: The SVM word+priorpol baseline classiﬁer has an
+accuracy of 75.6%, and both the BoosTexter and TiMBL classiﬁers have an accuracy of
+76.5%. However, the BoosTexter and TiMBL classiﬁers using all the features perform
+notably better in terms of polar recall and F-measure. The BoosTexter and TiMBL
+classiﬁers have polar recalls that are 7% and 9.2% higher than the SVM baseline. Polar
+F-measures for BoosTexter and TiMBL are 3.9% and 4.5% higher. These increases are
+signiﬁcant for p ≤ 0.01.
+8.1.2 Feature
+Set Evaluation. To evaluate the contribution of the various features for
+neutral–polar classiﬁcation, we perform a series of experiments in which different
+sets of neutral–polar features are added to the word+priorpol baseline and new clas-
+siﬁers are trained. We then compare the performance of these new classiﬁers to the
+word+priorpolbaseline,withtheexceptionoftheRipperclassiﬁers,whichwecompare
+tothehigherwordbaseline.Table12liststhesetsoffeaturestestedintheseexperiments.
+The feature sets generally correspond to how the neutral–polar features are presented
+in Table 7, although some of the groups are broken down into more ﬁne-grained sets
+that we believe capture meaningful distinctions.
+Table 13 gives the results for these experiments. Increases and decreases for a
+given metric as compared to the word+priorpol baseline (word baseline for Ripper)
+are indicated by + or –, respectively. Where changes are signiﬁcant at the p ≤ 0.1 level,
+++ or – – are used, and where changes are signiﬁcant at the p ≤ 0.05 level, +++ or – – –
+are used. An “nc” indicates no change (a change of less than ± 0.05) compared to the
+baseline.
+WhatdoesTable13revealabouttheperformanceofvariousfeaturesetsforneutral–
+polarclassiﬁcation?Mostnoticeableisthatnoindividualfeaturesetsstandoutasstrong
+performers. The only signiﬁcant improvements in accuracy come from the PARTS-
+OF-SPEECH and RELIABILITY-CLASS feature sets for Ripper. These improvements are
+perhaps not surprising given that the Ripper baseline was much lower to begin with.
+Very few feature sets show any improvement for SVM. Again, this is not unexpected
+given that all the features together performed worse than the word+priorpol baseline
+Table 12
+Neutral–polarfeaturesets forevaluation.
+Experiment Features
+PARTS-OF-SPEECH partsof speech forclueinstance, previousword,and next word
+RELIABILITY-CLASS reliabilityclass of clueinstance
+PRECEDED-POS preceded byadjective, precededbyadverb
+INTENSIFY preceded byintensiﬁer,self intensiﬁer
+RELCLASS-MOD modiﬁesstrongsubj/weaksubj,modiﬁedbystrongsubj/weaksubj
+POLARITY-MOD polarity-modiﬁcationfeatures
+STRUCTURE structurefeatures
+CURSENT-COUNTS strongsubj/weaksubjclueinstances in sentence
+PNSENT-COUNTS strongsubj/weaksubjclueinstances in previous/nextsentence
+CURSENT-OTHER adjectives/adverbs/cardinalnumber/pronoun/modalinsentence
+TOPIC document topic
+418
+Wilson,Wiebe, and Hoffmann RecognizingContextual Polarity
+Table 13
+Results forneutral–polarfeatureablation experiments.
+Polar Neut Polar Neut
+BoosTexter Acc F F Ripper Acc F F
+PARTS-OF-SPEECH +– + PARTS-OF-SPEECH +++ +++ –– –
+RELIABILITY-CLASS +– + RELIABILITY-CLASS +++ +++ +
+PRECEDED-POS nc – nc PRECEDED-POS –– –
+INTENSIFY -ncINTENSIFY – ––– –
+RELCLASS-MOD ++++ RELCLASS-MOD + +++ +
+POLARITY-MOD nc – + POLARITY-MOD – +++ –
+STRUCTURE – ––– + STRUCTURE –+–
+CURSENT-COUNTS + ––– + CURSENT-COUNTS –– +++ –––
+PNSENT-COUNTS + ––– + PNSENT-COUNTS ––– +++ –––
+CURSENT-OTHER nc – + CURSENT-OTHER ––– +++ –––
+TOPIC ++ + TOPIC – +++ –– –
+Polar Neut Polar Neut
+TiMBL Acc F F SVM Acc F F
+PARTS-OF-SPEECH + +++ + PARTS-OF-SPEECH –– ––– –
+RELIABILITY-CLASS ++ ncRELIABILITY-CLASS +– +
+PRECEDED-POS nc + nc PRECEDED-POS nc nc nc
+INTENSIFY nc nc nc INTENSIFY nc nc nc
+RELCLASS-MOD ++ + RELCLASS-MOD nc + nc
+POLARITY-MOD ++ + POLARITY-MOD –– ––– ––
+STRUCTURE nc + – STRUCTURE –+–
+CURSENT-COUNTS –+ – CURSENT-COUNTS –– –
+PNSENT-COUNTS + +++ – PNSENT-COUNTS –– –
+CURSENT-OTHER + +++ – CURSENT-OTHER –– –
+TOPIC –+ – TOPIC –– –
+Increases anddecreases foragiven metricas comparedtotheword+priorpolbaseline
+(wordbaselineforRipper) areindicatedby+ or –,respectively;++ or–– indicatesthe
+changeissigniﬁcant at thep < 0.1level;+++or–––indicatessigniﬁcanceatthe
+p < 0.05 level;ncindicatesnochange.
+for SVM. The performance of the feature sets for BoosTexter and TiMBL are perhaps
+the most revealing. In the previous experiments using all the features together, these
+algorithms produced classiﬁers with the same high performance. In these experiments,
+six different feature sets for each algorithm show improvements in accuracy over the
+baseline, yet none of those improvements are signiﬁcant. This suggests that achieving
+the highest performance for neutral–polar classiﬁcation requires a wide variety of fea-
+tures working together in combination.
+We further test this result by evaluating the effect of removing the features that
+produced either no change or a drop in accuracy from the respective all-feature classi-
+ﬁers.Forexample,wetrainaTiMBLneutral–polarclassiﬁerusingallthefeaturesexcept
+for those in the PRECEDED-POS, INTENSIFY, STRUCTURE, CURSENT-COUNTS,andTOPIC
+feature sets, and then compare the performance of this new classiﬁer to the TiMBL, all-
+feature classiﬁer. Although removing the non-performing features has little effect for
+BoosTexter, performance does drop for both TiMBL and Ripper. The primary source of
+this performance drop is adecrease in polar recall: 2% for TiMBL and 3.2% for Ripper.
+419
+ComputationalLinguistics Volume35,Number3
+Although no feature sets stand out in Table 13 as far as giving an overall high
+performance, there are some features that consistently improve performance across
+the different algorithms. The reliability class of the clue instance (RELIABILITY-CLASS)
+improves accuracy over the baseline for all four algorithms. It is the only feature that
+does so.The RELCLASS-MODfeatures give improvements forall metrics for BoosTexter,
+Ripper, and TiMBL, as well as improving polar F-measure for SVM. The PARTS-OF-
+SPEECHfeaturesarealsofairlyconsistent,improvingperformanceforallthealgorithms
+except for SVM.There are also acouple offeature sets thatconsistently do notimprove
+performance for any ofthe algorithms: the INTENSIFYand PRECEDED-POSfeatures.
+8.2 Polarity
+Classiﬁcation
+Forthesecondstepofrecognizingcontextualpolarity,weclassifythepolarityofallclue
+instances identiﬁed as polar in step one. The features for polarity classiﬁcation were
+listed in Table 9and described in Section 7.2.
+We investigate the performance of the polarity features under two conditions:
+(1) perfect neutral–polar recognition and (2) automatic neutral–polar recognition. For
+condition 1, we identify the polar instances according to the gold-standard, manual
+contextual-polarity annotations. In the test data, 9,835 instances of the clues from the
+lexicon are polar in context according to the manual annotations. Experiments under
+condition 1 classify these instances as having positive, negative, or both (positive and
+negative) polarity. For condition 2, we take the best performing neutral–polar classiﬁer
+for each algorithm and use the output from those algorithms to identify the polar
+instances. Because polar instances now are being identiﬁed automatically, there will be
+noise in the form of misclassiﬁed neutral instances. Therefore, for experiments under
+condition 2 we include the neutral class and perform four-way classiﬁcation instead of
+three-way.Condition1allowsustoinvestigatetheperformanceofthedifferentpolarity
+features without the noise of misclassiﬁed neutral instances. Also, because the set of
+polar instances being classiﬁed is the same for all the algorithms, condition 1 allows
+us to compare the performance of the polarity features across the different algorithms.
+However,condition2isthemorenaturalone.Itallowsustoseehowthenoiseofneutral
+instances affects the performance of the polarity features.
+The following sections describe three sets of experiments. First, we investigate the
+performance of the polarity features used together for polarity classiﬁcation under
+condition1.Asbefore,thewordandword+priorpolclassiﬁersprovideourbaselines.In
+the second set of experiments, we explore the performance of different sets of features
+for polarity classiﬁcation, again assuming perfect recognition of the polar instances.
+Finally, we experiment with polarity classiﬁcation using all the polarity features under
+condition 2, automatic recognition of the polar instances.
+Asbefore,weusethedevelopmentdatatoselecttheparametersettingsforeachal-
+gorithm.ThesettingsforpolarityclassiﬁcationaregiveninTable14.Theywereselected
+based on the performance ofthe word+priorpol baseline classiﬁer under condition 2.
+8.2.1ClassiﬁcationResults:Condition1.Theresultsforpolarityclassiﬁcationusingallthe
+polarity features, assuming perfect neutral–polar recognition for step one, are given in
+Table15.Foreachalgorithm,wegivetheresultsforthetwobaselineclassiﬁers,followed
+by the results for the classiﬁer trained using all the polarity features. For the metrics
+where the polarity features perform statistically better than both baselines (two-sided
+t-test,p ≤ 0.05), the results are given in bold.
+420
+Wilson,Wiebe, and Hoffmann RecognizingContextual Polarity
+Table 14
+Algorithmsettings forpolarityclassiﬁcation.
+Algorithm Settings
+BoosTexter 2,000roundsof boosting
+TiMBL k=1,MVDM distancemetric
+Ripper -!s,-S0.5
+SVM linearkernel
+Table 15
+Results forpolarityclassiﬁcation (step two)usinggold-standardpolar instances.
+Positive Negative Both
+Acc Rec Prec F Rec Prec F Rec Prec F
+BoosTexter
+wordtoken baseline 78.7 57.7 72.8 64.4 91.5 80.8 85.8 12.9 53.6 20.8
+word+priorpolbaseline 79.7 70.5 68.8 69.6 87.2 85.1 86.1 13.7 53.7 21.8
+polarityfeatures 83.2 76.7 74.3 75.5 89.7 87.7 88.7 11.8 54.2 19.4
+TiMBL
+wordtoken baseline 78.5 63.3 69.2 66.1 88.6 82.5 85.4 14.1 51.0 22.1
+word+priorpolbaseline 79.4 69.7 68.4 69.1 87.0 84.8 85.9 14.6 53.5 22.9
+polarityfeatures 82.2 75.4 73.3 74.3 88.5 87.6 88.0 18.3 34.6 23.9
+Ripper
+wordtoken baseline 70.0 14.5 74.5 24.3 98.3 69.7 81.6 09.1 74.4 16.2
+word+priorpolbaseline 78.975.5 65.2 70.0 83.8 86.4 85.1 09.8 75.4 17.4
+polarityfeatures 83.2 77.8 73.5 75.6 89.2 87.8 88.5 09.8 74.9 17.4
+SVM
+wordtoken baseline 69.9 62.4 69.6 65.8 76.0 84.1 79.9 14.1 31.2 19.4
+word+priorpolbaseline 78.2 76.7 63.7 69.6 82.2 86.7 84.4 09.8 75.4 17.4
+polarityfeatures 81.6 74.971.1 72.9 88.1 86.6 87.3 09.5 77.6 16.9
+Howwelldothepolarityfeaturesperformworkingalltogether?Forallalgorithms,
+the polarity classiﬁer using all the features signiﬁcantly outperforms both baselines
+in terms of accuracy, positive F-measure, and negative F-measure. These consistent
+improvements in performance across all four algorithms show that these features are
+quite useful for polarity classiﬁcation.
+OneinterestingthingthatTable15revealsisthatnegativepolaritywordsaremuch
+more straightforward to recognize than positive polarity words, at least in this corpus.
+Forthenegativeclass,precisionsandrecallsfortheword+priorpolbaselinerangefrom
+82.2to87.2.Forthepositiveclass,precisionsandrecallsfortheword+priorpolbaseline
+rangefrom63.7to76.7.However,itiswiththepositiveclassthatpolarityfeaturesseem
+tohelpthemost.Withtheadditionofthepolarityfeatures,positiveF-measureimproves
+by5pointsonaverage;improvementsinnegativeF-measuresaverageonly2.75points.
+8.2.2 Feature
+Set Evaluation. To evaluate the performance of the various features for
+polarityclassiﬁcation,weagainperformaseriesofablationexperiments.Asbefore,we
+start with the word+priorpol baseline classiﬁer, add different sets of polarity features,
+train new classiﬁers, and compare the results of the new classiﬁers to the baseline.
+421
+ComputationalLinguistics Volume35,Number3
+Table 16
+Polarityfeaturesetsfor evaluation.
+Experiment Features
+NEGATION negated,negatedsubject
+POLARITY-MOD modiﬁespolarity,modiﬁedbypolarity,conjunctionpolarity
+SHIFTERS general,negative,positivepolarityshifters
+Table 17
+Results forpolarityfeatureablationexperiments.
+Positive Negative
+Acc Rec Prec F Rec Prec F
+BoosTexter
+NEGATION +++ ++ +++ +++ +++ + +++
+POLARITY-MOD ++ +++ + +++ + ++ +
+SHIFTERS +++++++
+TiMBL
+NEGATION +++ +++ +++ +++ +++ +++ +++
+POLARITY-MOD ++++–++
+SHIFTERS ++++–++
+Ripper
+NEGATION +++ –– +++ +++ +++ – +++
+POLARITY-MOD + +++ ++ +++ + + +
+SHIFTERS +–+++–+
+SVM
+NEGATION +++ – +++ +++ +++ + +++
+POLARITY-MOD + – +++ + + – +
+SHIFTERS +–+++++
+Increases and decreases fora givenmetricascompared tothe
+word+priorpolbaseline areindicatedby+ or –,respectively;
+++ or–– indicatesthechangeissigniﬁcant at thep < 0.1level;
++++or ––– indicatessigniﬁcanceat thep < 0.05level.
+Table 16 lists the sets of features tested in each experiment, and Table 17 shows the
+resultsoftheexperiments.ResultsarereportedastheywerepreviouslyinSection8.1.2,
+withincreasesanddecreasescomparedtothebaselineforagivenmetricindicatedby+
+or –, respectively.
+Looking at Table 17, we see that all three sets of polarity features help to increase
+performance as measured by accuracy and positive and negative F-measures. This is
+true for all the classiﬁcation algorithms. As we might expect, including the negation
+features has the most marked effect on the performance of polarity classiﬁcation, with
+statistically signiﬁcant improvements for most metrics across all the algorithms.
+9
+The
+9Althoughthe negationfeaturesgive the best performanceimprovements ofthe three featuresets, these
+classiﬁersstilldonotperformaswellas therespective all-featurepolarityclassiﬁers foreach algorithm.
+422
+Wilson,Wiebe, and Hoffmann RecognizingContextual Polarity
+polarity-modiﬁcation features also seem to be important for polarity classiﬁcation,
+in particular for disambiguating the positive instances. For all the algorithms except
+TiMBL,includingthepolarity-modiﬁcationfeaturesresultsinsigniﬁcantimprovements
+for at least one of the positive metrics. The polarity shifters also help classiﬁcation, but
+theyseemtobetheweakestofthefeatures:Includingthemdoesnotresultinsigniﬁcant
+improvements for any algorithm.
+Another question that is interesting to consider is how much thewordtokenfeature
+contributes to polarity classiﬁcation, given all the other polarity features. Is it enough
+to know the prior polarity of a word, whether it is being negated, and how it is related
+to other polarity inﬂuencers? To answer this question, we train classiﬁers using all the
+polarity features except for word token. Table 18 gives the results for these classiﬁers;
+for comparison, the results for the all-feature polarity classiﬁers are also given. Inter-
+estingly, excluding the word token feature produces only small changes in the overall
+results. The results for BoosTexter and Ripper are slightly lower, and the results for
+SVM are practically unchanged. TiMBL actually shows a slight improvement, with the
+exceptionofthebothclass.Thisprovidesfurtherevidenceofthestrengthofthepolarity
+features. Also, a classiﬁer not tied to actual word tokens may potentially be a more
+domain-independent classiﬁer.
+8.2.3 Classiﬁcation Results: Condition 2. The experiments in Section 8.2.1 show that the
+polarity features perform well under the ideal condition of perfect recognition of polar
+instances. The next question to consider is how well the polarity features perform
+under the more natural but less-than-perfect condition of automatic recognition of
+polar instances. To investigate this, the polarity classiﬁers (including the baselines) for
+each algorithm in these experiments start with the polar instances identiﬁed by the
+best performing neutral–polar classiﬁer for that algorithm (from Section 8.1.1). The
+results for these experiments are given in Table 19. As before, statistically signiﬁcant
+improvements over both baselines are given in bold.
+How well do the polarity features perform in the presence of noise from misclas-
+siﬁed neutral instances? Our ﬁrst observation comes from comparing Table 15 with
+Table 19: Polarity classiﬁcation results are much lower for all classiﬁers with the noise
+ofneutralinstances.Yetinspiteofthis,thepolarityfeaturesstillproduceclassiﬁersthat
+Table 18
+Results forpolarityclassiﬁcation withoutandwiththewordtokenfeature.
+Acc PosF Neg F BothF
+BoosTexter
+excludingwordtoken 82.5 74.988.0 17.4
+all polarityfeatures 83.2 75.5 88.7 19.4
+TiMBL
+excludingwordtoken 83.2 75.988.4 17.3
+all polarityfeatures 82.2 74.3 88.0 23.9
+Ripper
+excludingwordtoken 82.975.4 88.3 17.4
+all polarityfeatures 83.2 75.6 88.5 17.4
+SVM
+excludingwordtoken 81.5 72.987.3 16.8
+all polarityfeatures 81.6 72.987.3 16.9
+423
+Computational
+Linguistics
+V
+olume
+35,
+Number
+3
+Table 19
+Results forpolarityclassiﬁcation (step two)usingautomaticallyidentiﬁedpolar instances.
+Positive Negative Both Neutral
+Acc R P F R P F R P F R P F
+BoosTexter
+wordtoken 61.5 62.3 62.7 62.5 86.4 64.6 74.0 11.4 49.3 18.5 20.8 44.5 28.3
+word+priorpol 63.3 70.0 57.963.4 81.3 71.5 76.1 12.5 47.3 19.8 30.947.5 37.4
+polarityfeats 65.9 73.6 62.2 67.4 84.972.3 78.1 13.4 40.7 20.2 31.0 50.6 38.4
+TiMBL
+wordtoken 60.1 68.3 58.963.2 81.8 65.0 72.5 11.2 39.6 17.4 21.6 43.1 28.8
+word+priorpol 61.0 73.2 53.4 61.8 80.6 69.8 74.8 12.7 41.7 19.5 23.0 44.2 30.3
+polarityfeats 64.4 75.3 58.6 65.9 81.1 73.0 76.9 16.932.7 22.3 32.1 50.0 39.1
+Ripper
+wordtoken 54.4 22.2 69.4 33.6 95.1 50.7 66.1 00.0 00.0 00.0 21.7 76.5 33.8
+word+priorpol 51.4 24.0 71.7 35.997.7 48.965.1 00.0 00.0 00.0 09.2 75.8 16.3
+polarityfeats 54.8 38.0 67.2 48.5 95.5 52.7 67.9 00.0 00.0 00.0 14.5 66.8 23.8
+SVM
+wordtoken 64.5 70.0 60.965.1 70.974.972.916.6 41.5 23.7 53.3 51.0 52.1
+word+priorpol 62.8 89.0 51.2 65.0 88.4 69.2 77.6 11.1 48.5 18.0 02.4 58.3 04.5
+polarityfeats 64.1 90.8 53.0 66.9 90.4 70.1 79.0 12.7 52.3 20.4 02.2 61.4 04.3
+424
+Wilson,Wiebe, and Hoffmann RecognizingContextual Polarity
+outperform the baselines. For three of the four algorithms, the classiﬁer using all the
+polarityfeatureshasthehighestaccuracy.ForBoosTexterandTiMBL,theimprovements
+inaccuracyoverbothbaselinesaresigniﬁcant.Alsoforallalgorithms,usingthepolarity
+features gives the highest positive and negative F-measures.
+Because the set of polarity instances being classiﬁed by each algorithm is different,
+we cannot directly compare the results fromone algorithm to the next.
+8.3 Two-step versus One-step Recognition of Contextual Polarity
+Although the two-step approach to recognizing contextual polarity allows us to focus
+our investigation on the performance of features for both neutral–polar classiﬁcation
+and polarity classiﬁcation, the question remains: How does the two-step approach
+compare to recognizing contextual polarity in a single classiﬁcation step? The results
+shown in Table 20 help to answer this question. The ﬁrst row in Table 20 for each
+algorithmshowsthecombinedresultforthetwostagesofclassiﬁcation.ForBoosTexter,
+TiMBL, and Ripper, this is the combination of results from using all the neutral–polar
+featuresforstepone,togetherwiththeresultsfromusingallofthepolarityfeaturesfor
+steptwo.
+10
+ForSVM,thisisthecombinationofresultsfromtheword+priorpolbaseline
+from step one, together with results for using all the polarity features for step two.
+Recall that the word+priorpol classiﬁer was the best neutral–polar classiﬁer for SVM
+(see Table 11). The second rows for BoosTexter, TiMBL, and Ripper show the results of
+a single classiﬁer trained to recognize contextual polarity using all the neutral–polar
+andpolarityfeaturestogether.ForSVM,thesecondrowshowstheresultsofclassifying
+the contextual polarity using just the word token feature. This classiﬁer outperformed
+all others for SVM. In the table, the best result for each metric for each algorithm is
+highlighted in bold.
+When comparing the two-step and one-step approaches, contrary to our expecta-
+tions, we see that the one-step approach performs about as well or better than the
+two-step approach for recognizing contextual polarity. For SVM, the improvement in
+accuracy achieved by the two-step approach is signiﬁcant, but this is not true for
+the other algorithms. One fairly consistent difference between the two approaches is
+that the two-step approach scores slightly higher for neutral F-measure, and the one-
+step approach achieves higher F-measures for the polarity classes. The difference in
+negative F-measure is signiﬁcant for BoosTexter, TiMBL, and Ripper. The exception to
+thisisSVM.ForSVM,thetwo-stepapproachachievessigniﬁcantlyhigherpositiveand
+negative F-measures.
+One last question we consider is how much the neutral–polar features contribute
+to the performance of the one-step classiﬁers. The third line in Table 20 for BoosTexter,
+TiMBL,andRippergivestheresultsforaone-stepclassiﬁertrainedwithouttheneutral–
+polar features. Although the differences are not always large, excluding the neutral–
+polar features consistently degrades performance in terms of accuracy and positive,
+negative, and neutral F-measures. The drop in negative F-measure is signiﬁcant for all
+threealgorithms,thedropinneutralF-measureissigniﬁcantforBoosTexterandTiMBL,
+andthedrop inaccuracy issigniﬁcant forTiMBL andRipper (andforBoosTexter atthe
+p ≤ 0.1 level).
+10 Toclarify,Section8.2.3 onlyreportedresults forinstances identiﬁedas polarin step one.Here, wereport
+results forallclueinstances, including the instances classiﬁedas neutralinstep one.
+425
+ComputationalLinguistics Volume35,Number3
+Table 20
+Results forcontextual polarityclassiﬁcation forboth two-stepand one-step approaches.
+Ac PosFNegFBothFNeutralF
+BoosTexter
+two-step 74.5 47.1 57.5 12.9 83.4
+one-step all feats 74.3 49.1 59.8 14.1 82.9
+one-step –neut-polfeats 73.3 48.4 58.7 16.3 81.9
+TiMBL
+two-step 74.1 47.6 56.4 13.8 83.2
+one-step all feats 73.9 49.6 59.3 15.2 82.6
+one-step –neut-polfeats 72.5 49.5 56.9 21.6 81.4
+Ripper
+two-step 68.926.6 49.0 00.0 80.1
+one-step all feats 69.5 30.2 52.8 14.0 79.4
+one-step –neut-polfeats 67.0 28.933.0 11.4 78.6
+SVM
+two-step 73.1 46.6 58.0 13.0 82.1
+one-step 71.6 43.4 51.7 17.0 81.6
+The modest drop in performance that we see when excluding the neutral–polar
+featuresintheone-stepapproachseemstosuggestthatdiscriminatingbetweenneutral
+and polar instances is helpful but not necessarily crucial. However, consider Figure 3.
+In this ﬁgure, we show the F-measures for the positive, negative,andboth classes for
+the BoosTexter polarity classiﬁer that uses the gold-standard neutral/polar instances
+(from Table 15) and for the BoosTexter one-step polarity classiﬁer that uses all features
+(fromTable20).Plottingthesamesetsofresultsfortheotherthreealgorithmsproduces
+very similar ﬁgures. The difference when the classiﬁers have to contend with the noise
+from neutral instances is dramatic. Although Table 20 shows that there is room for
+improvement across all the contextual polarity classes, Figure 3 shows us that perhaps
+thebestwaytoachievetheseimprovementsistoimprovetheabilitytodiscriminatethe
+neutral class from the others.
+Figure 3
+Chart showingthepositive,negative,andbothclass F-measuresfortheBoosTexter classiﬁer that
+uses thegold-standardneutral/polarclasses and theBoosTexter one-step classiﬁer thatuses all
+thefeatures.
+426
+Wilson,Wiebe, and Hoffmann RecognizingContextual Polarity
+9.Related Work
+9.1 Phrase-Level Sentiment Analysis
+Other researchers who have worked on classifying the contextual polarity of sentiment
+expressions are Yi et al. (2003), Popescu and Etzioni (2005), and Suzuki, Takamura, and
+Okumura (2006). Yi et al. use a lexicon and manually developed patterns to classify
+contextual polarity. Their patterns are high-quality, yielding quite high precision over
+thesetofexpressionsthattheyevaluate.PopescuandEtzioniuseanunsupervisedclas-
+siﬁcation technique called relaxation labeling (Hummel and Zucker 1983) to recognize
+the contextual polarity of words that are at the heads of select opinion phrases. They
+take an iterative approach, using relaxation labeling ﬁrst to determine the contextual
+polarities of the words, then again to label the polarities of the words with respect to
+theirtargets.Athirdstageofrelaxationlabelingthenisusedtoassignﬁnalpolaritiesto
+the words, taking into consideration the presence of other polarity terms and negation.
+Aswedo,PopescuandEtzioniusefeaturesthatrepresentconjunctionsanddependency
+relationsbetweenpolaritywords.Suzukietal.useabootstrappingapproachtoclassify
+the polarity of tuples of adjectives and their target nouns in Japanese blogs. Included
+in the features that they use are the words that modify the adjectives and the word that
+the adjective modiﬁes. They consider the effect of a single negation term, the Japanese
+equivalent ofnot.
+Our work in recognizing contextual polarity differs from this research on
+expression-level sentiment analysis in several ways. First, the set of expressions they
+evaluate is limited either to those that target speciﬁc items of interest, such as products
+andproductfeatures,ortotuplesofadjectivesandnouns.Incontrast,weseektoclassify
+thecontextualpolarityofallinstancesofwordsfromalargelexiconofsubjectivityclues
+that appear in the corpus. Included in the lexicon are not only adjectives, but nouns,
+verbs, adverbs, and even modals.
+Our work also differs from other research in the variety of features that we use. As
+other researchers do, we consider negation and the words that directly modify or are
+modiﬁed by the expression being classiﬁed. However, with negation, we have features
+forbothlocalandlonger-distancetypesofnegation,andwetakecaretocountnegation
+terms only when they are actually being used to negate, excluding, for example, nega-
+tion terms when they are used in phrases that intensify (e.g.,notonly). We also include
+contextual features to capture the presence of other clue instances in the surrounding
+sentences, and features that represent the reliability of clues from the lexicon.
+Finally, a unique aspect of the work presented in this article is the evaluation of
+different features for recognizing contextual polarity. We ﬁrst presented the features
+explored in this research in Wilson, Wiebe, and Hoffman (2005), but this work signif-
+icantly extends that initial evaluation. We explore the performance of features across
+different learning algorithms, and we evaluate not only features for discriminating
+between positive and negative polarity, but features for determining when a word is
+or is not expressing a sentiment in the ﬁrst place (neutral in context). This is also the
+ﬁrst work to evaluate the effect of neutral instances on the performance of features for
+discriminating between positive and negative contextual polarity.
+9.2 Other
+Research in Sentiment Analysis
+Recognizing contextual polarity is just one facet of the research in automatic senti-
+ment analysis. Research ranges from work on learning the prior polarity (semantic
+427
+ComputationalLinguistics Volume35,Number3
+orientation) of words and phrases (e.g., Hatzivassiloglou and McKeown 1997; Kamps
+and Marx 2002; Turney and Littman 2003; Hu and Liu 2004; Kim and Hovy 2004; Esuli
+and Sebastiani 2005; Takamura, Inui, and Okumura 2005; Popescu and Etzioni 2005;
+Andreevskaia and Bergler 2006; Esuli and Sebastiani 2006a; Kanayama and Nasukawa
+2006) to characterizing the sentiment of documents, such as recognizing inﬂammatory
+messages (Spertus 1997), tracking sentiment over time in online discussions (Tong
+2001), and classifying the sentiment of online messages (e.g., Das and Chen 2001;
+Koppel and Schler 2006), customer feedback data (Gamon 2004), or product and movie
+reviews (e.g., Turney 2002; Pang, Lee, and Vaithyanathan 2002; Dave, Lawrence, and
+Pennock 2003; Beineke, Hastie, and Vaithyanathan 2004; Mullen and Collier 2004; Bai,
+Padman, and Airoldi 2005; Whitelaw, Garg, and Argamon 2005; Kennedy and Inkpen
+2006; Koppel and Schler 2006).
+Identifying prior polarity is a different task than recognizing contextual polarity,
+although the two tasks are complementary. The goal of identifying prior polarity is
+to automatically acquire the polarity of words or phrases for listing in a lexicon. Our
+workonrecognizingcontextualpolaritybeginswithalexiconofwordswithestablished
+prior polarities and then disambiguates in the corpus the polarity being expressed
+by the phrases in which instances of those words appear. To make the relationship
+betweenthattaskandoursclearer,somewordliststhatareusedtoevaluatemethodsfor
+recognizing prior polarity (positive and negative word lists from the General Inquirer
+[Stoneetal.1966]andlistsofpositiveandnegative adjectives created forevaluation by
+Hatzivassiloglou and McKeown [1997]) are included in the prior-polarity lexicon used
+in our experiments.
+For the most part, the features explored in this work differ from the ones used to
+identify prior polarity with just a few exceptions. Using a feature to capture conjunc-
+tionsbetweenclueinstanceswasmotivatedinpartbytheworkofHatzivassiloglouand
+McKeown (1997). They use constraints on the co-occurrence in conjunctions of words
+with similar or opposite polarity to predict the prior polarity of adjectives. Esuli and
+Sebastiani (2005) consider negation in some of their experiments involving WordNet
+glosses.Takamuraetal.(2005)usenegationwordsandphrases,includingphrasessuch
+as lackof that are members in our lists of polarity shifters, and conjunctive expressions
+that they collect from corpora.
+Esuli and Sebastiani (2006a) is the only work in prior-polarity identiﬁcation to
+include aneutral(objective)category and to consider a three-way classiﬁcation between
+positive, negative, and neutral words. Although identifying prior polarity is a different
+task, they report a ﬁnding similar to ours, namely, that accuracy is lower when neutral
+words are included.
+Someresearchinsentimentanalysisclassiﬁesthesentimentsofsentences.Morinaga
+et al. (2002), Yu and Hatzivassiloglou (2003), Kim and Hovy (2004), Hu and Liu (2004),
+and Grefenstette et al. (2004)
+11
+all begin by ﬁrst creating prior-polarity lexicons. Yu and
+Hatzivassiloglou then assign a sentiment to a sentence by averaging the prior semantic
+orientationsofinstancesoflexiconwordsinthesentence.Thus,theydonotidentifythe
+contextual polarity of individual phrases containing clue instances, which is the focus
+of this work. Morinaga et al. only consider the positive or negative clue instance in
+each sentence that is closest to some target reference; Kim and Hovy, Hu and Liu, and
+Grefenstetteetal.multiplyorcountthepriorpolaritiesofclueinstancesinthesentence.
+11 In
+Grefenstetteetal. (2004),the units thatareclassiﬁed areﬁxedwindowsaroundnamed entitiesrather
+thansentences.
+428
+Wilson,Wiebe, and Hoffmann RecognizingContextual Polarity
+These researchers also consider local negation to reverse polarity, with Morinaga et al.also taking into account the negating effect of words like insufﬁcient. However, they
+do not use the other types of features that we consider in our experiments. Kaji and
+Kitsuregawa (2006) take a different approach to recognizing positive and negative
+sentences. They bootstrap from information easily obtained in “Pro” and “Con”
+HTML tables and lists, and from one high-precision linguistic pattern, to automatically
+constructalargecorpusofpositiveandnegativesentences.Theythenusethiscorpusto
+train a naive Bayes sentence classiﬁer. In contrast to our work, sentiment classiﬁcation
+in all of this research is restricted to identifying only positive and negative sentences
+(excluding ourbothandneutralcategories). In addition, only one sentiment is assigned
+per sentence; our system assigns contextual polarity to individual expressions, which
+would allow for a sentence to be assigned to multiple sentiment categories. As we saw
+when exploring the contextual polarity annotations, it is not uncommon for sentences
+to contain more than one sentiment expression.
+Classifying the sentiment of documents is a very different task than recognizing
+the contextual polarity of words and phrases. However, some researchers have re-
+ported ﬁndings about document-level classiﬁcation that are similar to our ﬁndings
+about phrase-level classiﬁcation. Bai et al. (2005) argue that dependencies among key
+sentiment terms are important for classifying document sentiment. Similarly, we show
+that features for capturing when clue instances modify each other are important for
+phrase-level classiﬁcation, in particular, for identifying positive expressions. Gamon
+(2004) achieves his best results for document classiﬁcation using a wide variety of
+features, including rich linguistic features, such as features that capture constituent
+structure, features that combine part-of-speech and semantic relations (e.g., sentence
+subjectornegatedcontext),andfeaturesthatcapturetenseinformation.Wealsoachieve
+our best results for phrase-level classiﬁcation using a wide variety of features, many
+of which are linguistically rich. Kennedy and Inkpen (2006) report consistently higher
+resultsfordocumentsentimentclassiﬁcationwhenselectpolarityinﬂuencers,including
+negators and intensiﬁers, are included.
+12
+Koppel and Schler (2006) demonstrate the
+importanceofneutralexamplesfordocument-levelclassiﬁcation.Inthiswork,weshow
+that being able to correctly identify neutral instances is also very important for phrase-
+level sentiment analysis.
+10.Conclusions and Future Work
+Being able to determine automatically the contextual polarity of words and phrases is
+animportantprobleminsentimentanalysis.Intheresearchpresentedinthisarticle,we
+tackle this problem and show that it is much more complex than simply determining
+whether a word or phrase is positive or negative. In our analysis of a corpus with
+annotationsofsubjectiveexpressionsandtheircontextualpolarity,weﬁndthatpositive
+and negative words from a lexicon are used in neutral contexts much more often than
+they are used in expressions of the opposite polarity. The importance of identifying
+12 DasandChen(2001),Pang,Lee, andVaithyanathan(2002),andDave, Lawrence,andPennock(2003)also
+represent negation. In their experiments, wordswhich followanegationtermare tagged withanegation
+markerandthentreatedasnewwords.Pang,LeeandVaithyanathanreportthatrepresentingnegationin
+this wayslightlyhelps theirresults, whereas Dave, Lawrence, and Pennock reportaslightly detrimental
+effect. Whitelaw,Garg,and Argamon(2005)also represent negationterms andintensiﬁers. However,in
+theirexperiments, theeffect ofnegationis notseparately evaluated, andintensiﬁers are notfoundtobe
+beneﬁcial.
+429
+ComputationalLinguistics Volume35,Number3
+whencontextualpolarityisneutralisfurtherrevealedinourclassiﬁcationexperiments:
+When neutral instances are excluded, the performance of features for distinguishing
+between positive and negative polarity greatly improves.
+A focus of this research is on understanding which features are important for
+recognizing contextual polarity. We experiment with a wide variety of linguistically
+motivated features, and we evaluate the performance of these features using several
+differentmachinelearningalgorithms.Featuresfordistinguishingbetweenneutraland
+polar instances are evaluated, as well as features for distinguishing between positive
+and negative contextual polarity. For classifying neutral and polar instances, we ﬁnd
+that, although some features produce signiﬁcant improvements over the baseline in
+terms of polar or neutral recall or precision, it is the combination of features together
+that is needed to achieve signiﬁcant improvements in accuracy. For classifying positive
+and negative contextual polarity, features for capturing negation prove to be the most
+important. However, we ﬁnd that features that also perform well are those that cap-
+ture when a word is (or is not) modifying or being modiﬁed by other polarity terms.
+This suggests that identifying features that represent more complex interdependencies
+between polarity clues will be an important avenue for future research.
+Another direction for future work will be to expand our lexicon using existing
+techniquesforacquiringthepriorpolarityofwordsandphrases.Itfollowsthatalarger
+lexicon will have a greater coverage of sentiment expressions. However, expanding the
+lexicon with automatically acquired prior-polarity tags may result in an even greater
+proportion of neutral instances to contend with. Given the degradation in performance
+created by the neutral instances, whether expanding the lexicon automatically will
+result in improved performance for recognizing contextual polarity is an empirical
+question.
+Finally, the overall goal of our research is to use phrase-level sentiment analysis in
+higher-level NLP tasks, such as opinion question answering and summarization.
+Acknowledgments
+We wouldliketothanktheanonymous
+reviewersfortheir valuablecommentsand
+suggestions. Thisworkwas supportedin
+partbyanAndrewMellowPredoctoral
+Fellowship,bytheNSFundergrant
+IIS-0208798, bytheAdvanced Research and
+Development Activity(ARDA), and bythe
+EuropeanISTProgrammethroughthe
+AMIDA IntegratedProjectFP6-0033812.
+References
+Andreevskaia,Alinaand SabineBergler.
+2006. MiningWordNet forfuzzy
+sentiment:Sentimenttagextractionfrom
+WordNet glosses. InProceedingsofthe11th
+MeetingoftheEuropeanChapterofthe
+AssociationforComputationalLinguistics
+(EACL-2006),pages209–216, Trento.
+Bai,Xue,RemaPadman,andEdoardo
+Airoldi.2005.Onlearningparsimonious
+modelsfor extractingconsumer opinions.
+InProceedingsofthe38thAnnualHawaii
+InternationalConferenceonSystem
+Sciences(HICSS’05)-Track3, page75.2,
+Waikoloa, HI.
+Banﬁeld,Ann.1982.UnspeakableSentences.
+Routledgeand Kegan Paul,Boston.
+Beineke,Philip,Trevor Hastie,and
+ShivakumarVaithyanathan.2004. The
+sentimentalfactor:Improvingreview
+classiﬁcation viahuman-provided
+information.InProceedingsofthe42nd
+AnnualMeetingoftheAssociationfor
+ComputationalLinguistics(ACL-04),
+pages 263–270, Barcelona.
+Cohen,William W. 1996. Learningtrees
+and ruleswithset-valued features.In
+Proceedingsofthe13thNationalConference
+onArtiﬁcialIntelligence,pages709–717,
+Portland,OR.
+Collins, Michael.1997. Threegenerative,
+lexicalised modelsforstatistical parsing.
+InProceedingsofthe35thAnnualMeetingof
+theAssociationforComputationalLinguistics
+(ACL-97),pages16–23, Madrid.
+Daelemans, Walter,V´eroniqueHoste,
+FienDe Meulder,and BartNaudts.
+2003a. Combined optimizationoffeature
+selection and algorithmparameter
+430
+Wilson,Wiebe, and Hoffmann RecognizingContextual Polarity
+interactioninmachinelearningof
+language.InProceedingsofthe14th
+EuropeanConferenceonMachineLearning
+(ECML-2003),pages 84–95,
+Cavtat-Dubrovnik.
+Daelemans,Walter, JakubZavrel,Kovan der
+Sloot,andAntal van den Bosch.2003b.
+TiMBL:TilburgMemoryBased Learner,
+version 5.0Reference Guide.ILKTechnical
+Report 03-10,Inductionof Linguistic
+KnowledgeResearch Group,Tilburg
+University.Availableathttp://ilk.uvt.
+nl/downloads/pub/papers/ilk0310.pdf.
+Das,SanjivRanjan and MikeY.Chen. 2001.
+Yahoo!forAmazon:Sentimentparsing
+fromsmalltalkontheWeb.InProceedings
+oftheAugust2001MeetingoftheEuropean
+FinanceAssociation(EFA),Barcelona,
+Spain.Availableathttp://ssrn.com/
+abstract=276189.
+Dave,Kushal,SteveLawrence,andDavidM.
+Pennock.2003.Miningthepeanut
+gallery:Opinionextractionand
+semanticclassiﬁcation of product
+reviews.InProceedingsofthe12th
+InternationalWorldWideWebConference
+(WWW2003), Budapest.Availableat
+http://www2003.org.
+Esuli,Andreaand FabrizioSebastiani. 2005.
+Determiningthesemanticorientationof
+termsthroughgloss analysis. In
+ProceedingsofACMSIGIRConferenceon
+InformationandKnowledgeManagement
+(CIKM-05),pages617–624, Bremen.
+Esuli,Andreaand FabrizioSebastiani. 2006a.
+Determiningtermsubjectivityand term
+orientationforopinionmining.In
+Proceedingsthe11thMeetingoftheEuropean
+ChapteroftheAssociationforComputational
+Linguistics(EACL-2006),pages 193–200,
+Trento.
+Esuli,Andreaand FabrizioSebastiani. 2006b.
+SentiWordNet:A publiclyavailablelexical
+resourceforopinionmining.InProceedings
+ofLREC-06,the5thConferenceonLanguage
+ResourcesandEvaluation, pages417–422,
+Genoa.
+Gamon,Michael. 2004. Sentiment
+classiﬁcation on customerfeedbackdata:
+Noisydata,largefeaturevectors,and the
+roleoflinguisticanalysis. InProceedings
+ofthe20thInternationalConferenceon
+ComputationalLinguistics(COLING-2004),
+pages611–617, Geneva.
+Grefenstette,Gregory,Yan Qu,JamesG.
+Shanahan,andDavid A.Evans. 2004.
+Couplingnichebrowsersand affect
+analysisforanopinionminingapplication.
+InProceedingsoftheConferenceRecherche
+d’InformationAssisteeparOrdinateur
+(RIAO-2004),pages 186–194, Avignon.
+Hatzivassiloglou,Vasileios and Kathy
+McKeown. 1997. Predictingthesemantic
+orientationofadjectives. InProceedingsof
+the35thAnnualMeetingoftheAssociation
+forComputationalLinguistics(ACL-97),
+pages174–181, Madrid.
+Hoste,V´eronique.2005.OptimizationIssuesin
+MachineLearningofCoreferenceResolution.
+Ph.D.thesis,LanguageTechnologyGroup,
+Universityof Antwerp.
+Hu,Minqingand BingLiu.2004.Mining
+and summarizingcustomerreviews.In
+ProceedingsofACMSIGKDDConference
+onKnowledgeDiscoveryandDataMining
+2004(KDD-2004),pages 168–177,
+Seattle,WA.
+Hummel,Robert A.and Steven W.Zucker.
+1983. Onthefoundationsof relaxation
+labeling processes.IEEETransactionson
+PatternAnalysisandMachineIntelligence
+(PAMI),5(3):167–187.
+Joachims,Thorsten.1999. Makinglarge-scale
+SVM learningpractical.In B.Scholkopf,
+C.Burgess,and A.Smola,editors,
+AdvancesinKernelMethods–SupportVector
+Learning,pages 169–184. MIT Press,
+Cambridge,MA.
+Kaji,Nobuhiroand Masaru Kitsuregawa.
+2006. Automaticconstructionof
+polarity-taggedcorpusfromHTML
+documents.InProceedingsofthe
+COLING/ACL2006MainConference
+PosterSessions,pages452–459, Sydney.
+Kamps,Jaap and Maarten Marx.2002.
+Wordswithattitude.InProceedingsofthe
+1stInternationalConferenceonGlobal
+WordNet,pages332–341, Mysore.
+Kanayama,Hiroshi andTetsuya Nasukawa.
+2006. Fullyautomaticlexicon expansion
+fordomain-orientedsentiment analysis.
+InProceedingsoftheConferenceon
+EmpiricalMethodsinNaturalLanguage
+Processing(EMNLP-2006),pages 355–363,
+Sydney.
+Kennedy,Alistair and DianaInkpen.2006.
+Sentimentclassiﬁcation of moviereviews
+usingcontextualvalence shifters.
+ComputationalIntelligence,22(2):110–125.
+Kim,Soo-Min andEduardHovy.2004.
+Determiningthesentimentof opinions.
+InProceedingsofthe20thInternational
+ConferenceonComputationalLinguistics
+(COLING-2004),pages 1267–1373, Geneva.
+Koppel,Mosheand JonathanSchler. 2006.
+Theimportanceof neutralexamplesfor
+learningsentiment.Computational
+Intelligence,22(2):100–109.
+431
+ComputationalLinguistics Volume35,Number3
+Maybury,MarkT., editor.2004.New
+DirectionsinQuestionAnswering.American
+Association forArtiﬁcial Intelligence,
+Menlo Park,CA.
+Morinaga,Satoshi,Kenji Yamanishi,Kenji
+Tateishi, and Toshikazu Fukushima.2002.
+MiningproductreputationsontheWeb.
+InProceedingsofthe8thACMSIGKDD
+InternationalConferenceonKnowledge
+DiscoveryandDataMining(KDD-2002),
+pages 341–349, Edmonton.
+Mullen,Tonyand Nigel Collier.2004.
+Sentiment analysisusingsupport
+vector machines withdiverse
+informationsources. InProceedings
+oftheConferenceonEmpiricalMethods
+inNaturalLanguageProcessing
+(EMNLP-2004),pages 412–418,
+Barcelona.
+Nasukawa, Tetsuyaand JeongheeYi.
+2003. Sentimentanalysis: Capturing
+favorabilityusingnaturallanguage
+processing. InProceedingsofthe2nd
+InternationalConferenceonKnowledge
+Capture(K-CAP2003),pages 70–77,
+SanibelIsland,FL.
+Pang,Bo,LillianLee,and Shivakumar
+Vaithyanathan.2002. Thumbsup?
+Sentiment classiﬁcation usingmachine
+learningtechniques.InProceedingsofthe
+ConferenceonEmpiricalMethodsinNatural
+LanguageProcessing(EMNLP-2002),
+pages 79–86, Philadelphia,PA.
+Polanyi,Liviaand AnnieZaenen.2004.
+Contextual valence shifters.InWorking
+NotesoftheAAAISpringSymposiumon
+ExploringAttitudeandAffectinText:
+TheoriesandApplications, pages 106–111,
+TheAAAI Press, MenloPark,CA.
+Popescu,Ana-Mariaand Oren Etzioni.
+2005. Extractingproductfeaturesand
+opinionsfromreviews.InProceedings
+oftheHumanLanguageTechnologies
+Conference/ConferenceonEmpirical
+MethodsinNaturalLanguageProcessing
+(HLT/EMNLP-2005),pages 339–346,
+Vancouver.
+Quirk,Randolph,SidneyGreenbaum,
+GeoffryLeech,and Jan Svartvik.1985.
+AComprehensiveGrammaroftheEnglish
+Language.Longman,NewYork.
+Riloff,Ellen andJanyce Wiebe. 2003.
+Learningextractionpatternsforsubjective
+expressions. InProceedingsoftheConference
+onEmpiricalMethodsinNaturalLanguage
+Processing(EMNLP-2003),pages 105–112,
+Sapporo.
+Schapire,Robert E.and YoramSinger.2000.
+BoosTexter:A boosting-basedsystem for
+text categorization.MachineLearning,
+39(2/3):135–168.
+Spertus,Ellen.1997. Smokey:Automatic
+recognition ofhostilemessages. In
+Proceedingsofthe8thAnnualConference
+onInnovativeApplicationsofArtiﬁcial
+Intelligence(IAAI-97),pages1058–1065,
+Providence,RI.
+Stone,PhilipJ.,Dexter C. Dunphy,
+Marshall S.Smith,and Daniel M. Ogilvie.
+1966.TheGeneralInquirer:AComputer
+ApproachtoContentAnalysis.MIT Press,
+Cambridge,MA.
+Stoyanov,Veselin, Claire Cardie,and
+Janyce Wiebe. 2005.Multi-perspective
+questionansweringusingtheOpQA
+corpus.InProceedingsoftheHuman
+LanguageTechnologiesConference/
+ConferenceonEmpiricalMethodsinNatural
+LanguageProcessing(HLT/EMNLP-2005),
+pages 923–930, Vancouver.
+Suzuki,Yasuhiro,HiroyaTakamura,and
+Manabu Okumura.2006.Application of
+semi-supervised learningtoevaluative
+expression classiﬁcation. InProceedingsof
+the7thInternationalConferenceonIntelligent
+TextProcessingandComputational
+Linguistics(CICLing-2006),pages 502–513,
+Mexico City.
+Takamura,Hiroya,Takashi Inui,and
+Manabu Okumura.2005.Extracting
+emotionalpolarityof wordsusingspin
+model.InProceedingsofthe43rdAnnual
+MeetingoftheAssociationforComputational
+Linguistics(ACL-05),pages133–140,
+AnnArbor,MI.
+Tong,Richard.2001. An operational
+system fordetectingand tracking
+opinionsin onlinediscussions. In
+WorkingNotesoftheSIGIRWorkshopon
+OperationalTextClassiﬁcation,pages1–6,
+NewOrleans, LA.
+Turney,Peter.2002.Thumbsupor thumbs
+down?Semanticorientationappliedto
+unsupervised classiﬁcation ofreviews.
+InProceedingsofthe40thAnnualMeeting
+oftheAssociationforComputational
+Linguistics(ACL-02),pages417–424,
+Philadelphia,PA.
+Turney,Peterand Michael L.Littman.2003.
+Measuring praiseandcriticism:Inference
+of semantic orientationfromassociation.
+ACMTransactionsonInformationSystems
+(TOIS),21(4):315–346.
+Whitelaw, Casey, Navendu Garg,and
+ShlomoArgamon.2005. Usingappraisal
+groupsforsentiment analysis. In
+Proceedingsofthe14thACMInternational
+ConferenceonInformationandKnowledge
+432
+Wilson,Wiebe, and Hoffmann RecognizingContextual Polarity
+Management(CIKM-2005),pages 625–631,
+Bremen.
+Wiebe,Janyce. 1994.Trackingpointof view
+innarrative.ComputationalLinguistics,
+20(2):233–287.
+Wiebe,Janyce, Rebecca Bruce,and
+ThomasO’Hara.1999. Development
+and useof agold standarddataset
+forsubjectivityclassiﬁcations. In
+Proceedingsofthe37thAnnualMeeting
+oftheAssociationforComputational
+Linguistics(ACL-99),pages 246–253,
+CollegePark,MD.
+Wiebe,Janyce andRada Mihalcea.
+2006. Wordsense andsubjectivity.
+InProceedingsofthe21stInternational
+ConferenceonComputationalLinguistics
+and44thAnnualMeetingofthe
+AssociationforComputationalLinguistics,
+pages1065–1072, Sydney.
+Wiebe,Janyce andEllen Riloff.2005.
+Creatingsubjectiveand objectivesentence
+classiﬁers fromunannotatedtexts.In
+Proceedingsofthe6thInternational
+ConferenceonIntelligentTextProcessingand
+ComputationalLinguistics(CICLing-2005),
+pages486–497, Mexico City.
+Wiebe,Janyce, TheresaWilson,and Claire
+Cardie.2005. Annotatingexpressions
+of opinionsand emotionsinlanguage.
+LanguageResourcesandEvaluation
+(formerlyComputersandtheHumanities),
+39(2/3):164–210.
+Wilson,Theresa,Janyce Wiebe,and Paul
+Hoffmann.2005. Recognizingcontextual
+polarityinphrase-levelsentiment
+analysis. InProceedingsoftheHuman
+LanguageTechnologiesConference/
+ConferenceonEmpiricalMethodsinNatural
+LanguageProcessing(HLT/EMNLP-2005),
+pages347–354, Vancouver.
+Xia,Fei and MarthaPalmer.2001.
+Convertingdependencystructuresto
+phrasestructures.InProceedingsofthe
+HumanLanguageTechnologyConference
+(HLT-2001),pages1–5, San Diego,CA.
+Yi,Jeonghee,Tetsuya Nasukawa,Razvan
+Bunescu,and WayneNiblack. 2003.
+Sentimentanalyzer:Extractingsentiments
+abouta giventopicusingnaturallanguage
+processingtechniques.InProceedingsofthe
+3rdIEEEInternationalConferenceonData
+Mining(ICDM’03),pages427–434,
+Melbourne,FL.
+Yu,Hongand Vasileios Hatzivassiloglou.
+2003. Towardsansweringopinion
+questions:Separatingfacts fromopinions
+and identifyingthepolarityof opinion
+sentences. InProceedingsoftheConference
+onEmpiricalMethodsinNaturalLanguage
+Processing(EMNLP-2003),pages 129–136,
+Sapporo.
+433
+
+

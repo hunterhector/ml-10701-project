@@ -1,0 +1,1656 @@
+GrammarFactorizationby
+TreeDecomposition
+DanielGildea
+∗
+UniversityofRochester
+Wedescribetheapplicationofthegraph-theoreticpropertyknownastreewidthtotheproblemof
+ﬁndingefﬁcientparsingalgorithms.Thismethod,similartothejunctiontreealgorithmusedin
+graphicalmodelsformachinelearning,allowsautomaticdiscoveryofefﬁcientalgorithmssuch
+astheO(n
+4
+)algorithmforbilexicalgrammarsofEisnerandSatta.Weexaminethecomplexity
+of applying this method to parsing algorithms for general Linear Context-Free Rewriting Sys-
+tems.Weshowthatanypolynomial-timealgorithmforthisproblemwouldimplyanimproved
+approximationalgorithmforthewell-studiedtreewidthproblemongeneralgraphs.
+1. Introduction
+In this article, we describe meta-algorithms for parsing: algorithms for ﬁnding the
+optimal parsing algorithm for a given grammar, with the constraint that rules in the
+grammar are considered independently of one another. In order to have a common
+representation for our algorithms to work with, we represent parsing algorithms
+as weighted deduction systems (Shieber, Schabes, and Pereira 1995; Goodman 1999;
+Nederhof 2003). Weighted deduction systems consist of axioms and rules for building
+items or partial results. Items are identiﬁed by square brackets, with their weights
+written to the left. Figure 1 shows a rule for deducing a new item when parsing a
+context free grammar (CFG) with the rule S→AB. The item below the line, called
+theconsequent,canbederivedifthetwoitemsabovetheline,calledthe antecedents,
+have been derived. Items have types, corresponding to grammar nonterminals in this
+example, and variables, whose values range over positions in the string to be parsed.
+We restrict ourselves to items containing position variables directly as arguments; no
+otherfunctionsoroperationsareallowedtoapplytovariables.Theconsequent’sweight
+istheproductoftheweightsofthetwoantecedentsandtheruleweightw
+0
+.Implicitin
+thenotationisthefactthatwetakethemaximumweightoverallderivationsofthesame
+item.Thus,theweighteddeductionsystemcorrespondstotheViterbiormax-product
+algorithmforparsing.Applicationsofthesameweighteddeductionsystemwithother
+semiringsarealsopossible(Goodman1999).
+Thecomputationalcomplexityofparsingdependsonthetotalnumberofinstanti-
+ationsofvariablesinthesystem’sdeductionrules.Ifthetotalnumberofinstantiations
+is M,parsingisO(M) if there are no cyclic dependencies among instantiations, or,
+equivalently,ifallinstantiationscanbesortedtopologically.Inmostparsingalgorithms,
+∗ ComputerScienceDepartment,UniversityofRochester,RochesterNY14627.
+E-mail:gildea@cs.rochester.edu.
+Submissionreceived:28June2010;revisedsubmissionreceived:20September2010;acceptedforpublication:
+21October2010.
+©2011AssociationforComputationalLinguistics
+ComputationalLinguistics Volume37,Number1
+w
+1
+:[A,x
+0,x
+1
+]
+w
+2
+:[B,x
+1,x
+2
+]
+w
+0
+w
+1
+w
+2
+:[S,x
+0,x
+2
+]
+Figure1
+CFGparsinginweighteddeductionnotation.
+variablesrangeoverpositionsintheinputstring.Inordertodeterminecomplexityin
+the length n of the input string, it is sufﬁcient to count the number of unique position
+variables in each rule. If all rules have at most k position variables, M=O(n
+k
+), and
+parsingtakestimeO(n
+k
+)inthelengthoftheinputstring.Intheremainderofthisarticle,
+we will explore methods forminimizingk,the largest number ofposition variables in
+any rule, among equivalent deduction systems. These methods directly minimize the
+parsing complexity of the resulting deduction system. Although we will assume no
+cyclic dependencies among rule instantiations for the majority of the article, we will
+discussthecycliccaseinSection2.2.
+It is often possible to improve the computational complexity of a deduction rule
+by decomposing the computation into two or more new rules, each having a smaller
+numberofvariablesthantheoriginalrule.Werefertothisprocessasfactorization.One
+straightforwardexampleofrulefactorizationisthebinarizationofaCFG,asshownin
+Figure 2. Given a deduction rule for a CFG rule withrnonterminals on the righthand
+side,andatotalofr+1variables,anequivalentsetofrulescanbeproduced,eachwith
+threevariables,storingintermediateresultsthatindicatethatasubstringoftheoriginal
+rule’s righthand side has been recognized. This type of rule factorization produces an
+O(n
+3
+)parserforanyinputCFG.
+Another well-known instance of rule factorization is the hook trick of Eisner and
+Satta (1999), which reduces the complexity of parsing for bilexicalized CFGs from
+O(n
+5
+)toO(n
+4
+).ThebasicruleforbilexicalizedparsingcombinestwoCFGconstituents
+marked with lexical heads as shown in Figure 3a. Here items with type C indicate
+constituents, with [C,x
+0,h,x
+1
+] indicating a constituent extending from position x
+0
+to
+position x
+1, headed by the word at position h. The item [D,m→h] is used to indicate
+theweightassignedbythegrammartoabilexicaldependencyheadedbythewordat
+a)
+w
+1
+:[A,x
+0,x
+1
+]
+w
+2
+:[B,x
+1,x
+2
+]
+w
+3
+:[C,x
+2,x
+3
+]
+w
+4
+:[D,x
+3,x
+4
+]
+w
+0
+w
+1
+w
+2
+w
+3
+w
+4
+:[S,x
+0,x
+4
+]
+b)
+w
+1
+:[A,x
+0,x
+1
+]
+w
+2
+:[B,x
+1,x
+2
+]
+w
+1
+w
+2
+:[X,x
+0,x
+2
+]
+w
+5
+:[X,x
+0,x
+2
+]
+w
+3
+:[C,x
+2,x
+3
+]
+w
+3
+w
+5
+:[Y,x
+0,x
+3
+]
+w
+6
+:[Y,x
+0,x
+3
+]
+w
+3
+:[D,x
+3,x
+4
+]
+w
+0
+w
+3
+w
+6
+:[S,x
+0,x
+3
+]
+Figure2
+BinarizationoftheCFGruleS→ABCDasrulefactorization:Thedeductionruleabovecanbe
+factoredintothethreeequivalentrulebelow.
+232
+Gildea GrammarFactorizationbyTreeDecomposition
+a)
+w
+lscript
+:[D,m→h]
+w
+1
+:[C,x
+0,h,x
+1
+]
+w
+2
+:[C,x
+1,m,x
+2
+]
+w
+lscript
+w
+1
+w
+2
+:[C,x
+0,h,x
+2
+]
+b)
+w
+lscript
+:[D,m→h]
+w
+2
+:[C,x
+1,m,x
+2
+]
+w
+lscript
+w
+2
+:[H,h,x
+1,x
+2
+]
+w
+h
+:[H,h,x
+1,x
+2
+]
+w
+1
+:[C,x
+0,h,x
+1
+]
+w
+h
+w
+1
+:[C,x
+0,h,x
+2
+]
+Figure3
+Rulefactorizationforbilexicalizedparsing.
+positionhwiththewordatpositionmasamodiﬁer.Thedeductionruleisbrokeninto
+two steps, one which includes the weight for the bilexical grammar rule, and another
+whichidentiﬁestheboundariesofthenewconstituent,asshowninFigure3b.Thehook
+trick has also been applied to Tree Adjoining Grammar (TAG; Eisner and Satta 2000),
+and has been generalized to improve the complexity of machine translation decoding
+under synchronous context-free grammars (SCFGs) with an n-gram language model
+(Huang,Zhang,andGildea2005).
+RulefactorizationhasalsobeenstudiedinthecontextofparsingforSCFGs.Unlike
+monolingualCFGs,SCFGscannotalwaysbebinarized;dependingonthepermutation
+betweennonterminalsinthetwolanguages,itmayormaynotbepossibletoreducethe
+rank,ornumberofnonterminalsontherighthandside,ofarule.Algorithmsforﬁnding
+theoptimalrankreductionofaspeciﬁcrulearegivenbyZhangandGildea(2007).The
+complexity of synchronous parsing for a rule of rank r is O(n
+2r+2
+), so reducing rank
+improvesparsingcomplexity.
+RulefactorizationhasalsobeenappliedtoLinearContext-FreeRewritingSystems
+(LCFRS), which generalize CFG, TAG, and SCFG to deﬁne a rewriting system where
+nonterminals may have arbitrary fan-out, which indicates the number of continuous
+spansthatanonterminalaccountsforinthestring(Vijay-Shankar,Weir,andJoshi1987).
+Recent work has examined the problem of factorization of LCFRS rules in order to
+reducerankwithoutincreasinggrammarfan-out(G´omez-Rodr´ıguezetal.2009),aswell
+asfactorizationwiththegoalofdirectlyminimizingtheparsingcomplexityofthenew
+grammar(Gildea2010).
+We deﬁne factorization as a process which applies to rules of the input grammar
+independently.Individualrulesarereplacedwithanequivalentsetofnewrules,which
+must derive the same set of consequent items as the original rule given the same an-
+tecedentitems.Whilenewintermediateitemsofdistincttypesmaybeproduced,theset
+ofitemsandweightsderivedbytheoriginalweighteddeductionsystemisunchanged.
+Thisdeﬁnitionoffactorizationisbroadenoughtoincludeallofthepreviousexamples,
+but does not include, for example, the fold/unfold operation applied to grammars by
+Johnson(2007)andEisnerandBlatz(2007).Rulefactorizationcorrespondstotheunfold
+operationoffold/unfold.
+Ifweallowunrestrictedtransformationsoftheinputdeductionsystem,ﬁndingthe
+mostefﬁcientequivalentsystemisundecidable;thisfollowsfromthefactthatitisun-
+decidablewhetheraCFGgeneratesthesetofallstrings(Bar-Hillel,Perles,andShamir
+1961),andwouldthereforeberecognizableinconstanttime.Whereasthefold/unfold
+operation of Johnson (2007) and Eisner and Blatz (2007) speciﬁes a narrower class of
+233
+ComputationalLinguistics Volume37,Number1
+grammartransformations,nogeneralalgorithmsareknownforidentifyinganoptimal
+seriesoftransformationsinthissetting.Consideringinputrulesindependentlyallows
+ustoprovidealgorithmsforoptimalfactorization.
+Inthisarticle,wewishtoprovideageneralframeworkforfactorizationofdeduc-
+tive parsing systems in order to minimize computational complexity. We show how
+to apply the graph-theoretic property of treewidth to the factorization problem, and
+examine the question of whether efﬁcient algorithms exist for optimizing the parsing
+complexity of general parsing systems in this framework. In particular, we show that
+theexistenceofapolynomialtimealgorithmforoptimizingtheparsingcomplexityof
+generalLCFRSruleswouldimplyanimprovedapproximationalgorithmforthewell-
+studiedproblemoftreewidthofgeneralgraphs.
+2. Treewidth and RuleFactorization
+In this section, we introduce the graph-theoretic property known as treewidth, and
+showhowitcanbeappliedtorulefactorization.
+Atree decomposition ofagraphG=(V,E)isatypeoftreehavingasubsetofG’s
+vertices at each node. We deﬁne the nodes of this tree T to be the set I, and its edges
+to be the set F. The subset of V associated with node i of T is denoted by X
+i
+.Atree
+decompositionisthereforedeﬁnedasapair({X
+i
+|i∈I},T=(I,F))whereeachX
+i,i∈I
+isasubsetofV,andtreeThasthefollowingproperties:
+a114
+Vertexcover:ThenodesofthetreeTcoveralltheverticesofG:
+uniontext
+i∈I
+X
+i
+=V.
+a114
+Edgecover:EachedgeinGisincludedinsomenodeofT.Thatis,forall
+edges(u,v)∈E,thereexistsani∈Iwithu,v∈X
+i
+.
+a114
+Runningintersection:ThenodesofTcontainingagivenvertexofGforma
+connectedsubtree.Mathematically,foralli,j,k ∈I,ifjisonthe(unique)
+pathfromitokinT,thenX
+i
+intersectiontext
+X
+k
+⊆X
+j
+.
+The treewidth of a tree decomposition ({X
+i
+},T)ismax
+i
+|X
+i
+|−1. The treewidth of a
+graphistheminimumtreewidthoveralltreedecompositions:
+tw(G)= min
+({X
+i
+},T)∈TD(G)
+max
+i
+|X
+i
+|−1
+whereTD(G)isthesetofvalidtreedecompositionsofG.Werefertoatreedecomposi-
+tionachievingtheminimumpossibletreewidthasbeingoptimal.
+In general, more densely interconnected graphs have higher treewidth. Any tree
+hastreewidth=1;agraphconsistingofonelargecyclehastreewidth=2,andafully
+connectedgraphofnverticeshastreewidth=n−1.Lowtreewidthindicatessometree-
+likestructureinthegraph,asshownbytheexamplewithtreewidth=2inFigure4.As
+anexampleoftherunningintersectionproperty,notethatthevertexNappearsinthree
+adjacent nodes of the tree decomposition. Finding the treewidth of a graph is an NP-
+completeproblem(Arnborg,Corneil,andProskurowski1987).However,givenagraph
+ofnverticesandtreewidthk,asimplealgorithmﬁndstheoptimaltreedecompositionin
+timeO(n
+k+2
+)(Arnborg,Corneil,andProskurowski 1987),andavarietyofapproxima-
+tionalgorithmsandheuristicsareknownforthetreewidthproblem(Bodlaenderetal.
+1995;Amir2001;Feige,Hajiaghayi,andLee2005).Furthermore,forﬁxedk,optimaltree
+decompositionscanbecomputedinlineartime(Bodlaender1996).
+234
+Gildea GrammarFactorizationbyTreeDecomposition
+Figure4
+Atreedecompositionofagraphisasetofoverlappingclustersofthegraph’svertices,arranged
+inatree.Thisexamplehastreewidth=2.
+We can factorize a deduction rule by representing the rule as a graph, which we
+call a dependency graph, and searching for tree decompositions of this graph. For a
+rulerhavingnvariablesV={v
+i
+|i∈{1,...,n}},mantecedentitemsA
+i,i∈{1,...,m},
+andconsequentC,letV(A
+i
+)⊂VbethevariablesappearinginantecedentA
+i,andV(C)
+bethevariablesappearingintheconsequent.Thedependencygraphrepresentationof
+theruleisG
+r
+=(V,E=
+uniontext
+S:A
+1,...,A
+m,C
+{(v
+i,v
+j
+)|v
+i,v
+j
+∈V(S)}).Thatis,wehaveavertexfor
+eachvariableintherule,andconnectanytwoverticesthatappeartogetherinthesame
+antecedent,orthatappeartogetherintheconsequent.
+Thedependencygraphrepresentationallowsustoprovethefollowingresultcon-
+cerningparsingcomplexity:
+Theorem 1
+Givenadeductionrulerforparsingwheretheinputstringisreferencedonlythrough
+positionvariablesappearingasargumentsofantecedentandconsequentitems,theopti-
+malcomplexityofanyfactorizationofrulerisO(n
+tw(G
+r
+)+1
+),whereG
+r
+isthedependency
+graphderivedfromr.
+Proof
+Oneconsequenceofthedeﬁnitionofatreedecompositionisthat,foranycliqueappear-
+ingintheoriginalgraphG
+r,theremustexistanodeinthetreedecompositionTwhich
+contains all the vertices in the clique. We use this fact to show that there is a one-to-
+onecorrespondencebetweentreedecompositionsofarule’sdependencygraphG
+r
+and
+factorizationsoftherule.
+First,weneedtoshowthatanytreedecompositionofG
+r
+canbeusedasafactoriza-
+tionoftheoriginaldeductionrule.Byourearlierdeﬁnition,afactorizationmustderive
+the same set of consequent items from a given set of antecedent items as the original
+rule.BecauseG
+r
+includesacliqueconnectingallvariablesintheconsequentC,thetree
+decompositionTmusthaveanodeX
+c
+suchthatV(C)⊆X
+c
+.Weconsiderthisnodetobe
+therootofT.Theoriginaldeductionrulecanbefactorizedintoanewsetofrules,one
+foreachnodeinT.FornodeX
+c,thefactorizedrulehasCasaconsequent,andallother
+nodesX
+i
+haveanewpartialresultasaconsequent,consistingofthevariablesX
+i
+∩X
+j,
+whereX
+j
+isX
+i
+’sneighboronthepathtotherootnodeX
+c
+.Wemustguaranteethatthe
+factorizedrulesetyieldsthesameresultastheoriginalrule,namely,thesemiringsum
+235
+ComputationalLinguistics Volume37,Number1
+over all variable values of the semiring product of the antecedents’ weights. The tree
+structureofTcorrespondstoafactorizationofthissemiringexpression.Forexample,if
+werepresenttheCFGruleofFigure2awiththegeneralizedsemiringexpression:
+circleplusdisplay
+x
+1
+x
+2
+x
+3
+A(x
+0,x
+1
+)⊗B(x
+1,x
+2
+)⊗C(x
+2,x
+3
+)⊗D(x
+3,x
+4
+)
+thefactorizationofthisexpressioncorrespondingtothebinarizedruleis
+circleplusdisplay
+x
+3
+parenleftBigg
+circleplusdisplay
+x
+2
+parenleftBigg
+circleplusdisplay
+x
+1
+A(x
+0,x
+1
+)⊗B(x
+1,x
+2
+)
+parenrightBigg
+⊗C(x
+2,x
+3
+)
+parenrightBigg
+⊗D(x
+3,x
+4
+)
+wheresemiringoperations ⊕ and ⊗ havebeeninterchangedasallowedbythedepen-
+dencygraphforthisrule.
+Because each antecedent A
+i
+is represented by a clique in the graph G
+r, the tree
+decomposition T must contain at least one node which includes all variables V(A
+i
+).
+We can choose one such node and multiply in the weight of A
+i, given the values of
+variablesV(A
+i
+),atthisstepoftheexpression.Therunningintersectionpropertyofthe
+tree decomposition guarantees that each variable has a consistent value at each point
+whereitisreferencedinthefactorization.
+The same properties guarantee that any valid rule factorization corresponds to a
+tree decomposition of the graph G
+r
+. We consider the tree decomposition with a set X
+i
+foreachnewruler
+i,consistingofallvariablesusedinr
+i,andwithtreeedgesTdeﬁned
+by the producer/consumer relation over intermediate results in the rule factorization.
+Eachantecedentoftheoriginalrulemustappearinsomenewruleinthefactorization,
+as must the consequent of the original rule. Therefore, all edges in the original rule’s
+dependency graph G
+r
+appear in some tree node X
+i
+. Any variable that appears in two
+rulesinthefactorizationmustappearinallintermediaterulesinordertoensurethatthe
+variablehasaconsistentvalueinallrulesthatreferenceit.Thisguaranteestherunning
+intersection property of the tree decomposition ({X
+i
+},T). Thus any rule factorization,
+when viewed as a tree of sets of variables, has the properties that make it a valid tree
+decompositionofG
+r
+.
+The theorem follows as a consequence of the one-to-one correspondence between
+rulefactorizationsandtreedecompositions.squaresolid
+2.1 Computational
+Complexity
+Factorization produces, for each input rule having m antecedents, at most m−1 new
+rules,eachcontainingatmostthesamenumberofnonterminalsandthesamenumber
+ofvariablesastheinputrule.Hence,thesizeofthenewfactorizedgrammarisO(|G|
+2
+),
+andweavoidanypossibilityofanexponentialincreaseingrammarsize.Tighterbounds
+canbeachievedforspeciﬁcclassesofinputgrammars.
+Thecomputationalcomplexityofoptimalfactorizationwithtreedecompositionis
+exponential in the size of the input rules. However, optimal factorization is generally
+feasible whenever parsing with the unfactorized grammar is feasible. This is because,
+for an input rule with lscript variables, parsing is O(n
+lscript
+) in the sentence length n.The
+treewidthofthisruleisatmostlscript−1,andcanbecomputedintimeO(lscript
+lscript+1
+);generallywe
+expectntobegreaterthan lscript.Onemayalsowishtoacceptonlyruleshavingtreewidth
+k and disregard the remainder, for example, when factorizing rules automatically
+236
+Gildea GrammarFactorizationbyTreeDecomposition
+extracted from word-aligned bitext (Wellington, Waxmonsky, and Melamed 2006;
+Huang et al. 2009) or from dependency treebanks (Kuhlmann and Nivre 2006; Gildea
+2010).Inthissetting,theruleshavingtreewidthkcanbeidentiﬁedintimeO(lscript
+k+2
+)using
+the simple algorithm of Arnborg, Corneil, and Proskurowski (1987), (where again lscript
+is the number of variables in the input rules), or in time O(lscript) using the algorithm of
+Bodlaender(1996).
+2.2Cyclic Dependencies
+Althoughthisarticleprimarilyaddressesthecasewheretherearenocyclicdependen-
+cies between rule instantiations, we note here that our techniques carry over to the
+cyclic case under certain conditions. If there are cycles in the rule dependencies, but
+thesemiringmeetsKnuth’s(1977)deﬁnitionofasuperiorfunction,parsingtakestime
+O(MlogM), where M is the number of rule instantiations, and the extra logM term
+accounts for maintaining an agenda as a priority queue (Nederhof 2003). Cycles in
+the rule dependencies may arise, for example, from chains of unary productions in a
+CFG; the properties of superior functions guarantee that unbounded chains need not
+be considered. The max-product semiring used in Viterbi parsing has this property,
+assuming that all rule weights are less than one, whereas for exact computation with
+the sum-product semiring, unbounded chains must be considered. As in the acyclic
+case, M=O(n
+k
+) for parsing problems where rules have at most k variables. Under
+the assumption of superior functions, parsing takes time O(n
+k
+klogn)withKnuth’s
+algorithm.Inthissetting,asintheacycliccase,minimizingk withtreedecomposition
+minimizesparsingcomplexity.
+2.3Related Applications of Treewidth
+Thetechniqueofusingtreewidthtominimizecomplexityhasbeenappliedtoconstraint
+satisfaction (Dechter and Pearl 1989), graphical models in machine learning (Jensen,
+Lauritzen, and Olesen 1990; Shafer and Shenoy 1990), and query optimization for
+databases (Chekuri and Rajaraman 1997). Our formulation of parsing is most closely
+relatedtologicprogramming;inthisareatreewidthhasbeenappliedtolimitcomplex-
+ity in settings where either the deduction rules or the input database of ground facts
+have ﬁxed treewidth (Flum, Frick, and Grohe 2002). Whereas Flum, Frick, and Grohe
+(2002) apply treewidth to nonrecursive datalog programs, our parsing programs have
+unboundedrecursion,asthedepthoftheparsetreeisnotﬁxedinadvance.Ourresults
+forparsingcanbeseenasaconsequenceofthefactthat,eveninthecaseofunbounded
+recursion,thecomplexityof(unweighted)datalogprogramsislinearinthenumberof
+possibleruleinstantiations(McAllester2002).
+3. Examples ofTreewidth for Parsing
+In this section, we show how a few well-known parsing algorithms can be derived
+automaticallybyﬁndingtheoptimaltreedecompositionofadependencygraph.
+Toaidinvisualizationofthegraphicalrepresentationofdeductionrules,weusea
+factorgraphrepresentationbasedonthatofKschischang,Frey,andLoeliger(2001)for
+MarkovRandomFields.Ourgraphshavethreetypesofnodes:variables,antecedents,
+and consequents. Each antecedent node is connected to the variables it contains, and
+represents the antecedent’s weight as a function of those variables. Antecedent nodes
+are analogous to the factor nodes of Kschischang, Frey, and Loeliger (2001), and
+237
+ComputationalLinguistics Volume37,Number1
+Figure5
+FactorgraphforthebinaryCFGdeductionruleofFigure1.
+consequentnodesareanewfeatureofthisrepresentation.Wecanthinkofconsequents
+as factors with weight = 1; they do not affect the weights computed, but serve to
+guaranteethattheconsequentoftheoriginalrulecanbefoundinonenodeofthetree
+decomposition.Werefertobothantecedentandconsequentnodesasfactornodes.Re-
+placingeachfactornodewithacliqueoveritsneighborvariablesyieldsthedependency
+graphG
+r
+deﬁnedearlier.Werepresentvariableswithcircles,antecedentswithsquares
+labeled with the antecedent’s weight, and consequents with diamonds labeled c.An
+examplefactorgraphforthesimpleCFGruleofFigure1isshowninFigure5.
+3.1 CFG
+Binarization
+Figure 6a shows the factor graph derived from the monolingual CFG rule with four
+children in Figure 2a. The dependency graph obtained by replacing each factor with
+a clique of size 2 (a single edge) is a graph with one large cycle, shown in Figure 6b.
+Findingtheoptimaltreedecompositionyieldsatreewithnodesofsize3, {x
+0,x
+i,x
+i+1
+}
+foreachi,showninFigure6c.Eachnodeinthistreedecompositioncorrespondstoone
+ofthefactoreddeductionrulesinFigure2b.Thus,thetreedecompositionshowsushow
+Figure6
+TreewidthappliedtoCFGbinarization.
+238
+Gildea GrammarFactorizationbyTreeDecomposition
+toparseintimeO(n
+3
+);ﬁndingthetreedecompositionofalongCFGruleisessentially
+equivalenttoconvertingtoChomskyNormalForm.
+3.2The Hook Trick
+ThedeductionruleforbilexicalizedparsingshowninFigure3atranslatesintothefactor
+graph shown in Figure 7a. Factor nodes are created for the two existing constituents
+from the chart, with the ﬁrst extending from position x
+0
+in the string to x
+1,andthe
+second from x
+1
+to x
+2
+. Both factor nodes are connected not only to the start and end
+points, but also to the constituent’s head word, h for the ﬁrst constituent and m for
+the second (we show the construction of a left-headed constituent in the ﬁgure). An
+additionalfactorisconnectedonlytohandmtorepresentthebilexicalizedruleweight,
+expressed as a function of h and m, which is multiplied with the weight of the two
+existingconstituentstoderivetheweightofthenewconstituent.Thenewconstituent
+isrepresentedbyaconsequentnodeatthetopofthegraph—thevariablesthatwillbe
+relevantforitsfurthercombinationwithotherconstituentsareitsendpointsx
+0
+andx
+2
+anditsheadwordh.
+Placinganedgebetweeneachpairofvariablenodesthatshareafactor,wegetFig-
+ure7b.Ifwecomputetheoptimaltreedecompositionforthisgraph,showninFigure7c,
+eachofthetwonodescorrespondstooneofthefactoredrulesinFigure3b.Thelargest
+nodeofthetreedecompositionhasfourvariables,givingtheO(n
+4
+)algorithmofEisner
+andSatta(1999).
+3.3 SCFG
+Parsing Strategies
+SCFGsgeneralizeCFGstogeneratetwostringswithisomorphichierarchicalstructure
+simultaneously,andhavebecomewidelyusedasstatisticalmodelsofmachinetransla-
+tion (Galley et al. 2004; Chiang 2007). We write SCFG rules as productions with one
+Figure7
+Treewidthappliedtobilexicalizedparsing.
+239
+ComputationalLinguistics Volume37,Number1
+lefthand side nonterminal and two righthand side strings. Nonterminals in the two
+stringsarelinkedwithsuperscriptindices;symbolswiththesameindexmustbefurther
+rewrittensynchronously.Forexample,
+X →A
+(1)
+B
+(2)
+C
+(3)
+D
+(4), A
+(1)
+B
+(2)
+C
+(3)
+D
+(4)
+(1)
+isarulewithfourchildrenandnoreordering,whereas
+X →A
+(1)
+B
+(2)
+C
+(3)
+D
+(4), B
+(2)
+D
+(4)
+A
+(1)
+C
+(3)
+(2)
+expresses a more complex reordering. In general, we can take indices in the ﬁrst
+righthand-sidestringtobeconsecutive,andassociateapermutation πwiththesecond
+string. If we use X
+i
+for 0≤i≤n as a set of variables over nonterminal symbols (for
+example,X
+1
+andX
+2
+maybothstandfornonterminalA),wecanwriterulesinthegeneral
+form:
+X
+0
+→X
+(1)
+1
+···X
+(n)
+n, X
+(π(1))
+π(1)
+···X
+(π(n))
+π(n)
+Unlike monolingual CFGs, SCFGs cannot always be binarized. In fact, the lan-
+guages of string pairs generated by a synchronous grammar can be arranged in an
+inﬁnitehierarchy,witheachrank≥4producinglanguagesnotpossiblewithgrammars
+restricted to smaller rules (Aho and Ullman 1972). For any grammar with maximum
+rank r, converting each rule into a single deduction rule yields an O(n
+2r+2
+)parsing
+algorithm,becausetherearer+1boundaryvariablesineachlanguage.Moreefﬁcient
+parsingalgorithmsareoftenpossibleforspeciﬁcpermutations,and,byTheorem1,the
+best algorithm for apermutation can be found bycomputing the minimum-treewidth
+tree decomposition of the graph derived from the SCFG deduction rule for a speciﬁc
+permutation. For example, for the non-binarizable rule of Equation (2), the resulting
+factorgraphisshowninFigure8a,wherevariablesx
+0,...,x
+4
+indicatepositionvariables
+in one language of the synchronous grammar, andy
+0,...,y
+4
+are positions in the other
+language. The optimal tree decomposition for this rule is shown in Figure 8c. For this
+permutation,theoptimalparsingalgorithmtakestimeO(n
+8
+),becausethelargestnode
+in the tree decomposition of Figure 8c includes eight position variables. This result is
+intermediatebetweentheO(n
+6
+)forbinarizableSCFGs,alsoknownasInversionTrans-
+ductionGrammars(Wu1997),andtheO(n
+10
+)thatwewouldachievebyrecognizingthe
+ruleinasingledeductionstep.
+Gildea and
+ˇ
+Stefankoviˇc (2007) use a combinatorial argument to show that as the
+number of nonterminals r in an SCFG rule grows, the parsing complexity grows as
+Ω(n
+cr
+)forsomeconstantc.Inotherwords,someverydifﬁcultpermutationsexistofall
+lengths.
+It is interesting to note that although applying the tree decomposition technique
+to long CFG rules results in a deduction system equivalent to a binarized CFG, the
+individual deduction steps in the best parsing strategy for an SCFG rule do not in
+generalcorrespondtoSCFGrules.Thisisbecausetheintermediateresultsmayinclude
+morethanonespanineachlanguage.Theseintermediatedeductionstepsdo,however,
+correspondtoLCFRSrules.WenowturntoexamineLCFRSinmoredetail.
+240
+Gildea GrammarFactorizationbyTreeDecomposition
+Figure8
+TreewidthappliedtotheSCFGruleofEquation(2).
+4. LCFRS Parsing Strategies
+LCFRS provides a generalization of a number of widely used formalisms in natural
+language processing, including CFG, TAG, SCFG, and synchronous TAG. LCFRS has
+also been used to model non-projective dependency grammars, and the LCFRS rules
+extracted from dependency treebanks can be quite complex (Kuhlmann and Satta
+2009),makingfactorizationimportant.Similarly,LCFRScanmodeltranslationrelations
+beyond the power of SCFG (Melamed, Satta, and Wellington 2004), and grammars
+extractedfromword-aligned bilingual corpora can alsobequite complex (Wellington,
+Waxmonsky, and Melamed 2006). An algorithm for factorization of LCFRS rules is
+presentedbyGildea(2010),exploitingspeciﬁcpropertiesofLCFRS.Thetreedecompo-
+sition method achieves the same results without requiring analysis speciﬁc to LCFRS.
+In this section, we examine the complexity of rule factorization for general LCFRS
+grammars.
+The problem of ﬁnding the optimal factorization of an arbitrary deduction rule is
+NP-complete.ThisfollowsfromtheNP-completenessoftreewidthusingthefollowing
+construction: Givenagraph,create adeduction rulewithavariable foreach vertexin
+thegraphandanantecedentforeachedge,containingthetwovariablesassociatedwith
+the edge’s endpoints. The graphs produced by LCFRS grammar rules, however, have
+certainpropertieswhichmaymakemoreefﬁcientfactorizationalgorithmspossible.We
+ﬁrstdeﬁneLCFRSpreciselybeforeexaminingthepropertiesofthesegraphs.
+241
+ComputationalLinguistics Volume37,Number1
+An LCFRS is deﬁned as a tuple G=(V
+T,V
+N,P,S), where V
+T
+is a set of terminal
+symbols,V
+N
+isasetofnonterminalsymbols,Pisasetofproductions,andS∈V
+N
+isa
+distinguishedstartsymbol.AssociatedwitheachnonterminalBisafan-outϕ(B),which
+tellshowmanycontinuousspansBcovers.Productionsp∈Ptaketheform:
+p:A→g(B
+1,B
+2,...,B
+r
+)(3)
+whereA,B
+1,...,B
+r
+∈V
+N,andgisafunction
+g:(V
+∗
+T
+)
+ϕ(B
+1
+)
+×···×(V
+∗
+T
+)
+ϕ(B
+r
+)
+→ (V
+∗
+T
+)
+ϕ(A)
+whichspeciﬁeshowtoassemblethe
+summationtext
+r
+i=1
+ϕ(B
+i
+)spansoftherighthandsidenontermi-
+nalsintotheϕ(A)spansofthelefthandsidenonterminal.Thefunctiongmustbelinear
+andnon-erasing,whichmeansthatifwewrite
+g(〈s
+1,1,...,s
+1,ϕ(B
+1
+)
+〉,...,〈s
+1,1,...,s
+1,ϕ(B
+r
+)
+〉)=〈t
+1,...,t
+ϕ(A)
+〉
+thetupleofstrings 〈t
+1,...,t
+ϕ(A)
+〉 ontherighthandsidecontainseachvariables
+i,j
+from
+thelefthandsideexactlyonce,andmayalsocontainterminalsfromV
+T
+.Theprocessof
+generating a string from an LCFRS grammar can be thought of as ﬁrst choosing, top-
+down, a production to expand each nonterminal, and then, bottom–up, applying the
+functionsassociatedwitheachproductiontobuildthestring.Asanexample,theCFG
+S→AB
+A→a
+B→b
+correspondstothefollowinggrammarinLCFRSnotation:
+S→g
+S
+(A,B) g
+S
+(〈s
+A
+〉,〈s
+B
+〉)=〈s
+A
+s
+B
+〉
+A→g
+A
+() g
+A
+()=〈a〉
+B→g
+B
+() g
+B
+()=〈b〉
+Here,allnonterminalshavefan-out=1,reﬂectedinthefactthatalltuplesdeﬁningthe
+productions’functionscontainjustonestring.AsCFGisequivalenttoLCFRSwithfan-
+out=1,SCFGandTAGcanberepresentedasLCFRSwithfan-out=2.Highervaluesof
+fan-outallowstrictlymorepowerfulgrammars(RambowandSatta1999).Polynomial-
+timeparsingispossibleforanyﬁxedLCFRSgrammar,butthedegreeofthepolynomial
+depends on the grammar. Parsing general LCFRS grammars, where the grammar is
+consideredpartoftheinput,isNP-complete(Satta1992).
+4.1 Graphs
+Derived fromLCFRS Rules
+Given an LCFRS rule as deﬁned previously, a weighted deduction rule for a bottom–
+up parser can be derived by creating an antecedent for each righthand nonterminal,
+a consequent for the lefthand side, and variables for all the boundaries of the non-
+terminals in the rule. A nonterminal of fan-out f has 2f boundaries. Each boundary
+242
+Gildea GrammarFactorizationbyTreeDecomposition
+variablewilloccurexactlytwiceinthedeductionrule:eitherintwoantecedents,iftwo
+nonterminals on the rule’s righthand side are adjacent, or once in an antecedent and
+onceintheconsequent,ifthevariableindicatesaboundaryofanysegmentoftherule’s
+lefthandside.
+Converting such deduction rules into dependency graphs, we see that the cliques
+of the dependency graph may be arbitrarily large, due to the unbounded fan-out of
+LCFRSnonterminals.However,eachvertexappearsinonlytwocliques,becauseeach
+boundaryvariableintheruleissharedbyexactlytwononterminals.Intheremainderof
+thissection,weconsiderwhethertheproblemofﬁndingtheoptimaltreedecomposition
+ofthisrestrictedsetofgraphsisalsoNP-complete,orwhetherefﬁcientalgorithmsmay
+bepossibleintheLCFRSsetting.
+4.2Approximation of Treewidth forGeneral Graphs
+We will show that an efﬁcient algorithm for ﬁnding the factorization of an arbitrary
+LCFRSproductionthatoptimizesparsingcomplexitywouldimplytheexistenceofan
+algorithm for treewidth that returns aresult within a factor of 4∆(G)of the optimum,
+where∆(G)isthemaximumdegreeoftheinputgraph.Althoughsuchanapproxima-
+tionalgorithmmaybepossible,itwouldrequireprogressinfundamentalproblemsin
+graphtheory.
+ConsideranarbitrarygraphG=(V,E),anddeﬁnektobeitstreewidth,k=tw(G).
+We wish to construct a new graph G
+prime
+=(V
+prime,E
+prime
+)fromG in such a way that tw(G
+prime
+)=
+tw(G) and every vertex in G
+prime
+has even degree. This can be accomplished by doubling
+thegraph’sedgesinthemannershowninFigure9.Todoubletheedges,foreveryedge
+e=(u,v)inE,weaddanewvertex ˆetoG
+prime
+andaddedges(u,ˆe)and(v,ˆe)toG
+prime
+.Wealso
+includeeveryedgeintheoriginalgraphGinG
+prime
+.Now,everyvertexvinG
+prime
+hasdegree=
+2,ifitisanewlycreatedvertex,ortwicethedegreeofvinGotherwise,andtherefore
+∆(G
+prime
+)=2∆(G)(4)
+Wenowshowthattw(G
+prime
+)=tw(G),undertheassumptionthattw(G)≥3.Anytree
+decomposition of G can be adapted to a tree decomposition of G
+prime
+by adding a node
+containing{u,v,ˆe}foreachedgeeintheoriginalgraph,asshowninFigure10.Thenew
+node can be attached to a node containing u and v; because u and v are connected by
+an edge in G, such a node must exist in G’s tree decomposition. The vertex ˆe will not
+occuranywhereelseinthetreedecomposition,andtheoccurrencesofuandvstillform
+aconnectedsubtree.Foreachedgee=(u,v)inG
+prime,thetreedecompositionmusthavea
+node containing uandv;this is the case because, ifeisan original edge fromG,there
+isalreadyanodeinthetreedecompositioncontaininguandv,whereasifeisanedge
+toanewlyaddedvertexinG
+prime,oneofthenewlyaddednodesinthetreedecomposition
+Figure9
+AnexamplegraphG
+ex
+andtheresultG
+prime
+ex
+ofdoublingG
+ex
+’sedges.
+243
+ComputationalLinguistics Volume37,Number1
+Figure10
+TreedecompositionsofG
+ex
+andG
+prime
+ex
+.
+willcontainitsendpoints.Weconstructedthenewtreedecompositionbyaddingnodes
+of size 3. Therefore, as long as the treewidth of G was at least 3, tw(G
+prime
+)≤ tw(G). In
+theotherdirection,becauseGisasubgraphofG
+prime,anytreedecompositionofG
+prime
+formsa
+validtreedecompositionofGafterremovingtheverticesinG
+prime
+−G,andhencetw(G
+prime
+)≥
+tw(G).Therefore,
+tw(G
+prime
+)=tw(G)(5
+Because every vertex in G
+prime
+has even degree, G
+prime
+has an Eulerian tour, that is, a
+path visiting every edge exactly once, beginning and ending at the same vertex. Let
+π =〈π
+1,...,π
+n
+〉 bethesequenceofverticesalongsuchatour,with π
+1
+= π
+n
+.Notethat
+the sequence π contains repeated elements. Let µ
+i,i∈{1,...,n} indicate how many
+times we have visited π
+i
+on the ith step of the tour: µ
+i
+=|{j| π
+j
+= π
+i,j∈{1,...,i}}|.
+WenowconstructanLCFRSproductionPwith |V
+prime
+| righthandsidenonterminalsfrom
+theEuleriantour:
+P:X →g(B
+1,...,B
+|V
+prime
+|
+)
+g(〈s
+1,1,...,s
+1,φ(B
+1
+)
+〉,...,〈s
+|V
+prime
+|,1,...,s
+|V
+prime
+|,φ(B
+|V
+prime
+|
+)
+〉)=〈s
+π
+1,µ
+1
+···s
+π
+n,µ
+n
+〉
+Thefan-outφ(B
+i
+)ofeachnonterminalB
+i
+isthenumberoftimesvertexiisvisitedonthe
+Eulerian tour. The fan-out of the lefthand side nonterminal X is one, and the lefthand
+sideisconstructedbyconcatenatingthespansofeachnonterminalintheorderspeciﬁed
+bytheEuleriantour.
+FortheexamplegraphinFigure9,onevalidtouris
+π
+ex
+=〈A,B,C,D,F,C,E,A,G,B,H,C,A〉
+ThistourresultsinthefollowingLCFRSproduction:
+P
+ex
+:X →g
+ex
+(A,B,C,D,E,F,G,H)
+g
+ex
+(〈s
+A,1,s
+A,2,s
+A,3
+〉,〈s
+B,1,s
+B,2
+〉,〈s
+C,1,s
+C,2,s
+C,3
+〉,〈s
+D,1
+〉,〈s
+E,1
+〉,〈s
+F,1
+〉,〈s
+G,1
+〉,〈s
+H,1
+〉)=
+〈s
+A,1
+s
+B,1
+s
+C,1
+s
+D,1
+s
+F,1
+s
+C,2
+s
+E,1
+s
+A,2
+s
+G,1
+s
+B,2
+s
+H,1
+s
+C,3
+s
+A,3
+〉
+WenowconstructdependencygraphG
+primeprime
+fromtheLCFRSproductionPbyapplying
+the technique of Section 2. G
+primeprime
+has n+1 vertices, corresponding to the beginning and
+244
+Gildea GrammarFactorizationbyTreeDecomposition
+endpointsofthenonterminalsinP.TheedgesinG
+primeprime
+areformedbyaddingacliquefor
+each nonterminal in P connecting all its beginning and end points, that is,
+parenleftbig
+2f
+2
+parenrightbig
+edges
+for a nonterminal of fan-out f. We must include a clique for X, the lefthand side of
+the production. However, because the righthand side of the production begins and
+ends with the same nonterminal, the vertices for the beginning and end points of X
+are already connected, so the lefthand side does not affect the graph structure for the
+entireproduction.ByTheorem1,theoptimalparsingcomplexityofPistw(G
+primeprime
+)+1.
+The graphs G
+prime
+and G
+primeprime
+are related in the following manner: Every edge in G
+prime
+corresponds to a vertex in G
+primeprime, and every vertex in G
+prime
+corresponds to a clique in G
+primeprime
+.
+WecanidentifyverticesinG
+primeprime
+withunorderedpairsofvertices{u,v}inG
+prime
+.Theedgesin
+G
+primeprime
+are({u,v},{u,w})∀u,v,w:unegationslash=v,unegationslash=w,vnegationslash=w.AnexampleofG
+primeprime
+derivedfromour
+exampleproductionP
+ex
+isshowninFigure11.
+AnytreedecompositionT
+primeprime
+ofG
+primeprime
+canbetransformedintoavalidtreedecomposi-
+tionT
+prime
+ofG
+prime
+bysimplyreplacingeachvertexineachnodeofT
+primeprime
+withbothcorresponding
+verticesinG
+prime
+.IfT
+primeprime
+witnessesatreedecompositionofoptimalwidthk
+primeprime
+=tw(G
+primeprime
+),each
+node in T
+primeprime
+will produce a node of size at most 2k
+primeprime
+in T
+prime
+. For any vertex v in G
+prime,one
+nodeinT
+primeprime
+mustcontainthecliquecorrespondingtovinG
+primeprime
+.Eachvertex {v,w} inG
+primeprime
+must be found in a contiguous subtree of T
+primeprime, and these subtrees all include the node
+containingthecliqueforv.TheoccurrencesofvinT
+prime
+aretheunionofthesecontiguous
+subtrees,whichmustitselfformacontiguoussubtree.Furthermore,eachedge(u,v)in
+G
+prime
+corresponds to some vertex in G
+primeprime,sou and v must occur together in some node of
+T
+prime
+.Combiningthesetwoproperties,weseethatT
+prime
+isavalidtreedecompositionofG
+prime
+.
+Fromtheconstruction,ifSOListhetreewidthofT
+prime,weareguaranteedthat
+SOL≤2tw(G
+primeprime
+)(6)
+In the other direction, any tree decomposition T
+prime
+of G
+prime
+can be transformed into a
+treedecompositionT
+primeprime
+ofG
+primeprime
+bysimplyreplacingeachoccurrenceofvertexvinanode
+ofT
+prime
+withallvertices{v,w}inT
+primeprime
+.Thenumberofsuchverticesisthedegreeofv,∆(v).
+Figure11
+DependencygraphG
+primeprime
+ex
+derivedfromtheexampleofFigure9.Vertex#Acorrespondstothe
+beginningoftheEuleriantourthroughG
+prime
+ex
+andA#correspondstotheendofthetour;allother
+verticescorrespondtoedgesinG
+prime
+ex
+.
+245
+ComputationalLinguistics Volume37,Number1
+Each vertex {v,w} occurs in a contiguous subtree of T
+primeprime
+because v and w occurred in
+contiguous subtrees of T
+prime, and had to co-occur in at least one node of T
+prime
+. Each edge
+in G
+primeprime
+comes from a clique for some vertex v in G
+prime, so the edge has both its endpoints
+inanynodeofT
+primeprime
+correspondingtoanodeofT
+prime
+thatcontainedv.ThusT
+primeprime
+isavalidtree
+decomposition of G
+primeprime
+. We expand each node in the tree decomposition by at most the
+maximumdegreeofthegraph∆(G
+prime
+),andtherefore
+tw(G
+primeprime
+)≤∆(G
+prime
+)tw(G
+prime
+)(7)
+Assume that we have an efﬁcient algorithm for computing the optimal parsing
+strategyofanarbitraryLCFRSrule.Considerthefollowingalgorithmforﬁndingatree
+decompositionofaninputgraphG:
+a114
+TransformGtoG
+prime
+ofevendegree,andconstructLCFRSproductionPfrom
+anEuleriantourofG
+prime
+.
+a114
+FindtheoptimalparsingstrategyforP.
+a114
+TranslatethisstrategyintoatreedecompositionofG
+primeprime
+oftreewidthk
+primeprime,and
+mapthisintoatreedecompositionofG
+prime,andthenremoveallnewnodes ˆe
+toobtainatreedecompositionofGoftreewidthSOL.
+Iftw(G
+primeprime
+)=k
+primeprime,wehaveSOL≤2k
+primeprime
+fromEquation(6),andk
+primeprime
+≤∆(G
+prime
+)tw(G
+prime
+)from
+Equation(7).Puttingthesetogether:
+SOL≤2∆(G
+prime
+)tw(G
+prime
+)
+andusingEquations(4)and(5)torelateourresulttotheoriginalgraphG,
+SOL≤4∆(G)tw(G)
+Thislastinequalityprovesthemainresultofthissection
+Theorem 2
+AnalgorithmforﬁndingtheoptimalparsingstrategyofanarbitraryLCFRSproduction
+wouldimplya4∆(G)approximationalgorithmfortreewidth.
+Whethersuchanapproximationalgorithmfortreewidthispossibleisanopenprob-
+lem.Thebest-knownresultistheO(
+radicalbig
+logk)approximationresultofFeige,Hajiaghayi,
+andLee(2005),whichimprovesontheO(logk)resultofAmir(2001).Thisindicatesthat,
+althoughpolynomial-timefactorizationofLCFRSrulestooptimizeparsingcomplexity
+maybepossible,itwouldrequireprogressongeneralalgorithmsfortreewidth.
+5. Conclusion
+We have demonstrated that a number of techniques used for speciﬁc parsing prob-
+lems can be found algorithmically from declarative speciﬁcations of the grammar.
+Our method involves ﬁnding the optimal tree decomposition of a graph, which is in
+general an NP-complete problem. However, the relation to tree decomposition allows
+us to exploit existing algorithms for this problem, such as the linear time algorithm
+of Bodlaender (1996) for graphs of bounded treewidth. In practice, grammar rules are
+246
+Gildea GrammarFactorizationbyTreeDecomposition
+typically small, and ﬁnding the tree decomposition is not computationally expensive,
+and in fact is trivial in comparison to the original parsing problem. Given the special
+structure of the graphs derived from LCFRS productions, however, we have explored
+whether ﬁnding optimal tree decompositions of these graphs, and therefore optimal
+parsingstrategiesforLCFRSproductions,isalsoNP-complete.Althoughapolynomial
+time algorithm for this problem would not necessarily imply that P=NP, it would
+requireprogressonfundamental,well-studiedproblemsingraphtheory.Therefore,it
+does not seem possible to exploit the special structure of graphs derived from LCFRS
+productions.
+Acknowledgments
+ThisworkwasfundedbyNSFgrants
+IIS-0546554andIIS-0910611.Wearegrateful
+toGiorgioSattaforextensivediscussionson
+grammarfactorization,aswellasfor
+feedbackonearlierdraftsfromMehdiHafezi
+Manshadi,MattPost,andfouranonymous
+reviewers.
+References
+Aho,AlbertV.andJefferyD.Ullman.1972.
+TheTheoryofParsing,Translation,and
+Compiling,volume1.Prentice-Hall,
+EnglewoodCliffs,NJ.
+Amir,Eyal.2001.Efﬁcientapproximation
+fortriangulationofminimumtreewidth.
+In17thConferenceonUncertaintyin
+ArtiﬁcialIntelligence,pages7–15,
+Seattle,WA.
+Arnborg,Stefen,DerekG.Corneil,and
+AndrzejProskurowski.1987.Complexity
+ofﬁndingembeddingsinak-tree.SIAM
+JournalofAlgebraicandDiscreteMethods,
+8:277–284.
+Bar-Hillel,Yehoshua,M.Perles,and
+E.Shamir.1961.Onformalpropertiesof
+simplephrasestructuregrammars.
+Zeitschriftf¨urPhonetik,Sprachwissenschaft
+undKommunikationsforschung,14:143–172.
+ReprintedinY.Bar-Hillel.(1964).Language
+andInformation:SelectedEssaysonTheir
+TheoryandApplication,Addison-Wesley
+Reading,MA,pages116–150.
+Bodlaender,H.L.1996.Alineartime
+algorithmforﬁndingtreedecompositions
+ofsmalltreewidth.SIAMJournalon
+Computing,25:1305–1317.
+Bodlaender,HansL.,JohnR.Gilbert,
+Hj´almt´yrHafsteinsson,andTonKloks.
+1995.Approximatingtreewidth,
+pathwidth,frontsize,andshortest
+eliminationtree.JournalofAlgorithms,
+18(2):238–255.
+Chekuri,ChandraandAnandRajaraman.
+1997.Conjunctivequerycontainment
+revisited.InDatabaseTheory–ICDT’97,
+volume1186ofLectureNotesinComputer
+Science.Springer,Berlin,pages56–70.
+Chiang,David.2007.Hierarchical
+phrase-basedtranslation.Computational
+Linguistics,33(2):201–228.
+Dechter,RinaandJudeaPearl.1989.Tree
+clusteringforconstraintnetworks.
+ArtiﬁcialIntelligence,38(3):353–366.
+Eisner,JasonandJohnBlatz.2007.Program
+transformationsforoptimizationof
+parsingalgorithmsandotherweighted
+logicprograms.InShulyWintner,editor,
+ProceedingsofFG2006:The11thConference
+onFormalGrammar.CSLIPublications,
+pages45–85,Malaga.
+Eisner,JasonandGiorgioSatta.1999.
+Efﬁcientparsingforbilexicalcontext-free
+grammarsandheadautomatongrammars.
+InProceedingsofthe37thAnnualConference
+oftheAssociationforComputational
+Linguistics(ACL-99),pages457–464,
+CollegePark,MD.
+Eisner,JasonandGiorgioSatta.2000.Afaster
+parsingalgorithmforlexicalized
+tree-adjoininggrammars.InProceedingsof
+the5thWorkshoponTree-Adjoining
+GrammarsandRelatedFormalisms(TAG+5),
+pages14–19,Paris.
+Feige,Uriel,MohammadTaghiHajiaghayi,
+andJamesR.Lee.2005.Improved
+approximationalgorithmsfor
+minimum-weightvertexseparators.In
+STOC’05:Proceedingsofthethirty-seventh
+annualACMsymposiumonTheoryof
+computing,pages563–572,Baltimore,MD.
+Flum,J¨org,MarkusFrick,andMartinGrohe.
+2002.Queryevaluationvia
+tree-decompositions.JournaloftheACM,
+49(6):716–752.
+Galley,Michel,MarkHopkins,KevinKnight,
+andDanielMarcu.2004.What’sina
+translationrule?InProceedingsofthe2004
+MeetingoftheNorthAmericanChapterofthe
+AssociationforComputationalLinguistics
+(NAACL-04),pages273–280,Boston,MA.
+Gildea,Daniel.2010.Optimalparsing
+strategiesforLinearContext-Free
+247
+ComputationalLinguistics Volume37,Number1
+RewritingSystems.InProceedingsofthe
+2010MeetingoftheNorthAmericanChapter
+oftheAssociationforComputational
+Linguistics(NAACL-10),pages769–776,
+LosAngeles,CA.
+Gildea,DanielandDaniel
+ˇ
+Stefankoviˇc.2007.
+Worst-casesynchronousgrammarrules.In
+Proceedingsofthe2007MeetingoftheNorth
+AmericanChapteroftheAssociationfor
+ComputationalLinguistics(NAACL-07),
+pages147–154,Rochester,NY.
+G´omez-Rodr´ıguez,Carlos,Marco
+Kuhlmann,GiorgioSatta,andDavidWeir.
+2009.Optimalreductionofrulelengthin
+LinearContext-FreeRewritingSystems.In
+Proceedingsofthe2009MeetingoftheNorth
+AmericanChapteroftheAssociationfor
+ComputationalLinguistics(NAACL-09),
+pages539–547,Boulder,CO.
+Goodman,Joshua.1999.Semiringparsing.
+ComputationalLinguistics,25(4):573–605.
+Huang,Liang,HaoZhang,andDaniel
+Gildea.2005.Machinetranslationas
+lexicalizedparsingwithhooks.In
+InternationalWorkshoponParsing
+Technologies(IWPT05),pages65–73,
+Vancouver.
+Huang,Liang,HaoZhang,DanielGildea,
+andKevinKnight.2009.Binarizationof
+synchronouscontext-freegrammars.
+ComputationalLinguistics,35(4):559–595.
+Jensen,FinnV.,SteffenL.Lauritzen,and
+KristianG.Olesen.1990.Bayesian
+updatingincausalprobabilisticnetworks
+bylocalcomputations.Computational
+StatisticsQuarterly,4:269–282.
+Johnson,Mark.2007.Transforming
+projectivebilexicaldependencygrammars
+intoefﬁciently-parsableCFGswith
+unfold-fold.InProceedingsofthe45th
+AnnualMeetingoftheAssociationof
+ComputationalLinguistics,pages168–175,
+Prague.
+Knuth,D.1977.AgeneralizationofDijkstra’s
+algorithm.InformationProcessingLetters,
+6(1):1–5.
+Kschischang,F.R.,B.J.Frey,andH.A.
+Loeliger.2001.Factorgraphsandthe
+sum-productalgorithm.IEEETransactions
+onInformationTheory,47(2):498–519.
+Kuhlmann,MarcoandJoakimNivre.2006.
+Mildlynon-projectivedependency
+structures.InProceedingsoftheInternational
+ConferenceonComputational
+Linguistics/AssociationforComputational
+Linguistics(COLING/ACL-06),
+pages507–514,Sydney.
+Kuhlmann,MarcoandGiorgioSatta.2009.
+Treebankgrammartechniquesfor
+non-projectivedependencyparsing.In
+Proceedingsofthe12thConferenceofthe
+EuropeanChapteroftheACL(EACL-09),
+pages478–486,Athens.
+McAllester,David.2002.Onthecomplexity
+analysisofstaticanalyses.Journalofthe
+ACM,49(4):512–537.
+Melamed,I.Dan,GiorgioSatta,andBen
+Wellington.2004.Generalizedmultitext
+grammars.InProceedingsofthe42nd
+AnnualConferenceoftheAssociationfor
+ComputationalLinguistics(ACL-04),
+pages661–668,Barcelona.
+Nederhof,M.-J.2003.Weighteddeductive
+parsingandKnuth’salgorithm.
+ComputationalLinguistics,29(1):135–144.
+Rambow,OwenandGiorgioSatta.1999.
+Independentparallelisminﬁnite
+copyingparallelrewritingsystems.
+TheoreticalComputerScience,
+223(1-2):87–120.
+Satta,Giorgio.1992.RecognitionofLinear
+Context-FreeRewritingSystems.In
+Proceedingsofthe30thAnnualConferenceof
+theAssociationforComputationalLinguistics
+(ACL-92),pages89–95,Newark,DE.
+Shafer,G.andP.Shenoy.1990.Probability
+propagation.AnnalsofMathematicsand
+ArtiﬁcialIntelligence,2:327–353.
+Shieber,StuartM.,YvesSchabes,and
+FernandoC.N.Pereira.1995.Principles
+andimplementationofdeductiveparsing.
+TheJournalofLogicProgramming,
+24(1-2):3–36.
+Vijay-Shankar,K.,D.L.Weir,andA.K.Joshi.
+1987.Characterizingstructural
+descriptionsproducedbyvarious
+grammaticalformalisms.InProceedingsof
+the25thAnnualConferenceoftheAssociation
+forComputationalLinguistics(ACL-87),
+pages104–111,Stanford,CA.
+Wellington,Benjamin,SonjiaWaxmonsky,
+andI.DanMelamed.2006.Empirical
+lowerboundsonthecomplexityof
+translationalequivalence.InProceedingsof
+theInternationalConferenceonComputational
+Linguistics/AssociationforComputational
+Linguistics(COLING/ACL-06),
+pages977–984,Sydney.
+Wu,Dekai.1997.Stochasticinversion
+transductiongrammarsandbilingual
+parsingofparallelcorpora.Computational
+Linguistics,23(3):377–403.
+Zhang,HaoandDanielGildea.2007.
+Factorizationofsynchronouscontext-free
+grammarsinlineartime.InNAACL
+WorkshoponSyntaxandStructurein
+StatisticalTranslation(SSST),pages25–32,
+Rochester,NY.
+248
+

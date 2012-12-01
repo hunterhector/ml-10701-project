@@ -1,0 +1,886 @@
+WhatIsNotintheBagofWordsforWhy-QA?
+SuzanVerberne
+∗
+RadboudUniversityNijmegen
+LouBoves
+∗∗
+RadboudUniversityNijmegen
+NellekeOostdijk
+†
+RadboudUniversityNijmegen
+Peter-ArnoCoppen
+‡
+RadboudUniversityNijmegen
+Whiledevelopinganapproachtowhy-QA,weextendedapassageretrievalsystemthatusesoff-
+the-shelfretrievaltechnologywithare-rankingstepincorporatingstructuralinformation.We
+getsigniﬁcantlyhigherscoresintermsofMRR@150(from0.25to0.34)andsuccess@10.The
+23%improvementthatwereachintermsofMRRiscomparabletotheimprovementreachedon
+differentQAtasksbyotherresearchersintheﬁeld,althoughourre-rankingapproachisbased
+onrelativelylightweightoverlapmeasuresincorporatingsyntacticconstituents,cuewords,and
+documentstructure.
+1.Introduction
+About 5% of all questions asked to QA systems arewhy-questions (Hovy, Hermjakob,
+and Ravichandran 2002).Why-questions need a different approach than factoid ques-
+tions, because their answers are explanations that usually cannot be stated in a single
+phrase. Recently, research (Verberne 2006; Higashinaka and Isozaki 2008) has been
+directedatQAforwhy-questions(why-QA).Inearlierworkonansweringwhy-questions
+on the basis of Wikipedia, we found that the answers to mostwhy-questions are pas-
+sagesoftextthatareatleastonesentenceandatmostoneparagraphinlength(Verberne
+et al. 2007b). Therefore, we aim at developing a system that takes as input a why-
+questionandgivesasoutputarankedlistofcandidateanswerpassages.
+In the current article, we propose a three-step setup for a why-QA system: (1) a
+question-processing module that transforms the input question to a query; (2) an off-
+the-shelf retrieval module that retrieves and ranks passages of text that share content
+∗ DepartmentofLinguistics,POBox9103,6500HDNijmegen,theNetherlands.
+E-mail:s.verberne@let.ru.nl.
+∗∗ DepartmentofLinguistics,POBox9103,6500HDNijmegen,theNetherlands.
+E-mail:l.boves@let.ru.nl.
+† DepartmentofLinguistics,POBox9103,6500HDNijmegen,theNetherlands.
+E-mail:n.oostdijk@let.ru.nl.
+‡ DepartmentofLinguistics,POBox9103,6500HDNijmegen,theNetherlands.
+E-mail:p.a.coppen@let.ru.nl.
+Submission received: 30 July 2008; revised submission received: 18 February 2009; accepted for publication:
+4September2009.
+©2010AssociationforComputationalLinguistics
+ComputationalLinguistics Volume36,Number2
+with the input query; and (3) a re-ranking module that adapts the scores of the re-
+trievedpassagesusingstructuralinformationfromtheinputquestionandtheretrieved
+passages.
+In the ﬁrst part of this article, we focus on step 2, namely, passage retrieval. The
+classic approach to ﬁnding passages in a text collection that share content with an
+inputqueryisretrievalusingabag-of-words(BOW)model(SaltonandBuckley1988).
+BOWmodelsarebasedontheassumptionthattextcanberepresentedasanunordered
+collectionofwords,disregardinggrammaticalstructure.MostBOW-basedmodelsuse
+statistical weights based on term frequency, document frequency, passage length, and
+termdensity(Tellexetal.2003).
+Because BOW approaches disregard grammatical structure, systems that rely on
+a BOW model have their limitations in solving problems where the syntactic relation
+betweenwordsorwordgroupsiscrucial.TheimportanceofsyntaxforQAissometimes
+illustrated by the sentenceRubykilledOswald,which is not an answer to the question
+WhodidOswaldkill?(Bilottietal.2007).Therefore,anumberofresearchersintheﬁeld
+investigated the use of structural information on top of a BOW approach for answer
+retrievalandranking(Tiedemann2005;Quarteronietal.2007;Surdeanu,Ciaramita,and
+Zaragoza 2008). These studies show that although the BOW model makes the largest
+contributiontotheQAsystemresults,addingstructural(syntacticinformation)cangive
+asigniﬁcantimprovement.
+In the current article, we hypothesize that for the relatively complex problem of
+why-QA, a signiﬁcant improvement—at least comparable to the improvement gained
+forfactoidQA—canbegainedfromtheadditionofstructuralinformationtotheranking
+componentoftheQAsystem.Weﬁrstevaluateapassageretrievalsystemforwhy-QA
+based on standard BOW ranking (step 1 and 2 in our set-up). Then we perform an
+analysisofthestrengthsandweaknessesoftheBOWmodelforretrievingandranking
+candidateanswers.InviewoftheobservedweaknessesoftheBOWmodel,wechoose
+our feature set to be applied to the set of candidate answer passages in the re-ranking
+module(step3inourset-up).
+Thestructuralfeaturesthatweproposearebasedontheideathatsomepartsofthe
+questionandtheanswerpassagearemoreimportantforrelevancerankingthanother
+parts.Therefore,ourre-rankingfeaturesareoverlap-based:Theytelluswhichpartsof
+awhy-questionanditscandidateanswersarethemostsalientforrankingtheanswers.
+Weevaluateourinitialandadaptedrankingstrategiesusingasetofwhy-questionsand
+a corpus of Wikipedia documents, and we analyze the contribution of both the BOW
+modelandthestructuralfeatures.
+Themaincontributionsofthisarticleare:(1)weaddresstherelativelynewproblem
+ofwhy-QAand(2)weanalyzethecontributionofoverlap-basedstructuralinformation
+totheproblemofanswerranking.
+Thepaperisorganizedasfollows.InSection2,relatedworkisdiscussed.Section3
+presentstheBOW-basedpassageretrievalmethodforwhy-QA,followedbyadiscussion
+ofthestrengthsandweaknessesoftheapproachinSection4.InSection5,weextendour
+systemwithare-rankingcomponentbasedonstructuraloverlapfeatures.Adiscussion
+oftheresultsandourconclusionsarepresentedinSections6and7,respectively.
+2.RelatedWork
+Wedistinguishrelatedworkintwodirections:researchintothedevelopmentofsystems
+forwhy-QA(Section2.1),andresearchintocombiningstructuralandBOWfeaturesfor
+QA(Section2.2).
+230
+Verberneetal. WhatIsNotintheBagofWordsforWhy-QA?
+2.1ResearchintoWhy-QA
+Inrelatedwork(Verberneetal.2007a),wefocusedonselectingandrankingexplanatory
+passagesforwhy-QAwiththeuseofrhetoricalstructures.Wedevelopedasystemthat
+employsthediscourserelationsinamanuallyannotateddocumentcollection:theRST
+Treebank(Carlson,Marcu,andOkurowski2003).Thissystemmatchestheinputques-
+tiontoatextspaninthediscoursetreeofthedocumentanditretrievesasanswerthe
+textspanthathasaspeciﬁcdiscourserelationtothisquestionspan.Weevaluatedour
+method on a set of 336why-questions formulated to seven texts from the WSJ corpus.
+Weconcludedthatdiscoursestructurecanplayanimportantroleinwhy-QA,butthat
+systems relying on these structures can only work if candidate answer passages have
+beenannotatedwithdiscoursestructure.Automaticparsersforcreatingfullrhetorical
+structures are currently unavailable. Therefore, a more practical approach appears to
+benecessaryforworkinwhy-QA,namely,onewhichisbasedonautomaticallycreated
+annotations.
+HigashinakaandIsozaki(2008)focusontheproblemofrankingcandidateanswer
+paragraphsforJapanesewhy-questions.Theyassumethatadocumentretrievalmodule
+hasreturnedthetop20documentsforagivenquestion.Theyextractfeaturesforcontent
+similarity, causal expressions, and causal relations from two annotated corpora and a
+dictionary.HigashinakaandIsozakievaluatetheirrankingmethodusingasetof1,000
+why-questions that were formulated to a newspaper corpus by a text analysis expert.
+70.3% of the reference answers for these questions are ranked in the top10 by their
+system,andMRR
+1
+was0.328.
+Although the approach of Higashinaka and Isozaki is very interesting, their eval-
+uation collection has the same ﬂaw as the one used by Verberne et al. (2007a): Both
+collections consist of questions formulated to a pre-selected answer text. Questions
+elicitedinresponsetonewspapertextstendtobeunrepresentativeofquestionsasked
+in a real QA setting. In the current work, therefore, we work with a set of questions
+formulatedbyusersofanonlineQAsystem(seeSection3.1).
+2.2CombiningStructuralandBag-of-WordsFeaturesforQA
+Tiedemann (2005) investigates syntactic information from dependency structures in
+passage retrieval for Dutch factoid QA. He indexes his corpus at different text layers
+(BOW, part-of-speech, dependency relations) and uses the same layers for question
+analysisandquerycreation.Heoptimizesthequeryparametersforthepassageretrieval
+task by having a genetic algorithm apply the weights to the query terms. Tiedemann
+ﬁnds that the largest weights are assigned to the keywords from the BOW layer and
+to the keywords related to the predicted answer type (such as ‘person’). The baseline
+approach, using only the BOW layer, gives an MRR of 0.342. Using the optimized IR
+settingswithadditionallayers,MRRimprovesto0.406.
+Quarteroni et al. (2007) consider the problem of answering deﬁnition questions.
+Theyusepredicate–argumentstructures(PAS)forimprovedanswerranking.Theyﬁnd
+that PAS as a stand-alone representation is inferior to parse tree representations, but
+that together with the BOW it yields higher accuracy. Their results show a signiﬁcant
+1 Thereciprocalrank(RR)foraquestionis1dividedbytherankordinalofthehighestrankedrelevant
+answer.TheMeanRRisobtainedbyaveragingRRoverallquestions.
+231
+ComputationalLinguistics Volume36,Number2
+improvementofPAS–BOWcomparedtoparsetrees(F-scores70.7%vs.59.6%)butPAS
+makes only a very small contribution compared to BOW only (which gives an F-score
+of69.3%).
+Recent work by Surdeanu, Ciaramita, and Zaragoza (2008) addresses the problem
+of answer ranking forhow-to-questions. From Yahoo! Answers,
+2
+they extract a corpus
+of 140,000 answers with 40,000 questions. They investigate the usefulness of a large
+setofquestionandanswerfeaturesintherankingtask.Theyconcludethatthelinguistic
+features “yield a small, yet statistically signiﬁcant performance increase on top of the
+traditionalBOWandn-gramrepresentation(page726).”
+All these authors conclude that the addition of structural information in QA
+gives a small but signiﬁcant improvement compared to using a BOW-model only. For
+why-questions, we also expect to gain improvement from the addition of structural
+information.
+3.PassageRetrievalforWhy-QAUsingaBOWModel
+AsexplainedinSection1,oursystemcomprisesthreemodules:question2query,passage
+retrieval, and re-ranking. In the current section, we present the ﬁrst two system mod-
+ules,andthere-rankingmodule,includingadescriptionofthestructuralfeaturesthat
+we consider, is presented in Section 5. First, however, we describe our data collection
+andevaluationmethod.
+3.1DataandEvaluationSet-up
+Forourexperiments,weusetheWikipediaINEXcorpus(DenoyerandGallinari2006).
+Thiscorpusconsistsofall659,388articlesfromtheonlineWikipediainthesummerof
+2006inXMLformat.
+For development and testing purposes, we exploit the Webclopedia question
+set (Hovy, Hermjakob, and Ravichandran 2002), which contains questions asked to
+theonlineQAsystemanswers.com. Of these questions, 805 (5% of the total set) are
+why-questions.For700randomlyselectedwhy-questions,wemanuallysearchedforan
+answer in the Wikipedia XML corpus, saving the remaining 105 questions for future
+testingpurposes.186ofthese700questionshaveananswerinthecorpus.
+3
+Extraction
+ofonerelevantanswerforeachofthesequestionsresultedinasetof186why-questions
+andtheirreferenceanswers.
+4
+Twoexamplesillustratethetypeofdataweareworking
+with:
+1. “Whydidn’tSocratesleaveAthensafterhewasconvicted?”—“Socrates
+consideredithypocrisytoescapetheprison:hehadknowinglyagreedto
+liveunderthecity’slaws,andthismeantthepossibilityofbeingjudged
+guiltyofcrimesbyalargejury.”
+2Seehttp://answers.yahoo.com/.
+3 Thus,about25%ofourquestionshaveananswerintheWikipediacorpus.Theotherquestionsareeither
+toospeciﬁc(Whydoceilingfansturncounter-clockwisebuttablefansturnclockwise?)ortootrivial(Whydo
+hotdogscomeinpackagesof10andhotdogbunsinpackagesof8?)forthecoverageofWikipediain2006.
+4 Justlikefactoidquestions,mostwhy-questionsgenerallyhaveonecorrectanswerthatcanbeformulated
+indifferentways.
+232
+Verberneetal. WhatIsNotintheBagofWordsforWhy-QA?
+2. “Whydomostcerealscracklewhenyouaddmilk?”—“Theyaremadeof
+asugaryricemixturewhichisshapedintotheformofricekernelsand
+toasted.Thesekernelsbubbleandriseinamannerwhichformsverythin
+walls.Whenthecerealisexposedtomilkorjuices,thesewallstendto
+collapsesuddenly,creatingthefamous‘Snap,crackleandpop’sounds.”
+To be able to do fast evaluation without elaborate manual assessments, we manually
+createdoneanswerpatternforeachofthequestionsinourset.Theanswerpatternisa
+regularexpressionthatdeﬁneswhichoftheretrievedpassagesareconsideredarelevant
+answer to the input question. The ﬁrst version of the answer patterns was directly
+based on the corresponding reference answer, but in the course of the development
+andevaluationprocess,weextendedthepatternsinordertocoverasmanyaspossible
+of the Wikipedia passages that contain an answer. For example, for question 1, we
+developed the following answer pattern based on two variants of the correct answer
+that occur in the corpus: /(Socrates.* opportunity.* escape.* Athens.* considered.*
+hypocrisy | leave.* run.* away.* community.* reputation)/.
+5
+Infact,answerjudgmentisacomplextaskduetothepresenceofmultipleanswer
+variants in the corpus. It is a time-consuming process because of the large number of
+candidateanswersthatneedtobejudgedwhenlonglistsofanswersareretrievedper
+question.Infuturework,wewillcomebacktotheassessmentofrelevantandirrelevant
+answers.
+After applying our answer patterns to the passages retrieved, we count the ques-
+tionsthathaveatleastonerelevantanswerinthetopnresults.Thisnumberdividedby
+the total number of questions in a test set gives the measuresuccess@n. In Section 3.2,
+weexplainthelevelsfornthatweuseforevaluation. Forthehighestrankedrelevant
+answer per question, we determine the RR. Questions for which the system did not
+retrieveananswerinthelistof150resultsgetanRRof0.Overallquestions,wecalculate
+themeanreciprocalrankMRR.
+3.2MethodandResults
+In the question2query module of our system we convert the input question to a query
+byremovingstopwords
+6
+andpunctuation,andsimplylisttheremainingcontentwords
+asqueryterms.
+The second module of our system performs passage retrieval using off-the-shelf
+retrievaltechnology.InKhalidandVerberne(2008),wecomparedanumberofsettings
+for our passage retrieval task. We considered two different retrieval engines (Lemur
+7
+andWumpus
+8
+),fourdifferentrankingmodels,andtwotypesofpassagesegmentation:
+disjointandslidingpassages.Ineachsetting,150resultswereobtainedbytheretrieval
+engineandrankedbytheretrievalmodel.Weevaluatedallretrievalsettingsintermsof
+5 Notethattheverticalbarseparatesthetwoalternatives.
+6 Tothisendweusethestopwordlistthatcanbefoundat
+http://marlodge.supanet.com/museum/
+funcword.html.Weuseallitemsexceptthenumbersandthewordwhy.
+7 Lemurisanopensourcetoolkitforinformationretrievalthatprovidesﬂexiblesupportfordifferenttypes
+ofretrievalmodels.Seehttp://www.lemurproject.org.
+8 WumpusisaninformationretrievalsystemmainlygearedatXMLretrieval.Seehttp://www.wumpus-
+search.org/.
+233
+ComputationalLinguistics Volume36,Number2
+MRR@n
+9
+andsuccess@nforlevelsn=10andn=150.Fortheevaluationoftheretrieval
+module, we were mainly interested in the scores for success@150 because re-ranking
+can only be successful if at least one relevant answer was returned by the retrieval
+module.
+Wefoundthatthebest-scoringpassageretrievalsettingintermsofsuccess@150is
+LemuronanindexofslidingpassageswithTF-IDF(Zhai2001)asrankingmodel.We
+obtainedthefollowingresultswiththispassageretrievalsetting:success@150is78.5%,
+success@10is45.2%,andMRR@150is0.25.Wedonotincludetheresultsobtainedwith
+theotherretrievalsettingsherebecausethedifferencesweresmall.
+Theresultsshowthatfor21.5%ofthequestionsinourset,noanswerwasretrieved
+in the top-150 results. We attempted to increase this coverage by retrieving 250 or
+500 answers per question but this barely increased the success score at maximum
+n. The main problems for the questions that we miss are infamous retrieval prob-
+lems such as the vocabulary gapbetween a question and its answer. For example,
+the answer to Why do chefs wear funny hats? contains none of the words from the
+question.
+4.TheStrengthsandWeaknessesoftheBOWModel
+Inordertounderstandhowanswerrankingisexecutedbythepassageretrievalmod-
+ule, we ﬁrst take a closer look at the TF-IDF algorithm as it has been implemented in
+Lemur. TF-IDF is a pure BOW model: Both the query and the passages in the corpus
+arerepresentedbythetermfrequencies(numbersofoccurrences)foreachofthewords
+they contain. The terms are weighted using their inverse document frequency (IDF),
+which puts a higher weight on terms that occur in few passages than on terms that
+occurinmanypassages.Thetermfrequency(TF)functionsforthequeryandthedoc-
+ument,andtheparametervalueschosenforthesefunctionsinLemurcanbefoundin
+Zhai(2001).
+As explained in the previous section, we consider success@150 to be the most
+importantmeasurefortheretrievalmoduleofoursystem.However,forthesystemasa
+whole,success@10isamoreimportantevaluationmeasure.Thisisbecauseuserstend
+topaymuchmoreattentiontothetop10resultsofaretrievalsystemthantoresultsthat
+arerankedlower(Joachimsetal.2005).Therefore,itisinterestingtoinvestigatewhich
+questions are answered in the top150 and not in the top10 by our passage retrieval
+module. This is the set of questions for which the BOW model is not effective enough
+and additional (more speciﬁc) overlap information is needed for ranking a relevant
+answerinthetop10.
+Weanalyzedthesetofquestionsthatgetarelevantansweratarankbetween10and
+150(62questions),whichbelowwewillrefertoasourfocusset.Wecomparedourfocus
+settothequestionsforwhicharelevantanswerisinthetop10(84questions).Although
+these numbers are too small to do a quantitative error analysis, a qualitative analysis
+providesvaluableinsightsintothestrengthsandweaknessesofaBOWrepresentation
+suchasTF-IDF.InSections4.1to4.4wediscussfourdifferentaspectsofwhy-questions
+thatpresentproblemsfortheBOWmodel.
+9 NotethatMRRisoftenusedwithouttheexplicitcut-offpoint(n).WeaddittoclarifythatRRis0forthe
+questionswithoutacorrectanswerinthetop-n.
+234
+Verberneetal. WhatIsNotintheBagofWordsforWhy-QA?
+4.1ShortQuestions
+Ten questions in our focus set contain only one or two content words. We can see the
+effectofshortqueriesifwecomparethreequestionsthatcontainonlyonesemantically
+rich content word.
+10
+The rank of the highest ranked relevant answer is given between
+parentheses;thelastofthesethreequestionsisinourfocusset.
+1. Whydopeoplehiccup?(2)
+2. Whydopeoplesneeze?(4)
+3. Whydowedream?(76)
+We found that the rank of the relevant answer is related to the corpus frequency of
+the single semantically rich word, which is 64 forhiccup, 220 forsneeze, and 13,458 for
+dream.Thismeansthatmanypassagesareretrievedforquestion3,makingthechances
+for the relevant answer to be ranked in the top10 smaller. One way to overcome the
+problemoflongresultlistsforshortqueriesisbyaddingwordstothequerythatmake
+it more speciﬁc. In the case of why-QA, we know that we are not simply searching
+for information on dreaming but for an explanation for dreaming. Thus, in the ranking
+process, we can extend the query with explanatory cue words such as because.
+11
+We
+expectthattheadditionofexplanatorycuephraseswillgiveanimprovementinranking
+performance.
+4.2TheDocumentContextoftheAnswer
+There are many cases where the context of the candidate answer gives useful infor-
+mation. Consider, for example, the question Whydoesasnakeﬂickoutitstongue?,the
+correct answer to which was ranked 29. A human searcher expects to ﬁnd the answer
+in a Wikipedia article about snakes. Within the Snake article he or she may search for
+the words ﬂick and/or tongue in order to ﬁnd the answer. This suggests that in some
+cases there is a direct relation between a speciﬁc part of the question and the context
+(document and/or section) of the candidate answer. In cases like this, the answer
+document and the question apparently share the same topic (snake). By analogy with
+linguisticallymotivatedapproachestofactoidQA(Ferretetal.2002),weintroducethe
+termquestionfocusforthistopic.
+In the example question ﬂick is the word with the lowest corpus frequency (556),
+followedbytongue(4,925)andsnake(6,809).UsingaBOWapproachtodocumenttitle
+matching, candidate answers from documents withﬂickortonguein their title would
+be ranked higher than answers from documents with snake in their title. Thus, for
+questions for which there is overlapbetween the question focus and the title of the
+answerdocuments(twothirdsofthequestionsinourset),wecanimprovetheranking
+of candidate answers by correctly predicting the question focus. In Section 5.1.2, we
+makeconcretesuggestionsforachievingthis.
+10 Thewordpeopleinsubjectpositionisasemanticallypoorcontentword.
+11 Theadditionofcuewordscanalsobeconsideredtobeappliedintheretrievalstep.Wecomebacktothis
+inSection6.3.
+235
+ComputationalLinguistics Volume36,Number2
+4.3Multi-WordTerms
+AveryimportantcharacteristicoftheBOWmodelisthatwordsareconsideredseparate
+terms. One of the consequences is that multi-word terms such as multi-word noun
+phrases (mwNPs) are not treated as a single term. Here, three examples of questions
+areshowninwhichthesubjectisrealizedbyamwNP(underlinedintheexamples;the
+rankoftherelevantanswerisshownbetweenbrackets):
+1. Whyarehushpuppiescalledhushpuppies?(1)
+2. Whyisthecoralreefdisappearing?(29)
+3. Whyisablackholeblack?(31)
+WeinvestigatedthecorpusfrequenciesfortheseparatepartsofeachmwNP.Wefound
+that these are quite high for coral (3,316) and reef (2,597) compared to the corpus
+frequency of the phrasecoralreef (365). The numbers are even more extreme forblack
+(103,550) and hole (9,734) versus black hole (1,913). On the other hand, the answer to
+the hush puppies question can more easily be ranked because the corpus frequencies
+for the separate termshush(594) andpuppies(361) are relatively low. This shows that
+multi-word terms do not necessarily give problems fortheBOW model as long as the
+documentfrequenciesfortheconstituentwordsarerelativelylow.If(oneof)thewords
+inthephraseis/arefrequent,itisverydifﬁculttoranktherelevantanswerhighinthe
+resultlistwithuseofwordoverlaponly.
+Inourfocusset,36ofthe62questionscontainamwNP.Forthesequestions,wecan
+expectimprovedrankingfromtheadditionofNPstoourfeatureset.
+4.4SyntacticStructure
+The BOW model does not take into account sentence structure. The potential impor-
+tance of sentence structure for improved ranking can be exempliﬁed by the following
+twoquestionsfromourset.Notethatbothexamplescontainasubordinateclause(ﬁnite
+ornon-ﬁnite):
+1. Whydobakingsodaandvinegarexplodewhenyoumixthemtogether?(4)
+2. Whyarethere72pointstotheinchwhendiscussingfontsandprinting?(36)
+Inbothcases,thecontentsofthesubordinateclausearelessimportanttothegoalofthe
+questionthanthecontentsofthemainclause.Intheﬁrstexample,thisis(coincidentally)
+reﬂected by the corpus frequencies of the words in both clauses: mix (12,724) and
+together (83,677) have high corpus frequencies compared to baking (832), soda (1,620),
+vinegar (871), and explode (1,285). As a result, the reference answer containing these
+terms is ranked in the top-10 by TF-IDF. In the second example, however, the corpus
+frequencies do not reﬂect the importance of the terms. Fonts and printing have lower
+corpusfrequencies(1,243and6,978,respectively)thanpoints(43,280)andinch(10,046).
+Thus,fontsandprintingareweightedheavierbyTF-IDFalthoughthesetermsareonly
+peripheraltothegoalofthequery,thecoreofwhichisWhyarethere72pointstotheinch?
+Thiscannotbederivedfromthecorpusfrequencies,butcanonlybeinferredfromthe
+syntacticfunction(adverbial)ofwhendiscussingfontsandprintinginthequestion.
+Thus, the lack of information about sentence structure in the BOW model does
+not necessarily give rise to problems as long as the importance of the question terms
+is reﬂected by their frequency counts. If term importance does not align with corpus
+236
+Verberneetal. WhatIsNotintheBagofWordsforWhy-QA?
+frequency,grammaticalstructurebecomespotentiallyuseful.Therefore,weexpectthat
+syntacticstructurecanmakeacontributiontocaseswheretheimportanceoftheterms
+is not reﬂected by their corpus frequencies but can be derived from their syntactic
+function.
+4.5WhatCanWeExpectfromStructuralInformation?
+In Sections 4.1 to 4.4 we discussed four aspects ofwhy-questions that are problematic
+fortheBOWmodel.Weexpectcontributionsfromtheinclusionofinformationoncue
+phrases, question focus and the document context of the answer, noun phrases, and
+thesyntacticstructureofthequestion.Wethinkthatitispossibletoachieveimproved
+ranking performance if features based on structural overlap are taken into account
+insteadofglobaloverlapinformation.
+5.AddingOverlap-BasedStructuralInformation
+From our analyses in Section 4, we found a number of question and answer aspects
+that are potentially useful for improving the ranking performance of our system. In
+this section, we present the re-ranking module of our system. We deﬁne a feature set
+that is inspired by the ﬁndings from Section 4 and aims to ﬁnd out which structural
+features of a question–answer pair contribute the most to better answer ranking. We
+aimtoweighthesefeaturesinsuchawaythatwecanoptimizerankingperformance.
+The input data for our re-ranking experiments is the output of the passage retrieval
+module.Asuccess@150scoreof78.5%forpassageretrieval(seeSection3.2)meansthat
+themaximumsuccess@10scorethatwecanachievebyre-rankingis78.5%.
+5.1FeaturesforRe-ranking
+Theﬁrstfeatureinourre-rankingmethodisthescorethatwasassignedtoacandidate
+answer by Lemur/TF-IDF in the retrieval module (f0). In the following sections we
+introducetheotherfeaturesthatweimplemented.Eachfeaturerepresentstheoverlap
+betweentwoitembags:
+12
+abagofquestionitems(forexample:allthequestion’snoun
+phrases,orthequestion’smainverb)andabagofansweritems(forexample:allanswer
+words,orallverbsintheanswer).Thevaluethatisassignedtoafeatureisafunctionof
+theoverlapbetweenthesetwobags.Weusedthefollowingoverlapfunction:
+S(Q,A)=
+Q
+A
++A
+Q
+Q+A
+(1)
+inwhichQ
+A
+isthenumberofquestionitemsthatoccuratleastonceinthebagofanswer
+items,A
+Q
+isthenumberofansweritemsthatoccuratleastonceinthebagofquestion
+items,andQ+Aisthenumberofitemsinbothbagsofitemsjoinedtogether.
+5.1.1TheSyntacticStructureoftheQuestion.InSection4.4,wearguedthatsomesyntactic
+partsofthequestionmay bemoreimportant foranswer ranking thanothers.Because
+wehavenoquantitativeevidenceyetwhichsyntacticpartsofthequestionarethemost
+important,wecreatedoverlapfeaturesforeachofthefollowingquestionparts:phrase
+12 Notethata“bag”isasetinwhichduplicatesarecountedasdistinctitems.
+237
+ComputationalLinguistics Volume36,Number2
+heads(f1),phrasemodiﬁers(f2);thesubject(f3),mainverb(f4),nominalpredicate(f5),
+and direct object (f6) of the main clause; and all noun phrases (f11). For each of these
+questionparts,wecalculateditswordoverlapwiththebagofallanswerwords.Forthe
+featuresf3–f6,weaddedavariantwhereasansweritemsonlywords/phraseswiththe
+samesyntacticfunctionasthequestiontokenwereincluded(f7,f8,f9,f10).
+Consider for example question 1 from Section 3.1:Whydidn’tSocratesleaveAthens
+afterhewasconvicted?,andthereferenceanswerasthecandidateanswerforwhichwe
+aredeterminingthefeaturevalues:Socratesconsideredithypocrisytoescapetheprison:he
+hadknowinglyagreedtoliveunderthecity’slaws,andthismeantthepossibilityofbeingjudged
+guiltyofcrimesbyalargejury.
+From the parser output, our feature extraction script extracts Socrates as subject,
+leave as main verb, and Athens as direct object. Neither leave nor Athens occur in the
+answer passage, thus f4, f6, f8, and f10 are all given a value of 0. So are f5 and f9,
+becausethequestionhasnonominalpredicate.ForthesubjectSocrates,ourscriptﬁnds
+that it occurs once in the bag of answer words. The overlapcount for the feature f3 is
+thuscalculatedas
+1+1
+1+18
+=0.105.
+13
+Forthefeaturef7,ourscriptextractsthegrammatical
+subjects Socrates, he,andthis from the parser’s representation of the answer passage.
+Becausethebagofanswersubjectsforf7containsthreeitems,theoverlapiscalculated
+as
+1+1
+1+3
+=0.5.
+5.1.2TheSemanticStructureoftheQuestion.In Section 4.2, we saw that often there is a
+link between the question focus and the title of the document in which the reference
+answerisfound.Inthosecases,theanswerdocumentandthequestionsharethesame
+topic. For most questions, the focus is the syntactic subject:Whydocatssleepsomuch?
+Judging from our data, there are two exceptions to this general rule: (1) If the subject
+is semantically poor, the question focus is the (verbal or nominal) predicate: Why do
+people sneeze?, and (2) in case of etymology questions (which cover about 10% of
+why-questions), the focus is the subject complement of the passive sentence: Whyare
+chickenwingscalledBuffaloWings?
+We included a feature (f12) for matching words from the question focus to words
+fromthedocumenttitleandafeature(f13)fortherelationbetweenquestionfocuswords
+andallanswerwords.Wealsoincludeafeature(f14)fortheother,non-focusquestion
+words.
+5.1.3TheDocumentContextoftheAnswer.Not only is the document title in relation to
+the question focus potentially useful for answer ranking, but also other aspects of the
+answer context. We include four answer context features in our feature set: overlap
+betweenthequestionwordsandthetitleoftheWikipediadocument(f15),overlapbe-
+tweenquestionwordsandtheheadingoftheanswersection(f16),therelativeposition
+oftheanswerpassageinthedocument(f17),andoverlapbetweenaﬁxedsetofwords
+thatweselectedasexplanatorycueswhentheyoccurinasectionheadingandtheset
+ofwordsthatoccurinthesectionheadingofthepassage(f18).
+14
+13 Thebagofquestionsubjectscontainsoneitem(Socrates,the1inthedenominator)andoneitemfrom
+thisbagoccursinthebagofanswerwords(theleft1inthenumerator).Withoutstopwords,thebagof
+allanswerwordscontains18items,oneofwhichoccursinthebagofquestionsubjects(theright1in
+thenumerator).
+14 WefoundthesesectionheadingcuesbyextractingallsectionheadingsfromtheWikipediacorpus,
+sortingthembyfrequency,andthenmanuallymarkingthosesectionheadingwordsthatweexpect
+tooccurwithexplanatorysections.Theresultisasmallsetofheadingcues(history,origin,origins,
+background,etymology,name,source,sources)thatisindependentofthetestsetweworkwith.
+238
+Verberneetal. WhatIsNotintheBagofWordsforWhy-QA?
+5.1.4Synonyms.For each of the features f1 to f10 and f12 to f16 we add an alternative
+feature(f19tof34)covering thesetofallWordNet synonyms forallquestionterms in
+the original feature. For synonyms, we apply a variant of Equation (1) in whichQ
+A
+is
+interpretedasthenumberofquestionitemsthathaveatleastonesynonyminthebag
+ofansweritemsandA
+Q
+asthenumberofansweritemsthatoccurinatleastoneofthe
+synonymsetsofthequestionitems.
+5.1.5WordNetRelatedness.Additionally,weincludedafeaturerepresentingtherelated-
+ness between the question and the candidate answer using the WordNet Relatedness
+tool (Pedersen, Patwardhan, and Michelizzi 2004) (f35). As a measure of relatedness,
+wechoosetheLeskmeasure,whichincorporatesinformationfromWordNetglosses.
+5.1.6CuePhrases.Finally,asproposedinSection4.1,weaddedaclosedsetofcuephrases
+thatareusedtointroduceanexplanation(f36).Wefoundtheseexplanatoryphrasesina
+waythatiscommonlyusedforﬁndinganswercuesandthatisindependentofourown
+set of question–answer pairs. We queried the key answer words to the most frequent
+why-question on the Web Whyistheskyblue? (blueskyrayleighscattering) to the MSN
+Search engine
+15
+and crawled the ﬁrst 250 answer fragments that are retrieved by the
+engine. From these, we manually extracted all phrases that introduce the explanation.
+This led to a set of 47 cue phrases such as because, as a result of, which explains why,
+andsoon.
+5.2ExtractingFeatureValuesfromtheData
+For the majority of features we needed the syntactic structure of the input question,
+and for some of the features also of the answer. We experimented with two different
+syntactic parsers for these tasks: the Charniak parser (Charniak 2000) and a develop-
+ment version of the Pelican parser.
+16
+Of these, Pelican has a more detailed descriptive
+model and gives better accuracy but Charniak is at present more robust for parsing
+longsentencesandlargeamountsoftext.WeparsedthequestionswithPelicanbecause
+we need accurate parsings in order to correctly extract all constituents. We parsed all
+answers(186×150passages)withCharniakbecauseofitsspeedandrobustness.
+For feature extraction, we used the following external components: A stop word
+list,
+17
+thesetsofcuephrasesasdescribedinSections5.1.3and5.1.6,theCELEXLemma
+lexicon (Burnage et al. 1990), the WordNet synonym sets, the WordNet Similarity
+tool(Pedersen,Patwardhan,andMichelizzi2004),andalistofpronounsandsemanti-
+callypoornouns.
+18
+WeusedaPerlscriptforextractingfeaturevaluesforeachquestion–
+answerpair.Foreachfeature,thescriptcomposestherequiredbagsofquestionitems
+and answer items. All words are lowercased and punctuation is removed. For terms
+in the question set that consist of multiple words (for example, a multi-word subject),
+spaces are replaced by underscores before stop words are removed from the question
+andtheanswer.Thenthescriptcalculatesthesimilaritybetweenthetwosetsforeach
+featurefollowingEquation(1).
+19
+15 http://www.live.com.
+16 Seehttp://lands.let.ru.nl/projects/pelican/.
+17 SeeSection3.1.
+18 Semanticallypoornounsthatwecameacrossinourdatasetarethenounshumansandpeople.
+19 Amulti-wordtermfromthequestioniscountedasoneitem.
+239
+ComputationalLinguistics Volume36,Number2
+Table1
+Resultsforthewhy-QAsystem:thecompletesystemincludingre-rankingcomparedagainst
+plainLemur/TF-IDFfor187why-questions.
+Success@10 Success@150 MRR@150
+Lemur/TF-IDF–sliding 45.2% 78.5% 0.25
+TF-IDF+Re-rankingusing37structuralfeatures 57.0% 78.5% 0.34
+Whether or not to lemmatize the terms before matching them is open to debate.
+In the literature, there is some discussion on the beneﬁt of lemmatization for question
+answering (Bilotti, Katz, and Lin 2004). Lemmatization can be especially problematic
+in the case of proper names (which are not always recognizable by capitalization).
+Therefore, we decided only to lemmatize verbs (for features f4 and f8) in the current
+versionofoursystem.
+5.3Re-rankingMethod
+Feature extraction led to a vector consisting of 37 feature values for each of the 27,900
+itemsinthedataset.Wenormalizedthefeaturevaluesoverall150answercandidates
+for the same question to a number between 0 and 1 using the L1 vector norm. Each
+instance (representing one question–answer pair) was automatically labeled 1 if the
+candidate answer matched the answer pattern for the question and 0 if it did not.
+On average, a why-question had 1.6 correct answers among the set of 150 candidate
+answers.
+In the process of training our re-ranking module, we aim at combining the 37
+featuresinarankingfunctionthatisusedforre-orderingthesetofcandidateanswers.
+Thetaskofﬁndingtheoptimalrankingfunctionforrankingasetofitemsisreferredto
+as“learningtorank”intheinformationretrievalliterature(Liuetal.2007).InVerberne
+et al. (2009), we compared several machine learning techniques
+20
+for our learning-
+to-rank problem. We evaluated the results using 5-fold cross validation on the ques-
+tionset.
+5.4ResultsfromRe-ranking
+The results for the complete system compared with passage retrieval with Lemur/
+TF-IDFonlyareinTable1.Weshowtheresultsintermsofsuccess@10,success@150,and
+MRR@150. We only present the results obtained using the best-performing learning-
+to-rank technique: logistic regression.
+21
+A more detailed description of our machine
+learningmethodandadiscussionoftheresultsobtainedwithotherlearningtechniques
+canbefoundinVerberneetal.(2009).
+20 NaiveBayes,SupportVectorClassiﬁcation,SupportVectorRegression,Logisticregression,Ranking
+SVM,andageneticalgorithm,allwithseveraloptimizationfunctions.
+21 WeusedthelrmfunctionfromtheDesignpackageinR(http://cran.r-project.org/web/packages/
+Design)fortrainingandevaluatingmodelsbasedonlogisticregression.
+240
+Verberneetal. WhatIsNotintheBagofWordsforWhy-QA?
+After applying our re-ranking module, we found a signiﬁcant improvement over
+bare TF-IDF in terms of success@10 and MRR@150 (z=−4.29,p < 0.0001 using the
+WilcoxonSigned-Ranktestforpairedreciprocalranks).
+5.5WhichFeaturesMadetheImprovement?
+In order to evaluate the importance of our features, we rank them according to the
+coefﬁcientthatwasassignedtotheminthelogisticregressionmodel(SeeTable2).We
+only consider features that are signiﬁcant at the p=0.05 level. We ﬁnd that all eight
+signiﬁcantfeaturesareamongthetopninefeatureswiththehighestcoefﬁcient.
+ThefeaturerankingisdiscussedinSection6.1.
+6.Discussion
+Inthefollowingsections,wediscussthefeatureranking(Section6.1),makeacompari-
+sontootherre-rankingapproaches(Section6.2),andexplaintheattemptsthatwemade
+atsolvingtheremainingproblems(Section6.3).
+6.1DiscussionoftheFeatureRanking
+Table2showsthatonlyasmallsubset(8)ofour37featuressigniﬁcantlycontributeto
+there-rankingscore.ThehighestrankedfeatureisTF-IDF(thebagofwords),whichis
+notsurprisingsinceTF-IDFalonealreadyreachesanMRR@150of0.25(seeSection3.2).
+In Section 4.5, we predicted a valuable contribution from the addition of cue phrases,
+question focus, noun phrases, and the document context of the answer. This is partly
+conﬁrmed by Table 2, which shows that among the signiﬁcant features are the feature
+that links question focus to document title and the cue phrases feature. The noun
+phrasesfeature(f11)isactuallyinthetopninefeatureswiththehighestcoefﬁcientbut
+itscontributionwasnotsigniﬁcantatthe0.05level(p=0.068).
+The importance of question focus for why-QA is especially interesting because it
+is a question feature that is speciﬁc to why-questions and does not similarly apply
+Table2
+Featuresthatsigniﬁcantlycontributetothere-rankingscore(p< 0.05),rankedbytheir
+coefﬁcientinthelogisticregressionmodel(representingtheirimportance).
+Feature Coefﬁcient
+TF-IDF(f0) 0.39**
+Overlapbetweenquestionfocussynonymsanddocumenttitle(f30) 0.25**
+Overlapbetweenquestionobjectsynonymsandanswerwords(f28) 0.22
+Overlapbetweenquestionobjectandanswerobjects(f10) 0.18*
+Overlapbetweenquestionwordsanddocumenttitlesynonyms(f33) 0.17
+Overlapbetweenquestionverbsynonymsandanswerwords(f24) 0.16
+WordNetRelatedness(f35) 0.16*
+Cuephrases(f36) 0.15*
+Asterisksoncoefﬁcientsdenotethelevelofsigniﬁcanceforthefeature:**p< 0.001;*0.001<
+p< 0.01;noasteriskmeans0.01<p< 0.05.
+241
+ComputationalLinguistics Volume36,Number2
+to factoids or other question types. Moreover, the link from the question focus to the
+documenttitleshowsthatWikipediaasananswersourcecanprovideQAsystemswith
+more information than a collection of plain texts with less discriminative document
+titlesdoes.
+Thesigniﬁcance ofcuephrases isalsoanimportantﬁnding.Infact,including cue
+phrases in the why-QA process is the only feasible way of specifying which passages
+arelikelytocontainanexplanation(i.e.,ananswertoawhy-question).Inearlierwork
+(Verberne et al. 2007a), we pointed out that higher-level annotation such as discourse
+structure can give useful information in the why-answer selection process. However,
+the development of systems that incorporate discourse structure suffers from the lack
+of tools for automated annotation. The current results show that surface patterns (the
+literal presence of items from a ﬁxed set of cue words) are a step in the direction of
+answerselection.
+The signiﬁcant features in Table 2 also show us which question constituents are
+themostsalientforanswerranking:focus,mainverb,anddirectobject.Wethinkthat
+featuresincorporatingthequestion’ssubjectarenotfoundtobesigniﬁcantbecause,in
+a subset of the questions, thesubject issemantically poor. Moreover, because formost
+questionsthesubjectisthequestionfocus,thesubjectfeaturesandthefocusfeaturesare
+correlated.Inourdata,thequestionfocusapparentlyisthemorepowerfulpredictor.
+6.2ComparisontoOtherApproaches
+The 23% improvement that we reach in terms of MRR@150 (from 0.25 to 0.34) is com-
+parable to that reached by Tiedemann in his work on improving factoid QA with the
+useofstructuralinformation.
+In order to see whether the improvement that we achieved with re-ranking is
+on account of structural information or just the beneﬁt of using word sequences, we
+experimented with a set of re-ranking features based on sequences of question words
+that are not syntactically deﬁned. In this re-ranking experiment, we included TF-IDF,
+word bigrams, and word trigrams as features. The resulting performance was around
+baselinelevel(MRR=0.25),signiﬁcantlyworsethanre-rankingwithstructuraloverlap
+features.Thisisstilltrueifweaddthecuewordfeature(which,inisolation,onlygives
+asmallimprovementtobaselineperformance)tothen-gramfeatures.
+6.3SolvingtheRemainingProblems
+Althoughtheresultsintermsofsuccess@10andMRR@150aresatisfactory,thereisstill
+asubstantialproportionofwhy-questionsthatisnotansweredinthetop10resultlist.
+Inthissection,wediscussanumberofattemptsthatwemadetofurtherimproveour
+system.
+First, after we found that for some question parts synonym expansion leads to
+improvement (especially the main verb and direct object), we experimented with the
+additionofsynonymsfortheseconstituentsintheretrievalstepofoursystem(Lemur).
+Wefound,however,thatitdoesnotimprovetheresultsduetothelargesynonymsets
+of many verbs and nouns which add much noise and lead to very long queries. The
+sameholdsfortheadditionofcuewordsintheretrievalstep.
+Second,althoughourre-rankingmoduleincorporatesexpansiontosynonymsets,
+therearemanyquestion–answerpairswherethevocabularygapbetweenthequestion
+242
+Verberneetal. WhatIsNotintheBagofWordsforWhy-QA?
+and the answer is still a problem. There are cases where semantically related terms in
+the question and the answer are of different word classes (e.g.,hibernate—hibernation),
+and there are cases of proper nouns that are not covered by WordNet (e.g.,B.B.King).
+Weconsideredusingdynamicstemmingforverb–nounrelationssuchasthehibernation
+case but research has shown that stemming hurts as many queries as it helps (Bilotti,
+Katz, and Lin 2004). Therefore, we experimented with a number of different semantic
+resources, namely, the nominalization dictionary Nomlex (Meyers et al. 1998) and the
+wikiOntologybyPonzettoandStrube(2007).However,intheircurrentstateofdevelop-
+mentthesesemanticresourcescannotimproveoursystembecausetheircoverageistoo
+lowtomakeacontributiontoourre-rankingmodule.Moreover,thepresentversionof
+thewikiOntologyisverynoisyandrequiresalargeamountofcleaningupandﬁltering.
+Third,weconsideredthattheuseofcuephrasesmaynotbesophisticatedenough
+for ﬁnding explanatory relations between question and answer. Therefore, we exper-
+imented with the addition of cause–effect pairs from the English version of the EDR
+Concept Dictionary (Yokoi 1995) — as suggested by Higashinaka and Isozaki (2008).
+Unfortunately,thelistappearedtobeextremelynoisy,provingitnotusefulasasource
+foranswerranking.
+7.ConclusionsandDirectionsforFutureResearch
+In the current research, we extended a passage retrieval system forwhy-QA using off-
+the-shelf retrieval technology (Lemur/TF-IDF) with a re-ranking stepincorporating
+structural information. We get signiﬁcantly higher scores in terms of MRR@150 (from
+0.25 to 0.34) and success@10. The 23% improvement that we reach in terms of MRR
+is comparable to that reached on various other QA tasks by other researchers in the
+ﬁeld (see Section 6.3). This conﬁrms our hypothesis in Section 1 that for the relatively
+complexproblemofwhy-QA,asigniﬁcantimprovementcanbegainedbytheaddition
+ofstructuralinformationtotherankingcomponentoftheQAsystem.
+Mostofthefeaturesthatweimplementedforanswerre-rankingarebasedonword
+overlapbetweenpartofthequestionandpartoftheanswer.Asaresultofthisset-up,
+ourfeaturesidentifythepartsofwhy-questionsandtheircandidateanswersthatarethe
+mostpowerful/effectiveforrankingtheanswers.Thequestionconstituentsthatappear
+tobethemostimportantarethequestionfocus,themainverb,andthedirectobject.On
+the answer side, most important are the title of the document in which the candidate
+answerisembeddedandknowledgeonthepresenceofcuephrases.
+Becauseourfeaturesareoverlap-based,theyarerelativelyeasytoimplement.For
+implementationofsomeofthesigniﬁcantfeatures,aformofsyntacticparsingisneeded
+that can identify subject, verb, and direct object from the question and sentences in
+the candidate answers. An additional set of rules is needed for ﬁnding the question
+focus. Finally, we need a ﬁxed list for identifying cue phrases. Exploiting the title of
+answerdocumentsinthefeaturesetisonlyfeasibleifthedocumentsthatmaycontain
+theanswershavetitlesandsectionheadingssimilartoWikipedia.
+In conclusion, we developed a method for signiﬁcantly improving a BOW-based
+approach towhy-QA that can be implemented without extensive semantic knowledge
+sources. Our series of experiments suggest that we have reached the maximum per-
+formance that can be obtained using a knowledge-poor approach. Experiments with
+more complex types of information (discourse structure, cause–effect relations) show
+thattheseinformationsourceshavenotasyetdevelopedsufﬁcientlytobeexploitedin
+aQAsystem.
+243
+ComputationalLinguistics Volume36,Number2
+References
+Bilotti,M.W.,B.Katz,andJ.Lin.2004.
+Whatworksbetterforquestion
+answering:Stemmingormorphological
+queryexpansion.InProceedingsofthe
+WorkshoponInformationRetrievalfor
+QuestionAnswering(IR4QA)atSIGIR2004,
+Shefﬁeld.
+Bilotti,M.W.,P.Ogilvie,J.Callan,and
+E.Nyberg.2007.Structuredretrievalfor
+questionanswering.InProceedingsofthe
+30thAnnualInternationalACMSIGIR
+ConferenceonResearchandDevelopment
+inInformationRetrieval,pages351–358,
+Amsterdam.
+Burnage,G.,R.H.Baayen,R.Piepenbrock,
+andH.vanRijn.1990.CELEX:AGuidefor
+Users.CELEX,UniversityofNijmegen,
+theNetherlands.
+Carlson,Lynn,DanielMarcu,and
+MaryEllenOkurowski.2003.Building
+adiscourse-taggedcorpusinthe
+frameworkofRhetoricalStructureTheory.
+InJanvanKuppeveltandRonnieSmith,
+editors,CurrentDirectionsinDiscourseand
+Dialogue.KluwerAcademicPublishers,
+Dordrecht,pages85–112.
+Charniak,E.2000.Amaximum-entropy-
+inspiredparser.ACMInternational
+ConferenceProceedingSeries,4:132–139.
+Denoyer,L.andP.Gallinari.2006.The
+WikipediaXMLcorpus.ACMSIGIR
+Forum,40(1):64–69.
+Ferret,O.,B.Grau,M.Hurault-Plantet,
+G.Illouz,L.Monceaux,I.Robba,and
+A.Vilnat.2002.Findingananswer
+basedontherecognitionofthequestion
+focus.NISTSpecialPublication,
+pages362–370.
+Higashinaka,R.andH.Isozaki.2008.
+Corpus-basedquestionansweringfor
+why-questions.InProceedingsofIJCNLP,
+pages418–425,Hyderabad.
+Hovy,E.H.,U.Hermjakob,and
+D.Ravichandran.2002.Aquestion/
+answertypologywithsurfacetext
+patterns.InProceedingsoftheHuman
+LanguageTechnologyconference(HLT),
+pages247–251,SanDiego,CA.
+Joachims,T.,L.Granka,B.Pan,
+H.Hembrooke,andG.Gay.2005.
+Accuratelyinterpretingclickthroughdata
+asimplicitfeedback.InProceedingsofthe
+28thAnnualInternationalACMSIGIR
+ConferenceonResearchandDevelopmentin
+InformationRetrieval,pages154–161,
+Salvador,Brazil.
+Khalid,M.andS.Verberne.2008.Passage
+retrievalforquestionansweringusing
+SlidingWindows.InProceedingsofthe
+COLING2008WorkshopIR4QA,
+Manchester,UK.
+Liu,T.Y.,J.Xu,T.Qin,W.Xiong,andH.Li.
+2007.Letor:Benchmarkdatasetfor
+researchonlearningtorankfor
+informationretrieval.InProceedingsof
+theWorkshoponLearningtoRankfor
+InformationRetrieval(LR4IR)atSIGIR2007,
+pages3–10,Amsterdam.
+Meyers,A.,C.Macleod,R.Yangarber,
+R.Grishman,L.Barrett,andR.Reeves.
+1998.UsingNOMLEXtoproduce
+nominalizationpatternsforinformation
+extraction.InProceedings:The
+ComputationalTreatmentofNominals,
+volume2,pages25–32,Montreal.
+Pedersen,T.,S.Patwardhan,and
+J.Michelizzi.2004.WordNet::Similarity—
+measuringtherelatednessofconcepts.In
+ProceedingsoftheNationalConferenceon
+ArtiﬁcialIntelligence,pages1024–1025,
+SanJose,CA.
+Ponzetto,S.P.andM.Strube.2007.Deriving
+alargescaletaxonomyfromWikipedia.
+InProceedingsoftheNationalConferenceon
+ArtiﬁcialIntelligence,pages1440–1445,
+Vancouver,BC.
+Quarteroni,S.,A.Moschitti,S.Manandhar,
+andR.Basili.2007.Advancedstructural
+representationsforquestionclassiﬁcation
+andanswerre-ranking.InProceedingsof
+ECIR2007,pages234–245,Rome.
+Salton,G.andC.Buckley.1988.
+Term-weightingapproachesinautomatic
+textretrieval.InformationProcessingand
+Management,24(5):513–523.
+Surdeanu,M.,M.Ciaramita,and
+H.Zaragoza.2008.Learningtorank
+answersonlargeonlineQAcollections.In
+ProceedingsofACL2008,pages719–727,
+Columbus,OH.
+Tellex,S.,B.Katz,J.Lin,A.Fernandes,and
+G.Marton.2003.Quantitativeevaluation
+ofpassageretrievalalgorithmsfor
+questionanswering.InProceedingsofthe
+26thAnnualInternationalACMSIGIR
+ConferenceonResearchandDevelopment
+inInformationRetrieval,pages41–47,
+Toronto.
+Tiedemann,J.2005.Improvingpassage
+retrievalinquestionansweringusing
+NLP.InProgressinArtiﬁcialIntelligence,
+volume3808.Springer,Berlin/
+Heidelberg,pages634–646.
+Verberne,S.2006.Developinganapproach
+forwhy-questionanswering.InConference
+Companionofthe11thConferenceofthe
+EuropeanChapteroftheAssociationfor
+244
+Verberneetal. WhatIsNotintheBagofWordsforWhy-QA?
+ComputationalLinguistics(EACL2006),
+pages39–46,Trento.
+Verberne,S.,L.Boves,N.Oostdijk,and
+P.A.Coppen.2007a.Discourse-based
+answeringofwhy-questions.Traitement
+AutomatiquedesLangues(TAL),specialissue
+on“Discoursetdocument:traitements
+automatiques”,47(2):21–41.
+Verberne,S.,L.Boves,N.Oostdijk,and
+P.A.Coppen.2007b.Evaluating
+discourse-basedanswerextractionfor
+why-questionanswering.InProceedingsof
+the30thAnnualInternationalACMSIGIR
+ConferenceonResearchandDevelopment
+inInformationRetrieval,pages735–736,
+Amsterdam.
+Verberne,S.,H.VanHalteren,D.Theijssen,
+S.Raaijmakers,andL.Boves.2009.
+LearningtorankQAdata.InProceedings
+oftheWorkshoponLearningtoRankfor
+InformationRetrieval(LR4IR)atSIGIR2009,
+pages41–48,Boston,MA.
+Yokoi,T.1995.TheEDRelectronicdictionary.
+CommunicationsoftheACM,38(11):42–44.
+Zhai,C.2001.NotesontheLemurTFIDF
+model.Technicalreport,Schoolof
+ComputerScience,CarnegieMellon
+University.
+245
+
+

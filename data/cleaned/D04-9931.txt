@@ -1,0 +1,194 @@
+1:193	Applying Conditional Random Fields to Japanese Morphological Analysis Taku Kudoy Kaoru Yamamotoz Yuji Matsumotoy yNara Institute of Science and Technology 8916-5, Takayama-Cho Ikoma, Nara, 630-0192 Japan zCREST JST, Tokyo Institute of Technology 4259, Nagatuta Midori-Ku Yokohama, 226-8503 Japan taku-ku@is.naist.jp, kaoru@lr.pi.titech.ac.jp, matsu@is.naist.jp Abstract This paper presents Japanese morphological analysis based on conditional random fields (CRFs).
+2:193	Previous work in CRFs assumed that observation sequence (word) boundaries were fixed.
+3:193	However, word boundaries are not clear in Japanese, and hence a straightforward application of CRFs is not possible.
+4:193	We show how CRFs can be applied to situations where word boundary ambiguity exists.
+5:193	CRFs offer a solution to the long-standing problems in corpus-based or statistical Japanese morphological analysis.
+6:193	First, flexible feature designs for hierarchical tagsets become possible.
+7:193	Second, influences of label and length bias are minimized.
+8:193	We experiment CRFs on the standard testbed corpus used for Japanese morphological analysis, and evaluate our results using the same experimental dataset as the HMMs and MEMMs previously reported in this task.
+9:193	Our results confirm that CRFs not only solve the long-standing problems but also improve the performance over HMMs and MEMMs.
+10:193	1 Introduction Conditional random fields (CRFs) (Lafferty et al. , 2001) applied to sequential labeling problems are conditional models, trained to discriminate the correct sequence from all other candidate sequences without making independence assumption for features.
+11:193	They are considered to be the state-of-the-art framework to date.
+12:193	Empirical successes with CRFs have been reported recently in part-of-speech tagging (Lafferty et al. , 2001), shallow parsing (Sha and Pereira, 2003), named entity recognition (McCallum and Li, 2003), Chinese word segmentation (Peng et al. , 2004), and Information Extraction (Pinto et al. , 2003; Peng and McCallum, 2004).
+13:193	Previous applications with CRFs assumed that observation sequence (e.g. word) boundaries are fixed, and the main focus was to predict label At present, NTT Communication Science Laboratories, 2-4, Hikaridai, Seika-cho, Soraku, Kyoto, 619-0237 Japan taku@cslab.kecl.ntt.co.jp sequence (e.g. part-of-speech).
+14:193	However, word boundaries are not clear in non-segmented languages.
+15:193	One has to identify word segmentation as well as to predict part-of-speech in morphological analysis of non-segmented languages.
+16:193	In this paper, we show how CRFs can be applied to situations where word boundary ambiguity exists.
+17:193	CRFs offer a solution to the problems in Japanese morphological analysis with hidden Markov models (HMMs) (e.g. , (Asahara and Matsumoto, 2000)) or with maximum entropy Markov models (MEMMs) (e.g. , (Uchimoto et al. , 2001)).
+18:193	First, as HMMs are generative, it is hard to employ overlapping features stemmed from hierarchical tagsets and nonindependent features of the inputs such as surrounding words, word suffixes and character types.
+19:193	These features have usually been ignored in HMMs, despite their effectiveness in unknown word guessing.
+20:193	Second, as mentioned in the literature, MEMMs could evade neither from label bias (Lafferty et al. , 2001) nor from length bias (a bias occurring because of word boundary ambiguity).
+21:193	Easy sequences with low entropy are likely to be selected during decoding in MEMMs.
+22:193	The consequence is serious especially in Japanese morphological analysis due to hierarchical tagsets as well as word boundary ambiguity.
+23:193	The key advantage of CRFs is their flexibility to include a variety of features while avoiding these bias.
+24:193	In what follows, we describe our motivations of applying CRFs to Japanese morphological analysis (Section 2).
+25:193	Then, CRFs and their parameter estimation are provided (Section 3).
+26:193	Finally, we discuss experimental results (Section 4) and give conclusions with possible future directions (Section 5).
+27:193	2 Japanese Morphological Analysis 2.1 Word Boundary Ambiguity Word boundary ambiguity cannot be ignored when dealing with non-segmented languages.
+28:193	A simple approach would be to let a character be a token (i.e. , character-based Begin/Inside tagging) so that boundary ambiguity never occur (Peng et al. , 2004).
+29:193	Input: a0a2a1a4a3a6a5a8a7a10a9 (I live in Metropolis of Tokyo.)
+30:193	BOS a11 (east)[Noun] a11a13a12 (Tokyo) [Noun] a12a4a14 (Kyoto) [Noun] a14 (Metro.)
+31:193	[Suffix] a15 (in) [Particle] a15 (resemble) [Verb] a16a13a17 (live) [Verb] EOS Lattice: a12 (capital) [Noun] Figure 1: Example of lattice for Japanese morphological analysis However, B/I tagging is not a standard method in 20-year history of corpus-based Japanese morphological analysis.
+32:193	This is because B/I tagging cannot directly reflect lexicons which contain prior knowledge about word segmentation.
+33:193	We cannot ignore a lexicon since over 90% accuracy can be achieved even using the longest prefix matching with the lexicon.
+34:193	Moreover, B/I tagging produces a number of redundant candidates which makes the decoding speed slower.
+35:193	Traditionally in Japanese morphological analysis, we assume that a lexicon, which lists a pair of a word and its corresponding part-of-speech, is available.
+36:193	The lexicon gives a tractable way to build a lattice from an input sentence.
+37:193	A lattice represents all candidate paths or all candidate sequences of tokens, where each token denotes a word with its partof-speech 1.
+38:193	Figure 1 shows an example where a total of 6 candidate paths are encoded and the optimal path is marked with bold type.
+39:193	As we see, the set of labels to predict and the set of states in the lattice are different, unlike English part-of-speech tagging that word boundary ambiguity does not exist.
+40:193	Formally, the task of Japanese morphological analysis can be defined as follows.
+41:193	Let x be an input, unsegmented sentence.
+42:193	Let y be a path, a sequence of tokens where each token is a pair of word wi and its part-of-speech ti.
+43:193	In other words, y = (hw1;t1i;:::;hw#y;t#yi) where #y is the number of tokens in the path y. LetY(x) be a set of candidate paths in a lattice built from the input sentence x and a lexicon.
+44:193	The goal is to select a correct path ^y from all candidate paths in the Y(x).
+45:193	The distinct property of Japanese morphological analysis is that the number of tokens y varies, since the set of labels and the set of states are not the same.
+46:193	1If one cannot build a lattice because no matching word can be found in the lexicon, unknown word processing is invoked.
+47:193	Here, candidate tokens are built using character types, such as hiragana, katakana, Chinese characters, alphabets, and numbers.
+48:193	2.2 Long-Standing Problems 2.2.1 Hierarchical Tagset Japanese part-of-speech (POS) tagsets used in the two major Japanese morphological analyzers ChaSen2 and JUMAN3 take the form of a hierarchical structure.
+49:193	For example, IPA tagset4 used in ChaSen consists of three categories: part-ofspeech, conjugation form (cform), and conjugate type (ctype).
+50:193	The cform and ctype are assigned only to words that conjugate, such as verbs and adjectives.
+51:193	The part-of-speech has at most four levels of subcategories.
+52:193	The top level has 15 different categories, such as Noun, Verb, etc. Noun is subdivided into Common Noun, Proper Noun and so on.
+53:193	Proper Noun is again subdivided into Person, Organization or Place, etc. The bottom level can be thought as the word level (base form) with which we can completely discriminate all words as different POS.
+54:193	If we distinguish each branch of the hierarchical tree as a different label (ignoring the word level), the total number amounts to about 500, which is much larger than the typical English POS tagset such as Penn Treebank.
+55:193	The major effort has been devoted how to interpolate each level of the hierarchical structure as well as to exploit atomic features such as word suffixes and character types.
+56:193	If we only use the bottom level, we suffer from the data sparseness problem.
+57:193	On the other hand, if we use the top level, we lack in granularity of POS to capture fine differences.
+58:193	For instance, some suffixes (e.g. , san or kun) appear after names, and are helpful to detect words with Name POS.
+59:193	In addition, the conjugation form (cfrom) must be distinguished appearing only in the succeeding position in a bi-gram, since it is dominated by the word appearing in the next.
+60:193	Asahara et al. extended HMMs so as to incorporate 1) position-wise grouping, 2) word-level statis2http://chasen.naist.jp/ 3http://www.kc.t.u-tokyo.ac.jp/nl-resource/juman.html 4http://chasen.naist.jp/stable/ipadic/ tics, and 3) smoothing of word and POS level statistics (Asahara and Matsumoto, 2000).
+61:193	However, the proposed method failed to capture non-independent features such as suffixes and character types and selected smoothing parameters in an ad-hoc way.
+62:193	2.2.2 Label Bias and Length Bias It is known that maximum entropy Markov models (MEMMs) (McCallum et al. , 2000) or other discriminative models with independently trained nextstate classifiers potentially suffer from the label bias (Lafferty et al. , 2001) and length bias.
+63:193	In Japanese morphological analysis, they are extremely serious problems.
+64:193	This is because, as shown in Figure 1, the branching variance is considerably high, and the number of tokens varies according to the output path.
+65:193	P(A, D | x) = 0.6 * 0.6 * 1.0 = 0.36P(B | x) = 0.4 * 1.0 = 0.4 BOS A B DC E 0.6 0.4 1.0 1.0 1.0 1.0 0.4 0.6 EOS P(A, D | x) = 0.6 * 0.6 * 1.0 = 0.36P(B, E | x) = 0.4 * 1.0 * 1.0 = 0.4 (a)Label bias BOS B DC 0.4 1.0 1.0 1.0 0.4 EOS (b) Length bias P(A,D|x) < P(B,E|x) P(A,D|x) < P(B |x) A0.6 0.6 Figure 2: Label and length bias in a lattice An example of the label bias is illustrated in Figure 2:(a) where the path is searched by sequential combinations of maximum entropy models (MEMMs), i.e., P(yjx) = Q#yi=1p(hwi;tiijhwi 1;ti 1i).
+66:193	Even if MEMMs learn the correct path A-D with independently trained maximum entropy models, the path B-E will have a higher probability and then be selected in decoding.
+67:193	This is because the token B has only the single outgoing token E, and the transition probability for B-E is always 1.0.
+68:193	Generally speaking, the complexities of transitions vary according to the tokens, and the transition probabilities with low-entropy will be estimated high in decoding.
+69:193	This problem occurs because the training is performed only using the correct path, ignoring all other transitions.
+70:193	Moreover, we cannot ignore the influence of the length bias either.
+71:193	By the length bias, we mean that short paths, consisting of a small number of tokens, are preferred to long path.
+72:193	Even if the transition probability of each token is small, the total probability of the path will be amplified when the path is short 2:(b)).
+73:193	Length bias occurs in Japanese morphological analysis because the number of output tokens y varies by use of prior lexicons.
+74:193	Uchimoto et al. attempted a variant of MEMMs for Japanese morphological analysis with a number of features including suffixes and character types (Uchimoto et al. , 2001; Uchimoto et al. , 2002; Uchimoto et al. , 2003).
+75:193	Although the performance of unknown words were improved, that of known words degraded due to the label and length bias.
+76:193	Wrong segmentation had been reported in sentences which are analyzed correctly by naive rule-based or HMMs-based analyzers.
+77:193	3 Conditional Random Fields Conditional random fields (CRFs) (Lafferty et al. , 2001) overcome the problems described in Section 2.2.
+78:193	CRFs are discriminative models and can thus capture many correlated features of the inputs.
+79:193	This allows flexible feature designs for hierarchical tagsets.
+80:193	CRFs have a single exponential model for the joint probability of the entire paths given the input sentence, while MEMMs consist of a sequential combination of exponential models, each of which estimates a conditional probability of next tokens given the current state.
+81:193	This minimizes the influences of the label and length bias.
+82:193	As explained in Section 2.1, there is word boundary ambiguity in Japanese, and we choose to use a lattice instead of B/I tagging.
+83:193	This implies that the set of labels and the set of states are different, and the number of tokens #y varies according to a path.
+84:193	In order to accomodate this, we define CRFs for Japanese morphological analysis as the conditional probability of an output path y = (hw1;t1i;:::;hw#y;t#yi) given an input sequence x: P(yjx) = 1Z x exp #yX i=1 X k kfk(hwi 1;ti 1i;hwi;tii) ; where Zx is a normalization factor over all candidate paths, i.e., Zx = X y02Y(x) exp #y0X i=1 X k kfk(hw0i 1;t0i 1i;hw0i;t0ii) ; fk(hwi 1;ti 1i;hwi;tii) is an arbitrary feature function over i-th tokenhwi;tii, and its previous token hwi 1;ti 1i5.
+85:193	k(2 =f 1;:::; Kg2RK) is a learned weight or parameter associated with feature function fk.
+86:193	Note that our formulation of CRFs is different from the widely-used formulations (e.g. , (Sha and Pereira, 2003; McCallum and Li, 2003; Peng et al. , 2004; Pinto et al. , 2003; Peng and McCallum, 2004)).
+87:193	The previous applications of CRFs assign a conditional probability for a label sequence y = y1;:::;yT given an input sequence x = x1;:::;xT as: P(yjx) = 1Z x exp TX i=1 X k kfk(yi 1;yi;x) In our formulation, CRFs deal with word boundary ambiguity.
+88:193	Thus, the the size of output sequence T is not fixed through all candidates y 2Y(x).
+89:193	The index i is not tied with the input x as in the original CRFs, but unique to the output y2Y(x).
+90:193	Here, we introduce the global feature vector F(y;x) = fF1(y;x);:::;FK(y;x)g, where Fk(y;x) = P#yi=1fk(hwi 1;ti 1i;hwi;tii).
+91:193	Using the global feature vector, P(yjx) can also be represented as P(yjx) = 1Zx exp( F(y;x)).
+92:193	The most probable path ^y for the input sentence x is then given by ^y = argmax y2Y(x) P(yjx) = argmax y2Y(x) F(y;x); which can be found with the Viterbi algorithm.
+93:193	An interesting note is that the decoding process of CRFs can be reduced into a simple linear combinations over all global features.
+94:193	3.1 Parameter Estimation CRFs are trained using the standard maximum likelihood estimation, i.e., maximizing the loglikelihood L of a given training set T = fhxj;yjigNj=1, ^ = argmax 2RK L ; where L = X j log(P(yjjxj)) = X j h log X y2Y(xj) exp [F(yj;xj) F(y;xj)] i = X j h F(yj;xj) log(Zxj) i : 5We could use trigram or more generaln-gram feature functions (e.g. , fk(hwi n;ti ni;:::;hwi;tii)), however we restrict ourselves to bi-gram features for clarity.
+95:193	To maximize L, we have to maximize the difference between the inner product (or score) of the correct path F(yj;xj) and those of all other candidates F(y;xj); y 2 Y(xj).
+96:193	CRFs is thus trained to discriminate the correct path from all other candidates, which reduces the influences of the label and length bias in encoding.
+97:193	At the optimal point, the first-derivative of the log-likelihood becomes 0, thus, L k = X j Fk(yj;xj) EP(yjxj) Fk(y;xj) = Ok Ek = 0; where Ok = PjFk(yj;xj) is the count of feature k observed in the training data T, and Ek =P jEP(yjxj)[Fk(y;xj)] is the expectation of feature k over the model distribution P(yjx) and T. The expectation can efficiently be calculated using a variant of the forward-backward algorithm.
+98:193	EP(yjx)[Fk(y;x)] = X fhw0;t0i;hw;tig2B(x) hw0;t0i f k exp(Pk0 k0f k0) hw;ti Zx ; where f k is an abbreviation for fk(hw0;t0i;hw;ti), B(x) is a set of all bi-gram sequences observed in the lattice for x, and hw;ti and hw;ti are the forward-backward costs given by the following recursive definitions: hw;ti = X hw0;t0i2LT(hw;ti) hw0;t0i exp X k kfk(hw0;t0i;hw;ti) hw;ti = X hw0;t0i2RT(hw;ti) hw0;t0i exp X k kfk(hw;ti;hw0;t0i) ; where LT(hw;ti) and RT(hw;ti) denote a set of tokens each of which connects to the token hw;ti from the left and the right respectively.
+99:193	Note that initial costs of two virtual tokens, hwbos;tbosi and hweos;teosi, are set to be 1.
+100:193	A normalization constant is then given by Zx = hweos;teosi(= hwbos;tbosi).
+101:193	We attempt two types of regularizations in order to avoid overfitting.
+102:193	They are a Gaussian prior (L2norm) (Chen and Rosenfeld, 1999) and a Laplacian prior (L1-norm) (Goodman, 2004; Peng and McCallum, 2004) L = C X j log(P(yjjxj)) 12 P kj kj (L1-norm)P kj kj 2 (L2-norm) Below, we refer to CRFs with L1-norm and L2norm regularization as L1-CRFs and L2-CRFs respectively.
+103:193	The parameter C 2 R+ is a hyperparameter of CRFs determined by a cross validation.
+104:193	L1-CRFs can be reformulated into the constrained optimization problem below by letting k = +k k : max : C X j log(P(yjjxj)) X k ( +k + k )=2 s:t:; +k 0; k 0: At the optimal point, the following Karush-KuhunTucker conditions satisfy: +k [C (Ok Ek) 1=2] = 0; k [C (Ek Ok) 1=2] = 0, and jC (Ok Ek)j 1=2.
+105:193	These conditions mean that both +k and k are set to be 0 (i.e. , k = 0), when jC (Ok Ek)j< 1=2.
+106:193	A non-zero weight is assigned to k, only when jC (Ok Ek)j = 1=2.
+107:193	L2-CRFs, in contrast, give the optimal solution when L k = C (Ok Ek) k = 0.
+108:193	Omitting the proof, (Ok Ek) 6= 0 can be shown and L2-CRFs thus give a non-sparse solution where all k have non-zero weights.
+109:193	The relationship between two reguralizations have been studied in Machine Learning community.
+110:193	(Perkins et al. , 2003) reported that L1-regularizer should be chosen for a problem where most of given features are irrelevant.
+111:193	On the other hand, L2regularizer should be chosen when most of given features are relevant.
+112:193	An advantage of L1-based regularizer is that it often leads to sparse solutions where most of k are exactly 0.
+113:193	The features assigned zero weight are thought as irrelevant features to classifications.
+114:193	The L2-based regularizer, also seen in SVMs, produces a non-sparse solution where all of k have non-zero weights.
+115:193	All features are used with L2-CRFs.
+116:193	The optimal solutions of L2-CRFs can be obtained by using traditional iterative scaling algorithms (e.g. , IIS or GIS (Pietra et al. , 1997)) or more efficient quasi-Newton methods (e.g. , L-BFGS (Liu and Nocedal, 1989)).
+117:193	For L1-CRFs, constrained optimizers (e.g. , L-BFGS-B (Byrd et al. , 1995)) can be used.
+118:193	4 Experiments and Discussion 4.1 Experimental Settings We use two widely-used Japanese annotated corpora in the research community, Kyoto University Corpus ver 2.0 (KC) and RWCP Text Corpus (RWCP), for our experiments on CRFs.
+119:193	Note that each corpus has a different POS tagset and details (e.g. , size of training and test dataset) are summarized in Table 1.
+120:193	One of the advantages of CRFs is that they are flexible enough to capture many correlated features, including overlapping and non-independent features.
+121:193	We thus use as many features as possible, which could not be used in HMMs.
+122:193	Table 2 summarizes the set of feature templates used in the KC data.
+123:193	The templates for RWCP are essentially the same as those of KC except for the maximum level of POS subcatgeories.
+124:193	Word-level templates are employed when the words are lexicalized, i.e., those that belong to particle, auxiliary verb, or suffix6.
+125:193	For an unknown word, length of the word, up to 2 suffixes/prefixes and character types are used as the features.
+126:193	We use all features observed in the lattice without any cut-off thresholds.
+127:193	Table 1 also includes the number of features in both data sets.
+128:193	We evaluate performance with the standard Fscore (F =1) defined as follows: F =1 = 2 Recall PrecisionRecall +Precision ; where Recall = # of correct tokens# of tokens in test corpus Precision = # of correct tokens# of tokens in system output: In the evaluations of F-scores, three criteria of correctness are used: seg: (only the word segmentation is evaluated), top: (word segmentation and the top level of POS are evaluated), and all: (all information is used for evaluation).
+129:193	The hyperparameters C for L1-CRFs and L2CRFs are selected by cross-validation.
+130:193	Experiments are implemented in C++ and executed on Linux with XEON 2.8 GHz dual processors and 4.0 Gbyte of main memory.
+131:193	4.2 Results Tables 3 and 4 show experimental results using KC and RWCP respectively.
+132:193	The three F-scores (seg/top/all) for our CRFs and a baseline bi-gram HMMs are listed.
+133:193	In Table 3 (KC data set), the results of a variant of maximum entropy Markov models (MEMMs) (Uchimoto et al. , 2001) and a rule-based analyzer (JUMAN7) are also shown.
+134:193	To make a fare comparison, we use exactly the same data as (Uchimoto et al. , 2001).
+135:193	In Table 4 (RWCP data set), the result of an extended Hidden Markov Models (E-HMMs) (Asa6These lexicalizations are usually employed in Japanese morphological analysis.
+136:193	7JUMAN assigns unknown POS to the words not seen in the lexicon.
+137:193	We simply replace the POS of these words with the default POS, Noun-SAHEN.
+138:193	Table 1: Details of Data Set KC RWCP source Mainich News Article (95) Mainich News Article (94) lexicon (# of words) JUMAN ver.
+139:193	3.61 (1,983,173) IPADIC ver.
+140:193	2.7.0 (379,010) POS structure 2-levels POS, cfrom, ctype, base form 4-levels POS, cfrom, ctype, base form # of training sentences 7,958 (Articles on Jan. 1st Jan. 8th) 10,000 (first 10,000 sentences) # of training tokens 198,514 265,631 # of test sentences 1,246 (Articles on Jan. 9th) 25,743 (all remaining sentences) # of test tokens 31,302 655,710 # of features 791,798 580,032 Table 2: Feature templates: fk(hw0;t0i;hw;ti) t0 =hp10;p20;cf0;ct;bw0i, t =hp1;p2;cf;ct;bwi, where p10=p1 and p20=p2 are the top and sub categories of POS.
+141:193	cf0=cf and ct0=ct are the cfrom and ctype respectively.
+142:193	bw0=bw are the base form of the words w0=w. type template Unigram hp1i basic features hp1;p2i w is known hbwi hbw;p1i hbw;p1;p2i w is unknown length of the word w up to 2 suffixes f ;hp1i;hp1;p2ig up to 2 prefixes f ;hp1i;hp1;p2ig character type f ;hp1i;hp1;p2ig Bigram hp10;p1i basic features hp10;p1;p2i hp10;p20;p1i hp10;p20;p1;p2i hp10;p20;cf0;p1;p2i hp10;p20;ct0;p1;p2i hp10;p20;cf0;ct0;p1;p2i hp10;p20;p1;p2;cfi hp10;p20;p1;p2;cti hp10;p20;p1;p2;cf;cti hp10;p20;cf0;p1;p2;cfi hp10;p20;ct;p1;p2;cti hp10;p20;cf0;p1;p2;cti hp10;p20;ct0;p1;p2;cfi hp10;p20;cf0;ct0;p1;p2;cf;cti w0 is lexicalized hp10;p20;cf0;ct0;bw0;p1;p2i hp10;p20;cf0;ct0;bw0;p1;p2;cfi hp10;p20;cf0;ct0;bw0;p1;p2;cti hp10;p20;cf0;ct0;bw0;p1;p2;cf;cti w is lexicalized hp10;p20;p1;p2;cf;ct;bwi hp10;p20;cf0;p1;p2;cf;ct;bwi hp10;p20;ct0;p1;p2;cf;ct;bwi hp10;p20;cf0;ct0;p1;p2;cf;ct;bwi w0=w are lexicalized hp10;p20;cf0;ct0;bw0;p1;p2;cf;ct;bwi hara and Matsumoto, 2000) trained and tested with the same corpus is also shown.
+143:193	E-HMMs is applied to the current implementation of ChaSen.
+144:193	Details of E-HMMs are described in Section 4.3.2.
+145:193	We directly evaluated the difference of these systems using McNemars test.
+146:193	Since there are no standard methods to evaluate the significance of F scores, we convert the outputs into the characterbased B/I labels and then employ a McNemars paired test on the labeling disagreements.
+147:193	This evaluation was also used in (Sha and Pereira, 2003).
+148:193	The results of McNemars test suggest that L2-CRFs is significantly better than other systems including L1CRFs8.
+149:193	The overall results support our empirical success of morphological analysis based on CRFs.
+150:193	4.3 Discussion 4.3.1 CRFs and MEMMs Uchimoto el al. proposed a variant of MEMMs trained with a number of features (Uchimoto et al. , 2001).
+151:193	Although they improved the accuracy for unknown words, they fail to segment some sentences which are correctly segmented with HMMs or rulebased analyzers.
+152:193	Figure 3 illustrates the sentences which are incorrectly segmented by Uchimotos MEMMs.
+153:193	The correct paths are indicated by bold boxes.
+154:193	Uchimoto et al. concluded that these errors were caused by nonstandard entries in the lexicon.
+155:193	In Figure 3,  x (romanticist) and sM  (ones heart) are unusual spellings and they are normally written as   and    respectively.
+156:193	However, we conjecture that these errors are caused by the influence of the length bias.
+157:193	To support our claim, these sentences are correctly segmented by CRFs, HMMs and rule-based analyzers using the same lexicon as (Uchimoto et al. , 2001).
+158:193	By the length bias, short paths are preferred to long paths.
+159:193	Thus, single token x or sM  is likely to be selected compared to multiple tokens /x or s M/ .
+160:193	Moreover,  and x have exactly the same POS (Noun), and transition probabilities of these tokens become almost equal.
+161:193	Consequentially, there is no choice but to select a short path (single token) in order to maximize the whole sentence probability.
+162:193	Table 5 summarizes the number of errors in HMMs, CRFs and MEMMs, using the KC data set.
+163:193	Two types of errors, l-error and s-error, are given in 8In all cases, the p-values are less than 1:0 10 4.
+164:193	Table 3: Results of KC, (F =1 (precision/recall)) system seg top all L2-CRFs (C=1:2) 98.96 (99.04/98.88) 98.31 (98.39/98.22) 96.75 (96.83/96.67) L1-CRFs (C=3:0) 98.80 (98.84/98.77) 98.14 (98.18/98.11) 96.55 (96.58/96.51) MEMMs (Uchimoto 01) 96.44 (95.78/97.10) 95.81 (95.15/96.47) 94.27 (93.62/94.92) JUMAN (rule-based) 98.70 (98.88/98.51) 98.09 (98.27/97.91) 93.73 (93.91/93.56) HMMs-bigram (baseline) 96.22 (96.16/96.28) 94.96 (94.90/95.02) 91.85 (91.79/91.90) Table 4: Results of RWCP, (F =1 (precision/recall)) system seg top all L2-CRFs (C=2:4) 99.11 (99.03/99.20) 98.73 (98.65/98.81) 97.66 (97.58/97.75) L1-CRFs (C=3:0) 99.00 (98.86/99.13) 98.58 (98.44/98.72) 97.30 (97.16/97.43) E-HMMs (Asahara 00) 98.87 (98.77/98.97) 98.33 (98.23/98.43) 96.95 (96.85/97.04) HMMs-bigram (baseline) 98.82 (98.69/98.94) 98.10 (97.97/98.22) 95.90 (95.78/96.03) a0sea a1particle a2a4a3a6a5bet a7a9a8a6a10a12a11romanticist a7a9a8a13a10romance a11particle The romance on the sea they bet is  a14a16a15rough waves a1particle a17 a3lose a18a20a19not a21heart a18a22a19 a21ones heart A heart which beats rough waves is  MEMMs select MEMMs select Figure 3: Errors with MEMMs (Correct paths are marked with bold boxes.)
+165:193	Table 5: Number of errors in KC dataset # of l-errors # of s-errors CRFs 79 (40%) 120 (60%) HMMs 306 (44%) 387 (56%) MEMMs 416 (70%) 183 (30%) l-error: output longer token than correct one s-error: output shorter token than correct one this table.
+166:193	l-error (or s-error) means that a system incorrectly outputs a longer (or shorter) token than the correct token respectively.
+167:193	By length bias, long tokens are preferred to short tokens.
+168:193	Thus, larger number of l-errors implies that the result is highly influenced by the length bias.
+169:193	While the relative rates of l-error and s-error are almost the same in HMMs and CRFs, the number of l-errors with MEMMs amounts to 416, which is 70% of total errors, and is even larger than that of naive HMMs (306).
+170:193	This result supports our claim that MEMMs is not sufficient to be applied to Japanese morphological analysis where the length bias is inevitable.
+171:193	4.3.2 CRFs and Extended-HMMs Asahara et al. extended the original HMMs by 1) position-wise grouping of POS tags, 2) word-level statistics, and 3) smoothing of word and POS level statistics (Asahara and Matsumoto, 2000).
+172:193	All of these techniques are designed to capture hierarchical structures of POS tagsets.
+173:193	For instance, in the position-wise grouping, optimal levels of POS hierarchies are changed according to the contexts.
+174:193	Best hierarchies for each context are selected by handcrafted rules or automatic error-driven procedures.
+175:193	CRFs can realize such extensions naturally and straightforwardly.
+176:193	In CRFs, position-wise grouping and word-POS smoothing are simply integrated into a design of feature functions.
+177:193	Parameters k for each feature are automatically configured by general maximum likelihood estimation.
+178:193	As shown in Table 2, we can employ a number of templates to capture POS hierarchies.
+179:193	Furthermore, some overlapping features (e.g. , forms and types of conjugation) can be used, which was not possible in the extended HMMs.
+180:193	4.3.3 L1-CRFs and L2-CRFs L2-CRFs perform slightly better than L1-CRFs, which indicates that most of given features (i.e. , overlapping features, POS hierarchies, suffixes/prefixes and character types) are relevant to both of two datasets.
+181:193	The numbers of active (nonzero) features used in L1-CRFs are much smaller (about 1/8 1/6) than those in L2-CRFs: (L2CRFs: 791,798 (KC) / 580,032 (RWCP) v.s., L1CRFs: 90,163 (KC) / 101,757 (RWCP)).
+182:193	L1-CRFs are worth being examined if there are some practical constraints (e.g. , limits of memory, disk or CPU resources).
+183:193	5 Conclusions and Future Work In this paper, we present how conditional random fields can be applied to Japanese morphological analysis in which word boundary ambiguity exists.
+184:193	By virtue of CRFs, 1) a number of correlated features for hierarchical tagsets can be incorporated which was not possible in HMMs, and 2) influences of label and length bias are minimized which caused errors in MEMMs.
+185:193	We compare results between CRFs, MEMMs and HMMs in two Japanese annotated corpora, and CRFs outperform the other approaches.
+186:193	Although we discuss Japanese morphological analysis, the proposed approach can be applicable to other non-segmented languages such as Chinese or Thai.
+187:193	There exist some phenomena which cannot be analyzed only with bi-gram features in Japanese morphological analysis.
+188:193	To improve accuracy, tri-gram or more general n-gram features would be useful.
+189:193	CRFs have capability of handling such features.
+190:193	However, the numbers of features and nodes in the lattice increase exponentially as longer contexts are captured.
+191:193	To deal with longer contexts, we need a practical feature selection which effectively trades between accuracy and efficiency.
+192:193	For this challenge, McCallum proposes an interesting research avenue to explore (McCallum, 2003).
+193:193	Acknowledgments We would like to thank Kiyotaka Uchimoto and Masayuki Asahara, who explained the details of their Japanese morphological analyzers.
+

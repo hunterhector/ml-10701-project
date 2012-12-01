@@ -1,0 +1,269 @@
+Proceedings of the COLING/ACL 2006 Main Conference Poster Sessions, pages 803–810, Sydney, July 2006.
+c©2006 Association for Computational Linguistics Discourse Generation Using Utility-Trained Coherence Models Radu Soricut Information Sciences Institute University of Southern California 4676 Admiralty Way, Suite 1001 Marina del Rey, CA 90292 radu@isi.edu Daniel Marcu Information Sciences Institute University of Southern California 4676 Admiralty Way, Suite 1001 Marina del Rey, CA 90292 marcu@isi.edu Abstract We describe a generic framework for integrating various stochastic models of discourse coherence in a manner that takes advantage of their individual strengths.
+An integral part of this framework are algorithms for searching and training these stochastic coherence models.
+We evaluate the performance of our models and algorithms and show empirically that utilitytrained log-linear coherence models outperform each of the individual coherence models considered.
+1 Introduction
+Various theories of discourse coherence (Mann and Thompson, 1988; Grosz et al., 1995) have been applied successfully in discourse analysis (Marcu, 2000; Forbes et al., 2001) and discourse generation (Scott and de Souza, 1990; Kibble and Power, 2004).
+Most of these efforts, however, have limited applicability.
+Those that use manually written rules model only the most visible discourse constraints (e.g., the discourse connective “although” marks a CONCESSION relation), while being oblivious to fine-grained lexical indicators.
+And the methods that utilize manually annotated corpora (Carlson et al., 2003; Karamanis et al., 2004) and supervised learning algorithms have high costs associated with the annotation procedure, and cannot be easily adapted to different domains and genres.
+In contrast, more recent research has focused on stochastic approaches that model discourse coherence at the local lexical (Lapata, 2003) and global levels (Barzilay and Lee, 2004), while preserving regularities recognized by classic discourse theories (Barzilay and Lapata, 2005).
+These stochastic coherence models use simple, non-hierarchical representations of discourse, and can be trained with minimal human intervention, using large collections of existing human-authored documents.
+These models are attractive due to their increased scalability and portability.
+As each of these stochastic models captures different aspects of coherence, an important question is whether we can combine them in a model capable of exploiting all coherence indicators.
+A frequently used testbed for coherence models is the discourse ordering problem, which occurs often in text generation, complex question answering, and multi-document summarization: given a0 discourse units, what is the most coherent ordering of them (Marcu, 1996; Lapata, 2003; Barzilay and Lee, 2004; Barzilay and Lapata, 2005)?
+Because the problem is NP-complete (Althaus et al., 2005), it is critical how coherence model evaluation is intertwined with search: if the search for the best ordering is greedy and has many errors, one is not able to properly evaluate whether a model is better than another.
+If the search is exhaustive, the ordering procedure may take too long to be useful.
+In this paper, we propose an Aa1 search algorithm for the discourse ordering problem that comes with strong theoretical guarantees.
+For a wide range of practical problems (discourse ordering of up to 15 units), the algorithm finds an optimal solution in reasonable time (on the order of seconds).
+A beam search version of the algorithm enables one to find good, approximate solutions for very large reordering tasks.
+These algorithms enable us not only to compare head-to-head, for the first time, a set of coherence models, but also to combine these models so as to benefit from their complementary strengths.
+The model com803 bination is accomplished using statistically wellfounded utility training procedures which automatically optimize the contributions of the individual models on a development corpus.
+We empirically show that utility-based models of discourse coherence outperform each of the individual coherence models considered.
+In the following section, we describe previously-proposed and new coherence models.
+Then, we present our search algorithms and the input representation they use.
+Finally, we show evaluation results and discuss their implications.
+2 Stochastic
+Models of Discourse Coherence 2.1 Local Models of Discourse Coherence Stochastic local models of coherence work under the assumption that well-formed discourse can be characterized in terms of specific distributions of local recurring patterns.
+These distributions can be defined at the lexical level or entity-based levels.
+Word-Coocurrence Coherence Models.
+We propose a new coherence model, inspired by (Knight, 2003), that models the intuition that the usage of certain words in a discourse unit (sentence) tends to trigger the usage of other words in subsequent discourse units.
+(A similar intuition holds for the Machine Translation models generically known as the IBM models (Brown et al., 1993), which assume that certain words in a source language sentence tend to trigger the usage of certain words in a target language translation of that sentence.) We train models able to recognize local recurring patterns of word usage across sentences in an unsupervised manner, by running an ExpectationMaximization (EM) procedure over pairs of consecutive sentences extracted from a large collection of training documents1.
+We expect EM to detect and assign higher probabilities to recurring word patterns compared to casually occurring word patterns.
+A local coherence model based on IBM Model 1 assigns the following probability to a text a0 consisting of a1 sentences a2a4a3a6a5a7a2a9a8a10a5a6a11a6a11a6a11a9a5a7a2a13a12 : a14a16a15a18a17a20a19a22a21a23a25a24 a0a27a26a29a28a31a30 a12a33a32a34a3 a35a37a36 a3 a30a39a38a40a42a41a44a43 a23 a38 a45a46a36 a3 a47 a48 a2 a35 a48a6a49a31a50a52a51 a38a40a53a41a54a38 a55 a36a57a56a46a58 a24 a2 a45 a35a18a59 a3 a48 a2 a55 a35 a26 1We use for training the publicly-available GIZA++ toolkit, http://www.fjoch.com/GIZA++.html We call the above equation the direct IBM Model 1, as this model considers the words in sentence a2 a35a37a59 a3 (the a2 a45 a35a18a59 a3 events) as being generated by the words in sentence a2 a35 (the a2 a55a35 events, which include the special a2 a56a35 event called the NULL word), with probability a58 a24 a2 a45 a35a18a59 a3 a48 a2 a55 a35 a26. We also define a local coherence inverse IBM Model 1: a14 a15a18a17a20a19a22a60a23a9a24 a0a61a26a62a28a31a30 a12a33a32a34a3 a35a37a36 a3 a30 a38a40a42a41a54a38 a55 a36 a3 a47 a48 a2 a35a18a59 a3 a48a6a49a31a50 a51 a38a40a53a41a63a43 a23 a38 a45a64a36a57a56 a58 a24 a2 a55 a35 a48 a2 a45 a35a18a59 a3 a26 This model considers the words in sentence a2 a35 (the a2 a55 a35 events) as being generated by the words in sentence a2 a35a18a59 a3 (the a2 a45 a35a37a59 a3 events, which include the special a2 a56a35a18a59 a3 event called the NULL word), with probability a58 a24 a2 a55a35 a48a2 a45 a35a18a59 a3 a26 . Entity-based Coherence Models.
+Barzilay and Lapata (2005) recently proposed an entity-based coherence model that aims to learn abstract coherence properties, similar to those stipulated by Centering Theory (Grosz et al., 1995).
+Their model learns distribution patterns for transitions between discourse entities that are abstracted into their syntactic roles – subject (S), object (O), other (X), missing (-).
+The feature values are computed using an entity-grid representation for the discourse that records the syntactic role of each entity as it appears in each sentence.
+Also, salient entities are differentiated from casually occurring entities, based on the widely used assumption that occurrence frequency correlates with discourse prominence (Morris and Hirst, 1991; Grosz et al., 1995).
+We exclude the coreference information from this model, as the discourse ordering problem cannot accommodate current coreference solutions, which assume a pre-specified order (Ng, 2005).
+In the jargon of (Barzilay and Lapata, 2005), the model we implemented is called Syntax+Salience.
+The probability assigned to a text a0a65a28a65a2a66a3a34a11a6a11a6a11a46a2a9a12 by this Entity-Based model (henceforth called EB) can be locally computed (i.e., at sentence transition level) using a67 feature functions, as follows: a14a69a68 a17 a24 a0a61a26a29a28a31a30 a12a4a32a34a3 a35a18a36 a3 a51a22a70 a55 a36 a3a72a71 a55a10a73a13a55 a24 a2 a35a18a59 a3 a48 a2 a35 a26 Here, a73a9a55 a24 a2 a35a18a59 a3 a48a2 a35 a26 are feature values, and a71 a55 are weights trained to discriminate between coherent, human-authored documents and examples assumed to have lost some degree of coherence (scrambled versions of the original documents).
+2.2 Global
+Models of Discourse Coherence Barzilay and Lee (2004) propose a document content model that uses a Hidden Markov Model 804 (HMM) to capture more global aspects of coherence.
+Each state in their HMM corresponds to a distinct “topic”.
+Topics are determined by an unsupervised algorithm via complete-link clustering, and are written asa0 a35, witha0 a35a2a1a4a3 . The probability assigned to a text a0a31a28 a2a66a3a34a11a6a11a6a11a46a2a13a12 by this Content Model (henceforth called CM) can be written as follows: a14a2a5 a19 a24 a0a61a26a29a28a7a6a9a8a11a10 a12 a23 a13a14a13a14a13 a12a16a15 a30 a12 a35a18a36 a3 a14a18a17a19a17 a24 a0 a35 a48 a0 a35 a32a34a3a64a26a11a20 a14a18a17 a19 a24 a2 a35 a48 a0 a35 a26 The first term, a14a21a17a19a17, models the probability of changing from topica0 a35 a32a34a3 to topica0 a35 . The second term, a14a18a17 a19, models the probability of generating sentences from topica0 a35 . 2.3 Combining Local and Global Models of Discourse Coherence We can model the probability a14 a24 a0a61a26 of a text a0 using a log-linear model that combines the discourse coherence models presented above.
+In this framework, we have a set of a67 feature functionsa22a24a23 a24 a0a61a26, a50a26a25a28a27a29a25 a67 . For each feature function, there exists a model parameter a30a23, a50a31a25a32a27 a25 a67 . The probability a14 a24 a0a61a26 can be written under the loglinear model as follows: a14 a24 a0a61a26 a28 a33 a10a35a34a21a36a51 a70 a23 a36 a3 a30a19a23a37a22a11a23 a24 a0a27a26a39a38 a51a41a40a43a42 a33 a10a44a34a18a36a51 a70 a23 a36 a3 a30a45a23a46a22a11a23 a24 a0a48a47a18a26a39a38 Under this model, finding the most probable text a0 is equivalent with solving Equation 1, and therefore we do not need to be concerned about computing expensive normalization factors.
+a8a50a49a52a51a53a6a9a8a11a10 a40 a14 a24 a0a61a26a29a28a54a8a50a49a52a51a53a6a9a55a57a56 a40a59a58 a51 a70 a23 a36 a3 a30a45a23a61a60a63a62a64a51a53a22a11a23 a24 a0a27a26 (1) In this framework, we distinguish between the modeling problem, which amounts to finding appropriate feature functions for the discourse coherence task, and the training problem, which amounts to finding appropriate values fora30a65a23, a50a66a25 a27 a25 a67 . We address the modeling problem by using as feature functions the discourse coherence models presented in the previous sections.
+In Section 3, we address the training problem by performing a discriminative training procedure of the a30a19a23 parameters, using as utility functions a metric that measures how different a training instance is from a given reference.
+"−Name− ( −Name− ) a strong earthquake hit the −Name− −Name− in northwestern −Name− early −Name− the official −Name− −Name− −Name− reported ## −−−−−−−−−SXXOSXOXSSS−" γ: informationinjuriesdamagemagnitudequakearea GMTIt BC−China...
+Altai S −− −− X −− S X −− X −− X −− O −− X −− − WednesdayXinhuaNewsAgency S S − −− − BC−China−Earthquake|Urgent Earthquake rocks northwestern Xinjiang Mountains APEarthquakenorthwesternXinjiangMountainsBeijing O O O X X − − − − − S X − − O S S − S − −− − XO − − S − B: C: (a) "it said no information had been received about injuries or damage from the magnitude +.+ quake which struck the sparsely inhabited area at + ++ am ( ++++ gmt ) ## SSXXXXOX−−−−−−−−−−−−−" α: A: It said no information had been received about injuries or damage from the mag− nitude 6.1 quake which struck the sparsely inhabited area at 2 43 AM (1843 GMT) Xinjiang early Wednesday the official Xinhua News Agency reported Beijing (AP) A strong earthquake hit the Altai Mountains in northwestern "−−−−−−−−" "−Name− earthquake rocks northwestern −Name− −Name− ## −−−−−−−−SSOOOβ: (b) (c) Figure 1: Example consisting of discourse units A, B, and C (a).
+In (b), their entities are detected (underlined) and assigned syntactic roles: S (subject), O (object), X (other), (missing).
+In (c), termsa67 a5a69a68, anda70 encode these discourse units for model scoring purposes.
+3 Search
+Algorithms for Coherent Discourses and Utility-Based Training The algorithms we propose use as input representation the IDL-expressions formalism (Nederhof and Satta, 2004; Soricut and Marcu, 2005).
+We use here the IDL formalism (which stands for Interleave, Disjunction, Lock, after the names of its operators) to define finite sets of possible discourses over given discourse units.
+Without losing generality, we will consider sentences as discourse units in our examples and experiments.
+3.1 Input
+Representation Consider the discourse units A-C presented in Figure 1(a).
+Each of these units undergoes various processing stages in order to provide the information needed by our coherence models.
+The entity-based model (EB) (Section 2), for instance, makes use of a syntactic parser to determine the syntactic role played by each detected entity (Figure 1(b)).
+For example, the string SSXXXXOX(first row of the grid in Figure 1(b), corresponding to discourse unit A) encodes thata71a72 anda73a75a74a77a76a79a78a24a80a82a81a84a83a85a72a86a73a78a44a74 have subject (S) role,a73a75a74a88a87a86a89a90a80a91a73a92a94a93, etc.
+have other (X) roles,a83a50a80a95a92a16a83 has object (O) role, and the rest of the entities do not appear (-) in this unit.
+In order to be able to solve Equation 1, the input representation needs to provide the necessary information to compute alla22a96a23 terms, that is, all individual model scores.
+Textual units A, B, 805 d ε ε /dβ γ α v v 3 5 4v v6 2vv1 vs ve Figure 2: The IDL-graph corresponding to the IDL-expression a0a2a1a4a3a6a5a8a7 a24 a67 a5a69a68a29a5a70a25a26a9a5a10a0a12a11a13a1a14a3 . and C in our example are therefore represented as terms a67 a5a69a68, anda70, respectively2 (Figure 1(c)).
+These terms act like building blocks for IDLexpressions, as in the following example: a15 a28a16a0a2a1a4a3a17a5a18a7 a24 a67 a5a69a68 a5a70a34a26a19a5a10a0a12a11a13a1a4a3 a15 uses the a7 (Interleave) operator to create a bagof-units representation.
+That is, E stands for the set of all possible order permutations ofa67 a5a69a68, and a70, with the additional information that any of these orders are to appear between the beginning a0a2a1a14a3 and end of document a0a12a11a13a1a4a3 . An equivalent representation, called IDL-graphs, captures the same information using vertices and edges, which stand in a direct correspondence with the operators and atomic symbols of IDL-expressions.
+For instance, each a20 and a21 –labeled edge a22 -pair, and their source and target vertices, respectively, correspond to a a22 -argument a7 operator.
+In Figure 2, we show the IDL-graph corresponding to IDL-expression a15 . 3.2 Search Algorithms Algorithms that operate on IDL-graphs have been recently proposed by Soricut and Marcu (2005).
+We extend these algorithms to take as input IDLgraphs over non-atomic symbols (such that the coherence models can operate inside terms likea67 a5a69a68, and a70 from Figure 1), and also to work under models with hidden variables such as CM (Section 2.2).
+These algorithm, called IDL-CH-A a1 (Aa1 search for IDL-expressions under Coherence models) and IDL-CH-HBa23 (Histogram-Based beam search for IDL-expressions under Coherence models, with histogram beam a24 ), assume an alphabet a51 of nonatomic (visible) variables (over which the input IDL-expressions are defined), and an alphabet a3 of hidden variables.
+They unfold an input IDLgraph on-the-fly, as follows: starting from the initial vertex a25 a40, the input graph is traversed in an IDL-specific manner, by creating states which 2Following Barzilay and Lee (2004), proper names, dates, and numbers are replaced with generic tokens.
+keep track of a22 positions in any subgraph corresponding to a a22 -argument a7 operator, as well as the last edge traversed and the last hidden variable considered.
+For instance, state a26 a28 a24a28a27 a3 a27a30a29a31a27a14a32 a5a70a16a5a0 a35 a26 (see the blackened vertices in Figure 2) records that expressions a68 and a70 have already been considered (while a67 is still in the future of state a26 ), anda70 was the last one considered, evaluated under the hidden variablea0 a35 . The information recorded in each state allows for the computation of a current coherence cost under any of the models described in Section 2.
+In what follows, we assume this model to be the model from Equation 1, since each of the individual models can be obtained by setting the othera30 s to 0.
+We also define an admissible heuristic function (Russell and Norvig, 1995), which is used to compute an admissible future cost a33 for state a34, using the following equation: a33 a24 a34a29a26a29a28 a58 a35 a36a38a37a40a39 a41 a35 a42a44a43 a23 a30a45a23 a6a9a55a57a56 a45 a41 a37a40a46 a47a49a48 a36a38a50 a45a12a51a53a52 a37a55a54a14a56a13a57 a60a57a62a64a51a41a22a11a23 a24 a0 a73 a5a0 a35 a3 a48 a0a2a58 a73 a5a0 a45 a3a72a26 a59 is the set of future (visible) events for state a34, which can be computed directly from an input IDL-graph, as the set of all a51 –edge-labels between the vertices of state a34 and final vertex a25a30a60 . For example, for state a26 a28 a24a28a27 a3 a27a4a29a40a27a4a32 a5a70 a5a0 a35 a26, we have a59 a28a62a61a77a67 a5a63a0a12a11a13a1a4a3a65a64 . a66 is the set of future (visible) conditions for state a34, which can be obtained from a59 (any non-final future event may become a future conditioning event), by eliminating a0a12a11a13a1a14a3 and adding the current conditioning event of a34 . For the considered example state a26, we have a66 a28a16a61a77a67 a5a70a67a64 . The value a33 a24 a34 a26 is admissible because, for each future event a0 a73 a5a0 a35 a3, with a73 a1 a59 anda0 a35 a1a4a3, its cost is computed using the most inexpensive conditioning event a0a69a68a53a70a33a5a0 a45 a3 a1 a66 a20 a3 . The IDL-CH-Aa1 algorithm uses a priority queue a71 (sorted according to total cost, computed as current a49 admissible) to control the unfolding of an input IDL-graph, by processing, at each unfolding step, the most inexpensive state (extracted from the top of a71 ).
+The admissibility of the future costs and the monotonicity property enforced by the priority queue guarantees that IDL-CH-A a1 finds an optimal solution to Equation 1 (Russell and Norvig, 1995).
+The IDL-CH-HBa23 algorithm uses a histogram beam a24 to control the unfolding of an input IDLgraph, by processing, at each unfolding step, the 806 top a24 most inexpensive states (according to total cost).
+This algorithm can be tuned (via a24 ) to achieve good trade-off between speed and accuracy.
+We refer the reader to (Soricut, 2006) for additional details regarding the optimality and the theoretical run-time behavior of these algorithms.
+3.3 Utility-based Training In addition to the modeling problem, we must also address the training problem, which amounts to finding appropriate values for the a30a23 parameters from Equation 1.
+The solution we employ here is the discriminative training procedure of Och (2003).
+This procedure learns an optimal setting of the a30a65a23 parameters using as optimality criterion the utility of the proposed solution.
+There are two necessary ingredients to implement Och’s (2003) training procedure.
+First, it needs a search algorithm that is able to produce ranked a22 -best lists of the most promising candidates in a reasonably fast manner (Huang and Chiang, 2005).
+We accommodate a22 -best computation within the IDL-CH-HBa3 a56a72a56 algorithm, which decodes bag-of-units IDL-expressions at an average speed of 75.4 sec./exp.
+on a 3.0 GHz CPU Linux machine, for an average input of 11.5 units per expression.
+Second, it needs a criterion which can automatically assess the quality of the proposed candidates.
+To this end, we employ two different metrics, such that we can measure the impact of using different utility functions on performance.
+TAU (Kendall’s a0 ).
+One of the most frequently used metrics for the automatic evaluation of document coherence is Kendall’s a0 (Lapata, 2003; Barzilay and Lee, 2004).
+TAU measures the minimum number of adjacent transpositions needed to transform a proposed order into a reference order.
+The range of the TAU metric is between -1 (the worst) to 1 (the best).
+BLEU. One of the most successful metrics for judging machine-generated text is BLEU (Papineni et al., 2002).
+It counts the number of unigram, bigram, trigram, and four-gram matches between hypothesis and reference, and combines them using geometric mean.
+For the discourse ordering problem, we represent hypotheses and references by index sequences (e.g., “4 2 3 1” is a hypothesis order over four discourse units, in which the first and last units have been swapped with respect to the reference order).
+The range of BLEU scores is between 0 (the worst) and 1 (the best).
+We run different discriminative training sessions using TAU and BLEU, and train two different sets of thea30a43a23 parameters for Equation 1.
+The log-linear models thus obtained are called Loglineara1a3a2a5a4a7a6a9a8a11a10 and Log-lineara1a12a2a13a4a15a14a17a16a19a18a9a10, respectively.
+4 Experiments
+We evaluate empirically two different aspects of our work.
+First, we measure the performance of our search algorithms across different models.
+Second, we compare the performance of each individual coherence model, and also the performance of the discriminatively trained log-linear models.
+We also compare the overall performance (model & decoding strategy) obtained in our framework with previously reported results.
+4.1 Evaluation
+setting The task on which we conduct our evaluation is information ordering (Lapata, 2003; Barzilay and Lee, 2004; Barzilay and Lapata, 2005).
+In this task, a pre-selected set of information-bearing document units (in our case, sentences) needs to be arranged in a sequence which maximizes some specific information quality (in our case, document coherence).
+We use the information-ordering task as a means to measure the performance of our algorithms and models in a well-controlled setting.
+As described in Section 3, our framework can be used in applications such as multi-document summarization.
+In fact, Barzilay et al.(2002) formulate the multi-document summarization problem as an information ordering problem, and show that naive ordering algorithms such as majority ordering (select most frequent orders across input documents) and chronological ordering (order facts according to publication date) do not always yield coherent summaries.
+Data. For training and testing, we use documents from two different genres: newspaper articles and accident reports written by government officials (Barzilay and Lapata, 2005).
+The first collection (henceforth called EARTHQUAKES) consists of Associated Press articles from the North American News Corpus on the topic of natural disasters.
+The second collection (henceforth called ACCIDENTS) consists of aviation accident reports from the National Transportation Safety 807 Search Algorithm IBMa0 a3 IBM a15 a3 CM EB ESE TAU BLEU ESE TAU BLEU ESE TAU BLEU ESE TAU BLEU EARTHQUAKES IDL-CH-Aa1 0% .39 .12 0% .33 .13 0% .39 .12 0% .19 .05 IDL-CH-HBa3 a56a72a56 0% .38 .12 0% .32 .13 0% .39 .12 0% .19 .06 IDL-CH-HBa3 4% .37 .13 13% .34 .14 36% .32 .11 16% .18 .05 Lapata, 2003 90% .01 .04 58% .02 .06 97% .05 .04 46% -.05 .00 ACCIDENTS IDL-CH-Aa1 a32 0% .41 .21 0% .40 .21 0% .37 .15 0% .13 .10 IDL-CH-HBa3 a56a72a56 0% .41 .20 0% .40 .21 2% .36 .15 0% .12 .10 IDL-CH-HBa3 0% .38 .19 12% .32 .20 13% .34 .13 33% -.04 .06 Lapata, 2003 86% .11 .03 67% .12 .05 85% .18 .00 24% -.05 .06 Table 1: Evaluation of search algorithms for document coherence, for both EARTHQUAKES and ACCIDENTS genres, across the IBMa0 a3, IBM a15 a3, CM, and EB models.
+Performance is measured in terms of percentage of Estimated Search Errors (ESE), as well as quality of found realizations (average TAU and BLEU).
+Model TAU BLEU TAU BLEU EARTHQUAKES ACCIDENTS IBMa0 a3 .38 .12 .41 .20 IBM a15 a3 .32 .13 .40 .21 CM .39 .12 .36 .15 EB .19 .06 .12 .10 Log-lineara1a3a2a3a4 a5a7a6a9a8a11a10 .34 .14 .48 .23 Log-lineara10a13a12a15a14a17a16a9a18a20a19 .47 .15 .50 .23 Log-lineara10a13a12a15a14a22a21a9a23a9a24a20a19 .46 .16 .49 .24 Table 2: Evaluation of stochastic models for document coherence, for both EARTHQUAKES and ACCIDENTSgenre, using IDL-CH-HBa3 a56a72a56 . Board’s database.
+For both collections, we used 100 documents for training and 100 documents for testing.
+A fraction of 40% of the training documents was temporarily removed and used as a development set, on which we performed the discriminative training procedure.
+4.2 Evaluation
+of Search Algorithms We evaluated the performance of several search algorithms across four stochastic models of document coherence: the IBMa0 a3 and IBM a15 a3 coherence models, the content model of Barzilay and Lee (2004) (CM), and the entity-based model of Barzilay and Lapata (2005) (EB) (Section 2).
+We measure search performance using an Estimated Search Error (ESE) figure, which reports the percentage of times when the search algorithm proposes a sentence order which scores lower than Overall performance TAU QUAKES ACCID.
+Lapata (2003) 0.48 0.07 Barzilay & Lee (2004) 0.81 0.44 Barzilay & Lee (reproduced) 0.39 0.36 Barzilay & Lapata (2005) 0.19 0.12 IBMa0 a3, IDL-CH-HB a23 a25a26a25 0.38 0.41 Log-lina10a13a12a15a14a22a16a9a18a20a19, IDL-CH-HB a23 a25a26a25 0.47 0.50 Table 3: Comparison of overall performance (affected by both model & search procedure) of our framework with previous results.
+the original sentence order (OSO).
+We also measure the quality of the proposed documents using TAU and BLEU, using as reference the OSO.
+In Table 1, we report the performance of four search algorithms.
+The first three, IDL-CH-A a1, IDL-CH-HBa3 a56a72a56, and IDL-CH-HBa3 are the IDLbased search algorithms of Section 3, implementing Aa1 search, histogram beam search with a beam of 100, and histogram beam search with a beam of 1, respectively.
+We compare our algorithms against the greedy algorithm used by Lapata (2003).
+We note here that the comparison is rendered meaningful by the observation that this algorithm performs search identically with algorithm IDL-CH-HBa3 (histogram beam 1), when setting the heuristic function for future costs a33 to constant 0.
+The results in Table 1 clearly show the superiority of the IDL-CH-Aa1 and IDL-CH-HBa3 a56a72a56 algo808 rithms.
+Across all models considered, they consistently propose documents with scores at least as good as OSO (0% Estimated Search Error).
+As the original documents were coherent, it follows that the proposed document realizations also exhibit coherence.
+In contrast, the greedy algorithm of Lapata (2003) makes grave search errors.
+As the comparison between IDL-CH-HBa3 a56a72a56 and IDLCH-HBa3 shows, the superiority of the IDL-CH algorithms depends more on the admissible heuristic function a33 than in the ability to maintain multiple hypotheses while searching.
+4.3 Evaluation
+of Log-linear Models For this round of experiments, we held constant the search procedure (IDL-CH-HBa3 a56a72a56 ), and varied the a30a19a23 parameters of Equation 1.
+The utility-trained log-linear models are compared here against a baseline log-linear model loglineara1a3a2a3a4 a5a7a6a9a8a11a10, for which all a30a43a23 parameters are set to 1, and also against the individual models.
+The results are presented in Table 2.
+If not properly weighted, the log-linear combination may yield poorer results than those of individual models (average TAU of .34 for loglineara1a3a2a3a4 a5a7a6a9a8a11a10, versus .38 for IBMa0 a3 and .39 for CM, on the EARTHQUAKESdomain).
+The highest TAU accuracy is obtained when using TAU to perform utility-based training of the a30a65a23 parameters (.47 for EARTHQUAKES, .50 for ACCIDENTS).
+The highest BLEU accuracy is obtained when using BLEU to perform utility-based training of the a30a19a23 parameters (.16 for EARTHQUAKES, .24 for theACCIDENTS).
+For both genres, the differences between the highest accuracy figures (in bold) and the accuracy of the individual models are statistically significant at 95% confidence (using bootstrap resampling).
+4.4 Overall
+Performance Evaluation The last comparison we provide is between the performance provided by our framework and previously-reported performance results (Table 3).
+We are able to provide this comparison based on the TAU figures reported in (Barzilay and Lee, 2004).
+The training and test data for both genres is the same, and therefore the figures can be directly compared.
+These figures account for combined model and search performance.
+We first note that, unfortunately, we failed to accurately reproduce the model of Barzilay and Lee (2004).
+Our reproduction has an average TAU figure of only .39 versus the original figure of .81 for EARTHQUAKES, and .36 versus .44 for ACCIDENTS.
+On the other hand, we reproduced successfully the model of Barzilay and Lapata (2005), and the average TAU figure is .19 for EARTHQUAKES, and .12 for ACCIDENTS3.
+The large difference on the EARTHQUAKEScorpus between the performance of Barzilay and Lee (2004) and our reproduction of their model is responsible for the overall lower performance (0.47) of our log-lineara10a13a12a15a14a17a16a9a18a20a19 model and IDL-CH-HBa3 a56a72a56 search algorithm, which is nevertheless higher than that of its component model CM (0.39).
+On the other hand, we achieve the highest accuracy figure (0.50) on the ACCIDENTS corpus, outperforming the previous-highest figure (0.44) of Barzilay and Lee (2004).
+These result empirically show that utility-trained log-linear models of discourse coherence outperform each of the individual coherence models considered.
+5 Discussion
+and Conclusions We presented a generic framework that is capable of integrating various stochastic models of discourse coherence into a more powerful model that combines the strengths of the individual models.
+An important ingredient of this framework are the search algorithms based on IDL-expressions, which provide a flexible way of solving discourse generation problems using stochastic models.
+Our generation algorithms are fundamentally different from previously-proposed algorithms for discourse generation.
+The genetic algorithms of Mellish et al.(1998) and Karamanis and Manarung (2002), as well as the greedy algorithm of Lapata (2003), provide no theoretical guarantees on the optimality of the solutions they propose.
+At the other end of the spectrum, the exhaustive search of Barzilay and Lee (2004), while ensuring optimal solutions, is prohibitively expensive, and cannot be used to perform utility-based training.
+The linear programming algorithm of Althaus et al.(2005) is the only proposal that achieves both good speed and accuracy.
+Their algorithm, however, cannot handle models with hidden states, cannot compute a22 -best lists, and does not have the representation flexibility provided by 3Note that these figures cannot be compared directly with the figures reported in (Barzilay and Lapata, 2005), as they use a different type of evaluation.
+Our EB model achieves the same performance as the original Syntax+Salience model, in their evaluation setting.
+809 IDL-expressions, which is crucial for coherence decoding in realistic applications such as multidocument summarization.
+For each of the coherence model combinations that we have utility trained, we obtained improved results on the discourse ordering problem compared to the individual models.
+This is important for two reasons.
+Our improvements can have an immediate impact on multi-document summarization applications (Barzilay et al., 2002).
+Also, our framework provides a solid foundation for subsequent research on discourse coherence models and related applications.
+Acknowledgments This work was partially supported under the GALE program of the Defense Advanced Research Projects Agency, Contract No.
+HR0011-06-C-0022. References Ernst Althaus, Nikiforos Karamanis, and Alexander Koller.
+2005. Computing locally coherent discourse.
+In Proceedings of the ACL, pages 399–406.
+Regina Barzilay and Mirella Lapata.
+2005. Modeling local coherence: An entity-based approach.
+In Proceedings of the ACL, pages 141–148.
+Regina Barzilay and Lillian Lee.
+2004. Catching the drift: Probabilistic content models, with applications to generation and summarization.
+In Proceedings of the HLTNAACL, pages 113–120.
+Regina Barzilay, Noemie Elhadad, and Kathleen R.
+McKeown.
+2002. Inferring strategies for sentence ordering in multidocument news summarization.
+Journal of Artificial Intelligence Research, 17:35–55.
+Peter F.
+Brown, Stephen A.
+Della Pietra, Vincent J.
+Della Pietra, and Robert L.
+Mercer. 1993.
+The mathematics of statistical machine translation: Parameter estimation.
+Computational Linguistics, 19(2):263–311.
+L. Carlson, D.
+Marcu, and M.
+E. Okurowski.
+2003. Building a discourse-tagged corpus in the framework of Rhetorical Structure Theory.
+In J.
+van Kuppevelt and R.
+Smith, eds., Current Directions in Discourse and Dialogue.
+Kluwer Academic Publishers.
+K. Forbes, E.
+Miltsakaki, R.
+Prasad, A.
+Sarkar, A.
+Joshi, and B.
+Webber. 2001.
+D-LTAG System: Discourse parsing with a lexicalized tree-adjoining grammar.
+In Workshop on Information Structure, Discourse Structure and Discourse Semantics.
+Barbara J.
+Grosz, Aravind K.
+Joshi, and Scott Weinstein.
+1995. Centering: A framework for modeling the local coherence of discourse.
+Computational Linguistics, 21(2):203–226.
+Liang Huang and David Chiang.
+2005. Better k-best parsing.
+In Proceedings of the International Workshop on Parsing Technologies (IWPT 2005).
+Nikiforos Karamanis and Hisar M.
+Manurung. 2002.
+Stochastic text structuring using the principle of continuity.
+In Proceedings of INLG, pages 81–88.
+Nikiforos Karamanis, Massimo Poesio, Chris Mellish, and Jon Oberlander.
+2004. Evaluating centering-based metrics of coherence for text structuring using a reliably annotated corpus.
+In Proc.
+of the ACL.
+Rodger Kibble and Richard Power.
+2004. Optimising referential coherence in text generation.
+Computational Linguistics, 30(4):410–416.
+Kevin Knight.
+2003. Personal Communication.
+Mirella Lapata.
+2003. Probabilistic text structuring: Experiments with text ordering.
+In Proceedings of the ACL, pages 545–552.
+William C.
+Mann and Sandra A.
+Thompson. 1988.
+Rhetorical Structure Theory: Toward a functional theory of text organization.
+Text, 8(3):243–281.
+Daniel Marcu.
+1996. In Proceedings of the Student Conference on Computational Linguistics, pages 136-143.
+Daniel Marcu.
+2000. The Theory and Practice of Discourse Parsing and Summarization.
+The MIT Press.
+Chris Mellish, Alistair Knott, Jon Oberlander, and Mick O’Donnell.
+1998. Experiments using stochastic search for text planning.
+In Proceedings of the INLG, pages 98– 107.
+Jane Morris and Graeme Hirst.
+1991. Lexical cohesion computed by thesaural relations as an indicator of the structure of text.
+Computational Linguistics, 17(1):21–48.
+Mark-Jan Nederhof and Giorgio Satta.
+2004. IDLexpressions: a formalism for representing and parsing finite languages in natural language processing.
+Journal of Artificial Intelligence Research, pages 287–317.
+Vincent Ng.
+2005. Machine learning for coreference resolution: from local clasiffication to global reranking.
+In Procedings of the ACL, pages 157–164.
+Franz Josef Och.
+2003. Minimum error rate training in statistical machine translation.
+In Proceedings of the ACL, pages 160–167.
+Kishore Papineni, Salim Roukos, Todd Ward, and Wei-Jing Zhu.
+2002. BLEU: a method for automatic evaluation of machine translation.
+In Proceedings of the ACL, pages 311–318.
+Stuart Russell and Peter Norvig.
+1995. Artificial Intelligence.
+A Modern Approach.
+Prentice Hall.
+Donia R.
+Scott and Clarisse S.
+de Souza.
+1990. Getting the message across in RST-based text generation.
+In Robert Dale, Chris Mellish, and Michael Zock, eds., Current Research in Natural Language Generation, pages 47–73.
+Academic Press.
+Radu Soricut and Daniel Marcu.
+2005. Towards developing generation algorithms for text-to-text applications.
+In Proceedings of the ACL, pages 66–74.
+Radu Soricut.
+2006. Natural Language Generation for Textto-Text Applications Using an Information-Slim Representation.
+Ph.D. thesis, University of Southern California. 810
+

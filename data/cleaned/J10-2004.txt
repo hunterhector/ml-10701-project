@@ -1,0 +1,1483 @@
+Re-structuring,Re-labeling,andRe-aligning
+forSyntax-BasedMachineTranslation
+Wei Wang
+∗
+LanguageWeaver,Inc.
+JonathanMay
+∗∗
+USC/InformationSciencesInstitute
+KevinKnight
+†
+USC/InformationSciencesInstitute
+DanielMarcu
+‡
+LanguageWeaver,Inc.
+This article shows that the structure of bilingual material from standard parsing and alignment
+tools is not optimal for training syntax-based statistical machine translation (SMT) systems.
+We present three modiﬁcations to the MT training data to improve the accuracy of a state-of-the-
+art syntax MT system:re-structuring changes the syntactic structure of training parse trees to
+enable reuse of substructures; re-labeling alters bracket labels to enrich rule application context;
+and re-aligning uniﬁes word alignment across sentences to remove bad word alignments and
+reﬁne good ones. Better structures, labels, and word alignments are learned by the EM algorithm.
+We show that each individual technique leads to improvement as measured by BLEU, and we
+also show that the greatest improvement is achieved by combining them. We report an overall
+1.48 BLEU improvement on the NIST08 evaluation set over a strong baseline in Chinese/English
+translation.
+1.Background
+Syntacticmethodshaverecentlyprovenusefulinstatisticalmachinetranslation(SMT).
+Inthisarticle,weexploredifferentwaysofexploitingthestructureofbilingualmaterial
+for syntax-based SMT. In particular, we ask what kinds of tree structures, tree labels,
+and word alignments are best suited for improving end-to-end translation accuracy.
+Webeginwithstructuresfromstandardparsingandalignmenttools,thenusetheEM
+algorithmtorevisethesestructuresinlightofthetranslationtask.Wereportanoverall
++1.48BLEUimprovementonastandardChinese-to-Englishtest.
+∗ 6060CenterDrive,Suite150,LosAngeles,CA,90045,USA.E-mail:wwang@languageweaver.com.
+∗∗ 4676AdmiraltyWay,MarinadelRey,CA,90292,USA.E-mail:jonmay@isi.edu.
+† 4676AdmiraltyWay,MarinadelRey,CA,90292,USA.E-mail:knight@isi.edu.
+‡ 6060CenterDrive,Suite150,LosAngeles,CA,90045,USA.E-mail:dmarcu@languageweaver.com.
+Submissionreceived:6November2008;revisedsubmissionreceived:10September2009;acceptedfor
+publication:1January2010.
+©2010AssociationforComputationalLinguistics
+ComputationalLinguistics Volume36,Number2
+We carry out our experiments in the context of a string-to-tree translation system.
+ThissystemacceptsaChinesestringasinput,anditsearchesthroughamultiplicityof
+English tree outputs, seeking the one with the highest score. The string-to-tree frame-
+workismotivatedbyadesiretoimprovetarget-languagegrammaticality.Forexample,
+itiscommonforstring-basedMTsystemstooutputsentenceswithnoverb.Bycontrast,
+the string-to-tree framework forces the output to respect syntactic requirements—for
+example,iftheoutputisasyntactictreewhoserootisS(sentence),thentheSwillgen-
+erallyhaveachildoftypeVP(verbphrase),whichwillinturncontainaverb.Another
+motivation is better treatment of function words. Often, these words are not literally
+translated (either by themselves or as part of a phrase), but rather they control what
+happens in the translation, as with case-marking particles or passive-voice particles.
+Finally, much of the re-ordering we ﬁnd in translation is syntactically motivated, and
+thiscanbecapturedexplicitlywithsyntax-basedtranslationrules.Tree-to-treesystems
+arealsopromising,butinthisworkweconcentrateonlyontarget-languagesyntax.The
+target-language generation problem presents a difﬁcult challenge, whereas the source
+sentenceisﬁxedandusuallyalreadygrammatical.
+Topreparetrainingdataforsuchasystem,webeginwithabilingualtextthathas
+beenautomaticallyprocessedintosegmentpairs.Werequirethatthesegmentsbesingle
+sentences on the English side, whereas the corresponding Chinese segments may be
+sentences,sentencefragments,ormultiplesentences.WethenparsetheEnglishsideof
+thebilingualtextusingare-implementationoftheCollins(1997)parsingmodel,which
+we train on the Penn English Treebank (Marcus, Santorini, and Marcinkiewicz 1993).
+Finally,weword-alignthesegmentpairsaccordingtoIBMModel4(Brownetal.1993).
+Figure1showsasample(tree,string,alignment)triple.
+We build two generative statistical models from this data. First, we construct a
+smoothed n-gram language model (Kneser and Ney 1995; Stolcke 2002) out of the
+Englishsideofthebilingualdata.ThismodelassignsaprobabilityP(e)toanycandidate
+translation,rewardingtranslationswhosesubsequenceshavebeenobservedfrequently
+inthetrainingdata.
+Second, we build a syntax-based translation model that we can use to produce
+candidateEnglishtreesfromChinesestrings.Followingpreviousworkinnoisy-channel
+Figure1
+Asamplelearningcaseforthesyntax-basedmachinetranslationsystemdescribedinthisarticle.
+248
+Wangetal. Re-structuring,Re-labeling,andRe-aligning
+SMT (Brown et al. 1993), our model operates in the English-to-Chinese direction—
+we envision a generative top–down process by which an English tree is gradually
+transformed (by probabilistic rules) into an observed Chinese string. We represent a
+collection of such rules as a tree transducer (Knight and Graehl 2005). In order to
+construct this transducer from parsed and word-aligned data, we use the GHKM rule
+extraction algorithm of Galley et al. (2004). This algorithm computes the unique set of
+minimalrules needed to explain any sentence pair in the data. Figure 2 shows all the
+minimal rules extracted from the example (tree, string, alignment) triple in Figure 1.
+Notethatrulesspecifyrotation(e.g.,R1,R5),directtranslation(R3,R10),insertionand
+deletion (R2, R4), and tree traversal (R9, R7). The extracted rules for a given example
+formaderivationtree.
+Wecollectallrulesovertheentirebilingualcorpus,andwenormalizerulecounts
+inthisway:P(rule)=
+count(rule)
+count(LHS-root(rule))
+.Whenweapplytheseprobabilitiestoderivean
+Englishsentence e andacorrespondingChinesesentence c,wewindupcomputingthe
+jointprobabilityP(e,c).WesmooththerulecountswithGood–Turingsmoothing(Good
+1953).
+This extraction method assigns each unaligned Chinese word to a default rule in
+the derivation tree. We next follow Galley et al. (2006) in allowing unaligned Chinese
+words to participate in multiple translation rules. In this case, we obtain a derivation
+forest of minimal rules. Galley et al. show how to use EM to count rules over deriva-
+tionforestsandobtainViterbiderivationtreesofminimalrules.WealsofollowGalley
+etal.incollectingcomposedrules,namely,compositionsofminimalrules.Theselarger
+ruleshavebeenshowntosubstantiallyimprovetranslationaccuracy(Galleyetal.2006;
+DeNeefeetal.2007).Figure3showssomeoftheadditionalrules.
+With these models, we can decode a new Chinese sentence by enumerating and
+scoring all of the English trees that can be derived from it by rule. The score is a
+weightedproductofP(e)andP(e,c).Tosearchefﬁciently,weemploytheCKYdynamic-
+programming parsing algorithm (Yamada and Knight 2002; Galley et al. 2006). This
+algorithmbuildsEnglishtreesontopofChinesespans.IneachcelloftheCKYmatrix,
+westorethenon-terminalsymbolattherootoftheEnglishtreebeingbuiltup.Wealso
+Figure2
+MinimalrulesextractedfromthelearningcaseinFigure1usingtheGHKMprocedure.
+249
+ComputationalLinguistics Volume36,Number2
+Figure3
+AdditionalrulesextractedfromthelearningcaseinFigure1.
+store English words that appear at the left and right corners of the tree, as these are
+needed for computing the P(e) score when cells are combined. For CKY to work, all
+transducerrulesmustbebrokendown,orbinarized,intorulesthatcontainatmosttwo
+variables—more efﬁcient search can be gained if this binarization produces rules that
+can be incrementally scored by the language model (Melamed, Satta, and Wellington
+2004; Zhang et al. 2006). Finally, we employ cube pruning (Chiang 2007) for further
+efﬁciencyinthesearch.
+When scoring translation candidates, we add several smaller models. One model
+rewardslongertranslationcandidates,off-settingthelanguagemodel’sdesireforshort
+output. Other models punish rules that drop Chinese content words or introduce
+spurious English content words. We also include lexical smoothing models (Gale and
+Sampson 1996; Good 1953) to help distinguish good low-count rules from bad low-
+countrules.Theﬁnalscoreofatranslationcandidateisaweightedlinearcombination
+of logP(e), logP(e,c), and the scores from these additional smaller models. We obtain
+weightsthroughminimumerror-ratetraining(Och2003).
+ThesystemthusconstructedperformsfairlywellatChinese-to-Englishtranslation,
+asreﬂectedintheNIST06commonevaluationofmachinetranslationquality.
+1
+However,itwouldbesurprisingiftheparsestructuresandwordalignmentsinour
+bilingual data were somehow perfectly suited to syntax-based SMT—we have so far
+usedout-of-the-boxtoolslikeIBMModel4andaTreebank-trainedparser.Huangand
+Knight (2006) already investigated whether different syntactic labels would be more
+appropriateforSMT,thoughtheirstudywascarriedoutonaweakbaselinetranslation
+system. In this article, we take a broad view and investigate how changes to syntactic
+structures,syntacticlabels,andwordalignmentscanleadtosubstantialimprovements
+in translation quality on topof a strong baseline. We design our methods around
+problemsthatariseinMTdatawhoseparsesandalignmentsusesomePennTreebank-
+styleannotations.Webelievethatsomeofthetechniqueswillapplytootherannotation
+schemes,butconclusionsherearelimitedtoPennTreebank-styletrees.
+Therestofthisarticleisstructuredasfollows.Section2describesthecorporaand
+model conﬁgurations used in our experiments. In each of the next three sections we
+present a technique for modifying the training data to improve syntax MT accuracy:
+treere-structuringinSection3,treere-labelinginSection4,andre-aligninginSection5.
+In each of these three sections, we also present experiment results to show the impact
+ofeachindividualtechniqueonend-to-endMTaccuracy.Section6showstheimprove-
+mentmadebycombiningallthreetechniques.WeconcludeinSection7.
+1 http://nist.gov/speech/tests/mt/2006/doc/mt06eval official results.html.
+250
+Wangetal. Re-structuring,Re-labeling,andRe-aligning
+2.CorporaforExperiments
+Forourexperiments,weusea245millionwordChinese/Englishbitext,availablefrom
+LDC. A re-implementation of the Collins (1997) parser runs on the English half of the
+bitext to produce parse trees, and GIZA runs on the entire bitext to produce M4 word
+alignments.Weextractasubsetof36millionwordsfromtheentirebitext,byselecting
+only sentences in the mainland news domain. We extract translation rules from these
+selected 36 million words. Experiments show that our Chinese/English syntax MT
+systemsbuiltfromthisselectedbitextgiveashighBLEUscoresasfromtheentirebitext.
+Our development set consists of 1,453 lines and is extracted from the NIST02–
+NIST05evaluationsets,fortuningoffeatureweights.Thedevelopmentsetisfromthe
+newswiredomain,andwechoseittorepresentawideperiodoftimeratherthanasingle
+year.WeusetheNIST08evaluationsetasourtestset.BecausetheNIST08evaluationset
+isamixofnewswiretextandWebtext,wealsoreporttheBLEUscoresonthenewswire
+portion.
+Weusetwo5-gramlanguagemodels.OneistrainedontheEnglishhalfofthebitext.
+Theotheristrainedononebillionwordsofmonolingualdata.Kneser–Neysmoothing
+(Kneser and Ney 1995) is applied to both language models. Language models are
+represented using randomized data structures similar to those of Talbot and Osborne
+(2007)indecodingforefﬁcientRAMusage.
+Totestthesigniﬁcanceofimprovementsoverthebaseline,wecomputepairedboot-
+strapp-values(Koehn2004)forBLEUbetweenthebaselinesystemandeachimproved
+system.
+3.Re-structuringTreesforTraining
+Our translation system is trained on Chinese/English data, where the English side
+has been automatically parsed into Penn Treebank-style trees. One striking fact about
+these trees is that they contain many ﬂat structures. For example, base noun phrases
+frequently have ﬁve or more direct children. It is well known in monolingual parsing
+researchthattheseﬂatstructurescauseproblems.Althoughthousandsofrewriterules
+canbelearnedfromthePennTreebank,theserulesstilldonotcoverthenewrewrites
+observed in held-out test data. For this reason, and to extract more general knowl-
+edge,manymonolingualparsingmodelsaremarkovizedsothattheycanproduceﬂat
+structuresincrementallyandhorizontally(Collins1997;Charniak2000).Otherparsing
+systems binarize the training trees in a pre-processing step, then learn to model the
+binarized corpus (Petrov et al. 2006); after parsing, their results are ﬂattened back
+in a post-processing step. In addition, Johnson (1998b) shows that different types of
+tree structuring (e.g., the Chomsky adjunction representation vs. the Penn Treebank II
+representation)canhavealargeeffectontheparsingperformanceofaPCFGestimated
+fromthesetrees.
+Weﬁndthatﬂatstructuresarealsoproblematicforsyntax-basedmachinetransla-
+tion.Theruleswelearnfromtree/string/alignmenttriplesoftenlacksufﬁcientgener-
+alizationpower.Forexample,considerthetrainingsamplesinFigure4.Weshouldbe
+abletolearnenoughfromthesetwosamplestotranslatethenewphrase
+E1BACF-AZAGC4E2AGE7 CI FIDF BFGC
+VIKTOR CHERNOMYRDIN AND HIS COLLEAGUE
+intoitsEnglishequivalent victor chernomyrdin and his colleagues.
+251
+ComputationalLinguistics Volume36,Number2
+Figure4
+LearningtranslationrulesfromﬂatEnglishstructures.
+However,thelearnedrulesR12andR13donotﬁttogethernicely.R12cantranslate
+E1BACF-AZAGC4E2AGE7 into an English base noun phrase (NPB) that includes viktor
+chernomyrdin, but only if it is preceded by words that translate into an English JJ and
+anEnglishNNP.Likewise,R13cantranslateCI FIDF BFGCintoanNPBthatincludes
+and his colleagues,butonlyifprecededbytwoNNPs.BothruleswanttocreateanNPB,
+andneithercansupplytheotherwithwhatitneeds.
+If we re-structure the training trees as shown in Figure 5, we get much better
+behavior.NowruleR14translates
+E1BACF-AZAGC4E2AGE7
+intoafree-standingNPB.This
+gives rule R15 the ability to translateCI FIDF BFGC, because it ﬁnds the necessary
+NPBtoitsleft.
+Here, we are re-structuring the trees in our MT training data by binarizing them.
+Thisallowsustoextractbettertranslationrules,thoughofcourseanextractedrulemay
+have more than two variables. Whether the rules themselves should be binarized is a
+separatequestion,addressedinMelamed,Satta,andWellington(2004)andZhangetal.
+(2006). One can decide to re-structure training data trees, binarize translation rules, or
+doboth,ordoneither.HerewefocusonEnglishtreere-structuring.
+Inthissection,weexplorethegeneralizationabilityofsimplere-structuringmeth-
+ods like left-, right-, and head-binarization, and also their combinations. Simple bina-
+rization methods binarize syntax trees in a consistent fashion (left-, right-, or head-)
+andthuscannotguaranteethatallthesubstructurescanbefactoredout.Forexample,
+consistentrightbinarizationofthetrainingexamplesinFigure4makesavailableR14,
+butmissesR15.Wethereforealsointroduceaparallelre-structuringmethodinwhich
+we binarize both to the left and right at the same time, resulting in a binarization
+forest. We employ the EM algorithm (Dempster, Laird, and Rubin 1977) to learn the
+binarizationbiasforeachtreenodeinthecorpusfromtheparallelalternatives.
+252
+Wangetal. Re-structuring,Re-labeling,andRe-aligning
+Figure5
+LearningtranslationrulesfrombinarizedEnglishstructures.
+3.1SomeConcepts
+Wenowexplainsomeconceptstofacilitatethedescriptionsofthere-structuringmeth-
+ods. We train our translation model on alignment graphs (Galley et al. 2004). An
+alignmentgraphisatupleofasource-languagesentencef,atarget-languageparsetree
+that yields e and translates from f, and the word alignments a between e and f.The
+graphsinFigures1,4,and5areexamplesofalignmentgraphs.
+Inthealignmentgraph,anodeintheparsetreeiscalledadmissibleifrulescanbe
+extractedfromit.Wecanextractrulesfromanodeifandonlyiftheyieldofthetreenode
+isconsistentwiththewordalignments—thefstringcoveredbythenodeiscontiguous
+but not empty, and the f string does not align to any e string that is not covered by
+thenode.Anadmissibletreenodeisonewhererulesoverlap.Figure6showsdifferent
+binarizations of the left tree in Figure 4. In this ﬁgure, the NPBnodeintree(1)isnot
+admissiblebecausethefstring,V-C,thatthenodecoversalsoalignstoNNP
+3,whichis
+notcoveredbytheNPB.NodeNPBintree(2),ontheotherhand,isadmissible.
+A set of sibling tree nodes is called factorizable if we can form an admissible
+new node dominating them. In Figure 6, sibling nodes NNP
+1, NNP
+2, and NNP
+3
+are
+factorizable because we can factorize them out and form a new node NPB, resulting
+in tree (2). Sibling tree nodes JJ, NNP
+1, and NNP
+2
+are not factorizable. Not all sibling
+nodesarefactorizable,sonotallsub-phrasescanbeacquiredandsyntactiﬁed.Ourmain
+purposeistore-structureparsetreesbyfactorizationsuchthatsyntactiﬁedsub-phrases
+canbeemployedintranslation.
+Withtheseconceptsdeﬁned,wenowpresentthere-structuringmethods.
+253
+ComputationalLinguistics Volume36,Number2
+Figure6
+Left,right,andheadbinarizationsonthelefttreeinFigure4.TreeleavesofnodesJJandNNP
+1
+areomittedforconvenience.Headsaremarkedwith
+∗
+.Newnonterminalsintroducedby
+binarizationaredenotedbyX-bars.
+3.2BinarizingSyntaxTrees
+Were-structureparsetreesbybinarizingthetrees.Wearegoingtobinarizeatreenode
+n thatdominates r children n
+1,..., n
+r
+.Binarizationisperformedbyintroducingnewtree
+nodestodominateasubsetofthechildrennodes.Weallowourselvestoformonlyone
+newnodeatatimetoavoidover-generalization.Becauselabelingisnottheconcernof
+thissection,were-labelthenewlyformednodesas n.
+3.2.1 Simple
+Binarization Methods. Theleftbinarization of node n (e.g., the NPB in tree
+(1)ofFigure6)factorizestheleftmost r −1childrenbyforminganewnode n (i.e.,the
+NPBintree(1))todominatethem,leavingthelastchild n
+r
+untouched;andthenmakes
+thenewnode n theleftchildof n.Themethodthenrecursivelyleft-binarizesthenewly
+formednode n untiltwoleavesarereached.Weleft-binarizethelefttreeinFigure4into
+Figure6(1).
+Therightbinarizationofnode n factorizestherightmost r −1childrenbyforming
+a new node n (i.e., the NPB in tree (2)) to dominate them, leaving the ﬁrst child n
+1
+untouched; and then makes the new node n the right child of n. The method then
+recursively right-binarizes the newly formed node n. For instance, we right-binarize
+thelefttreeinFigure4intoFigure6(2)andthenintoFigure6(6).
+The head binarization of node n left-binarizes n if the head is the ﬁrst child;
+otherwise, it right-binarizes n. We prefer right-binarization to left-binarization when
+both are applicable under the head restriction because our initial motivation was to
+generalize the NPB-rooted translation rules. As we show in experiments, binarization
+ofothertypesofphrasescontributestotranslationaccuracyaswell.
+Any of these simple binarization methods is easy to implement, but each in itself
+is incapable of giving us all the factorizable sub-phrases. Binarizing all the way to the
+left, for example, from unbinarized tree to tree (1) and to tree (3) in Figure 6, does not
+enable us to acquire a substructure that yields NNP
+2, NNP
+3, and their translational
+equivalences.Toobtainmorefactorizablesub-phrases,weneedtoparallel-binarizein
+bothdirections.
+254
+Wangetal. Re-structuring,Re-labeling,andRe-aligning
+Figure7
+Packedforestobtainedbypackingtrees(3)and(6)inFigure6.
+3.2.2 Parallel
+Binarization. Simplebinarizationstransformaparsetreeintoanothersingle
+parsetree.Parallelbinarizationtransformsaparsetreeintoabinarizationforest,packed
+toenabledynamicprogrammingwhenweextracttranslationrulesfromit.
+Borrowingtermsfromparsingsemirings(Goodman1999),apackedforestiscom-
+posedofadditiveforestnodes(⊕-nodes)andmultiplicativeforestnodes(⊗-nodes).In
+thebinarizationforest,a⊗-nodecorrespondstoatreenodeintheunbinarizedtreeora
+new tree node introduced during tree binarization; and this ⊗-node composes several
+⊕-nodes, forming a one-level substructure that is observed in the unbinarized tree or
+inoneofitsbinarizedtree.A⊕-nodecorrespondstoalternativewaysofbinarizingthe
+same tree node and it contains one or more ⊗-nodes. The same ⊕-node can appear in
+more than one place in the packed forest, enabling sharing. Figure 7 shows a packed
+forest obtained by packing trees (3) and (6) in Figure 6 via the following tree parallel
+binarizationalgorithm.
+We use a memoization procedure to recursively parallel-binarize a parse tree.
+To parallel-binarize a tree node n that has children n
+1,...,n
+r, we employ the following
+steps:
+a114
+If r ≤ 2,parallel-binarizetreenodes n
+1,..., n
+r,producingbinarization
+⊕-nodes⊕(n
+1
+),...,⊕(n
+r
+),respectively.Constructnode⊗(n)astheparent
+of⊕(n
+1
+),...,⊕(n
+r
+).Constructanadditivenode⊕(n)astheparentof⊗(n).
+Otherwise,executethefollowingsteps.
+a114
+Right-binarize n,ifanycontiguous
+2
+subsetofchildren n
+2,...,n
+r
+is
+factorizable,byintroducinganintermediatetreenodelabeledas n.We
+recursivelyparallel-binarize n togenerateabinarizationforestnode⊕(n).
+Wealsorecursivelyparallel-binarize n
+1,formingabinarizationforest
+node⊕(n
+1
+).Weformamultiplicativeforestnode⊗
+R
+astheparentof
+⊕(n
+1
+)and⊕(n).
+a114
+Left-binarize n ifanycontiguoussubsetof n
+1,...,n
+r−1
+isfactorizableand
+ifthissubsetcontains n
+1
+.Similartothepreviousright-binarization,
+weintroduceanintermediatetreenodelabeledas n,recursively
+parallel-binarize n togenerateabinarizationforestnode⊕(n),recursively
+2 Forpracticalpurposeswefactorizeonlysubsetsthatcovercontiguousspanstoavoidintroducing
+discontiguousconstituents.Inprinciple,thealgorithmworksﬁnewithoutthiscondition.
+255
+ComputationalLinguistics Volume36,Number2
+parallel-binarize n
+r
+togenerateabinarizationforestnode⊕(n
+r
+),andthen
+formamultiplicativeforestnode⊗
+L
+astheparentof⊕(n)and⊕(n
+r
+).
+a114
+Formanadditivenode⊕(n)astheparentofthetwoalreadyformed
+multiplicativenodes⊗
+L
+and⊗
+R
+.
+The (left and right) binarization conditions consider any subset to enable the fac-
+torization of small constituents. For example, in the left tree of Figure 4, although the
+JJ, NNP
+1, and NNP
+2
+children of the NPB are not factorizable, the subset JJ NNP
+1
+is
+factorizable.ThebinarizationfromthistreetothetreeinFigure6(1)servesasarelaying
+stepfor us to factorize JJ and NNP
+1
+in the tree in Figure 6 (3). The left-binarization
+conditionisstricterthantheright-binarizationconditiontoavoidspuriousbinarization,
+thatis,toavoidthesamesubconstituentbeingreachedviabothbinarizations.
+In parallel binarization, nodes are not always binarizable in both directions. For
+example, we do not need to right-binarize tree (2) because NNP
+2
+and NNP
+3
+are not
+factorizable, and thus cannot be used to form sub-phrases. It is still possible to right-
+binarizetree(2)withoutaffectingthecorrectnessoftheparallelbinarizationalgorithm,
+but that will spuriously increase the branching factor of the search for the rule extrac-
+tion,becausewewillhavetoexpandmoretreenodes.
+A special version of parallel binarization is the parallel head binarization, where
+both the left and the right binarization must respect the head propagation property
+at the same time. Parallel head binarization guarantees that new nodes introduced by
+binarizationalwayscontaintheheadconstituent,whichwillbecomeconvenientwhen
+head-driven syntax-based language models are integrated into a bottom–updecoding
+searchbyintersectingwiththetreesinferredfromthetranslationmodel.
+Ourre-structuringofMTtrainingtreesisrealizedbytreebinarization,butthisdoes
+not mean that our re-structuring method can factor out phrases covered only by two
+(binary) constituents. In fact, a nice property of parallel binarization is that for any
+factorizable substructure in the unbinarized tree, we can always ﬁnd a corresponding
+admissible ⊕-node in the parallel-binarized packed forest, and thus we can always
+extract that phrase. A leftmost substructure like the lowest NPB-subtree in tree (3) of
+Figure 6 can be made factorizable by several successive left binarizations, resulting in
+the⊕
+5
+(NPB)-nodeinthepackedforestinFigure7.Asubstructureinthemiddlecanbe
+factorizedbythecompositionofseveralleft-andright-binarizations.Therefore,aftera
+tree is parallel-binarized, to make the sub-phrases available to the MT system, all we
+needtodoistoextractrulesfromtheadmissiblenodesinthepackedforest.Rulesthat
+canbeextractedfromtheoriginalunrestructuredtreecanbeextractedfromthepacked
+forestaswell.
+Parallel binarization results in parse forests. Thus translation rules need to be ex-
+tractedfromtrainingdataconsistingof(e-forest,f,a)-tuples.
+3.3ExtractingTranslationRulesfrom(e-forest,f,a)-tuples
+Our algorithm to extract rules from (e-forest, f, a)-tuples is a natural generalization
+of the (e-parse, f, a)-based rule extraction algorithm in Galley et al. (2006). A similar
+problemisalsoelegantlyaddressedinMiandHuang(2008)indetail.Theforest-based
+ruleextractionalgorithmtakesasinputa(e-forest,f,a)-triple,andoutputsaderivation
+forest(Galleyetal.2006),whichconsistsofoverlappingtranslationrules.Thealgorithm
+recursively traverses the e-forest top–down, extracts rules only at admissible e-forest
+256
+Wangetal. Re-structuring,Re-labeling,andRe-aligning
+nodes,andtransformse-forestnodesintosynchronousderivation-forestnodesviathe
+followingtwoprocedures,dependingonwhichconditionismet.
+a114
+Condition1:Ifwereachanadditivee-forestnode,foreachofitschildren,
+whicharemultiplicativee-forestnodes,wegotocondition2torecursively
+extractrulesfromittoobtainasetofmultiplicativederivation-forest
+nodes,respectively.Weformanadditivederivation-forestnode,andtake
+thesenewlyproducedmultiplicativederivation-forestnodes(bygoingto
+condition2)aschildren.Afterthis,wereturntheadditive
+derivation-forestnode.
+Forinstance,atnode⊕
+1
+(NPB)inFigure7,foreachofitschildren,e-forest
+nodes⊗
+2
+(NPB)and⊗
+11
+(NPB),wegotocondition2toextractrulesonit,
+toformmultiplicativederivationforestnodes,⊗(R16)and⊗(R17)in
+Figure8.
+a114
+Condition2:Ifwereachamultiplicativee-forestnode,weextractasetof
+rulesrootedatitusingtheprocedureinGalleyetal.(2006);andforeach
+rule,weformamultiplicativederivation-forestnode,andgotocondition1
+toformtheadditivederivation-forestnodesfortheadditivefrontier
+e-forestnodesofthenewlyextractedrule,andthenmaketheseadditive
+derivation-forestnodesthechildrenofthemultiplicativederivation-forest
+node.Afterthis,wereturnasetofmultiplicativederivation-forestnodes,
+eachcorrespondingtooneruleextractedfromthemultiplicativee-forest
+nodewejustreached.
+Figure8
+Asynchronousderivationforestbuiltfroma(e-forest,f,a)triple.Thee-forestisshownin
+Figure7.
+257
+ComputationalLinguistics Volume36,Number2
+Forexample,atnode⊗
+11
+(NPB)inFigure7,weextractarulefromitand
+formderivation-forestnode⊗(R17)inFigure8.Wethengotocondition1
+toobtain,foreachoftheadditivefrontiere-forestnodes(inFigure7)of
+thisrule,aderivation-forestnode,namely,⊕(NNP),⊕(NNP),and⊕(NPB)
+inFigure8.Wemakethesederivation-forest⊕-nodesthechildrenof
+derivation-forestnode⊗(R17).
+This procedure transforms the packed e-forest in Figure 7 into a packed synchro-
+nousderivationinFigure8.Thisalgorithmisanextensionoftheextractionalgorithm
+in Galley et al. (2006), in the sense that we have an extra condition (1) to relay rule
+extractiononadditivee-forestnodes.
+The forest-based rule extraction algorithm produces much larger grammars than
+the tree-based one, making it difﬁcult to scale to very large training data. From a
+50M-word Chinese-to-English parallel corpus, we can extract more than 300 million
+translation rules, while the tree-based rule extraction algorithm gives approximately
+100million.However,therestructuredtreesfromthesimplebinarizationmethodsare
+not guaranteed to give the best trees for syntax-based machine translation. What we
+desireisabinarizationmethodthatstillproducessingleparsetrees,butisabletomix
+leftbinarizationandrightbinarizationinthesametree.Inthefollowing,weusetheEM
+algorithm to learn the desirable binarization on the forest of binarization alternatives
+proposedbytheparallelbinarizationalgorithm.
+3.4LearningHowtoBinarizeViatheEMAlgorithm
+ThebasicideaofapplyingtheEMalgorithmtochooseare-structuringisasfollows.We
+perform a set {β} of binarization operations on a parse tree τ. Each binarization β is
+thesequenceofbinarizationsonthenecessary(i.e.,factorizable)nodesinτinpre-order.
+Each binarization β results in a restructured tree τ
+β
+. We extract rules from (τ
+β, f, a),
+generatingatranslationmodelconsistingofparameters(i.e.,ruleprobabilities) θ.Our
+aim is to ﬁrst obtain the rule probabilities that are the maximum likelihood estimate
+of the training tuples, and then produce the Viterbi binarization tree for each training
+tuple.
+TheprobabilityP(τ
+β,f,a)ofa(τ
+β,f,a)-tupleiswhatthebasicsyntax-basedtrans-
+lation model is concerned with. It can be further computed by aggregating the rule
+probabilitiesP(r)ineachderivationωinthesetofallderivationsΩ(Galleyetal.2004).
+Thatis,
+P(τ
+β,f,a)=
+summationdisplay
+ω∈Ω
+productdisplay
+r∈ω
+P(r)(1)
+The rule probabilities are estimated by the inside–outside algorithm (Lari and
+Young1990;Knight,Graehl,andMay2008),whichneedstorunonderivationforests.
+Ourprevioussectionshavealreadypresentedalgorithmstotransformaparsetreeinto
+abinarizationforest,andthentransformthe(e-forest,f,a)-tuplesintoderivationforests
+(e.g.,Figure8),onwhichtheinside–outsidealgorithmcanthenbeapplied.
+In the derivation forests, an additive node labeled as A dominates several mul-
+tiplicative nodes, each corresponding to a translation rule resulting from either left
+binarizationorrightbinarizationoftheoriginalstructure.Weuserule r toeitherrefer
+toaruleortoamultiplicativenodeinthederivationforest.Weuse root(r)torepresent
+the root label of the rule, and parent(r) to refer to the additive node that is the parent
+258
+Wangetal. Re-structuring,Re-labeling,andRe-aligning
+of the node corresponding to the r. Each rule node (or multiplicative node) dom-
+inates several other additive children nodes, and we present the i
+th
+child node as
+child
+i
+(r),amongthetotalnumberof n children.Forexample,inFigure8,fortherule r
+correspondingtotheleftchildoftheforestroot(labeledas NPB), parent(r)isNPB,and
+child
+1
+(NPB)= r.Basedonthesenotations,wecancomputetheinsideprobability α(A)
+ofanadditivenodelabeledas A andtheoutsideprobability β(B)ofanadditiveforest
+nodelabeledas B asfollows.
+α(A)=
+summationdisplay
+r∈{child(A)}
+P(r)×
+productdisplay
+i=1...n
+α(child
+i
+(r)) (2)
+β(B)=
+summationdisplay
+r:B∈{child(r)}
+P(r)×β(parent(r))×
+productdisplay
+C∈{child(r)}−{B}
+α(C)(3)
+In the expectation step, the contribution of each occurrence of a rule in a derivation-
+foresttothetotalexpectedcountofthatruleiscomputedas
+β(parent(r))×P(r)×
+productdisplay
+i=1...n
+α(child
+i
+(r)) (4)
+Inthemaximizationstep,weusetheexpectedcountsofrules,#r,toupdatetheproba-
+bilitiesoftherules.
+P(r)=
+#r
+summationtext
+rule q:root(q)=root(r)
+#q
+(5)
+Because it is well known that applying EM with tree fragments of different sizes
+causesoverﬁtting(Johnson1998a),andbecauseitisalsoknownthatsyntaxMTmodels
+with larger composed rules in the mix signiﬁcantly outperform rules that minimally
+explainthetrainingdata(minimalrules)intranslationaccuracy(Galleyetal.2006),we
+use minimal rules to construct the derivation forests from (e-binarization-forest, f, a)-
+tuplesduringrunningoftheEMalgorithm,but,aftertheEMre-structuringisﬁnished,
+webuildtheﬁnaltranslationmodelusingcomposedrulesforMTevaluation.
+Figure9istheactualpipelinethatweuseforEMbinarization.Weﬁrstgeneratea
+packede-forestviaparallelbinarization.Wethenextractminimaltranslationrulesfrom
+Figure9
+UsingtheEMalgorithmtochoosere-structuring.
+259
+ComputationalLinguistics Volume36,Number2
+the(e-forest,f,a)-tuples,producingsynchronousderivationforests.Weruntheinside–
+outside algorithm on the derivation forests until convergence. We obtain the Viterbi
+derivations and project the English parses from the derivations. Finally, we extract
+composedrulesusingGalleyetal.(2006)’s(e-tree,f,a)-basedruleextractionalgorithm.
+Whenextractingcomposedrulesfrom(e-parse,f,a)-tuples,weusean“ignoring-X-
+node” trick to the rule extraction method in Galley et al. (2006) to avoid breaking the
+local dependencies captured in complex rules. The trick is that new nodes introduced
+bybinarizationarenotcountedwhencomputingtherulesizelimitunlesstheyappear
+astheruleroots.Themotivationisthatnewlyintroducednodesbreakthelocaldepen-
+dencies,deepeningtheparses.InGalleyetal.,acomposedruleisextractedonlyifthe
+numberofinternalnodesitcontainsdoesnotexceedalimit,similartothephraselength
+limit in phrase-based systems. This means that rules extracted from the restructured
+treeswillbesmallerthanthosefromtheunrestructuredtrees,ifthe X nodesaredeleted
+from the rules. As shown in Galley et al., smaller rules lose context, and thus give
+lowertranslationaccuracy.Ignoring X nodeswhencomputingtherulesizespreserves
+the unrestructured rules in the resulting translation model and adds substructures as
+bonuses.
+3.5ExperimentalResults
+We carried out experiments to evaluate different tree binarization methods in terms
+oftranslationaccuracyforChinese-to-Englishtranslation.ThebaselinesyntaxMTsys-
+tem was trained on the original, non-restructured trees. We also built one MT system
+by training on left-binarizations of training trees, and another by training on EM-
+binarizationsoftrainingtrees.
+Table1showstheresultsonend-to-endMT.Thebootstrapp-valueswerecomputed
+forthepairwiseBLEUcomparisonbetweentheEMbinarizationandthebaseline.The
+resultsshowthattreebinarizationimprovesMTsystemaccuracy,andthatEMbinariza-
+tionoutperformsleftbinarization.TheresultsalsoshowthattheEMre-structuringsig-
+niﬁcantlyoutperforms(p<0.05)thenore-structuringbaselineontheNIST08evalset.
+TheMTimprovementbytreere-structuringisalsovalidatedbyourpreviouswork
+(Wang, Knight,and Marcu 2007), inwhich we reported a 1BLEU point gain from EM
+binarizationunderothertraining/testingconditions;othersimplebinarizationmethods
+wereexaminedinthatworkaswell,showingthatsimplebinarizationsalsoimproveMT
+accuracy, and that EM binarization consistently outperforms the simple binarization
+methods.
+Table1
+Translationaccuracyversusbinarizationalgorithms.InthisandallothertablesreportingBLEU
+performance,statisticallysigniﬁcantimprovementsoverthebaselinearehighlighted.p=the
+pairedbootstrapp-valuecomputedbetweeneachsystemandthebaseline,showingthelevelat
+whichthetwosystemsaresigniﬁcantlydifferent.
+EXPERIMENT NIST08 NIST08-NW
+BLEU pBLEU p
+nobinarization(baseline) 29.12 — 35.33 —
+leftbinarization 29.35 0.184 35.46 0.360
+EMbinarization 29.74 0.010 36.12 0.016
+260
+Wangetal. Re-structuring,Re-labeling,andRe-aligning
+Table2
+#admissiblenodes,#rulesversusre-structuringmethods.
+RE-STRUCTURING METHOD #ADMISSIBLENODES(M) #RULES(M)
+nobinarization 13 76.0
+leftbinarization 17.2 153.4
+EMbinarization 17.4 154.8
+Wethinkthattheseimprovementsareexplainedbythefactthattreere-structuring
+introduces more admissible trees nodes in the training trees and enables the forming
+of additional rules. As a result, re-structuring produces more rules. Table 2 shows the
+numberofadmissiblenodesmadeavailablebyeachre-structuringmethod,aswellas
+bythebaseline.Table2alsoshowsthesizesoftheresultinggrammars.
+The EM binarization is able to introduce more admissible nodes because it mixes
+bothleftandrightbinarizationsinthesametree.Wecomputedthebinarizationbiases
+learned by the EM algorithm for each nonterminal from the binarization forest of
+parallel head binarizations of the training trees (Table 3). Of course, the binarization
+bias chosen by left-/right-binarization methods would be 100% deterministic. One
+noticeablemessagefromTable3isthatmostofthecategoriesareactuallybiasedtoward
+left-binarization. The reason might be that the head sub-constituents of most English
+categoriestendtobeontheleft.
+Johnson (1998b) argues that the more nodes there are in a treebank, the stronger
+the independence assumptions implicit in the PCFG model are, and the less accurate
+theestimatedPCFGwillusuallybe—morenodesbreakmorelocaldependencies.Our
+experiments,ontheotherhand,showMTaccuracyimprovementbyintroducingmore
+admissiblenodes.Thisinitialcontradictionactuallymakessense.Thekeyisthatweuse
+composed rules to build our ﬁnal MT system and that we introduce the “ignoring-X-
+node”tricktopreservethelocaldependencies.Morenodesintrainingtreesweakenthe
+accuracyofatranslationmodelofminimalrules,butboosttheaccuracyofatranslation
+modelofcomposedrules.
+Table3
+BinarizationbiaslearnedbytheEMre-structuringmethodonthemodel4wordalignments.
+nonterminal left-binarization(%) right-binarization(%)
+NP 98 2
+NPB 1 99
+VP 95 5
+PP 86 14
+ADJP 67 33
+ADVP 76 24
+S 94 6
+S-C 17 83
+SBAR 93 7
+QP 89 11
+WHNP 98 2
+SINV 94 6
+CONJP 69 31
+261
+ComputationalLinguistics Volume36,Number2
+4.Re-LabelingTreesforTraining
+The syntax translation model explains (e-parse, f, a)-tuples by a series of applications
+of translation rules. At each derivation step, which rule to apply next depends only
+on the nonterminal label of the frontier node being expanded. In the Penn Treebank
+annotation,thenonterminallabelsaretoocoarsetoencodeenoughcontextinformation
+to accurately predict the next translation rule to apply. As a result, using the Penn
+Treebank annotation can license ill-formed subtrees (Figure 10). This subtree contains
+an error that induces a VP as an SG-C when the head of the VP is the ﬁnite verb dis-
+cussed. Thetranslationerrorleadstotheungrammatical“... conﬁrmed discussed ... ”.This
+translation error occurs due to the fact that there is no distinction between ﬁnite VPs
+andnon-ﬁniteVPsinPennTreebankannotation.Monolingualparsingsufferssimilarly,
+buttoalesserdegree.
+Re-structuringoftrainingtreesenablesthereuseofsub-constituentstructures,but
+further introduces new nonterminals and actually reduces the context for rules, thus
+making this “coarse nonterminal” problem more severe. In Figure 11, R23 may be
+extractedfromaconstructlikeS(SCCS)viatreebinarization,andR24maybeextracted
+from a construct like S(NP NP-C VP) via tree binarization. Composing R23 and R24
+formsthestructureinFigure11(b),which,however,isill-formed.Thiswrongstructure
+in Figure 11(b) yields ungrammatical translations like he likes reading she does not like
+reading.Treebinarizationenablesthereuseofsubstructures,butcausesover-generation
+oftreesatthesametime.
+We solve the coarse-nonterminal problem by reﬁning/re-labeling the training tree
+labels. Re-labeling is done by enriching the nonterminal label of each tree node based
+onitscontextinformation.
+Re-labeling has already been used in monolingual parsing research to improve
+parsing accuracy of PCFGs. We are interested in two types of re-labeling methods:
+Linguisticallymotivatedre-labeling(KleinandManning2003;Johnson1998b)enriches
+the labels of parser training trees using parent labels, head word tag labels, and/or
+sibling labels. Automatic category splitting (Petrov et al. 2006) reﬁnes a nonterminal
+Figure10
+MToutputerrorsduetocoarsePennTreebankannotations.Ovalnodesin(b)arerule
+overlappingnodes.Subtree(b)isformedbycomposingtheLHSsofR20,R21,andR22.
+262
+Wangetal. Re-structuring,Re-labeling,andRe-aligning
+Figure11
+Treebinarizationover-generalizestheparsetree.TranslationrulesR23andR24areacquired
+frombinarizedtrainingtrees,aimingforreuseofsubstructures.ComposingR23andR24,
+however,resultsinanill-formedtree.ThenewnonterminalSintroducedintreebinarization
+needstobereﬁnedintodifferentsub-categoriestopreventR23andR24frombeingcomposed.
+AutomaticcategorysplittingcanbeemployedforreﬁningtheS.
+by classifying the nonterminal into a ﬁne-grained sub-category, and this sub-classing
+islearnedviatheEMalgorithm.Categorysplittingisrealizedbyseveralsplitting-and-
+mergingcycles.Ineachcycle,thenonterminalsinthePCFGrulesaresplitbysplitting
+eachnonterminalintotwo.TheEMalgorithmisemployedtoestimatethesplitPCFGon
+the Penn Treebank training trees. After that, 50% of the new nonterminals are merged
+basedonsomelossfunction,toavoidoverﬁtting.
+4.1LinguisticRe-labeling
+Inthelinguisticallymotivatedapproach,weemploythefollowingsetofrulestore-label
+treenodes.InourMTtrainingdata:
+a114
+SPLIT-VP:annotateseachVPnodeswithitsheadtag,andthenmergesall
+ﬁniteVPformstoasingleVPF.
+a114
+SPLIT-IN:annotateseachINnodewiththecombinationofINandits
+parentnodelabel.INisfrequentlyoverloadedinthePennTreebank.For
+instance,itsparentcanbePPorSBAR.
+These two operations re-label the tree in Figure 12(a1) to Figure 12(b1). Example
+rules extracted from these two trees are shown in Figure 12(a2) and Figure 12(b2),
+respectively.Weapplythisre-labelingontheMTtrainingtreenodes,andthenacquire
+rules from these re-labeled trees. We chose to split only these two categories because
+our syntax MT system tends to frequently make parse errors in these two categories,
+and because, as shown by Klein and Manning (2003), further reﬁning the VP and IN
+categoriesisveryeffectiveinimprovingmonolingualparsingaccuracy.
+Thistypeofre-labelingﬁxestheparseerrorinFigure10.SPLIT-VPtransformsthe
+R18roottoVPF,andtheR17frontiernodetoVP.VBN.ThusR17andR18canneverbe
+composed,preventingthewrongtreebeingformedbythetranslationmodel.
+4.2StatisticalRe-labeling
+Our second re-labeling approach is to learn the split categories for the node labels of
+the training trees via the EM algorithm, as in Petrov et al. (2006). Rather than using
+263
+ComputationalLinguistics Volume36,Number2
+Figure12
+Re-labelingofparsetrees.
+264
+Wangetal. Re-structuring,Re-labeling,andRe-aligning
+theirparsertodirectlyproducecategory-splitparsetreesfortheMTtrainingdata,we
+separatetheparsingstepandthere-labelingstep.There-labelingmethodisasfollows.
+1. RunaparsertoproducetheMTtrainingtrees.
+2. BinarizetheMTtrainingtreesviatheEMbinarizationalgorithm.
+3. Learnan n-waysplitPCFGfromthebinarizedtreesviathealgorithm
+describedinPetrovetal.(2006).
+4. ProducetheViterbisplitannotationsonthebinarizedtrainingtreeswith
+thelearnedcategory-splitPCFG.
+As we mentioned earlier, tree binarization sometimes makes the decoder over-
+generalize the trees in the MT outputs, but we still binarize the training trees before
+performing category splitting, for two reasons. The ﬁrst reason is that the improve-
+ment on MT accuracy we achieved by tree re-structuring indicates that the beneﬁt
+we obtained from structure reuse triumphs the problem of tree over-generalization.
+The second is that carrying out category splitting on unbinarized training trees blows
+upthe grammar—splitting a CFG rule of rank 10 results in 2
+11
+split rules. This re-
+labeling procedure tries to achieve further improvement by trying to ﬁx the tree over-
+generalization problem of re-structuring while preserving the gain we have already
+obtainedfromtreere-structuring.
+Figure12(c1)showsacategory-splittree,andFigure12(c2)showstheminimalxRs
+rules extracted from the split tree. In Figure 12(c2), the two VPs (VP-0 and VP-2) now
+belongtotwodifferentcategoriesandcannotbeusedinthesamecontext.
+Inthisre-labelingprocedure,weseparatethere-labelingstepfromtheparsingstep,
+ratherthanusingaparserliketheoneinPetrovetal.(2006)todirectlyproducecategory-
+splitparsetreesontheEnglishcorpus.Wethinkthatwebeneﬁtfromthisseparationin
+thefollowingways:First,thisgivesusthefreedomtochoosetheparsertoproducethe
+initialtrees.Second,thisenablesustotrainthere-labeleronthedomainswheretheMT
+systemistrained,insteadofonthePennTreebank.Third,thisenablesustochooseour
+owntreebinarizationmethods.
+Treere-labelingfragmentsthetranslationrules.Eachreﬁnedrulenowﬁtsinfewer
+contexts than its corresponding coarse rule. Re-labeling, however, does not explode
+the grammar size, nor does re-labeling deteriorate the reuse of substructures. This
+is because the re-labeling (whether linguistic or automatic) results in very consistent
+annotations. Table 4 shows the sizes of the translation grammars from different re-
+labelingsofthetrainingtrees,aswellasthatfromtheunrelabeledones.
+Table4
+Grammarsizevs.re-labelingmethods.Re-labelingdoesnotexplodethegrammarsize.
+RE-LABELING METHOD # RULES(M) NONTERMINAL SET SIZE
+Nore-labeling 154.80 144
+Linguisticallymotivatedre-labeling 154.97 210
+4-waysplitting(90%merging) 158.89 178
+8-waysplitting(90%merging) 160.62 195
+4-waysplitting(50%merging) 164.15 326
+265
+ComputationalLinguistics Volume36,Number2
+Itwouldbeveryinterestingtoperformautomaticcategorysplittingwithsynchro-
+noustranslationrulesandruntheEMalgorithmonthesynchronousderivationforests.
+Synchronouscategorysplittingiscomputationallymuchmoreexpensive,sowedonot
+studyithere.
+4.3ExperimentalResults
+Weranend-to-endMTexperimentsbyre-labelingtheMTtrainingtrees.Ourtwobase-
+linesystemswereasyntaxMTsystemwithneitherre-structuringnorre-labeling,and
+asyntaxMTsystemwithre-structuringbutnore-labeling.Thelinguisticallymotivated
+re-labelingmethodwasapplieddirectlyontheoriginal(unrestructured)trainingtrees,
+sothatitcouldbecompared totheﬁrstbaseline. Theautomatic category splittingre-
+labelingmethodwasappliedtobinarizedtreessoastoavoidtheexplosionofthesplit
+grammar,soitiscomparedtothesecondbaseline.Theexperimentresultsareshownin
+Table5.
+Both re-labeling methods helpMT accuracy. Putting both re-structuring and re-
+labelingtogetherresultsin0.93BLEUpointsimprovementonNIST08set,and1BLEU
+point improvement on the newswire subset. All p-values are computed between the
+re-labeling systems and Baseline1. The improvement made by the linguistically moti-
+vatedre-labelingmethodissigniﬁcantatthe0.05level.Becausetheautomaticcategory
+splittingiscarriedoutonthetopofEMre-structuringandbecause,aswehavealready
+shown, EM re-structuring signiﬁcantly improves Baseline1, putting them together re-
+sultsinbettertranslationswithmoreconﬁdence.
+IfwecomparetheseresultstothoseinTable1,wenoticethatre-structuringtends
+to helpMT accuracy more than re-labeling. We mentioned earlier that re-structuring
+overgeneralizes structures, but enables reuse of substructures. Results in Table 5 and
+Table 1 show substructure reuse mitigates structure over-generalization in our tree re-
+structuringmethod.
+5.Re-aligning(Tree,String)PairsforTraining
+Sofar,wehaveimprovedtheEnglishstructuresinourparsed,alignedtrainingcorpus.
+Wenowturntoimprovingthewordalignments.
+Some MT systems use the same model for alignment and translation—examples
+includeBrownetal.(1993),Wu(1997),Alshawi,Bangalore,andDouglas(1998),Yamada
+andKnight(2001,2002),andCohnandBlunsom(2009).OthersystemsuseBrownetal.
+foralignment,thencollectcountsforacompletelydifferentmodel,suchasOchandNey
+Table5
+Impactofre-labelingmethodsonMTaccuracyasmeasuredbyBLEU.Four-waysplittingwas
+carriedoutonEM-binarizedtrees;thus,italreadybeneﬁtsfromtreere-structuring.Allp-values
+arecomputedagainstBaseline1.
+EXPERIMENT NIST08 NIST08-NW
+BLEU pBLEU p
+Baseline1(nore-structuringandnore-labeling) 29.12 — 35.33 —
+Linguisticallymotivatedre-labeling 29.57 0.029 35.85 0.050
+Baseline2(EMre-structuringbutnore-labeling) 29.74 — 36.12 —
+4-waysplitting(w/90%merging) 30.05 0.001 36.42 0.003
+266
+Wangetal. Re-structuring,Re-labeling,andRe-aligning
+(2004)orChiang(2007).Ourbasicsyntax-basedsystemfallsintothissecondcategory,
+as we learn our syntactic translation model from a corpus aligned with word-based
+techniques.Wewouldliketoinjectmoresyntacticreasoningintothealignmentprocess.
+Westartbycontrastingtwogenerativetranslationmodels.
+5.1TheTraditionalIBMAlignmentModel
+IBMModel4(Brownetal.1993)learnsasetoffourprobabilitytablestocomputeP(f|e)
+given a foreign sentence f and its target translation e via the following (simpliﬁed)
+generativestory:
+1. Afertility y foreachword e
+i
+in e ischosenwithprobabilityP
+fert
+(y|e
+i
+).
+2. Anullwordisinsertednexttoeachfertility-expandedwordwith
+probabilityP
+null
+.
+3. Eachtoken e
+i
+inthefertility-expandedwordandnullstringistranslated
+intosomeforeignword f
+i
+in f withprobabilityP
+trans
+(f
+i
+|e
+i
+).
+4. Thepositionofeachforeignword f
+i
+thatwastranslatedfrom e
+i
+ischanged
+by∆(whichmaybepositive,negative,orzero)withprobability
+P
+distortion
+(∆|A(e
+i
+),B(f
+i
+)),whereAandB arefunctionsoverthesourceand
+targetvocabularies,respectively.
+Brown et al. (1993) describe an EM algorithm for estimating values for the four
+tablesinthegenerativestory.Withthosevaluesinhand,wecancalculatethehighest-
+probability(Viterbi)alignmentforanygivenstringpair.
+Twoscaleproblemsariseinthisalgorithm.Theﬁrstisthetimecomplexityofenu-
+meratingalignmentsforfractionalcountcollection.Thisissolvedbyconsideringonly
+asubsetofalignments,andbybootstrappingtheP
+trans
+tablewithasimplermodelthat
+admits fast count collection via dynamic programming, such as IBM Model 1 (Brown
+et al. 1993) or Aachen HMM (Vogel, Ney, and Tillmann 1996). The second problem is
+one of space. In theory, the initial P
+trans
+table contains a cell for every English word
+pairedwitheveryChineseword—thiswouldbeinfeasible.Fortunately,inpractice,the
+tablecanbeinitializedwithonlythosewordpairsobservedco-occurringintheparallel
+trainingtext.
+5.2ASyntaxRe-alignmentModel
+Our syntax translation model learns a single probability table to compute P(etree,f)
+given a foreign sentence f and a parsed target translation etree. In the following gen-
+erativestoryweassumeastartingvariablewithsyntactictype v.
+1. Choosearule r toreplace v,withprobabilityP
+rule
+(r|v).
+2. Foreachvariablewithsyntactictype v
+i
+inthepartiallycompleted(tree,
+string)pair,continuetochooserules r
+i
+withprobabilityP
+rule
+(r
+i
+|v
+i
+)to
+replacethesevariablesuntiltherearenovariablesremaining.
+We can use this model to explain unaligned (tree, string) pairs from our training
+data.Withalargeenoughruleset,anygiven(tree,string)pairwilladmitmanyderiva-
+tions. Consider again the example from Figure 1. The particular alignment associated
+267
+ComputationalLinguistics Volume36,Number2
+with that(tree,string) pair yields theminimal rules ofFigure 2.A differentalignment
+yields different rules. Figure 13 shows two other alignments and their corresponding
+minimal rules. As noted before, a set of minimal rules in proper sequence forms
+a derivation tree of rules that explains the (tree, string) pair. Because rules explain
+variable-size fragments (e.g., R35 vs. R6), the possible derivation trees of rules that
+explainasentencepairhavevaryingsizes.Thesmallestsuchderivationtreehasasingle
+largerule(whichdoesnotappear inFigure13).Whenourmodelchooses aparticular
+derivationtreeofminimalrulestoexplainagiven(tree,string)pairitimplicitlychooses
+thealignmentthatproducedtheserulesaswell.
+3
+Ourmodelcanchooseaderivationby
+usinganyoftherulesinFigures13and2.Wewouldpreferitselectthederivationthat
+yieldsthegoodalignmentinFigure1.
+We can also develop an EM learning approach for this model. As in the IBM
+approach, we have both time and space issues. Time complexity, as we will see sub-
+sequently, is O(mn
+3
+), where m is the number of nodes in the English training tree and
+n is the length of the corresponding Chinese string. Space is more of a problem. We
+wouldliketoinitializeEMwithalltherulesthatmightconceivablybeusedtoexplain
+thetrainingdata.However,thissetistoolargetopracticallyenumerate.
+To reduce the model space we ﬁrst create a bootstrap alignment using a simpler
+word-based model. Then we acquire a set of minimal translation rules from the (tree,
+string, alignment) triples. Armed with these rules, we can discard the word-based
+alignmentsandre-alignwiththesyntaxtranslationmodel.
+Wesummarizetheapproachdescribedinthissectionas:
+1. Obtainbootstrapalignmentsforatrainingcorpususingword-based
+alignment.
+2. ExtractminimalrulesfromthecorpusandalignmentsusingGHKM,
+notingthepartialalignmentthatisusedtoextracteachrule.
+3. Constructderivationforestsforeach(tree,string)pair,ignoringthe
+alignments,andrunEMtoobtainViterbiderivationtrees,thenusethe
+annotatedpartialalignmentstoobtainViterbialignments.
+4. Usethenewalignmentstore-trainthefullMTsystem,thistimecollecting
+composedrulesaswellasminimalrules.
+5.3EMTrainingfortheSyntaxTranslationModel
+Consider the example of Figure 13 again. The top alignment was the bootstrap align-
+ment, and thus prior to any experiment we obtained the corresponding indicated
+minimalrulesetandderivation.Thisderivationisreasonablebuttherearesomepoorly
+motivated rules, from a linguistic standpoint. The Chinese wordG4E7 roughly means
+the two shores in this context, but the rule R35 learned from the alignment incorrectly
+includes between. However, other sentences in the training corpus have the correct
+3 Strictlyspeakingthereisactuallyaone-to-manymappingbetweenaderivationtreeofminimalrulesand
+thealignmentthatyieldstheserules,duetothehandlingofunalignedwords.However,thechoiceofone
+partialalignmentoveranotherdoesnotaffectresultsandinpracticeweimposeaone-to-onemapping
+betweenminimalrulesandthepartialalignmentsthatimplythembyselectingthemostfrequently
+observedpartialalignmentforagivenminimalrule.
+268
+Wangetal. Re-structuring,Re-labeling,andRe-aligning
+Figure13
+TheminimalrulesextractedfromtwodifferentalignmentsofthesentenceinFigure1.
+alignment, which yields rules in Figure 2, such as R8. Figure 2 also contains rules R4
+andR6,learnedfromyetothersentencesinthetrainingcorpus,whichhandletheGR...
+EL
+structure(whichroughlytranslatesto in between),thusallowingaderivationwhich
+containstheminimalrulesetofFigure2andimpliesthealignmentinFigure1.
+EMdistributesruleprobabilitiesinsuchawayastomaximizetheprobabilityofthe
+training corpus. It thus prefers to use one rule many times instead of several different
+269
+ComputationalLinguistics Volume36,Number2
+rules for the same situation over several sentences, if possible. R35 is a possible rule
+in 46 of the 329,031 sentence pairs in the training corpus, and R8 is a possible rule in
+100 sentence pairs. Well-formed rules are more usable than ill-formed rules and the
+partial alignments behind these rules, generally also well-formed, become favored as
+well. The toprow of Figure 14 contains an example of an alignment learned by the
+bootstrapalignmentmodelthatincludesanincorrectlink.RuleR25,whichisextracted
+from this alignment, is a poor rule. A set of commonly seen rules learned from other
+training sentences provide a more likely explanation of the data, and the consequent
+alignmentomitsthespuriouslink.
+Figure14
+Theimpactofabadalignmentonruleextraction.Includingthealignmentlinkindicatedbythe
+dottedlineintheexampleleadstotherulesetinthesecondrow.There-alignmentprocedure
+describedinSection5.2learnstoprefertherulesetatbottom,whichomitsthebadlink.
+270
+Wangetal. Re-structuring,Re-labeling,andRe-aligning
+Table6
+Translationperformance,grammarsizeversusthere-alignmentalgorithmproposedin
+Section5.2,andre-alignmentasmodiﬁedinSection5.4.
+EXPERIMENT NIST08 NIST08-NW #RULES(M)
+BLEU pBLEU p
+nore-alignment(baseline) 29.12 — 35.33 — 76.0
+EMre-alignment 29.18 0.411 35.52 0.296 75.1
+EMre-alignmentwithsizeprior 29.37 0.165 35.96 0.050 110.4
+Now we need an EM algorithm for learning the parameters of the rule set that
+maximize
+producttext
+corpus
+P(tree,string).Knight,Graehl,andMay(2008)presentagenericsuchalgo-
+rithmfortree-to-stringtransducersthatrunsinO(mn
+3
+)time,asmentionedearlier.The
+algorithm consists of two components: DERIV, which is a procedure for constructing
+a packed forest of derivation trees of rules that explain a (tree, string) bitext corpus
+given that corpus and a rule set, and TRAIN, which is an iterative parameter-setting
+procedure.
+Weinitiallyattemptedtousethetop-downDERIValgorithmofKnight,Graehl,and
+May(2008),butastheconstraintsofthederivationforestsarelargelylexical,toomuch
+time was spent on exploring dead-ends. Instead we build derivation forests using the
+followingsequenceofoperations:
+1. Binarizerulesusingthesynchronousbinarizationalgorithmfor
+tree-to-stringtransducersdescribedinZhangetal.(2006).
+2. ConstructaparsechartwithaCKYparsersimultaneouslyconstrainedon
+theforeignstringandEnglishtree,similartothebilingualparsingofWu
+(1997).
+4
+3. Recoverallreachableedgesbytraversingthechart,startingfromthe
+topmostentry.
+Becausethechartisconstructedbottom-up,leaflexicalconstraintsareencountered
+immediately, resulting in a narrower search space and faster running time than the
+top-down DERIV algorithm for this application. The Viterbi derivation tree tells us
+whichEnglishwordsproducewhichChinesewords,sowecanextractaword-to-word
+alignmentfromit.
+Althoughinprinciplethere-alignmentmodelandtranslationmodellearnparame-
+terweightsoverthesamerulespace,inpracticewelimittherulesusedforre-alignment
+tothesetofminimalrules.
+5.4AddingaRuleSizePrior
+Aninitialre-alignmentexperimentshowsasmallriseinBLEUscoresfromthebaseline
+(Table6),butcloserinspectionoftherulesfavoredbyEMimplieswecandoevenbetter.
+4 Inthecaseswherearuleisnotsynchronous-binarizable,standardleft–rightbinarizationisperformed
+andproperpermutationofthedisjointEnglishtreespansmustbeveriﬁedwhenbuildingthepartofthe
+chartthatusesthisrule.
+271
+ComputationalLinguistics Volume36,Number2
+EM has a tendency to favor a few large rules over many small rules, even when the
+smallrulesaremoreuseful.ReferringtotherulesinFigures2and13,notethatpossible
+derivationsfor(taiwan’s,FTD0)
+5
+areR33,R2–R3,andR38–R40.Clearlythethirdderiva-
+tionisnotdesirable,andwedonotdiscussitfurther.Betweentheﬁrsttwoderivations,
+R2–R3ispreferredoverR33,astheconditioningforpossessiveinsertionisnotrelatedto
+thespeciﬁcChinesewordbeinginserted.Ofthe1,902sentencesinthetrainingcorpus
+where this pair is seen, the bootstrap alignments yield the R33 derivation 1,649 times
+and the R2–R3 derivation 0 times. Re-alignment does not change the result much; the
+newalignmentsyieldtheR33derivation1,613timesandagainneverchooseR2–R3.The
+rules in the second derivation themselves are not rarely seen—R2 is in 13,311 forests
+other thanthosewhereR33isseen,andR3isin2,500additionalforests.EMgivesR2a
+probabilityof e
+−7.72
+—betterthan98.7%ofrules,andR3aprobabilityof e
+−2.96
+.ButR33
+receivesaprobabilityof e
+−6.32
+andispreferredovertheR2–R3derivation,whichhasa
+combinedprobabilityof e
+−10.68
+.
+Thepreferenceforshorterderivationscontaininglargerulesoverlongerderivations
+containing small rules is due to a general tendency for EM to prefer derivations with
+fewatoms.MarcuandWong(2002)notethispreferencebutconsiderthephenomenon
+afeature,ratherthanabug.ZollmannandSima’an(2005)combattheoverﬁttingaspect
+for parsing by using a held-out corpus and a straight maximum likelihood estimate,
+ratherthanEM.DeNero,Bouchard-Cˆot´e,andKlein(2008)encouragesmallruleswitha
+modelingapproach;theyputaDirichletprocesspriorofrulesizeovertheirmodeland
+learntheparametersofthegeometricdistributionofthatpriorwithGibbssampling.We
+useasimplermodelingapproachtoaccomplishthesamegoalsasDeNero,Bouchard-
+Cˆot´e, and Klein which, although less elegant, is more scalable and does not require a
+separateBayesianinferenceprocedure.
+Astheprobabilityofaderivationisdeterminedbytheproductofitsatomprobabil-
+ities,longerderivationswithmoreprobabilitiestomultiplyhaveaninherentdisadvan-
+tageagainstshorterderivations,allelsebeingequal.EMisaniterativeprocedureand
+thussuchabiascanleadtheproceduretoconvergewithartiﬁciallyraisedprobabilities
+for short derivations and the large rules that constitute them. The relatively rare ap-
+plicabilityoflargerules(andthuslowerobservedpartialcounts)doesnotovercomethe
+inherentadvantageoflargecoverage.Tocombatthis,weintroducesizetermsintoour
+generativestory,ensuringthatallcompetingderivationsforthesamesentencecontain
+thesamenumberofatoms:
+1. Choosearulesize s withcost c
+size
+(s)
+s−1
+.
+2. Choosearule r (ofsize s)toreplacethestartsymbolwithprobability
+P
+rule
+(r|s,v).
+3. Foreachvariableinthepartiallycompleted(tree,string)pair,continueto
+choosesizesfollowedbyrules,recursivelytoreplacethesevariablesuntil
+therearenovariablesremaining.
+ThisgenerativestorychangesthederivationcomparisonfromR33vs.R2–R3toS2–
+R33vs.R2–R3,whereS2istheatomthatrepresentsthechoiceofsize2(thesizeofarule
+5 TheChineseglossissimply“taiwan”.
+272
+Wangetal. Re-structuring,Re-labeling,andRe-aligning
+inthiscontextisthenumberofnon-leafandnon-rootnodesinitstreefragment).Note
+thatthevariablenumberofinclusionsimpliedbytheexponentinthegenerativestory
+above ensures that all derivations have the same size. For example, a derivation with
+onesize-3rule,aderivationwithonesize-2andonesize-1rule,andaderivationwith
+threesize-1ruleswouldeachhavethreeatoms.Withthisrevisedmodelthatallowsfor
+faircomparisonofderivations,theR2–R3derivationischosen1,636times,andS2–R33
+isnotchosen.R33does,however,appearinthetranslationmodel,astheexpandedrule
+extractiondescribedinSection1createsR33byjoiningR2andR3.
+Theprobabilityofsizeatoms,likethatofruleatoms,isdecidedbyEM.Therevised
+generativestorytendstoencourage smallersizesbyvirtueoftheexponent.Thisdoes
+not, however, simply ensure the largest number of rules per derivation is used in all
+cases.Ill-ﬁttingandpoorlymotivatedrulessuchasR42,R43,andR44inFigure13are
+notpreferredoverR8,eventhoughtheyaresmaller.However,R6andR8arepreferred
+overR35,astheformerareusefulrules.Althoughthemodiﬁedmodeldoesnotsumto
+1,itcanneverthelessleadtoanimprovementinBLEUscore.
+5.5ExperimentalResults
+The end-to-end MT experiment used as baseline and described in Sections 3.5 and 4.3
+wastrainedonIBMModel4wordalignments,obtainedbyrunningGIZA,asdescribed
+inSection2.WecomparedthisbaselinetoanMTsystemthatusedalignmentsobtained
+byre-aligningtheGIZAalignmentsusingthemethodofSection5.2withthe36million
+word subset of the training corpus used for re-alignment learning. We next compared
+the baseline to an MT system that used re-alignments obtained by also incorporating
+thesizepriordescribedinSection5.4.AscanbeseenbytheresultsinTable6,thesize
+prior method is needed to obtain reasonable improvement in BLEU. These results are
+consistent with those reported in May and Knight (2007), where gains in Chinese and
+ArabicMTsystemswereobserved,thoughoveraweakerbaselineandwithlesstraining
+datathanisusedinthiswork.
+6.CombiningTechniques
+We have thus far seen gains in BLEU score by independent improvements in training
+data tree structure, syntax labeling, and alignment. This naturally raises the question
+of whether the techniques can be combined, that is, if improvement in one aspect of
+training data aids in improvement of another. As reported in Section 4.3 and Table 5,
+wewereabletoimprovere-labelingeffortsandtakeadvantageofthesplit-and-merge
+techniqueofPetrovetal.(2006)byﬁrstre-structuringviathemethoddescribedinSec-
+tion3.4.Itisunlikelythatsuchre-structuringorre-labelingwouldaidinasubsequent
+re-alignment procedure like that of Section 5.2, for re-structuring changes trees based
+onagivenalignment,andre-alignmentcanonlychangelinkswhenmultipleinstances
+of a (subtree, substring) tuple are found in the data with different partial alignments.
+Re-structuring beforehand changes the trees over different alignments differently. It is
+unlikely that many (subtree, substring) tuples with more than one partial alignment
+wouldremainafterare-structuring.
+However,re-structuringmaybeneﬁtfromapriorre-alignment.Wedonotwantre-
+structuring decisions to be made over bad alignments, so unifying alignments based
+on common syntax should lead EM to make a more conﬁdent binarization decision.
+273
+ComputationalLinguistics Volume36,Number2
+Table7
+Summaryofexperimentsinthisarticle,includingacombinedexperimentwithre-alignment,
+re-structuring,andre-labeling.
+EXPERIMENT NIST08 NIST08-NW #RULES(M)
+BLEU pBLEU p
+Baseline(nobinarization,nore-labeling, 29.12 — 35.33 — 76.0
+Model4alignments)
+leftbinarization 29.35 0.184 35.46 0.360 153.4
+EMbinarization 29.74 0.010 36.12 0.016 154.8
+Linguisticre-labeling 29.57 0.029 35.85 0.050 154.97
+EMbinarization+EMre-labeling 30.05 0.001 36.42 0.003 158.89
+(4-waysplittingw/90%merging)
+EMre-alignment 29.18 0.411 35.52 0.296 75.1
+SizepriorEMre-alignment 29.37 0.165 35.96 0.050 110.4
+SizepriorEMre-alignment+ 30.6 0.001 36.73 0.002 222.0
+EMbinarization+EMre-labeling
+Betterre-structuring shouldinturnleadtobetterre-labeling, andthisshouldincrease
+theperformanceoftheoverallMTpipeline.
+To test this hypothesis we pre-processed alignments using the modiﬁed re-
+alignmentproceduredescribedinSection5.4.Wenextusedthosealignmentstoobtain
+new binarizations of trees following the EM binarization method described in Sec-
+tion3.4.Finally,re-labelingwasdoneonthesebinarizedtreesusing4-waysplittingwith
+90%merging,asdescribedinSection4.Theﬁnaltrees,alongwiththealignmentsused
+to get these trees and of course the parallel Chinese sentences, were then used as the
+training data of our MT pipeline. The results of this combined experiment are shown
+in Table 7 along with the other experiments from this article, for ease of comparison.
+As can be seen from this table, the progressive improvement of training data leads
+to an overall improvement in MT system performance. As noted previously, there
+tends to be a correspondence between the number of unique rules extracted and MT
+performance.Theﬁnalcombinedexperimenthasthegreatestnumberofuniquerules.
+The improvements made to syntax and alignment described in this article unify these
+twoindependentlydeterminedannotationsoverthebitext,andthisthusleadstomore
+admissible nodes and a greater ability to extract rules. Such a uniﬁcation can lead to
+over-generalization,asruleslackingsufﬁcientcontextmaybeextractedandusedtothe
+system’s detriment. This is why a re-labeling technique is also needed, to ensure that
+sufﬁcientrulespeciﬁcityismaintained.
+7.Conclusion
+This article considered three modiﬁcations to MT training data that encourage im-
+proved performance in a state-of-the-art syntactic MT system. The improvements
+changed syntactic structure, altered bracket labels, and uniﬁed alignment across sen-
+tences, and when combined led toan improvement of1.48 BLEU points over a strong
+baseline in Chinese–English translation. The techniques herein described require only
+274
+Wangetal. Re-structuring,Re-labeling,andRe-aligning
+thetrainingdatausedintheoriginalMTtaskandarethusapplicabletoastring-to-tree
+MTsystemforanylanguagepair.
+Acknowledgments
+Someoftheresultsinthisarticleappear
+inWang,Knight,andMarcu(2007)and
+MayandKnight(2007).Thelinguistically
+motivatedre-labelingmethodisdueto
+SteveDeNeefe,KevinKnight,andDavid
+Chiang.Theauthorsalsowishtothank
+SlavPetrovforhishelpwiththeBerkeley
+parser,andtheanonymousreviewers
+fortheirhelpfulcomments.Thisresearch
+wassupportedunderDARPAContract
+No.HR0011-06-C-0022,BBNsubcontract
+9500008412.
+References
+Alshawi,Hiyan,SrinivasBangalore,
+andShonaDouglas.1998.Automatic
+acquisitionofhierarchicaltransduction
+modelsformachinetranslation.In
+Proceedings of the 36th Annual Meeting of
+the Association for Computational Linguistics
+(ACL) and 17th International Conference on
+Computational Linguistics (COLING) 1998,
+pages41–47,Montr´eal.
+Brown,PeterF.,StephenA.DellaPietra,
+VincentJ.DellaPietra,andRobertL.
+Mercer.1993.Themathematicsof
+statisticalmachinetranslation:Parameter
+estimation. Computational Linguistics,
+19(2):263–312.
+Charniak,Eugene.2000.Amaximum-
+entropy-inspiredparser.In Proceedings of
+the 1st North American Chapter of the
+Association for Computational Linguistics
+Conference (NAACL),pages132–139,
+Seattle,WA.
+Chiang,David.2007.Hierarchical
+phrase-basedtranslation. Computational
+Linguistics,33(2):201–228.
+Cohn,TrevorandPhilBlunsom.2009.
+ABayesianmodelofsyntax-directed
+treetostringgrammarinduction.In
+Proceedings of the 2009 Conference on
+Empirical Methods in Natural Language
+Processing,pages352–361,Singapore.
+Collins,Michael.1997.Threegenerative,
+lexicalizedmodelsforstatisticalparsing.
+In Proceedings of the 35th Annual Meeting of
+the Association for Computational Linguistics
+(ACL),pages16–23,Madrid.
+Dempster,ArthurP.,NanM.Laird,and
+DonaldB.Rubin.1977.Maximum
+likelihoodfromincompletedataviathe
+EMalgorithm. Journal of the Royal
+Statistical Society,39(1):1–38.
+DeNeefe,Steve,KevinKnight,WeiWang,
+andDanielMarcu.2007.Whatcan
+syntax-basedMTlearnfromphrase-based
+MT?In Proceedings of EMNLP–CoNLL-2007,
+pages755–763,Prague.
+DeNero,John,AlexandreBouchard-Cˆot´e,
+andDanKlein.2008.Samplingalignment
+structureunderaBayesiantranslation
+model.In Proceedings of the 2008 Conference
+on Empirical Methods in Natural Language
+Processing (EMNLP),pages314–323,
+Honolulu,HI.
+Gale,WilliamA.andGeoffreySampson.
+1996.Good-Turingfrequencyestimation
+withouttears. Journal of Quantitative
+Linguistics,2(3):217–237.
+Galley,Michel,JonathanGraehl,Kevin
+Knight,DanielMarcu,SteveDeNeefe,
+WeiWang,andIgnacioThayer.2006.
+Scalableinferenceandtrainingof
+context-richsyntactictranslationmodels.
+In Proceedings of the 21st International
+Conference on Computational Linguistics
+(COLING) and 44th Annual Meeting of the
+Association for Computational Linguistics
+(ACL),pages961–968,Sydney.
+Galley,Michel,MarkHopkins,KevinKnight,
+andDanielMarcu.2004.What’sina
+translationrule?In Proceedings of the
+Human Language Technology Conference and
+the North American Association for
+Computational Linguistics (HLT-NAACL),
+pages273–280,Boston,MA.
+Good,IrvingJ.1953.Thepopulation
+frequenciesofspeciesandtheestimation
+ofpopulationparameters. Biometrika,
+40(3):237–264.
+Goodman,Joshua.1999.Semiringparsing.
+Computational Linguistics,25(4):573–605.
+Huang,BryantandKevinKnight.2006.
+Relabelingsyntaxtreestoimprove
+syntax-basedmachinetranslation
+accuracy.In Proceedings of the main
+conference on Human Language Technology
+Conference of the North American Chapter
+of the Association of Computational
+Linguistics (NAACL-HLT),pages240–247,
+NewYork,NY.
+Johnson,Mark.1998a.TheDOPestimation
+methodisbiasedandinconsistent.
+Computational Linguistics,28(1):71–76.
+Johnson,Mark.1998b.PCFGmodelsof
+linguistictreerepresentations.
+Computational Linguistics,24(4):613–632.
+Klein,DanandChrisManning.2003.
+Accurateunlexicalizedparsing.In
+275
+ComputationalLinguistics Volume36,Number2
+Proceedings of the 40th Annual Meeting of
+the Association for Computational Linguistics
+(ACL),pages423–430,Sapporo.
+Kneser,ReinhardandHermannNey.
+1995.Improvedbacking-offfor
+m-gramlanguagemodeling.In
+Proceedings of the International Conference
+on Acoustics, Speech, and Signal
+Processing (ICASSP) 1995,pages181–184,
+Detroit,MI.
+Knight,KevinandJonathanGraehl.2005.
+Anoverviewofprobabilistictree
+transducersfornaturallanguage
+processing.In Proceedings of the Sixth
+International Conference on Intelligent
+Text Processing and Computational
+Linguistics (CICLing),pages1–25,
+MexicoCity.
+Knight,Kevin,JonathanGraehl,and
+JonathanMay.2008.Trainingtree
+transducers. Computational Linguistics,
+34(3):391–427.
+Koehn,Philipp.2004.Statisticalsigniﬁcance
+testsformachinetranslationevaluation.
+In Proceedings of the 2004 Conference on
+Empirical Methods in Natural Language
+Processing (EMNLP),pages388–395,
+Barcelona.
+Lari,KarimandSteveYoung.1990.The
+estimationofstochasticcontext-free
+grammarsusingtheinside-outside
+algorithm. Computer Speech and Language,
+4:35–56.
+Marcu,DanielandWilliamWong.2002.
+Aphrase-based,jointprobabilitymodel
+forstatisticalmachinetranslation.
+In Proceedings of the 2002 Conference
+on Empirical Methods in Natural Language
+Processing (EMNLP),pages133–139,
+Philadelphia,PA.
+Marcus,MitchellP.,BeatriceSantorini,and
+MaryAnnMarcinkiewicz.1993.Buildinga
+largeannotatedcorpusofEnglish:The
+PennTreebank. Computational Linguistics,
+19(2):313–330.
+May,JonathanandKevinKnight.2007.
+Syntacticre-alignmentmodelsfor
+machinetranslation.In Proceedings
+of the 2007 Joint Conference on Empirical
+Methods in Natural Language Processing
+and Computational Natural Language
+Learning (EMNLP–CoNLL),pages360–368,
+Prague.
+Melamed,I.Dan,GiorgioSatta,and
+BenjaminWellington.2004.Generalized
+multitextgrammars.In Proceedings of the
+42nd Annual Meeting of the Association
+for Computational Linguistics (ACL),
+pages662–669,Barcelona.
+Mi,HaitaoandLiangHuang.2008.
+Forest-basedtranslationruleextraction.
+In Proceedings of the 2008 Conference on
+Empirical Methods in Natural Language
+Processing (EMNLP),pages206–214,
+Honolulu,HI.
+Och,FranzandHermannNey.2004.The
+alignmenttemplateapproachtostatistical
+machinetranslation. Computational
+Linguistics,30(4):417–449.
+Och,FranzJosef.2003.Minimumerrorrate
+trainingformachinetranslation.In
+Proceedings of the 40th Annual Meeting of
+the Association for Computational Linguistics
+(ACL),pages160–167,Sapporo.
+Petrov,Slav,LeonBarrett,Romain
+Thibaux,andDanKlein.2006.Learning
+accurate,compact,andinterpretable
+treeannotation.In Proceedings of the
+21st International Conference on
+Computational Linguistics (COLING) and
+44th Annual Meeting of the Association
+for Computational Linguistics (ACL),
+pages433–440,Sydney.
+Stolcke,Andreas.2002.SRILM—an
+extensiblelanguagemodelingtoolkit.
+In Proceedings of the 7th International
+Conference on Spoken Language
+Processing (ICSLP) 2002,pages901–904,
+Denver,CO.
+Talbot,DavidandMilesOsborne.2007.
+Randomisedlanguagemodellingfor
+statisticalmachinetranslation.In
+Proceedings of the 45th Annual Meeting of
+the Association of Computational Linguistics
+(ACL),pages512–519,Prague.
+Vogel,Stephan,HermannNey,and
+ChristophTillmann.1996.HMM-based
+wordalignmentinstatisticaltranslation.In
+Proceedings of the International Conference on
+Computational Linguistics (COLING) 1996,
+pages836–841,Copenhagen.
+Wang,Wei,KevinKnight,andDaniel
+Marcu.2007.Binarizingsyntaxtrees
+toimprovesyntax-basedmachine
+translationaccuracy.In Proceedings
+of the 2007 Joint Conference on Empirical
+Methods in Natural Language Processing
+and Computational Natural Language
+Learning (EMNLP–CoNLL),pages746–754,
+Prague.
+Wu,Dekai.1997.Stochasticinversion
+transductiongrammarsandbilingual
+parsingofparallelcorpora. Computational
+Linguistics,23(3):377–404.
+Yamada,KenjiandKevinKnight.2001.
+Asyntax-basedstatisticaltranslation
+model.In Proceedings of the 39th
+Annual Meeting of the Association for
+276
+Wangetal. Re-structuring,Re-labeling,andRe-aligning
+Computational Linguistics (ACL),
+pages523–530,Toulouse.
+Yamada,KenjiandKevinKnight.2002.
+Adecoderforsyntax-basedstatistical
+MT.In Proceedings of the 40th Annual
+Meeting of the Association for Computational
+Linguistics (ACL),pages303–310,
+Philadelphia,PA.
+Zhang,Hao,LiangHuang,DanielGildea,
+andKevinKnight.2006.Synchronous
+binarizationformachinetranslation.
+In Proceedings of the main conference
+on Human Language Technology
+Conference of the North American Chapter
+of the Association of Computational
+Linguistics (HLT-NAACL),pages256–263,
+NewYork,NY.
+Zollmann,AndreasandKhalilSima’an.
+2005.Aconsistentandefﬁcientestimator
+fordata-orientedparsing. Journal of
+Automata, Languages and Combinatorics,
+10(2/3):367–388.
+277
+
+

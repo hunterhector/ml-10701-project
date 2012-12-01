@@ -1,0 +1,2756 @@
+RobustUnderstanding in
+MultimodalInterfaces
+SrinivasBangalore
+∗
+AT&TLabs–Research
+MichaelJohnston
+∗∗
+AT&TLabs–Research
+Multimodal grammars provide an effective mechanism for quickly creating integration and
+understanding capabilities for interactive systems supporting simultaneous use of multiple
+input modalities. However, like other approaches based on hand-crafted grammars, multimodal
+grammarscanbebrittlewithrespecttounexpected,erroneous,ordisﬂuentinput.Inthisarticle,
+we show how the ﬁnite-state approach to multimodal language processing can be extended
+to support multimodal applications combining speech with complex freehand pen input, and
+evaluate the approach in the context of a multimodal conversational system (MATCH). We
+explore a range of different techniques for improving the robustness of multimodal integration
+and understanding. These include techniques for building effective language models for speech
+recognition when little or no multimodal training data is available, and techniques for robust
+multimodal understanding that draw on classiﬁcation, machine translation, and sequence edit
+methods. We also explore the use of edit-based methods to overcome mismatches between the
+gesturestreamandthespeechstream.
+1. Introduction
+The ongoing convergence of the Web with telephony, driven by technologies such as
+voiceoverIP,broadbandInternetaccess,high-speedmobiledatanetworks,andhand-
+held computers and smartphones, enables widespread deployment of multimodal in-
+terfaceswhichcombinegraphicaluserinterfaceswithnaturalmodalitiessuchasspeech
+and pen. The critical advantage of multimodal interfaces is that they allow user input
+andsystemoutputtobeexpressedinthemodeormodestowhichtheyarebestsuited,
+given the task at hand, user preferences, and the physical and social environment of
+theinteraction (Oviatt1997;Cassell2001;Andr´e2002;Wahlster2002).Thereisalsoan
+increasingbodyofempiricalevidence (Hauptmann1989;Nishimotoetal.1995;Cohen
+etal.1998a;Oviatt1999)showinguserpreferenceandtaskperformanceadvantagesof
+multimodalinterfaces.
+In order to support effective multimodal interfaces, natural language processing
+techniques, which have typically operated over linear sequences of speech or text,
+∗ 180ParkAvenue,FlorhamPark,NJ07932.E-mail:srini@research.att.com.
+∗∗ 180ParkAvenue,FlorhamPark,NJ07932.E-mail:johnston@research.att.com.
+Submissionreceived:26May2006;revisedsubmissionreceived:6May2008;acceptedforpublication:
+11July2008.
+©2009AssociationforComputationalLinguistics
+ComputationalLinguistics Volume35,Number3
+needtobeextendedinordertosupportintegrationandunderstandingofmultimodal
+languagedistributedovermultipledifferentinputmodes(Johnstonetal.1997;Johnston
+1998b). Multimodal grammars provide an expressive mechanism for quickly creating
+language processing capabilities for multimodal interfaces supporting input modes
+such as speech and gesture (Johnston and Bangalore 2000). They support composite
+multimodal inputs by aligning speech input (words) and gesture input (represented
+as sequences of gesture symbols) while expressing the relation between the speech
+andgestureinputandtheircombinedsemanticrepresentation.JohnstonandBangalore
+(2005)showthatsuchgrammarscanbecompiledintoﬁnite-statetransducers,enabling
+effective processing of lattice input from speech and gesture recognition and mutual
+compensationforerrorsandambiguities.
+In this article, we show how multimodal grammars and their ﬁnite-state imple-
+mentation can be extended to support more complex multimodal applications. These
+applicationscombinespeechwithcomplexpeninputincludingbothfreehandgestures
+andhandwritteninput.Moregeneralmechanismsareintroducedforrepresentationof
+gestures and abstraction over speciﬁc content in the gesture stream along with a new
+technique for aggregation of gestures. We evaluate the approach in the context of the
+MATCH multimodal conversational system (Johnston et al. 2002b), an interactive city
+guide.InSection2,wepresenttheMATCHapplication,thearchitectureofthesystem,
+and our experimental method for collection and annotation of multimodal data. In
+Section3,weevaluatethebaselineapproachonthecollecteddata.
+The performance of this baseline approach is limited by the use of hand-crafted
+models for speech recognition and multimodal understanding. Like other approaches
+basedonhand-craftedgrammars,multimodalgrammarscanbebrittlewithrespectto
+extra-grammatical, erroneous, anddisﬂuentinput.Thisisparticularly problematic for
+multimodalinterfacesiftheyaretobeusedinnoisymobileenvironments.Toovercome
+this limitation we explore a broad range of different techniques for improving the
+robustnessofbothspeechrecognitionandmultimodalunderstandingcomponents.
+Forautomaticspeechrecognition(ASR),acorpus-drivenstochasticlanguagemodel
+(SLM)withsmoothingcanbebuiltinordertoovercomethebrittlenessofagrammar-
+basedlanguagemodel.However,formultimodalapplicationsthereisoftenverylittle
+training data available and collection and annotation of realistic data can be very
+expensive.InSection5,weexamineandevaluatevariousdifferenttechniquesforrapid
+prototyping of the language model for the speech recognizer, including transforma-
+tionofout-of-domaindata,grammarsampling,adaptationfromwide-coveragegram-
+mars, and speech recognition models built on conversational corpora (Switchboard).
+Although some of the techniques presented have been reported in the literature, we
+are not aware of work comparing the effectiveness of these techniques on the same
+domainandusingthesamedatasets.Furthermore,thetechniquesaregeneralenough
+that they can be applied to bootstrap robust gesture recognition models as well. The
+presentationherefocusesonspeechrecognitionmodels,partlyduetothegreaterimpact
+ofspeechrecognitionperformancecomparedtogesturerecognitionperformanceonthe
+multimodal application described here. However, in Section 7 we explore the use of
+robustnesstechniquesongestureinput.
+Although the use of an SLM enables recognition of out-of-grammar utterances,
+resulting in improved speech recognition accuracy, this may not help overall system
+performance unless the multimodal understanding component itself is made robust
+to unexpected inputs. In Section 6, we describe and evaluate several different tech-
+niques for making multimodal understanding more robust. Given the success of dis-
+criminative classiﬁcation models in related applications such as natural language call
+346
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+routing (Haffner, Tur, and Wright 2003; Gupta et al. 2004) and semantic role label-
+ing (Punyakanok, Roth, and Yih 2005), we ﬁrst pursue a purely data-driven approach
+where the predicate of a multimodal command and its arguments are determined by
+classiﬁers trained on an annotated corpus of multimodal data. However, given the
+limitedamountofdataavailable,thisapproachdoesnotprovideanimprovementover
+the grammar-based approach. We next pursue an approach combining grammar and
+datawhererobustunderstandingisviewedasastatisticalmachinetranslationproblem
+where out-of-grammar or misrecognized language must be translated to the closest
+language the system can understand. This approach provides modest improvement
+overthegrammar-basedapproach.Finallyweexploreanedit-distanceapproachwhich
+combinesgrammar-basedunderstandingwithknowledgederivedfromtheunderlying
+application database. Essentially, if a string cannot be parsed, we attempt to identify
+thein-grammarstringthatitismostsimilarto,justasinthetranslationapproach.This
+is achieved by using a ﬁnite-state edit transducer to compose the output of the ASR
+with the grammar-based multimodal alignment and understanding models. We have
+presentedthesetechniquesasmethodsforimprovingtherobustnessofthemultimodal
+understandingbyprocessingthespeechrecognitionoutput.Giventhehigherchanceof
+errorinspeechrecognitioncomparedtogesturerecognition,wefocusonprocessingthe
+speechrecognitionoutputtoachieverobustmultimodalunderstanding.However,these
+techniques are also equally applicable to gesture recognition output. In Section 7, we
+explore theuse ofedittechniques ongesture input.Section 8concludes and discusses
+theimplicationsoftheseresults.
+2. TheMATCH Application
+Urban environments present a complex and constantly changing body of informa-
+tionregardingrestaurants,cinemaandtheaterschedules,transportationtopology,and
+timetables.Thisinformationismostvaluableifitcanbedeliveredeffectivelywhilemo-
+bile,sinceusers’needschangerapidlyandtheinformationitselfisdynamic(e.g.,train
+timeschangeandshowsgetcancelled).MATCH(MultimodalAccessToCityHelp)isa
+workingcityguideandnavigationsystemthatenablesmobileuserstoaccessrestaurant
+and subway information for urban centers such as New York City and Washington,
+DC(Johnstonetal.2002a,2002b).MATCHrunsstand-aloneonatabletPC(Figure1)or
+in client-server mode across a wireless network. There is also a kiosk version of the
+system (MATCHkiosk) (Johnston and Bangalore 2004) which incorporates a life-like
+talking head. In this article, we focus on the mobile version of MATCH, in which the
+user interacts with a graphical interface displaying restaurant listings and a dynamic
+mapshowinglocationsandstreetinformation.Theinputscanbespeech,drawingson
+thedisplaywithastylus,orsynchronousmultimodalcombinationsofthetwomodes.
+The user can ask for reviews, cuisine, phone number, address, or other information
+about restaurants and for subway directions to restaurants and locations. The system
+responds with graphical callouts on the display, synchronized with synthetic speech
+output.
+Forexample,ausercanrequesttoseerestaurantsusingthespokencommandshow
+cheap italian restaurants in chelsea. The system will then zoom to the appropriate map
+locationandshowthelocationsofrestaurantsonthemap.Alternatively,theusercould
+givethesamecommandmultimodallybycirclinganareaonthemapandsayingshow
+cheapitalianrestaurantsinthisneighborhood.Iftheimmediateenvironmentistoonoisyor
+public, the same command can be given completely using a pen stylus as in Figure 2,
+bycirclinganareaandwritingcheapanditalian.
+347
+ComputationalLinguistics Volume35,Number3
+Figure1
+MATCHontablet.
+Similarly, if the user says phone numbers for these two restaurants and circles two
+restaurants as in Figure 3(a) [A], the system will draw a callout with the restaurant
+name and number and say, for example, Time Cafe can be reached at 212-533-7000,for
+each restaurant in turn (Figure 3(a) [B]). If the immediate environment is too noisy or
+public, the same command can be given completely in pen by circling the restaurants
+andwritingphone(Figure3(b)).
+Thesystemalsoprovidessubwaydirections.Forexample,iftheusersaysHowdoI
+gettothisplace?andcirclesoneoftherestaurantsdisplayedonthemapthesystemwill
+askWheredoyouwanttogofrom?.Theusercanthenrespondwithspeech(forexample,
+25th Street and 3rd Avenue), with pen by writing (for example, 25th St & 3rd Ave), or
+multimodally (for example, from here, with a circle gesture indicating the location).
+The system then calculates the optimal subway route and generates a multimodal
+presentationcoordinatinggraphicalpresentationofeachstageoftheroutewithspoken
+instructionsindicatingtheseriesofactionstheuserneedstotake(Figure4).
+Map-basedsystemshavebeenacommonapplicationareaforexploringmultimodal
+interaction techniques. One of the reasons for this is the effectiveness and naturalness
+ofcombininggraphicalinputtoindicatespatiallocationswithspokeninputtospecify
+commands. See Oviatt (1997) for a detailed experimental investigation illustrating the
+Figure2
+Unimodalpencommand.
+348
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+Figure3
+(a)Twoareagestures.(b)Phonecommandinpen.
+Figure4
+Multimodalsubwayroute.
+advantagesofmultimodalinputformap-basedtasks.Previousmap-basedmultimodal
+prototypescanbebrokendownintotwomaintaskdomains:mapannotationtasksand
+informationsearchtasks.SystemssuchasQuickSet(Cohenetal.1998b)focusontheuse
+of speech and pen input in order to annotate the location of features on a map. Other
+systemsusespeechandpeninputtoenableuserstosearchandbrowseforinformation
+through direct interaction with a map display. In the ADAPT system (Gustafson et al.2000),usersbrowseforapartmentsusingcombinationsofspeakingandpointing.Inthe
+MultimodalMapssystem(CheyerandJulia1998),usersperformtravelplanningtasks
+such as searching for hotels and points of interest. MATCH is an information search
+applicationprovidinglocalsearchcapabilitiescombinedwithtransportationdirections.
+As such it is most similar to the Multimodal Maps application, though it provides
+more powerful and robust language processing and multimodal integration capabili-
+ties, while the language processing in the Multimodal Maps application is limited to
+simpleVerbObjectArgumentconstructions(CheyerandJulia1998).
+Inthenextsectionweexplaintheunderlyingarchitectureandtheseriesofcompo-
+nentswhichenabletheMATCHuserinterface.
+2.1MATCH Multimodal Architecture
+The underlying architecture that supports MATCH consists of a series of re-usable
+components which communicate over IP through a facilitator (MCUBE) (Figure 5).
+Figure 6 shows the ﬂow of information among components in the system. In earlier
+349
+ComputationalLinguistics Volume35,Number3
+Figure5
+Multimodalarchitecture.
+versionsofthesystem,communicationwasoversocketconnections.Inlaterversionsof
+thesystemcommunicationbetweencomponentsusesHTTP.
+Users interact with the system through a Multimodal User Interface client (MUI)
+whichrunsinaWebbrowser.TheirspeechisprocessedbytheWATSONspeechrecog-
+nitionserver (Gofﬁnetal.2005)resultinginaweightedlatticeofwordstrings.Whenthe
+userdrawsonthemaptheirinkiscapturedandanyobjectspotentiallyselected,suchas
+currentlydisplayedrestaurants,areidentiﬁed.Theelectronicinkisbrokenintoalattice
+of strokes and sent to both gesture and handwriting recognition components which
+Figure6
+Multimodalarchitectureﬂowchart.
+350
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+enrichthisstrokelatticewithpossibleclassiﬁcationsofstrokesandstrokecombinations.
+The gesture recognizer uses a variant of the template matching approach described
+byRubine(1991).Thisrecognizessymbolicgesturessuchaslines,areas,points,arrows,
+andsoon.Thestrokelatticeisthenconvertedintoaninklatticewhichrepresentsallof
+thepossibleinterpretationsoftheuser’sinkaseithersymbolicgesturesorhandwritten
+words.Thewordlatticeandinklatticeareintegratedandassignedacombinedmeaning
+representationbythemultimodalintegrationandunderstandingcomponent(Johnston
+and Bangalore 2000; Johnston et al. 2002b). Because we implement this component
+usingﬁnite-statetransducers,werefertothiscomponentastheMultimodalFiniteState
+Transducer (MMFST). The approach used in the MMFST component for integrating
+and interpreting multimodal inputs (Johnston et al. 2002a, 2002b) is an extension of
+the ﬁnite-state approach previously proposed (Bangalore and Johnston 2000; Johnston
+and Bangalore 2000, 2005). (See Section 3 for details.) This provides as output a
+lattice encoding all of the potential meaning representations assigned to the user’s
+input. The meaning is represented in XML, facilitating parsing and logging by other
+system components. MMFST can receive inputs and generate outputs using multiple
+communication protocols, including the W3C EMMA standard for representation of
+multimodalinputs(Johnstonetal.2007).Themeaninglatticeisﬂattenedtoann-bestlist
+andpassedtoamultimodal dialogmanager (MDM)(Johnstonetal.2002b),whichre-
+ranksthepossiblemeaningsinaccordancewiththecurrentdialoguestate.Ifadditional
+information or conﬁrmation is required, the MDM enters into a short information
+gathering dialogue with the user. Once a command or query is complete, it is passed
+tothemultimodalgenerationcomponent(MMGEN),whichbuildsamultimodalscore
+indicatingacoordinatedsequenceofgraphicalactionsandTTSprompts.Thisscoreis
+passed back to the MUI. The MUI then coordinates presentation of graphical content
+with synthetic speech output using the AT&T Natural Voices TTS engine (Beutnagel
+etal.1999).Thesubwayrouteconstraintsolver(SUBWAY)isabackendserverbuiltfor
+theprototypewhichidentiﬁesthebestroutebetweenanytwopointsinthecity.
+Inthegivenexamplewheretheusersaysphoneforthesetworestaurantswhilecircling
+two restaurants (Figure 3(a) [A]), assume the speech recognizer returns the lattice in
+Figure 7 (Speech). The gesture recognition component also returns a lattice (Figure 7,
+Gesture)indicatingthattheuser’sinkiseitheraselectionoftworestaurantsorageo-
+graphical area. The multimodal integration and understanding component (MMFST)
+combines these two input lattices into a lattice representing their combined meaning
+(Figure7,Meaning).Thisispassedtothemultimodaldialogmanager(MDM)andfrom
+theretotheMUIwhereitresultsinthedisplayinFigure3(a)[B]andcoordinatedTTS
+output.
+The multimodal integration and understanding component utilizes a declarative
+multimodalgrammarwhichcapturesboththestructureandtheinterpretationofmul-
+timodal and unimodal commands. This formalism and its ﬁnite-state implementation
+fortheMATCHsystemareexplainedindetailinSection3.
+This multimodal grammar is in part derived automatically by reference to an un-
+derlyingontologyofthedifferentkindsofobjectsintheapplication.Speciﬁccategories
+in the ontology, such as located entity, are associated with templates and macros that
+are used to automatically generate the necessary grammar rules for the multimodal
+grammar and to populate classes in a class-based language model (Section 5). For
+example,inordertoaddsupportforanewkindofentity,forexample,bars,acategory
+bar isaddedtotheontologyasasubtypeof located entity alongwithspeciﬁcationofthe
+headnounsusedforthisnewcategory,theattributesthatapplytoit,thesymboltouse
+foritinthegesturerepresentation,andareferencetotheappropriatetabletoﬁndbars
+351
+ComputationalLinguistics Volume35,Number3
+Figure7
+Multimodalexample.
+intheunderlyingapplicationdatabase.Theappropriatemultimodalgrammarrulesare
+then derived automatically as part of the grammar compilation process. Because the
+new entity type bar is assigned the ontology category located entity, the grammar will
+automatically support deictic reference to bars with expressions such as this place in
+additiontothemorespeciﬁcthisbar.
+Inthenextsection,weexplainthedatacollectionprocedureweemployedinorder
+toevaluatethesystemandprovideatestsetforexperimentingwithdifferenttechniques
+formultimodalintegrationandunderstanding.
+2.2 Multimodal
+DataCollection
+A corpus of multimodal data was collected in a laboratory setting from a gender-
+balanced set of 16 ﬁrst-time novice users. The subjects were AT&T personnel with
+no prior knowledge of the system and no experience building spoken or multimodal
+systems. A total of 833 user interactions (218 multimodal/491 speech-only/124 pen-
+only)resultingfromsixsampletaskscenariosinvolvingﬁndingrestaurantsofvarious
+types and getting their names, phones, addresses, or reviews, and getting subway
+directionsbetweenlocationswerecollectedandannotated.
+Figure 8 shows the experimental set-up. Subjects interacted with the system in a
+soundproofroomseparatedfromtheexperimenterbyone-wayglass.Twovideofeeds
+were recorded, one from a scan converter connected to the system, the other from a
+cameralocatedinthesubjectroom,whichcapturedaside-onviewofthesubjectandthe
+display.ThesystemranonaFujitsutabletcomputernetworkedtoadesktopPClogging
+serverlocatednexttotheexperimenter.Thesubject’saudioinputswerecapturedusing
+both a close-talking headset microphone and a desktop microphone (which captured
+bothuserinputandsystemaudio).
+As the user interacted with the system a multimodal log in XML format was
+capturedontheloggingserver(Ehlen,Johnston,andVasireddy2002).Thelogcontainsa
+detailedrecordofthesubject’sspeechandpeninputsandthesystem’sinternalprocess-
+ing steps and responses, with links to the relevant audio ﬁles and speech recognition
+lattices.
+352
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+Figure8
+Experimenterandsubjectset-up.
+Theexperimenterstartedouteachsubjectwithabrieftutorialonthesystem,show-
+ingthemthepenandhowtoclickonthedisplayinordertoturnonthemicrophone.The
+tutorialwasintentionallyvagueandbroadinscopesothesubjectsmightoverestimate
+the system’s capabilities and approach problems in new ways. The experimenter then
+left the subject to complete, unassisted, a series of six sample task scenarios of vary-
+ing complexity. These involved ﬁnding restaurants of various types and getting their
+names,phones,addresses,orreviews,andgettingsubwaydirectionsbetweenlocations.
+The task scenarios were presented in a GUI on the tablet next to the map display. In
+our pilot testing, we presented users with whole paragraphs describing scenarios. We
+foundthatuserswouldoftenjustrephrasethewordinggivenintheparagraph,thereby
+limiting the utility of the data collection. Instead, in this data collection we presented
+whattheuserhadtoﬁndasatable(Table1).Thisapproachelicitedabroaderrangeof
+inputsfromusers.
+Aftercompletingthescenariostheuserthencompletedanonlinequestionnaireon
+thetabletregardingtheirexperiencewiththesystem.ThisconsistedofaseriesofLikert
+scale questions to measure user satisfaction (Walker, Passonneau, and Boland 2001).
+Afterthequestionnairetheexperimentercameintotheexperimentroomandconducted
+aninformalqualitativepost-experimentfeedbackinterview.
+The next phase of the data collection process was to transcribe and annotate the
+users’ input. Transcription is more complex for multimodal systems than for speech-
+only systems because the annotator needs not just to hear what the user said but also
+toseewhattheydid.Thebrowser-basedconstructionofthemultimodaluserinterface
+enabled us to rapidly build a custom version of the system which serves as an online
+multimodal annotation tool (Figure 9). This tool extends the approach described in
+Ehlen, Johnston, and Vasireddy (2002) with a graphical interface for construction of
+Table1
+Examplescenario.
+UseMATCHtoﬁndthename,address,andphonenumberofarestaurantmatching
+thefollowingcriteria:
+FoodType Location
+Vegetarian UnionSquare
+353
+ComputationalLinguistics Volume35,Number3
+Figure9
+Multimodallogannotationtool.
+gesture annotations and a tool for automatically deriving the meaning annotation for
+out-of-grammar examples. This tool allows the annotator to dynamically replay the
+users’ inputs and system responses on the interactive map system itself, turn by turn,
+andaddannotationstoamultimodallogﬁle,encodedinXML.Theannotationutilizes
+the map component of the system (Figure 9(1)). It provides coordinated playback of
+the subject’s audio with their electronic ink, enabling the user to rapidly annotate
+multimodal data without having to replay video of the interaction. The user interface
+ofthemultimodallogviewerprovidesﬁeldsfortheannotatortotranscribethespeech
+input,thegestureinput,andthemeaning.Aseriesofbuttonsandwidgetsareprovided
+toenabletheannotatortorapidlyandaccuratelytranscribetheuser’sgestureandthe
+appropriate meaning representation without having to remember the speciﬁcs of the
+gestureandmeaningrepresentations(Figure9(2)).
+After transcribing the speech and gesture, the annotator hits a button to conﬁrm
+these, and they are recorded in the log and copied down to a second ﬁeld used for
+annotatingthemeaningoftheinput(Figure9(3)).Itwouldbebothtimeconsumingand
+error-pronetohavetheannotatorcodeinthemeaningrepresentationforeachinputby
+hand.Insteadthemultimodalunderstandingsystemisintegratedintothemultimodal
+annotation tool directly. The interface allows the annotator to adjust the speech and
+gestureinputsandsendthemthroughthemultimodalunderstanderuntiltheygetthe
+meaningtheyarelookingfor(Figure9(4)).Whenthemultimodalunderstanderreturns
+multiple possibilities an n-best list is presented and the annotator hits the button next
+to the appropriate interpretation in order to select it as the annotated meaning. We
+foundthistobeaveryeffectivemethodofannotatingmeaning,althoughitdoesrequire
+theannotatortohavesomeknowledgeofwhatinputsareacceptabletothesystem.In
+additiontoannotatingthespeech,gesture,andmeaning,annotatorsalsocheckedoffa
+seriesofﬂagsindicatingvariouspropertiesoftheexchange,suchaswhethertheinput
+was partial, whether there was a user error, and so on. The result of this effort was a
+354
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+corpus of 833 user interactions all fully annotated with speech, gesture, and meaning
+transcriptions.
+3. MultimodalGrammars and Finite-StateMultimodal Language Processing
+Oneofthemostcriticaltechnicalchallengesinthedevelopmentofeffectivemultimodal
+systems is that of enabling multimodal language understanding; that is, determining the
+user’sintentbyintegratingandunderstandinginputsdistributedovermultiplemodes.
+In early work on this problem (Neal and Shapiro 1991; Cohen 1991, 1992; Brison and
+Vigouroux1993;Koons,Sparrell,andThorisson1993;Wauchope1994),multimodalun-
+derstanding was primarily speech-driven,
+1
+treating gesture as a secondary dependent
+mode. In these systems, incorporation of information from the gesture input into the
+multimodalmeaningistriggeredbytheappearanceofexpressionsinthespeechinput
+whose reference needs to be resolved, such as deﬁnite and deictic noun phrases (e.g.,
+this one, the red cube).Multimodal integration was essentially aprocedural add-on toa
+speechortextunderstandingsystem.
+Johnston et al. (1997) developed a more declarative approach where multimodal
+integration is modeled as uniﬁcation of typed feature structures (Carpenter 1992) as-
+signed to speech and gesture inputs. Johnston (1998a, 1998b) utilized techniques from
+naturallanguageprocessing(uniﬁcation-basedgrammarsandchartparsers)toextend
+the uniﬁcation-based approach and enable handling of inputs with more than one
+gesture, visual parsing, and more ﬂexible and declarative encoding of temporal and
+spatial constraints. In contrast to the uniﬁcation-based approaches, which separate
+speech parsing and multimodal integration into separate processing stages, Johnston
+andBangalore(2000,2005)proposedaone-stageapproachtomultimodalunderstanding
+inwhichasinglegrammarspeciﬁedtheintegrationandunderstandingofmultimodal
+language. This avoids the complexity of interfacing between separate speech under-
+standing and multimodal parsing components. This approach is highly efﬁcient and
+enables tight coupling with speech recognition, because the grammar can be directly
+compiled into a cascade of ﬁnite-state transducers which can compose directly with
+latticesfromspeechrecognitionandgesturerecognitioncomponents.
+In this section, we explain how the ﬁnite-state approach to multimodal language
+understanding can be extended beyond multimodal input with simple pointing ges-
+tures made on a touchscreen (as in Johnston and Bangalore [2000, 2005]) to applica-
+tionssuchasMATCHwithcomplexgestureinputcombiningfreeformdrawingswith
+handwritingrecognition.Thisinvolvesthreesigniﬁcantextensionstotheapproach:the
+development of a gesture representation language for complex pen input combining
+freehand drawing with selections and handwriting (Section 3.1); a new more scalable
+approach to abstraction over the speciﬁc content of gestures within the ﬁnite-state
+mechanism(Section3.3);andanewgestureaggregationalgorithmwhichenablesrobust
+handling of the integration of deictic phrases with a broad range of different selection
+gestures(Section3.4).InSection3.2,weillustratetheuseofmultimodalgrammarsfor
+thisapplicationwithafragmentofthemultimodalgrammarforMATCHandillustrate
+how this grammar is compiled into a cascade of ﬁnite-state transducers. Section 3.5
+addressestheissueoftemporalconstraintsonmultimodalintegration.InSection3.6,we
+describe the multimodal dialog management mechanism used in the system and how
+1 Tobemoreprecise,theyare“verballanguage”-driven,inthateitherspokenortypedlinguistic
+expressionsarethedrivingforceofinterpretation.
+355
+ComputationalLinguistics Volume35,Number3
+Figure10
+Speechlattice.
+contextualresolutionofdeicticexpressionsisaccountedfor.InSection3.7,weevaluate
+the performance of this approach to multimodal integration and understanding using
+themultimodaldatacollectedasdescribedinSection2.2.
+3.1 LatticeRepresentations
+forGesture and Meaning
+One of the goals of our approach to multimodal understanding is to allow for am-
+biguities and errors in the recognition of the individual modalities to be overcome
+throughcombinationwiththeothermode(Oviatt1999;BangaloreandJohnston2000).
+To maximize the potential for error compensation, we maintain multiple recognition
+hypotheses by representing input modes as weighted lattices of possible recognition
+strings. For speech input, the lattice is a network of word hypotheses with associated
+weights.Figure10presentsasimpliﬁedspeechlatticefromtheMATCHapplication.
+2
+Representation of Gesture. Like speech, gesture input can also be represented as a token
+stream, but unlike speech there is no pre-established tokenization of gestures (words
+ofagesturelanguage)otherthanforhandwrittenwords.Wehavedevelopedagesture
+representation language for pen input which enables representation of symbolic ges-
+turessuchasareas,lines,andarrows,selectiongestures,andhandwrittenwords.This
+language covers abroad rangeofpen-based inputforinteractive multimodal applica-
+tionsandcaneasilybeextendedtonewdomainswithdifferentgesturesymbols.Each
+gestureisrepresentedasasequenceofsymbolsindicatingdifferentcharacteristicsofthe
+gesture. These symbol sequences can be concatenated in order to represent sequences
+ofgesturesandassembledintoalatticerepresentationinordertorepresentarangeof
+possiblesegmentationsandinterpretationsofasequenceofinkstrokes.IntheMATCH
+system, whentheuserdrawsonthemap,theirinkpointsarecaptured alongwithin-
+formationaboutpotentiallyselecteditems,andthesearepassedtoagestureprocessing
+component. First, the electronic ink is rotated and scaled and broken into a lattice of
+strokes. This stroke lattice is processed by both gesture and handwriting recognizers
+toidentifypossiblepengesturesandhandwrittenwordsintheinkstream.Theresults
+are combined with selection information to derive the gesture lattice representations
+presentedinthissection.Thegesturerecognizerusesavariantofthetrainedtemplate
+matching approach described in Rubine (1991). The handwriting recognizer is neural-
+networkbased.Table2providesthefullsetofeightgesturessupportedandthesymbol
+sequencesusedtorepresenttheminthegesturelattice.
+2 Thelatticesintheactualsystemareweightedbutforeaseofexpositionhereweleaveoutweightsin
+theﬁgures.
+356
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+Table2
+Gestureinputssupported.
+Forsymbolicgesturesandselections,thegesturesymbolcomplexeshavethebasic
+form: G FORM MEANING (NUMBER TYPE) SEM. FORM indicates the physical form
+of the gesture, and has values such as area, point, line,andarrow. MEANING provides
+aroughcharacterizationofthespeciﬁcmeaningofthatform;forexample,an area can
+be either a loc (location) or a sel (selection), indicating the difference between gestures
+which delimit a spatial location on the screen and gestures which select speciﬁc dis-
+played icons. NUMBER and TYPE are only found with sel. They indicate the number
+ofentitiesselected(1,2,3,many)andthespeciﬁctypeofentity(e.g.,rest(restaurant)or
+thtr (theater)). The TYPE value mix is used for selections of entities of different types.
+Recognitionofinputsashandwrittenwordsisalsoencodedinthegesturelattice.These
+areindicatedbythesequenceGhwWORD.Forexample,iftheuserwrotephonenumber
+thegesturesequencewouldbeGhwphoneGhwnumber.
+Asanexample,iftheuserdrawsanareaonthescreenwhichcontainstworestau-
+rants(asinFigure3(a)[A]),andtherestaurantshaveassociatedidentiﬁersid1andid2,
+357
+ComputationalLinguistics Volume35,Number3
+thegesturelatticewillbeasinFigure11.Theﬁrsttwopathsthroughthisgesturelattice
+represent the ambiguity between the use of the gesture to indicate a spatial location
+versus a selection of objects on the screen. As deﬁned in the subsequent multimodal
+grammar, if the speech is show me chinese restaurants in this neighborhood then the ﬁrst
+pathwillbechosen.Ifthespeechistellmeaboutthesetworestaurantsthenthesecondpath
+willbechosen.Thethirdpathrepresentstherecognitionhypothesisfromhandwriting
+recognition that this is a handwritten O. If instead the user circles a restaurant and a
+theatre,thelatticewouldbeasinFigure12.Iftheysaytellmeaboutthistheater,thethird
+pathwillbetaken.Iftheysaytell me about these two,thefourthpathwillbetaken.This
+allowsforcaseswhereausercirclesseveralentitiesandselectsaspeciﬁconebytype.
+Theunderlyingontologyoftheapplicationdomainplaysacriticalroleinthehan-
+dlingofmultimodalexpressions.Forexample,ifplaceintellmeaboutthisplacecanrefer
+to either a restaurant or a theatre, then it can be aligned with both gesture symbols in
+themultimodalgrammar.Thenounplaceisassociatedinthelexiconwithageneraltype
+intheontology: located entity.Whenthemultimodalgrammariscompiled,byvirtueof
+thistypeassignment,theexpressionthisplaceisassociatedwithgesturerepresentations
+for all of the speciﬁc subtypes of located entity in the ontology, such as restaurant and
+theater.Theapproachalsoextendstosupportdeicticreferencestocollectionsofobjects
+of different types. For example, the noun building is associated in the lexicon with the
+type building.Inthegrammar these buildings isassociatedwiththegesturetype building.
+If the user selects a collection of objects of different types they are assigned the type
+buildinginthegesturelatticeandsotheexpressionthesebuildingswillpickoutthatpath.
+Intheapplicationdomainofourprototype,whererestaurantsandtheatersaretheonly
+selectableobjecttypes,weuseasimplerontologywithasinglegeneralobjecttype mix
+forcollectionsofobjectsasinFigure12,andthisintegrateswithspokenphrasessuchas
+theseplaces.
+Representation of Meaning. Understandingmultimodallanguageisaboutextractingthe
+meaningfrommultimodalutterances.Althoughtherecontinuetobeendlessdebatesin
+Figure11
+GesturelatticeG:Selectionoftworestaurants.
+Figure12
+GesturelatticeG:Restaurantandtheater.
+358
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+Figure13
+Meaninglattice.
+Figure14
+XMLmeaningrepresentation.
+linguistics,philosophy,psychology,andneuroscienceonwhatconstitutesthemeaning
+ofanaturallanguageutterance(Jackendoff2002),forthepurposeofhuman–computer
+interactive systems, “meaning” is generally regarded as a representation that can be
+executedbyaninterpreterinordertochangethestateofthesystem.
+Similartotheinputspeechandgesturerepresentations,inourapproachtheoutput
+meaning is also represented in a lattice format. This enables compact representation
+of multiple possible interpretations of the user’s inputs and allows for later stages
+of processing, such as the multimodal dialog manager, to use contextual information
+to rescore the meaning lattice. In order to facilitate logging and parsing by other
+components (dialog manager, backend servers), the meaning representation language
+is encoded in XML.
+3
+The meaning lattice resulting from combination of speech and
+gesture is such that for every path through the lattice, the concatenation of symbols
+fromthatpathwillresultinawell-formedXMLexpressionwhichcanbeevaluatedwith
+respecttotheunderlyingapplicationsemantics.Inthecityinformationapplicationthis
+includeselementssuchas<show>whichcontainsaspeciﬁcationofakindofrestaurant
+to show, with elements <cuis> (cuisine), <loc> (location), and so on. Figure 13 shows
+themeaninglatticethatwouldresultwhenthespeechlattice(Figure10)combineswith
+thegesturelattice(Figure11).
+Theﬁrstpaththroughthelatticeresultsfromthecombinationofthespeechstring
+show chinese restaurants here with an area gesture. Concatenating the symbols on this
+path,wehavethewell-formedXMLexpressioninFigure14.
+3.2Multimodal Grammars andFinite-StateUnderstanding
+Context-free grammars have generally been used to encode the sequences of input
+tokens(words)inalanguagewhichareconsideredgrammaticaloracceptableforpro-
+cessinginasingleinputstream.Insomecasesgrammarrulesareaugmentedwithoper-
+ationsusedtosimultaneouslybuildasemanticrepresentationofanutterance(Adesand
+3 Inourearlierwork(JohnstonandBangalore2000,2005),wegeneratedapredicatelogicrepresentation,
+forexample:email([person(id1),organization(id2)]).
+359
+ComputationalLinguistics Volume35,Number3
+Steedman1982;PollardandSag1994;vanTichelen2004).JohnstonandBangalore(2000,
+2005) present a multimodal grammar formalism which directly captures the relation-
+shipbetweenmultipleinputstreamsandtheircombinedsemanticrepresentation.The
+non-terminalsinthemultimodalgrammarareatomicsymbols.Themultimodalaspects
+ofthegrammarbecomeapparentintheterminals.Eachterminalcontainsthreecompo-
+nentsW:G:Mcorrespondingtothetwoinputstreamsandoneoutputstream,whereW
+isforthespokenlanguageinputstream,Gisforthegestureinputstream,andMisfor
+the combined meaning output stream. These correspond to the three representations
+described in Section 3.1. The epsilon symbol (epsilon1) is used to indicate when one of these
+is empty within a given terminal. In addition to the gesture symbols (Garealoc...), G
+containsasymbolSEMusedasaplaceholderforspeciﬁccontent(seeSection3.3).
+In Figure 15, we present a fragment of the multimodal grammar used for the
+city information application described in this article. This grammar is simpliﬁed for
+easeofexposition.Therulescapturespoken,multimodal,andpen-onlycommandsfor
+showingrestaurants(SHOW),gettinginformationaboutthem(INFO),requestingsubway
+directions(ROUTE),andzoomingthemap(ZOOM).
+As in Johnston and Bangalore (2000, 2005), this multimodal grammar is com-
+piled into a cascade of ﬁnite-state transducers. Finite-state machines have been exten-
+sively applied to many aspects of language processing, including speech recognition
+(Riccardi,Pieraccini,andBocchieri1996;PereiraandRiley1997),phonology(Kartunnen
+1991;KaplanandKay1994),morphology(Koskenniemi1984),chunking(Abney1991;
+Joshi and Hopely 1997; Bangalore 1997), parsing (Roche 1999), and machine transla-
+tion (Bangalore and Riccardi 2000). Finite-state models are attractive mechanisms for
+language processing since they are (a) efﬁciently learnable from data; (b) generally
+effectivefordecoding;and(c)associatedwithacalculusforcomposingmachineswhich
+allows for straightforward integration of constraints from various levels of language
+processing. Furthermore, software implementing the ﬁnite-state calculus is available
+for research purposes (Noord 1997; Mohri, Pereira, and Riley 1998; Kanthak and Ney
+2004;Allauzenetal.2007).
+Wecompilethemultimodalgrammarintoaﬁnite-statedeviceoperatingovertwo
+input streams (speech and gesture) and one output stream (meaning). The transition
+symbols of the FSA correspond to the terminals of the multimodal grammar. For the
+sakeofillustrationhereandinthefollowingexampleswewillonlyshowtheportionof
+thethree-tapeﬁnite-statedevicewhichcorrespondstotheDEICNPruleinthegrammar
+inFigure15.Thecorrespondingﬁnite-statedeviceisshowninFigure16.Thisthree-tape
+machine is then factored into two transducers: R:G → W and T:(G×W)→ M.TheR
+machine(e.g.,Figure17)alignsthespeechandgesturestreamsthroughacomposition
+withthespeechandgestureinputlattices(Go(G:WoW)).Theresultofthisoperation
+is then factored onto a single tape and composed with the T machine (e.g., Figure 18)
+inordertomapthesecompositegesture–speechsymbolsintotheircombinedmeaning
+(G W:M).Essentiallythethree-tapetransducerissimulatedbyincreasingthealphabet
+size by adding composite multimodal symbols that include both gesture and speech
+information. A lattice of possible meanings is derived by projecting on the output of
+G W:M.
+Because the speech and gesture inputs to multimodal integration and under-
+standing are represented as lattices, this framework enables mutual compensation
+for errors (Johnston and Bangalore 2005); that is, it allows for information from one
+modality to be used to overcome errors in the other. For example, a lower conﬁdence
+speechresultmaybeselectedthroughtheintegrationprocessbecauseitissemantically
+compatible with a higher conﬁdence gesture recognition result. It is even possible for
+360
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+Figure15
+Multimodalgrammarfragment.
+Figure16
+Multimodalthree-tapeFSA.
+thesystemtoovercomeerrorsinbothmodalitieswithinasinglemultimodalutterance.
+The multimodal composition process prunes out combinations of speech and gesture
+which are not semantically compatible and through combination of weights from the
+twodifferentmodalitiesitprovidesarankingoftheremainingsemanticallycompatible
+combinations. This aspect of the approach is not the focus of this article and for ease
+361
+ComputationalLinguistics Volume35,Number3
+Figure17
+Gesture/speechalignmenttransducer.
+Figure18
+Gesture/speechtomeaningtransducer.
+of exposition we have left out weights from the examples given. For the sake of com-
+pleteness,weprovideabriefdescriptionofthetreatmentofweightsinthemultimodal
+integrationmechanism.Thespeechandgesturelatticescontainweights.Theseweights
+arecombinedthroughtheprocessofﬁnite-statecomposition,sotheﬁnite-statedevice
+resulting from multimodal integration sums the weights from both the input lattices.
+Inordertoaccountfordifferencesinreliabilitybetweenthespeechlatticeweightsand
+gesture lattice weights, the weights on the lattices are scaled according to a weighting
+factorλlearnedfromheld-outtrainingdata.Thespeechlatticeisscaledbyλ :0<λ<1
+and the gesture lattice by 1−λ. Potentially this scaling factor could be dynamically
+adaptedbasedonenvironmentalfactorsandspeciﬁcusers’performancewiththeindi-
+vidualmodes,thoughinthesystemdescribedherethescalingfactorwasﬁxedforthe
+durationoftheexperiment.
+3.3 Abstraction
+over Speciﬁc Gesture Content
+Thesemanticcontentassociatedwithgestureinputsfrequentlyinvolvesspeciﬁcinfor-
+mationsuchasasequenceofmapcoordinates(e.g.,forareagestures)ortheidentities
+of selected entities (e.g., restaurants or theaters). As part of the process of multimodal
+integrationandunderstandingthisspeciﬁccontentneedstobecopiedfromthegesture
+stream into the resulting combined meaning. Within the ﬁnite-state mechanism, the
+onlywaytocopycontentistohavematchingsymbolsonthegestureinputandmeaning
+output tapes. It is not desirable and in some cases infeasible to enumerate all of the
+different possible pieces of speciﬁc content (such as sequences of coordinates) so that
+they can be copied from the gesture input tape to the meaning output tape. This will
+signiﬁcantlyincreasethesizeofthemachine.Inordertocapturemultimodalintegration
+usingﬁnite-statemethods,itisnecessarytoabstractovercertainaspectsofthegestural
+content.
+We introduce here an approach to abstraction over speciﬁc gesture content using
+anumberofadditionalﬁnite-stateoperations.Theﬁrststepistorepresentthegesture
+inputasatransducerI:Gwheretheinputsidecontainsgesturesymbolsandthespeciﬁc
+contentandtheoutputsidecontainsthesamegesturesymbols butareserved symbol
+SEM appears in place of any speciﬁc gestural content such as lists of points or entity
+identiﬁers. The I:G transducer for the gesture lattice G in Figure 11 is as shown in
+Figure19.
+362
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+Figure19
+I:Gtransducer:Tworestaurants.
+Figure20
+GesturelatticeG.
+In any location in the multimodal grammar (Figure 15) and corresponding three-
+tape ﬁnite-state device (Figure 16) where content needs to be copied from the gesture
+input into the meaning, the transition epsilon1:SEM:SEM is used. In the T:(G×W)→ M
+(Figure17)transducerthesetransitionsarelabeledSEM epsilon1:SEM.
+ForcompositionwiththeG:Wgesture/speechalignmenttransducer(Figure18)we
+take a projection of the output of the I:G transducer. For the example I:G transducer
+(Figure19)theoutputprojection G isasshowninFigure20.Thisprojectionoperation
+providestheabstractionoverthespeciﬁccontent.
+AftercomposingtheGandWwithG:W,factoringthistransducerintoanFSAG W
+and composing it with T:(G×W)→ M, we are left with a transducer G W:M.This
+transducercombinesameaninglatticeMwithaspeciﬁcationofthegestureandspeech
+symbolsandisusedtodeterminethemeaningofG W.
+Thenextstepistofactoroutthespeechinformation(W),resultinginatransducer
+G:M which relates a meaning lattice M to the gestures involved in determining those
+meaningsG.ThismachinecanbecomposedwiththeoriginalI:Gtransducer(I:GoG:M),
+yieldingatransducerI:M.TheﬁnalstepistoreadoffmeaningsfromtheI:Mtransducer.
+Foreachpaththroughthemeaninglatticeweconcatenatesymbolsfromtheoutput M
+side,unlesstheMsymbolisSEMinwhichcasewetaketheinputIsymbolforthatarc.
+Essentially,theI:Gtransducerprovidesanindexbackfromthegesturesymbolsequence
+associated with each meaning in the meaning lattice to the speciﬁc content associated
+witheachgesture.
+Forourexamplecase,ifthespeechthese two restaurantsisalignedwiththegesture
+lattice (Figure 20) using R:G → W (Figure 18) and the result is then factored and
+composed with T:(G×W)→ M (Figure 17), the resulting G W:M transducer is as in
+Figure21.ThisisthenfactoredintheG:MtransducerFigure22andcomposedwithI:G
+(Figure19),yieldingtheI:MtransducershowninFigure23.
+Figure21
+G W:Mtransducer.
+363
+ComputationalLinguistics Volume35,Number3
+Figure22
+G:Mtransducer.
+Figure23
+I:Mtransducer.
+Themeaningisgeneratedbyreadingoffandconcatenatingmeaningsymbolsfrom
+the output of the I:M transducer, except for cases in which the output symbol is SEM,
+whereinsteadtheinputsymbolistaken.Alternatively,forallarcsintheI:Mtransducer
+where theoutput is SEM,theinput andoutput symbols can beswapped (because the
+input label represents the value of the SEM variable), and then all paths in M will be
+the full meanings with the speciﬁc content. For our example case this results in the
+followingmeaningrepresentation: <rest> [r12,r15] </rest>.Thisexamplewasonlyfor
+the DEICNP subgrammar. With the full string phone numbers for these two restaurants
+thecompleteresultingmeaningis:<cmd><info><type>phone</type><obj><rest>
+[r12,r15] </rest></obj></info></cmd>.
+Acriticaladvantageofthisapproachisthat,becausethegesturelatticeitselfisused
+tostorethespeciﬁccontents,theretrievalmechanismscalesasthesizeandcomplexity
+of the gesture lattice increases. In the earlier approach more and more variable names
+arerequiredaslatticesincreaseinsize,andinallplacesinthegrammarwherecontentis
+copiedfromgesturetomeaning,arcsmustbepresentforallofthesevariables.Instead
+here we leverage the fact that the gesture lattice itself can be used as a data structure
+from which the speciﬁc contents can be retrieved using the ﬁnite-state operation of
+composing I:G and G:M. This has the advantage that the algorithms required for ab-
+stracting over the speciﬁc contents and then reinserting the content are not required,
+andtheseoperationsareinsteadcapturedwithintheﬁnite-statemechanism.Oneofthe
+advantagesofthisrepresentationoftheabstractionisthatitencodesnotjustthetypeof
+eachgesturebutalsoitspositionwithinthegesturelattice.
+3.4GestureAggregation
+Johnston(2000)identiﬁesproblemsinvolvedinmultimodalunderstandingandintegra-
+tionofdeicticnumeralexpressionssuchasthesethreerestaurants.Theproblemisthatfor
+a particular spoken phrase there are a multitude of different lexical choices of gesture
+andcombinationsofgesturesthatcanbeusedtoselectthespeciﬁedpluralityofentities
+andalloftheseneedtobeintegratedwiththespokenphrase.Forexample,asillustrated
+in Figure 24, the user might circle all three restaurants with a single pen stroke, circle
+eachinturn,orcircleagroupoftwoandgroupofone.
+Intheuniﬁcation-basedapproachtomultimodalparsing(Johnston1998b),captur-
+ingallofthesepossibilitiesinthespokenlanguagegrammarsigniﬁcantlyincreasesits
+sizeandcomplexityandanypluralexpressionismademassivelyambiguous.Thesug-
+gestedalternativeinJohnston(2000)istohavethedeicticnumeralsubcategorizefora
+pluralityoftheappropriatenumberandpredictivelyapplyasetofgesturecombination
+rulesinordertocombineelementsofgesturalinputintotheappropriatepluralities.
+364
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+Figure24
+Multiplewaystoselect.
+Intheﬁnite-stateapproachdescribedherethiscanbeachievedusingaprocesswe
+termgesture aggregation,whichservesasapre-processingphaseonthegestureinput
+lattice. A gesture aggregation algorithm traverses the gesture input lattice and adds
+new sequences of arcs which represent combinations of adjacent gestures of identical
+type. The operation of the gesture aggregation algorithm is described in pseudo-code
+in Algorithm 1. The function plurality() retrieves the number of entities in a selection
+gesture; for example, for a selection of two entities g1, plurality(g1)=2. The function
+type()yieldsthetypeofthegesture;forexample rest forarestaurantselectiongesture.
+Thefunctionspecific content()yieldsthespeciﬁcIDs.
+Algorithm1Gestureaggregation.
+P ⇐thelistofallpathsthroughthegesturelatticeGL
+whileP negationslash=∅do
+p ⇐ pop(P)
+G ⇐thelistofgesturesinpathp
+i ⇐1
+whilei < length(G)do
+ifg[i]andg[i+1]arebothselectiongesturesthen
+iftype(g[i])==type(g[i+1])then
+plurality ⇐ plurality(g[i])+plurality(g[i+1)
+start ⇐ start state(g[i])
+end ⇐ end state(g[i+1])
+type ⇐ type(g[i])
+specific ⇐ append(specific content(g[i]),specific content(g[i+1])
+g
+prime
+⇐Gareaselpluralitytypespecific
+Addg
+prime
+toGLstartingatstatestartandendingatstateend
+p
+prime
+⇐thepathpbutwiththearcsfromstarttoendreplacedwithg
+prime
+pushp
+prime
+ontoP
+i ⇐ i+1
+end if
+end if
+endwhile
+end while
+365
+ComputationalLinguistics Volume35,Number3
+Essentially what this algorithm does is perform closure on the gesture lattice of a
+function which combines adjacent gestures of identical type. For each pair of adjacent
+gesturesinthelatticewhichareofidenticaltype,anewgestureisaddedtothelattice.
+Thisnewgesturestartsatthestartstateoftheﬁrstgestureandendsattheendstateof
+thesecondgesture.Itspluralityisequaltothesumofthepluralitiesofthecombining
+gestures.Thespeciﬁccontentforthenewgesture(listsofidentiﬁersofselectedobjects)
+resultsfromappendingthespeciﬁccontentsofthetwocombininggestures.Thisoper-
+ation feeds itself so that sequences of more than two gestures of identical type can be
+combined.
+For our example case of three selection gestures on three different restaurants
+as in Figure 24(2), the gesture lattice before aggregation is as in Figure 25(a). After
+aggregation the gesture lattice is as in Figure 25(b). Three new sequences of arcs have
+been added. The ﬁrst, from state 3 to state 8, results from the combination of the ﬁrst
+twogestures;thesecond,fromstate14tostate24,fromthecombinationofthelasttwo
+gestures; and the third, from state 3 to state 24, from the combination of all three ges-
+tures.Theresultinglatticeafterthegestureaggregationalgorithmhasappliedisshown
+inFigure25(b).Notethatminimizationhasbeenappliedtocollapseidenticalpaths.
+A spoken expression such as these three restaurants is aligned with the gesture
+symbol sequence G area sel 3 rest SEM in the multimodal grammar. This will be able
+tocombinenotjustwithasinglegesturecontainingthreerestaurantsbutalsowithour
+examplegesturelattice,sinceaggregationaddsthepath:Gareasel3rest[id1,id2,id3].
+We term this kind of aggregation type speciﬁc aggregation. The aggregation process
+canbeextendedtosupporttypenon-speciﬁcaggregationforcaseswhereusersrefertosets
+of objects of mixed types and select them using multiple gestures. For example in the
+casewheretheusersaystellmeaboutthesetwoandcirclesarestaurantandthenatheater,
+non-type speciﬁc aggregation applies to combine the two gestures into an aggregate of
+mixed type G area sel 2 mix [(id1,id2)] and this is able to combine with these two. For
+applicationswitharicherontologywithmultiplelevelsofhierarchy,thetypenon-speciﬁc
+aggregation should assign to the aggregate to the lowest common subtype of the set
+of entities being aggregated. In order to differentiate the original sequence of gestures
+thattheusermadefromtheaggregate,pathsaddedthroughaggregationareassigned
+additionalcost.
+Figure25(c)showshowthesenewprocessesofgestureabstractionandaggregation
+integrate into the overall ﬁnite-state multimodal language processing cascade. Aggre-
+gation applies to the I:G representation of the gesture. A projection G on the I:G is
+composed with the gesture/speech alignment transducer R:G → W, then the result is
+composedwiththespeechlattice.TheresultingG:WtransducerisfactoredintoanFSA
+withacompositealphabetofsymbols.ThisisthencomposedwiththeT:(G×W)→ M
+yielding a result transducer G W:M. The speech is factored out of the input yielding
+G:M which can then be composed with I:G, yielding a transducer I:M from which the
+ﬁnalmeaningscanberead.
+3.5 Temporal
+Constraints onMultimodal Integration
+In the approach taken here, temporal constraints for speech and gesture alignment
+are not needed within the multimodal grammar itself. Bellik (1995, 1997) provides
+examplesindicatingtheimportanceofprecisetemporalconstraintsforproperinterpre-
+tationofmultimodalutterances.Critically,though,Bellik’sexamplesinvolvenotsingle
+366
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+Figure25
+(a)Threegestures.(b)Aggregatedlattice.(c)Multimodallanguageprocessingcascade.
+367
+ComputationalLinguistics Volume35,Number3
+multimodal utterances but sequences of two utterances.
+4
+The multimodal integration
+mechanismandmultimodalgrammarsdescribedhereinenumeratethecontentofsingle
+turns of user input, be they unimodal or multimodal. The multimodal integration
+component and multimodal grammars are not responsible for combination of content
+fromdifferentmodesthatoccurinseparatedialogturns.Thisistreatedaspartofdialog
+managementandreferenceresolution.Temporalconstraintsdo,however,playarolein
+segmentingparallelmultimodalinputstreamsintosingleuserturns.Thisisoneofthe
+functions of the multimodal understanding component. In order to determine which
+gestures and speech should be considered part of a single user utterance, a dynamic
+timeoutadaptationmechanismwasused.Ininitialversionsofthesystem,ﬁxedtimeout
+intervals were used on receipt of input from one modality to see if the input is in fact
+unimodal or whether input in the other modality is forthcoming. In pilot studies we
+determinedthatthesystemlatencyintroducedbythesetimeoutscouldbesigniﬁcantly
+reduced by making the timeouts sensitive to activity in the other mode. In addition
+to messages containing the results of speech recognition and gesture processing, we
+instrumented the multimodal understanding component (MMFST) to receive events
+indicatingwhenthepenﬁrsttouchesthescreen(pen-downevent)andwhentheclick-
+to-speakbuttonispressed(click-to-speakevent).WhentheMMFSTcomponentreceives
+a speech lattice, if a gesture lattice has already been received then the two lattices are
+processed immediately as a multimodal input. If gesture has not yet been received
+andthereisnopen-downevent,themultimodal component waitsforashorttimeout
+interval before interpreting the speech as a unimodal input. If gesture has not been
+received, but there has been a pen-down event, the multimodal component will wait
+for a longer timeout period for the gesture lattice message to arrive. Similarly, when
+gestureisreceived,ifthespeechlatticehasalreadybeenreceivedthetwoareintegrated
+immediately.Ifspeechhasnotyetarrived,andtherewasnoclick-to-speakevent,then
+thesystemwillwaitforashorttimeoutbeforeprocessingthegesturelatticeasunimodal
+input.Ifspeechhasnotyetarrivedbuttheclick-to-speakeventhasbeenreceivedthen
+the component will wait for the speech lattice to arrive for a longer timeout period.
+Longer timeouts are used instead of waiting indeﬁnitely to account for cases where
+thespeechorgestureprocessingdoesnotreturnaresult.Inpilottestingwedetermined
+thatwiththeadaptivemechanismtheshorttimeoutscouldbekeptaslowasasecondor
+less,signiﬁcantlyreducingsystemlatencyforunimodalinputs.Withthenon-adaptive
+mechanism we required timeouts of as much as two to three seconds. For the longer
+timeoutswefound15secondstobeanappropriatetimeperiod.Afurtherextensionof
+this approach would be to make the timeout mechanism adapt to speciﬁc users, since
+empirical studies have shown that users tend to fall into speciﬁc temporal integration
+patterns(Oviatt,DeAngeli,andKuhn1997).
+The adaptive timeout mechanism could also be used with other speech activation
+mechanisms.Inan”openmicrophone”settingwherethereisnoexplicitclick-to-speak
+event,voiceactivitydetectioncouldbeusedtosignalthataspeecheventisforthcom-
+ing.Forourapplicationwechosea”click-to-speak”strategyover”openmicrophone”
+becauseitismorerobusttonoiseandmobilemultimodalinterfacesareintendedforuse
+inenvironmentssubjecttonoise.Theotheralternative,”click-and-hold,”wheretheuser
+hastoholddownabuttonforthedurationoftheirspeech,isalsoproblematicbecause
+itlimitstheabilityoftheusertousepeninputwhiletheyarespeaking.
+4 SeeJohnstonandBangalore(2005)foradetailedexplanation.
+368
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+3.6Multimodal DialogManagement and Contextual Resolution
+Themultimodaldialogmanager(MDM)isbasedonpreviousworkonspeech-actbased
+models of dialog (Rich and Sidner 1998; Stent et al. 1999). It uses a Java-based toolkit
+for writing dialog managers that is similar in philosophy to TrindiKit (Larsson et al.1999).Itincludesseveralrule-basedprocessesthatoperateonasharedstate.Thestate
+includes system and user intentions and beliefs, adialog history and focus space, and
+informationaboutthespeaker,thedomain,andtheavailablemodalities.Theprocesses
+includeinterpretation,update,selection,andgeneration.
+The interpretation process takes as input an n-best list of possible multimodal
+interpretations for a user input from the MMFST. It rescores them according to a set
+ofrulesthatencodethemostlikelynextspeechactgiventhecurrentdialoguecontext,
+and picks the most likely interpretation from the result. The update process updates
+thedialoguecontextaccordingtothesystem’sinterpretationofuserinput.Itaugments
+thedialoguehistory,focusspace,modelsofuserandsystembeliefs,andmodelofuser
+intentions.Italsoaltersthelistofcurrentmodalitiestoreﬂectthosemostrecentlyused
+bytheuser.
+The selection process determines the system’s next move(s). In the case of a com-
+mand, request, or question, it ﬁrst checks that the input is fully speciﬁed (using the
+domain ontology, which contains information about required and optional roles for
+different types of actions); if it is not, then the system’s next move is to take the
+initiativeandstartaninformation-gatheringsubdialogue.Iftheinputisfullyspeciﬁed,
+thesystem’snextmoveistoperformthecommandoranswerthequestion;todothis,
+MDMcommunicatesdirectlywiththeUI.
+The generation process performs template-based generation for simple responses
+and updates the system’s model of the user’s intentions after generation. A text plan-
+ningcomponent(TEXTPLAN)isusedformorecomplexgeneration,suchasthegener-
+ationofcomparisons(Walkeretal.2002,2004).
+In the case of a navigational query, such as the example in Section 2, MDM ﬁrst
+receives a route query in which only the destination is speciﬁed: How do I get to this
+place?. In the selection phase it consults the domain ontology and determines that a
+sourceisalsorequiredforaroute.Itaddsarequesttoquerytheuserforthesourcetothe
+system’snextmoves.Thismoveisselectedandthegenerationprocessselectsaprompt
+and sends it to the TTS component. The system asks Where do you want to go from?.If
+theusersaysorwrites25thStreetand3rdAvenuethentheMMFSTwillassignthisinput
+twopossibleinterpretations:eitherthisisarequesttozoomthedisplaytothespeciﬁed
+locationoritisanassertionofalocation.BecausetheMDMdialoguestateindicatesthat
+itiswaitingforananswerofthetypelocation,MDMrerankstheassertionasthemost
+likely interpretation. A generalized overlay process (Alexandersson and Becker 2001)
+isusedtotakethecontentoftheassertion(alocation)andadditintothepartialroute
+request. The result is determined to be complete. The UI resolves the location to map
+coordinatesandpassesonarouterequesttotheSUBWAYcomponent.
+Wefoundthistraditionalspeech-actbaseddialoguemanagerworkedwellforour
+multimodalinterface.Criticalinthiswasouruseofacommonsemanticrepresentation
+acrossspoken,gestured,andmultimodalcommands.Themajorityofthedialoguerules
+operateinamode-independentfashion,givingusersﬂexibilityinthemodetheychoose
+toadvancethedialogue.
+One of the roles of the multimodal dialog manager is to handle contextual res-
+olution of deictic expressions. Because they can potentially be resolved either by in-
+tegrationwithagesture,orfromcontext,deicticexpressionssuchas this restaurant are
+369
+ComputationalLinguistics Volume35,Number3
+ambiguous in the multimodal grammar. There will be one path through the grammar
+where this expression is associated with a sequence of gesture symbols, such as G
+area selection 1 rest r123, and another where it is not associated with any gesture sym-
+bols and assigned a semantic representation which indicates that it must be resolved
+from context: <rest><discourseref></discourseref></rest>. If at the multimodal un-
+derstanding stage there is a gesture of the appropriate type in the gesture lattice,
+then the ﬁrst of these paths will be chosen and the identiﬁer associated with the
+gesture will be added to the semantics during the multimodal integration and under-
+standing process: <rest>r123</rest>. If there is no gesture, then this restaurant will
+be assigned the semantic representation <rest><discourseref></discourseref></rest>
+and the dialog manager will attempt to resolve the gesture from the dialog context.
+The update process in the multimodal dialog manager maintains a record in the fo-
+cus space of the last mention of entities of each semantic type, and the last men-
+tioned entity. When the interpretation process receives a semantic representation
+containing the marker <rest><discourseref></discourseref></rest> it replaces <dis-
+courseref></discourseref> with the identiﬁer of the last-mentioned entity of the type
+restaurant.
+Cases where the gesture is a low-conﬁdence recognition result, in fact, where
+the gesture is spurious and not an intentional input, are handled using back-offs in
+the multimodal grammar as follows: In the multimodal grammar, productions are
+added which consume a gesture from the gesture lattice, but assign the semantics
+<rest><discourseref></discourseref></rest>.Generallytheseareassignedahighercost
+than paths through the model where the gesture is meaningful, so that these back-
+off paths will only be chosen if there is no alternative. In practice for speech and
+pen systems of the kind described here, we have found that spurious gestures are
+uncommon,thoughtheyarelikelytobeconsiderablymoreofaproblemforotherkinds
+ofmodalities,suchasfreehandgesturerecognizedusingcomputervision.
+3.7 Experimental
+Evaluation
+To determine the baseline performance of the ﬁnite-state approach to multimodal in-
+tegration and understanding, and to collect data for the experiments on multimodal
+robustnessdescribedinthisarticle,wecollectedandannotatedacorpusofmultimodal
+data as described in Section 2.2. To enable this initial experiment and data collection,
+becausenocorpusdatahadalreadybeencollected,tobootstraptheprocessweinitially
+used a handcrafted multimodal grammar using grammar templates combined with
+datafromtheunderlyingapplicationdatabase.AsshowninFigure26,themultimodal
+grammarcanbeusedtocreatelanguagemodelsforASR,alignthespeechandgesture
+results from the respective recognizers, and transform the multimodal utterance to a
+meaningrepresentation.Alltheseoperationsareachievedusingﬁnite-statetransducer
+operations.
+Forthe709inputsthatinvolvespeech(491unimodalspeechand218multimodal)
+we calculated the speech recognition accuracy (word and sentence level) for results
+usingthegrammar-basedlanguagemodelprojectedfromthemultimodalgrammar.We
+alsocalculatedaseriesofmeasuresofconceptaccuracyonthemeaningrepresentations
+resultingfromtakingtheresultsfromspeechrecognitionandcombiningthemwiththe
+gesturelatticeusingthegesturespeechalignmentmodel,andthenthemultimodalun-
+derstandingmodel.Theconceptaccuracymeasures:ConceptSentenceAccuracy,Predicate
+SentenceAccuracy,andArgumentSentenceAccuracyareexplainedsubsequently.
+370
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+Figure26
+MultimodalgrammarcompilationfordifferentprocessesofMATCH.
+The hierarchically-nested XML representation described in Section 3.1 is effective
+for processing by the backend application, but is not well suited for the automated
+determination of the performance of the language understanding mechanism. We de-
+veloped an approach, similar to Ciaramella (1993) and Boros et al. (1996), in which
+the meaning representation, in our case XML, is transformed into a sorted ﬂat list of
+attribute–value pairs indicating the core contentful concepts of each command. The
+attribute–value meaning representation normalizes over multiple different XML rep-
+resentations which correspond to the same underlying meaning. For example, phone
+and address and address and phone receive different XML representations but the same
+attribute–valuerepresentation.Fortheexamplephonenumberofthisrestaurant,theXML
+representationisasinFigure27,andthecorrespondingattribute–valuerepresentation
+isasinFigure28.
+Figure27
+XMLmeaningrepresentation.
+cmd:info type:phone object:selection. (1)
+Figure28
+Attribute–valuemeaningrepresentation.
+371
+ComputationalLinguistics Volume35,Number3
+Table3
+ASRandconceptaccuracyforthegrammar-basedﬁnite-stateapproach(10-fold).
+Speechrecognition Wordaccuracy 41.6%
+Sentenceaccuracy 38.0%
+Understanding Conceptsentenceaccuracy 50.7%
+Predicateaccuracy 67.2%
+Argumentaccuracy 52.8%
+This transformation of the meaning representation allows us to calculate the per-
+formance of the understanding component using string-matching metrics parallel to
+those used for speech recognition accuracy. Concept Sentence Accuracy measures
+the number of user inputs for which the system got the meaning completely right.
+5
+PredicateSentenceAccuracymeasureswhetherthemainpredicateofthesentencewas
+correct (similar to call type in call classiﬁcation). Argument Sentence Accuracy is an
+exact string match between the reference list of arguments and the list of arguments
+identiﬁed for the command. Note that the reference and hypothesized argument se-
+quences are lexicographically sorted before comparison so the order of the arguments
+doesnotmatter.Wedonotutilizetheequivalentofwordaccuracyontheconcepttoken
+sequence.Theconcept-levelequivalentofwordaccuracyisproblematicbecauseitcan
+easily be manipulated by increasing or decreasing the number of tokens used in the
+meaningrepresentation.
+Toprovideabaselinefortheseriesoftechniquesexploredintherestofthearticle,
+we performed recognition and understanding experiments on the same 10 partitions
+ofthedataasinSection4.Thenumbersareallaverages overall10partitions.Table3
+showsthespeechrecognitionaccuracyusingthegrammar-basedlanguagemodelpro-
+jectedfromthemultimodalgrammar.Italsoshowstheconceptaccuracyresultsforthe
+multimodal–grammar-basedﬁnite-stateapproachtomultimodalunderstanding.
+The multimodal grammars described here provide an expressive mechanism for
+quickly creating language processing capabilities for multimodal interfaces support-
+ing input modes such as speech and pen, but like other approaches based on hand-
+craftedgrammars,multimodalgrammarsarebrittlewithrespecttoextra-grammatical
+or erroneous input. The language model directly projected from the speech portion of
+thehand-craftedmultimodalgrammarisnotabletorecognizeanystringsthatarenot
+encoded in the grammar. In our data, 62% of user’s utterances were out of the multi-
+modal grammar, a major problem for recognition (as illustrated in Table 3). The poor
+ASR performance has a direct impact on concept accuracy. The fact that the score for
+concept sentence accuracy is higher than that for sentence accuracy is not unexpected
+sincerecognitionerrorsdonotalwaysresultinchangesinmeaningandalsotoacertain
+extent the grammar-based language model will force ﬁt out-of-grammar utterances to
+similarin-grammarutterances.
+4. Robustness in Multimodal Language Processing
+A limitation of grammar-based approaches to (multimodal) language processing is
+that the user’s input is often not covered by the grammar and hence fails to receive
+an interpretation. This issue is present in grammar-based speech-only dialog systems
+5 ThismetriciscalledSentenceUnderstandinginCiaramella(1993).
+372
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+as well. The lack of robustness in such systems is due to limitations in (a) language
+modelingand(b)understandingofthespeechrecognitionoutput.
+The brittleness of using a grammar as a language model is typically alleviated by
+buildingSLMsthatcapturethedistributionoftheuser’sinteractionsinanapplication
+domain. However, such SLMs are trained on large amounts of spoken interactions
+collectedinthatdomain—atedioustaskinitself,inspeech-onlysystems,butanoften
+insurmountable task in multimodal systems. The problem we face is how to make
+multimodal systems more robust to disﬂuent or unexpected multimodal language in
+applicationsforwhichlittleornotrainingdataisavailable.Therelianceonmultimodal
+grammars as a source of data is inevitable in such situations. In Section 5, we explore
+and evaluate a range of different techniques for building effective SLMs for spoken
+andmultimodalsystemsunderconstraintsoflimitedtrainingdata.Thetechniquesare
+presentedinthecontextofSLMs,sincespokenlanguageinteractiontendstobeadom-
+inantmodeinourapplicationandhashigherperplexitythanthegestureinteractions.
+However,mostofthesetechniquescanalsobeappliedtoimprovetherobustnessofthe
+gesturerecognitioncomponentinapplicationswithhighergesturelanguageperplexity.
+Thesecondsourceofbrittlenessinagrammar-basedmultimodal/unimodalinter-
+activesystemisintheassignmentofmeaningtothemultimodaloutput.Thegrammar
+typicallyencodestherelationbetweenthemultimodalinputsandtheirmeanings.The
+assignment of meaning to a multimodal output is achieved by parsing the utterance
+usingthegrammar.Inagrammar-basedspeech-onlysystem,ifthelanguagemodelof
+ASR is derived directly from the grammar, then every ASR output can be parsed and
+assigned a meaning by the grammar. However, using an SLM results in ASR outputs
+thatmaynotbeparsablebythegrammarandhencecannotbeassignedameaningby
+thegrammar.Robustnessinsuchcasesisachievedbyeither(a)modifyingtheparserto
+accommodateforunparsablesubstringsintheinput(Ward1991;Dowdingetal.1993;
+Allen et al. 2001) or (b) modifying the meaning representation to make it learnable as
+aclassiﬁcationtaskusingrobustmachinelearningtechniquesasisdoneinlargescale
+human-machinedialogsystems(e.g.,Gorin,Riccardi,andWright1997).
+In our grammar-based multimodal system, the grammar serves as the speech-
+gesture alignment model and assigns a meaning representation to the multimodal
+input.Failuretoparseamultimodalinputimpliesthatthespeechandgestureinputsare
+notfusedtogetherandconsequentlymaynotbeassignedameaningrepresentation.In
+order to improve robustness in multimodal understanding, more ﬂexible mechanisms
+mustbeemployedintheintegrationandthemeaning-assignmentphases.InSection6,
+we explore and evaluate approaches that transform the multimodal input so as to
+be parsable by the multimodal grammar, as well as methods that directly map the
+multimodal input to the meaning representation without the use of the grammar. We
+again present these approaches in the context of transformation of the ASR output,
+but they are equally applicable to gesture recognition outputs. Transformation of the
+multimodalinputssoastobeparsablebythemultimodalgrammardirectlyimproves
+robustnessofmultimodalintegrationandunderstanding.
+Although some of the techniques presented in the next two sections are known
+in the literature, they have typically been applied in the context of speech-only dialog
+systemsandondifferentapplicationdomains.Asaresult,comparingthestrengthsand
+weaknesses of these techniques is very difﬁcult. By evaluating them on the MATCH
+domain, we are able to compare and extend these techniques for robust multimodal
+understanding. Otherfactorssuchascontextual informationincludingdialogcontext,
+graphical display context, geographical context, as well as meta-information such as
+user preferences and proﬁles, can be used to further enhance the robustness of a
+373
+ComputationalLinguistics Volume35,Number3
+multimodal application. However, here we focus on techniques for improving robust-
+nessofmultimodalunderstandingthatdonotrelyonsuchfactors.
+5. Robustness of Language Models for Speech Recognition
+The problem of speech recognition can be succinctly represented as a search for the
+most likely word sequence (w
+∗
+) through the network created by the composition of a
+languageofacousticobservations(O),anacousticmodelwhichisatransductionfrom
+acousticobservationstophonesequences(A),apronunciationmodelwhichisatrans-
+duction fromphonesequences toword sequences (L),and alanguage model acceptor
+(G) (Pereira and Riley 1997) (Equation 2). The language model acceptor encodes the
+(weighted)wordsequencespermittedinanapplication.
+w
+∗
+=argmax
+w
+π
+2
+(O◦A◦L◦G)(w 2)
+Typically, G isbuiltusingeitherahand-craftedgrammarorusingastatisticallan-
+guagemodelderivedfromacorpusofsentencesfromtheapplicationdomain.Although
+agrammarcouldbewrittensoastobeeasilyportableacrossapplications,itsuffersfrom
+beingtooprescriptiveandhasnometricfortherelativelikelihoodofusers’utterances.
+Incontrast,inthedata-drivenapproachaweightedgrammarisautomaticallyinduced
+from a corpus and the weights can be interpreted as a measure of the relative likeli-
+hoods of users’ utterances. However, the reliance on a domain-speciﬁc corpus is one
+of the signiﬁcant bottlenecks of data-driven approaches, because collecting a corpus
+speciﬁctoadomainisanexpensiveandtime-consumingtask,especiallyformultimodal
+applications.
+Inthissection,weinvestigatearangeoftechniquesforproducingadomain-speciﬁc
+corpususingresourcessuchasadomain-speciﬁcgrammaraswellasanout-of-domain
+corpus. We refer to the corpus resulting from such techniques as a domain-speciﬁc de-
+rivedcorpusincontrasttoadomain-speciﬁccollectedcorpus.Weareinterestedintechniques
+thatwouldresultincorporasuchthattheperformanceoflanguagemodelstrainedon
+these corpora would rival the performance of models trained on corpora collected for
+a speciﬁc domain. We investigate these techniques in the context of MATCH. We use
+thenotationC
+d
+forthecorpus,λ
+d
+forthelanguagemodelbuiltusingthecorpusC
+d,and
+G
+λ
+d
+forthelanguagemodelacceptorrepresentationofthemodelλ
+d
+whichcanbeused
+inEquation(2).
+5.1 Language
+Model Using In-Domain Corpus
+We used the MATCH domain corpus from the data collection to build a class-based
+trigramlanguagemodel(λ
+MATCH
+)usingthe709multimodalandspeech-onlyutterances
+asthecorpus(C
+MATCH
+).Weusedthenamesofcuisinetypes,areasofinterest,pointsof
+interest,andneighborhoodsasclasseswhenbuildingthetrigramlanguagemodel.The
+trigram language model is represented as a weighted ﬁnite-state acceptor (Allauzen,
+Mohri,andRoark2003)forspeechrecognitionpurposes.Theperformanceofthismodel
+servesasthepointofreferencetocomparetheperformanceoflanguagemodelstrained
+onderivedcorpora.
+374
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+5.2Grammar as Language Model
+Themultimodalcontext-freegrammar(CFG;afragmentispresentedinSection2anda
+largerfragmentisshowninSection3.2)encodestherepertoireoflanguageandgesture
+commands allowed by the system and their combined interpretations. The CFG can
+be approximated by a ﬁnite state machine (FSM) with arcs labeled with language,
+gesture, and meaning symbols, using well-known compilation techniques (Nederhof
+1997). Selecting the language symbol of each arc (projecting the FSM on the speech
+component)resultsinanFSMthatcanbeusedasthelanguagemodelacceptor(G
+gram
+)
+forspeechrecognition.Notethattheresultinglanguagemodelacceptorisunweightedif
+thegrammarisunweightedandsuffersfromnotbeingrobusttolanguagevariationsin
+users’input.However,duetothetightcouplingofthegrammarsusedforrecognition
+and interpretation, every recognized string can be assigned a meaning representation
+(thoughitmaynotnecessarilybetheintendedinterpretation).
+5.3Grammar-Based n-gram Language Model
+As mentioned earlier, a hand-crafted grammar typically suffers from the problem of
+beingtoorestrictiveandinadequatetocoverthevariationsandextra-grammaticalityof
+users’input.Incontrast,ann-gramlanguagemodelderivesitsrobustnessbypermitting
+all strings over an alphabet, albeit with different likelihoods. In an attempt to provide
+robustnesstothegrammar-basedmodel,wecreatedacorpus(C
+gram
+)ofk sentencesby
+randomly sampling the set of paths of the grammar (G
+gram
+)
+6
+and built a class-based
+n-gram language model (λ
+gram
+) using this corpus. Although this corpus does not rep-
+resent the true distribution of sentences in the MATCH domain, we are able to derive
+someofthebeneﬁtsofn-gramlanguagemodelingtechniques.Similarapproacheshave
+beenpresentedinGalescu,Ringger,andAllen(1998)andWangandAcero(2003).
+5.4Combining Grammar and Corpus
+A straightforward extension of the idea of sampling the grammar in order to create a
+corpusistoselectthosesentencesoutofthegrammarwhichmaketheresultingcorpus
+“similar”tothecorpuscollectedinthepilotstudies.InordertocreatethiscorpusC
+close,
+we choose the k most likely sentences as determined by a language model (λ
+MATCH
+)
+built using the collected corpus. A mixture model (λ
+mix
+) with mixture weight (α)is
+built by interpolating the model trained on the corpus of extracted sentences (λ
+close
+)
+and the model trained on the collected corpus (λ
+MATCH
+). This method is summarized
+in Equation (4), where L(M) represents the language recognized by the multimodal
+grammar(M).
+C
+close
+= {S
+1,...S
+k
+|S
+i
+∈ L(M)∧Pr
+λ
+MATCH
+(S
+i
+) > Pr
+λ
+MATCH
+(S
+i+1
+)
+∧ negationslash ∃jPr
+λ
+MATCH
+(S
+i
+) > Pr
+λ
+MATCH
+(S
+j
+) > Pr
+λ
+MATCH
+(S
+i+1
+)(3)
+λ
+mix
+= α∗λ
+close
++(1−α)∗λ
+MATCH
+(4)
+6 Wecanalsorandomlysampleasub-networkwithoutexpandingthekpaths.
+375
+ComputationalLinguistics Volume35,Number3
+5.5 Class-Based Out-of-Domain Language Model
+Analternativetousingin-domaincorporaforbuildinglanguagemodelsisto“migrate”
+a corpus of a different domain to our domain. The process of migrating a corpus
+involves suitably generalizing the corpus to remove information that is speciﬁc only
+totheotherdomainandinstantiatingthegeneralizedcorpustoourdomain.Although
+thereareanumberofwaysofgeneralizingtheout-of-domaincorpus,thegeneralization
+we have investigated involved identifying linguistic units, such as noun and verb
+chunks, in the out-of-domain corpus and treating them as classes. These classes are
+then instantiated to the corresponding linguistic units from the MATCH domain. The
+identiﬁcationofthelinguisticunitsintheout-of-domaincorpusisdoneautomatically
+usingasupertagger(BangaloreandJoshi1999).Weuseacorpuscollectedinthecontext
+ofasoftwarehelp-deskapplicationasanexampleout-of-domaincorpus.Incaseswhere
+theout-of-domaincorpusiscloselyrelatedtothedomainathand,amoresemantically
+driven generalization might be more suitable. Figure 29 illustrates the process of mi-
+gratingdatafromonedomaintoanother.
+5.6 Adapting
+theSwitchboard Language Model
+Weinvestigatedtheperformanceofalarge-vocabularyconversationalspeechrecogni-
+tion system when applied to a speciﬁc domain such as MATCH. We used the Switch-
+boardcorpus(C
+swbd
+)asanexampleofalarge-vocabularyconversationalspeechcorpus.
+Webuiltatrigrammodel(λ
+swbd
+)usingthe5.4-million-wordcorpusandinvestigatedthe
+effect of adapting the Switchboard language model given k in-domain untranscribed
+speech utterances ({O
+i
+M
+}). The adaptation is done by ﬁrst recognizing the in-domain
+speech utterances and then building a language model (λ
+adapt
+)fromthecorpusof
+recognizedtext(C
+adapt
+).Thisbootstrappingmechanismcanbeusedtoderiveadomain-
+speciﬁccorpusandlanguagemodelwithoutanytranscriptions.Similartechniquesfor
+Figure29
+Amethodformigrationofdatafromonedomaintoanotherdomain.
+376
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+unsupervisedlanguagemodeladaptationarepresentedinBacchianiandRoark(2003)
+andSouvignierandKellner(1998).
+C
+adapt
+= {S
+1,S
+2,...,S
+k
+} (5)
+S
+i
+= argmax
+S
+π
+2
+(O
+i
+M
+◦A◦L◦G
+swbd
+)(S)
+5.7Adapting aWide-Coverage Grammar
+There have been a number of computational implementations of wide-coverage,
+domain-independent, syntactic grammars for English in various grammar formalisms
+(Flickinger,Copestake,andSag2000;XTAG2001;ClarkandHockenmaier2002).Here,
+we describe a method that exploits one such grammar implementation in the Lexical-
+izedTree-AdjoiningGrammar(LTAG)formalism,forderivingdomain-speciﬁccorpora.
+An LTAG consists of a set of elementary trees (supertags) (Bangalore and Joshi 1999)
+each associated with a lexical item (the head). Supertags encode predicate–argument
+relations of the head and the linear order of its arguments with respect to the head.
+In Figure 30, we show the supertag associated with the word show in an imperative
+sentence such as show the Empire State Building. A supertag can be represented as a
+ﬁnite-state machine with the head and its arguments as arc labels (Figure 31). The set
+of sentences generated by an LTAG can be obtained by combining supertags using
+substitution and adjunction operations. In related work (Rambow et al. 2002), it has
+beenshownthatforarestrictedversionofLTAG,thecombinationsofasetofsupertags
+can be represented as an FSM. This FSM compactly encodes the set of sentences gen-
+erated by an LTAG grammar. It is composed of two transducers, a lexical FST, and a
+syntacticFSM.
+ThelexicalFSTtransducesinputwordstosupertags.Weassumethatasinputtothe
+construction of the lexical machine we have a list of words with their parts-of-speech.
+Oncewehavedeterminedforeachwordthesetofsupertagstheyshouldbeassociated
+Figure30
+Supertagtreeforthewordshow.TheNPnodespermitsubstitutionofallsupertagswithroot
+nodelabeledNP.
+Figure31
+FSMforthewordshow.Theα
+NP
+arcpermitsreplacementwithFSMsrepresentingNP.
+377
+ComputationalLinguistics Volume35,Number3
+with,wecreateadisjunctiveﬁnite-statetransducer(FST)forallwordswhichtransduces
+thewordstotheirsupertags.
+For the syntactic FSM, we take the union of all the FSMs for each supertag which
+correspondstoaninitialtree(i.e.,atreewhichneednotbeadjoined).Wethenperform
+a series of iterative replacements: In each iteration, we replace each arc labeled by a
+supertagbyitslexicalizedversionofthatsupertag’sFSM.Ofcourse,ineachiteration,
+therearemanymorereplacementsthaninthepreviousiteration.Basedonthesyntactic
+complexityinourdomain(suchasnumberofmodiﬁers,clausalembedding,andprepo-
+sitionalphrases),weuseﬁveroundsofiteration.Thenumberofiterationsrestrictsthe
+syntacticcomplexitybutnotthelengthoftheinput.Thisconstructionisinmanyways
+similartoconstructionsproposedforCFGs,inparticularthatofNederhof(1997).One
+differenceisthat,becausewestartfromTAG,recursionisalreadyfactored,andweneed
+notﬁndcyclesintherulesofthegrammar.
+We derive a MATCH domain-speciﬁc corpus by constructing a lexicon consisting
+of pairings of words with their supertags that are relevant to this domain. We then
+compilethegrammartobuildanFSMofallsentencesuptoagivendepthofrecursion.
+We sample this FSM and build a language model as discussed in Section 5.3. Given
+untranscribedutterancesfromaspeciﬁcdomain,wecanalsoadaptthelanguagemodel
+asdiscussedinSection5.6.
+5.8 Speech
+Recognition Experiments
+We describe a set of experiments to evaluate the performance of the language model
+in the MATCH multimodal system. We use word accuracy and string accuracy for
+evaluatingASRoutput.Allresultspresentedinthissectionarebasedon10-foldcross-
+validationexperimentsrunonthe709spokenandmultimodalexchangescollectedfrom
+thepilotstudydescribedinSection2.2.
+Table4presentstheperformanceresultsforASRwordandsentenceaccuracyusing
+language models trained on the collected in-domain corpus as well as on corpora
+derived using the different methods discussed in Sections 5.2–5.7. For the class-based
+models mentioned in the table, we deﬁned different classes based on areas of interest
+(e.g.,riverside park, turtle pond),pointsofinterest(e.g.,Ellis Island, United Nations Build-
+ing), type of cuisine (e.g., Afghani, Indonesian), price categories (e.g., moderately priced,
+expensive),andneighborhoods(e.g.,UpperEastSide,Chinatown).
+It is immediately apparent that the hand-crafted grammar as a language model
+performspoorlyandalanguagemodeltrainedonthecollecteddomain-speciﬁccorpus
+performs signiﬁcantly better than models trained on derived data. However, it is en-
+couragingtonotethatamodeltrainedonaderivedcorpus(obtainedfromcombining
+the migrated out-of-domain corpus and a corpus created by sampling the in-domain
+grammar) is within 10% word accuracy as compared to the model trained on the col-
+lectedcorpus.Thereareseveralothernoteworthyobservationsfromtheseexperiments.
+Theperformanceofthelanguagemodeltrainedondatasampledfromthegrammar
+is dramatically better as compared to the performance of the hand-crafted grammar.
+Thistechniqueprovidesapromisingdirectionforauthoringportablegrammarsthatcan
+besampledsubsequentlytobuildrobustlanguagemodelswhennoin-domaincorpora
+are available. Furthermore, combining grammar and in-domain data, as described in
+Section5.4,outperformsallothermodelssigniﬁcantly.
+Fortheexperimentonthemigrationofanout-of-domaincorpus,weusedacorpus
+from a software help-desk application. Table 4 shows that the migration of data using
+378
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+Table4
+PerformanceresultsforASRwordandsentenceaccuracyusingmodelstrainedondataderived
+fromdifferentmethodsofbootstrappingdomain-speciﬁcdata.
+Scenario ASRWord Sentence
+Accuracy Accuracy
+1 Grammar-based Grammaraslanguagemodel 41.6 38.0
+(Section5.2)
+Class-basedn-gramlanguage 60.6 42.9
+model(Section5.3)
+2 In-domainData Class-basedn-grammodel 73.8 57.1
+(Section5.1)
+3 Grammar+ Class-basedn-grammodel 75.0 59.5
+In-domainData (Section5.4)
+4 Out-of-domain n-grammodel 17.6 17.5
+(Section5.5) Class-basedn-grammodel 58.4 38.8
+Class-basedn-grammodel
+withGrammar-basedn-gram
+LanguageModel 64.0 45.4
+5 Switchboard
+n-grammodel 43.5 25.0
+(Section5.6) Languagemodeltrainedon
+recognizedin-domaindata 55.7 36.3
+6 Wide-coverage n-grammodel 43.7 24.8
+Grammar Languagemodeltrainedon
+(Section5.7) recognizedin-domaindata 55.8 36.2
+linguistic units as described in Section 5.5 signiﬁcantly outperforms a model trained
+onlyontheout-of-domaincorpus.Also,combiningthegrammarsampledcorpuswith
+themigratedcorpusprovidesfurtherimprovement.
+The performance of the Switchboard model on the MATCH domain is presented
+in the ﬁfth row of Table 4. We built a trigram model using a 5.4-million-word Switch-
+board corpus and investigated the effect of adapting the resulting language model on
+in-domain untranscribed speech utterances. The adaptation is done by ﬁrst running
+the recognizer on the training partition of the in-domain speech utterances and then
+building a language model from the recognized text. We observe that although the
+performanceoftheSwitchboardlanguagemodelontheMATCHdomainispoorerthan
+the performance of a model obtained by migrating data from a related domain, the
+performancecanbesigniﬁcantlyimprovedusingtheadaptationtechnique.
+The last row of Table 4 shows the results of using the MATCH speciﬁc lexicon to
+generate a corpus using a wide-coverage grammar, training a language model, and
+adaptingtheresultingmodelusingin-domainuntranscribedspeechutterancesaswas
+donefortheSwitchboardmodel.Theclass-basedtrigrammodelwasbuiltusing500,000
+randomlysampledpathsfromthenetworkconstructedbytheproceduredescribedin
+Section 5.7. It is interesting to note that the performance is very similar to the Switch-
+boardmodelgiventhatthewide-coveragegrammarisnotdesignedforconversational
+speech unlike models derived from Switchboard data. The data from the domain has
+some elements of conversational-style speech which the Switchboard model models
+well, but it also has syntactic constructions that are adequately modeled by the wide-
+coveragegrammar.
+379
+ComputationalLinguistics Volume35,Number3
+Inthissection,wehavepresentedarangeoftechniquestobuildlanguagemodels
+for speech recognition which are applicable at different development phases of an
+application.Althoughtheutilityofin-domaindatacannotbeobviated,wehaveshown
+thattherearewaystoapproximatethisdatawithacombinationofgrammarandout-of-
+domaindata.Thesetechniquesareparticularlyusefulintheinitialphasesofapplication
+development when there is very little in-domain data. The technique of authoring a
+domain-speciﬁc grammar that is sampled for n-gram model building presents a good
+trade-off between time-to-create and the robustness of the resulting language model.
+Thismethodcanbeextendedbyincorporatingsuitablygeneralizedout-of-domaindata,
+in order to approximate the distribution of n-grams in the in-domain data. If time to
+develop is of utmost importance, we have shown that using a large out-of-domain
+corpus (Switchboard) or a wide-coverage domain-independent grammar can yield a
+reasonablelanguagemodel.
+6. Robust Multimodal Understanding
+In Section 3, we showed how multimodal grammars can be compiled into ﬁnite-state
+transducers enabling effective processing of lattice input from speech and gesture
+recognition andmutualcompensation forerrors andambiguities. However,likeother
+approaches based on hand-crafted grammars, multimodal grammars can be brittle
+with respect to extra-grammatical, erroneous, and disﬂuent input. Also, the primary
+applicationsofmultimodalinterfacesincludeuseinnoisymobileenvironmentsanduse
+byinexperiencedusers(forwhomtheyprovideamorenaturalinteraction);thereforeit
+iscriticalthatmultimodalinterfacesprovideahighdegreeofrobustnesstounexpected
+orill-formedinputs.
+In the previous section, we presented methods for bootstrapping domain-speciﬁc
+corporaforthepurposeoftrainingrobustlanguagemodelsusedforspeechrecognition.
+Thesemethodsovercomethebrittlenessofagrammar-basedlanguagemodel.Although
+the corpus-driven language model might recognize a user’s utterance correctly, the
+recognizedutterancemaynotbeassignedasemanticrepresentationbythemultimodal
+grammariftheutteranceisnotpartofthegrammar.
+In this section, we address the issue of robustness in multimodal understanding.
+Robustnessinmultimodalunderstandingresultsfromimprovingrobustnesstospeech
+recognitionandgesturerecognitionerrors.Althoughthetechniquesinthissectionare
+presentedasapplyingtotheoutputofaspeechrecognizer,theyareequallyapplicableto
+theoutputofagesturerecognizer.Wechosetofocusonrobustnesstospeechrecognition
+errorsbecausetheerrorsinagesturerecognizer aretypicallysmallerthaninaspeech
+recognizerduetosmallervocabularyandlowerperplexity.
+There have been two main approaches to improving robustness of the under-
+standingcomponentinthespokenlanguageunderstandingliterature.First,aparsing-
+based approach attempts to recover partial parses from the parse chart when the
+input cannot be parsed in its entirety due to noise, in order to construct a (partial)
+semantic representation (Ward 1991; Dowding et al. 1993; Allen et al. 2001). Second,
+a classiﬁcation-based approach, adopted from the Information Extraction literature,
+views the problem of understanding as extracting certain bits of information from the
+input.Itattemptstoclassifytheutteranceandidentiﬁessubstringsoftheinputasslot-
+ﬁller values to construct a frame-like semantic representation. Both approaches have
+limitations. Although in the ﬁrst approach the grammar can encode richer semantic
+representations,themethodforcombiningthefragmentedparsesisquiteadhoc.Inthe
+380
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+secondapproach,therobustnessisderivedfromtrainingclassiﬁersonannotateddata;
+this data is very expensive to collect and annotate, and the semantic representation
+is fairly limited. There is some more recent work on using structured classiﬁcation
+approachestotransducesentencestologicalforms(Papineni,Roukos,andWard1997;
+Thompson and Mooney 2003; Zettlemoyer and Collins 2005). However, it is not clear
+how to extend these approaches to apply to lattice input—an important requirement
+formultimodalprocessing.
+6.1Evaluation Issue
+Beforewepresent themethods forrobust understanding, wediscuss theissue ofdata
+partitions to evaluate these methods on. Due to the limited amount of data, we run
+cross-validation experiments in order to arrive at reliable performance estimates for
+thesemethods.However,wehaveachoiceintermsofhowthedataissplitintotraining
+and test partitions for the cross-validation runs. We could randomly split the data for
+ann-fold(forexample,10-fold)cross-validationtest.However,thedatacontainseveral
+repeated attempts by users performing the six scenarios. A random partitioning of
+these data would inevitably have the same multimodal utterances in training and test
+partitions. We believe that this would result in an overly optimistic estimate of the
+performance.Inordertoaddressthisissue,werun6-foldcross-validationexperiments
+byusingﬁvescenariosasthetrainingsetandthesixthscenarioasthetestset.Thisway
+ofpartitioningthedataoverlyhandicapsdata-drivenmethodsbecausethedistribution
+of data in the training and test partitions for each cross-validation run would be sig-
+niﬁcantlydifferent.Intheexperimentresultsforeachmethod,wepresent10-foldand
+6-foldcross-validationresultswhereappropriateinordertodemonstratethestrengths
+andlimitationsofeachmethod.Foralltheexperimentsinthissection,weusedadata-
+drivenlanguagemodelforASR.ThewordaccuracyoftheASRis73.8%,averagedover
+allscenariosandallspeakers.
+6.2Classiﬁcation-Based Approach
+Inthisapproachweviewrobustmultimodalunderstandingasasequenceofclassiﬁca-
+tion problems in order to determine the predicate and arguments of an utterance. The
+set of predicates are the same set of predicates used in the meaning representation.
+The meaning representation shown in Figure 28 consists of a predicate (the command
+attribute) and a sequence of one or more argument attributes which are the parame-
+ters for the successful interpretation of the user’s intent. For example, in Figure 28,
+cmd:info isthepredicateand type:phone object:selection aretheargumentstothe
+predicate.
+We determine the predicate (c
+∗
+)foraN token multimodal utterance (S
+N
+1
+)by
+searching for the predicate (c) that maximizes the posterior probability as shown in
+Equation(6).
+c
+∗
+= argmax
+c
+P(c | S
+N
+1
+)(6)
+We view the problem of identifying and extracting arguments from a multimodal
+inputasaproblemofassociatingeachtokenoftheinputwithaspeciﬁctagthatencodes
+381
+ComputationalLinguistics Volume35,Number3
+the label of the argument and the span of the argument. These tags are drawn from
+a tagset which is constructed by extending each argument label by three additional
+symbols I,O,B, following Ramshaw and Marcus (1995). These symbols correspond to
+caseswhenatokenisinside(I)anargumentspan,outside(O)anargumentspan,orat
+theboundaryoftwoargumentspans(B)(SeeTable5).
+Giventhisencoding,theproblemofextractingtheargumentsamountstoasearch
+for the most likely sequence of tags (T
+∗
+) given the input multimodal utterance S
+N
+1
+as shown in Equation (7). We approximate the posterior probability P(T | S
+N
+1
+)using
+independenceassumptionstoincludethelexicalcontextinann-wordwindowandthe
+precedingtwotaglabels,asshowninEquation(8).
+T
+∗
+= argmax
+T
+P(T | S
+N
+1
+)(7)
+≈ argmax
+T
+productdisplay
+i
+P(t
+i
+| S
+i
+i−n,S
+i+n+1
+i+1,t
+i−1,t
+i−2
+)(8
+Owing to the large set of features that are used for predicate identiﬁcation and
+argumentextraction,whichtypicallyresultinsparsenessproblemsforgenerativemod-
+els, we estimate the probabilities using a classiﬁcation model. In particular, we use
+the Adaboost classiﬁer (Schapire 1999) wherein a highly accurate classiﬁer is built by
+combining many “weak” or “simple” base classiﬁers f
+i, each of which may only be
+moderately accurate. The selection of the weak classiﬁers proceeds iteratively, picking
+the weak classiﬁer that correctly classiﬁes the examples that are misclassiﬁed by the
+previously-selected weak classiﬁers. Each weak classiﬁer is associated with a weight
+(w
+i
+) that reﬂects its contribution towards minimizing the classiﬁcation error. The pos-
+teriorprobabilityofP(c | x)iscomputedasinEquation9.Forourexperiments,weuse
+simplen-gramsofthemultimodalutterancetobeclassiﬁedasweakclassiﬁers.
+P(c | x)=
+1
+(1+e
+−2∗
+summationtext
+i
+w
+i
+∗f
+i
+(x)
+)
+(9)
+For the experiments presented subsequently we use the data collected from the
+domaintotraintheclassiﬁers.However,thedatacouldbederivedfromanin-domain
+grammarusingtechniquessimilartothosepresentedinSection5.
+Table5
+The{I,O,B}encodingforargumentextraction.
+User cheapthaiupperwestside
+Utterance
+Argument <price>cheap</price><cuisine>
+Annotation thai</cuisine><place>upperwest
+side</place>
+IOB cheap price<B>thai cuisine<B>
+Encoding upper place<I>west place<I>
+side place<I>
+382
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+6.2.1 Experiments
+and Results. We used a total of 10 predicates such as help, assert,
+inforequest, and 20 argument types such as cuisine, price, location for our experiments.
+These were derived from our meaning representation language. We used unigrams,
+bigrams, and trigrams appearing in the multimodal utterance as weak classiﬁers for
+the purpose of predicate classiﬁcation. In order to predict the tag of a word for ar-
+gument extraction, we used the left and right trigram context and the tags for the
+preceding two tokens as weak classiﬁers. The results are presented in Table 6. We
+presenttheconceptsentenceaccuracyandthepredicateandargumentstringaccuracy
+ofthegrammar-basedunderstandingmodelandtheclassiﬁcation-basedunderstanding
+model.Thecorrespondingaccuracyresultsonthe10-foldcross-validationexperiments
+areshowninparentheses.Ascanbeseen,thegrammar-basedmodelsigniﬁcantlyout-
+performs the classiﬁcation-based approach on the 6-fold cross-validation experiments
+andtheclassiﬁcation-basedapproachoutperformsthegrammar-basedapproachonthe
+10-fold cross-validation experiments. This is to be expected since the classiﬁcation-
+based approach needs to generalize signiﬁcantly from the training set to the test set,
+andthesehavedifferentdistributionsofpredicatesandargumentsinthe6-foldcross-
+validationexperiments.
+A signiﬁcant shortcoming of the classiﬁcation approach is that it does not exploit
+the semantic grammar from the MATCH domain to constrain the possible choices
+from the classiﬁer. Also, the classiﬁer is trained using the data that is collected in
+this domain. However, the grammar is a rich source of distribution-free data. It is
+conceivable to sample the grammar in order to increase the training examples for the
+classiﬁer, in the same spirit as was done for building a language model using the
+grammar (Section 5.3). Furthermore, knowledge encoded in the grammar and data
+canbecombinedbytechniquespresentedinSchapireetal.(2002)toimproveclassiﬁer
+performance.
+Another limitation of this approach is that it is unclear how to extend it to apply
+tospeechandgesturelattices.Asshowninearliersections,multimodalunderstanding
+receivesambiguousspeechandgestureinputsencodedaslattices.Mutualdisambigua-
+tion between these two modalities needs to be exploited. Although the classiﬁcation
+approachcanbeextendedtoapplyton-bestlistsofspeechandgestureinputs,weprefer
+anapproachthatcanapplytolatticeinputsdirectly.
+6.3Noisy Channel Model for ErrorCorrection
+In order to address the limitations of the classiﬁcation-based approach, we explore an
+alternate method for robust multimodal understanding. We translate the user’s input
+to a string that can be assigned a meaning representation by the grammar. We can
+Table6
+Conceptaccuracyresultsfromclassiﬁcation-basedmodelusingdata-drivenlanguagemodelfor
+ASR.(Numbersarepercentfor6-foldcrossvalidationbyscenario.Correspondingpercentfor
+10-foldcrossvalidationaregiveninparentheses.)
+Model Concept Predicate Argument
+Sentence Sentence Sentence
+Accuracy% Accuracy% Accuracy%
+Grammar-based 38.9(41.5) 40.3(43.1) 40.7(43.2)
+Classiﬁcation-based 34.0(58.3) 71.4(85.5) 32.8(61.4)
+383
+ComputationalLinguistics Volume35,Number3
+apply this technique on a user’s gesture input as well in order to compensate for
+gesturerecognitionerrors.Wecouchtheproblemoferrorcorrectioninthenoisychannel
+modeling framework. In this regard, we follow Ringger and Allen (1996) and Ristad
+andYianilos(1998);however,weencodetheerrorcorrectionmodelasaweightedFST
+sowecandirectlyeditspeech/gestureinputlattices.Asmentionedearlier,werelyon
+integrating speech and gesture lattices to avoid premature pruning of admissible so-
+lutionsforrobustmultimodalunderstanding.Furthermore,unlikeRinggerandAllen,
+the language grammar from our application ﬁlters out edited strings that cannot be
+assignedaninterpretationbythemultimodal grammar.Also,whereasinRinggerand
+Allenthegoalistotranslatetothereferencestringandimproverecognitionaccuracy,in
+ourapproachthegoalistotranslatetheinputinordertoassignthereferencemeaning
+andimproveconceptaccuracy.
+We let S
+g
+be the string that can be assigned a meaning representation by the
+grammarandS
+u
+betheuser’sinpututterance.IfweconsiderS
+u
+tobethenoisyversion
+of the S
+g, we view the decoding task as a search for the string S
+∗
+g
+as shown in Equa-
+tion(10).NoteweformulatethisasajointprobabilitymaximizationasinEquation(11).
+Equation (12) expands the sequence probability by the chain rule where S
+i
+u
+and S
+i
+g
+arethei
+th
+tokensfromS
+u
+andS
+g
+respectively.WeuseaMarkovapproximation(limiting
+the dependence on the history to the past two time steps: trigram assumption for our
+purposes)tocomputethejointprobabilityP(S
+u,S
+g
+),showninEquation(13).
+S
+∗
+g
+= argmax
+S
+g
+P(S
+g
+|S
+u
+) (10)
+= argmax
+S
+g
+P(S
+g,S
+u
+) (11)
+= argmax
+S
+g
+P(S
+0
+u,S
+0
+g
+)∗P(S
+1
+u,S
+1
+g
+|S
+0
+u,S
+0
+g
+)...∗P(S
+n
+u,S
+n
+g
+|S
+0
+u,S
+0
+g,...,S
+n−1
+u,S
+n−1
+g
+) (12)
+S
+∗
+g
+=argmax
+S
+g
+productdisplay
+P(S
+i
+u,S
+i
+g
+|S
+i−1
+u,S
+i−2
+u,S
+i−1
+g,S
+i−2
+g
+) (13)
+whereS
+u
+=S
+1
+u
+S
+2
+u
+...S
+n
+u
+andS
+g
+=S
+1
+g
+S
+2
+g
+...S
+m
+g
+.
+In order to compute the joint probability, we need to construct an alignment
+between tokens (S
+i
+u,S
+i
+g
+). We use the Viterbi alignment provided by the GIZA++
+toolkit (Och and Ney 2003) for this purpose. We convert the Viterbi alignment into a
+bilanguage representation that pairs words of the string S
+u
+with words of S
+g
+.Afew
+examples of bilanguage strings are shown in Figure 32. We compute the joint n-gram
+modelusingalanguagemodelingtoolkit(Gofﬁnetal.2005).Equation(13)thusallows
+ustoeditauser’sutterancetoastringthatcanbeinterpretedbythegrammar.
+Figure32
+Afewexamplesofbilanguagestrings.
+384
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+6.3.1 Deriving
+a Translation Corpus. Because our multimodal grammar is implemented
+as a ﬁnite-state transducer it is fully reversible and can be used not just to provide a
+meaning for input strings but can also be run in reverse to determine possible input
+stringsforagivenmeaning.Ourmultimodalcorpuswasannotatedformeaningusing
+themultimodalannotationtoolsdescribedinSection2.2.Inordertotrainthetranslation
+model we built a corpus that pairs the reference speech string for each utterance in
+the training data with a target string. The target string is derived in two steps. First,
+the multimodal grammar is run in reverse on the reference meaning yielding a lattice
+of possible input strings. Second, the closest string (as deﬁned by Levenshtein edit-
+distance [Levenshtein 1966]) in the lattice to the reference speech string is selected as
+thetargetstring.
+6.3.2 FST-Based Decoder. In order to facilitate editing of ASR lattices, we represent the
+n-gramtranslationmodelasaweightedﬁnite-statetransducer(BangaloreandRiccardi
+2002). We ﬁrst represent the joint n-gram model as a ﬁnite-state acceptor (Allauzen
+et al. 2004). We then interpret the symbols on each arc of the acceptor as having two
+components—a word from the user’s utterance (input) and a word from the edited
+string (output). This transformation makes a transducer out of an acceptor. In doing
+this,wecandirectlycomposetheeditingmodel(λ
+MT
+)withASRlattices(λ
+S
+)toproduce
+aweightedlatticeofeditedstrings.Wefurtherconstrainthesetofeditedstringstothose
+thatareinterpretablebythegrammar.Weachievethisbycomposingwiththelanguage
+ﬁnite-state acceptor derived fromthe multimodal grammar (λ
+G
+)and searching for the
+besteditedstring,asshowninEquation(14).
+S
+∗
+MT
+=argmax
+S
+λ
+S
+◦λ
+MT
+◦λ
+G
+(14)
+If we were to apply this approach to input gesture lattices, then the translation
+model would be built from pairings of the gesture recognition output and the corre-
+spondinggesturestringthatwouldbeinterpretablebythegrammar.Typicalerrorsin
+gesture input could include misrecognition of a spurious gesture that ought to have
+beentreatedasnoise(caused,forexample,byimproperdetectionofapen-downevent)
+andnon-recognitionofpertinentgesturesduetoearlyend-pointingofinkinput.
+Figure33showstwoexamples.Intheﬁrstexample,theunimodalspeechutterance
+was edited by the model to produce a string that was correctly interpreted by the
+multimodalgrammar.Inthesecondexample,thespeechandgestureintegrationfailed
+andresultedinanemptymeaningrepresentation.However,aftertheeditonthespeech
+string,themultimodalutterancewascorrectlyinterpreted.
+6.3.3 Experiments
+and Results. Table 7 summarizes the results of the translation model
+(TM) and compares its accuracy to a grammar-based model. We provide concept ac-
+curacy and predicate and argument string accuracy of the translation models applied
+to one-best and lattice ASR input. We also provide concept accuracy results on the
+lattice of edited strings resulting from applying the translation models to the user’s
+input.Ascanbeseenfromthetable,thetranslationmodelsoutperformthegrammar-
+based models signiﬁcantly in all cases. It is also interesting to note that there is some
+improvementinconceptaccuracyusinganASRlatticeoveraone-bestASRoutputwith
+one-besttranslationoutput.However,theimprovementismuchmoresigniﬁcantusing
+a lattice output from the translation model, suggesting that delaying selection of the
+editedstringuntilthegrammar/domainconstraintsareappliedispayingoff.
+385
+ComputationalLinguistics Volume35,Number3
+Figure33
+Sampleinputsandtheeditedoutputsfromthetranslationmodel.
+One of the limitations of the translation model is that the edit operations that are
+learned are entirely driven by the parallel data. However, when the data are limited,
+as is the case here, the edit operations learned are also restricted. We would like to
+incorporatedomain-speciﬁceditoperationsinadditiontotheonesthatarereﬂectedin
+thedata.Inthenextsection,weexplorethisapproach.
+6.4Edit-Based Approach
+Inthissection,weextendtheapproachoftranslatingthe“noisy”versionoftheuser’s
+input to the “clean” input to incorporate arbitrary editing operations. We encode the
+possible edits on the input string as an edit FST with substitution, insertion, deletion,
+and identity arcs. These operations could be either word-based or phone-based and
+are associated with a cost. This allows us to incorporate, by hand, a range of edits
+that may not have been observed in the data used in the noisy–channel-based error-
+correctionmodel.Theedittransducercoercesthesetofstrings(S)encodedinthelattice
+resulting from ASR (λ
+S
+) to the closest strings in the grammar that can be assigned
+an interpretation. We are interested in the string with the least-cost sequence of edits
+Table7
+Conceptsentenceaccuracyofgrammar-basedandtranslation-basedmodelswithdata-driven
+languagemodelforASR.(Numbersarepercentfor6-foldcrossvalidationbyscenario.
+Correspondingpercentfor10-foldcrossvalidationaregiveninparentheses.)
+Model Concept Predicate Argument
+Sentence Sentence Sentence
+Accuracy(%) Accuracy(%) Accuracy(%)
+Grammar-based 38.9(41.5) 40.3(43.1) 40.7(43.2)
+ASR1-best/1-bestTM 46.1(61.6) 68.0(70.5) 47.0(62.6)
+ASR1-best/LatticeTM 50.3(61.6) 70.5(70.5) 51.2(62.6)
+ASRLattice/1-bestTM 46.7(61.9) 70.8(69.9) 47.1(63.3)
+ASRLattice/LatticeTM 54.2(60.8) 81.9(67.2) 54.5(61.6)
+386
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+Figure34
+Basiceditmachine.
+(argmin)thatcanbeassignedaninterpretationbythegrammar.
+7
+Thiscanbeachieved
+bycomposition(◦)oftransducersfollowedbyasearchfortheleast-costpaththrougha
+weightedtransducerasshowninEquation(15).
+s
+∗
+=argmin
+s∈S
+λ
+S
+◦λ
+edit
+◦λ
+g
+(15)
+We ﬁrst describe the machine introduced in Bangalore and Johnston (2004) (Basic
+edit)thengoontodescribeasmallereditmachinewithhigherperformance(4-edit)and
+aneditmachinewhichincorporatesadditionalheuristics(Smartedit).
+6.4.1 Basic
+Edit. The edit machine described in Bangalore and Johnston (2004) is es-
+sentially a ﬁnite-state implementation of the algorithm to compute the Levenshtein
+distance. It allows for unlimited insertion, deletion, and substitution of any word for
+another (Figure 34). The costs of insertion, deletion, and substitution are set as equal,
+except for members of classes such as price (expensive), cuisine (turkish),andsoon,
+whichareassignedahighercostfordeletionandsubstitution.
+6.4.2 Limiting
+the Number of Edits. Basic edit is effective in increasing the number of
+strings that are assigned an interpretation (Bangalore and Johnston 2004) but is quite
+large (15Mb, 1 state, 978,120 arcs) and adds an unacceptable amount of latency (5 sec-
+ondsonaverage)inprocessingone-bestinputandiscomputationallyprohibitivetouse
+onlattices.Inordertoovercometheseperformancelimitations,weexperimentedwith
+revisingthetopologyoftheeditmachinesothatitallowsonlyalimitednumberofedit
+operations (e.g., at most four edits) and removed the substitution arcs, because they
+give rise to O(|
+summationtext
+|
+2
+) arcs, where
+summationtext
+is the vocabulary. Substitution is still possible but
+requiresonedeleteandoneinsert.Forthesamegrammar,theresultingeditmachineis
+about300Kbwith4statesand16,796arcs.Thetopologyofthe4-editmachineisshown
+inFigure35.Inadditionto4-edit,wealsoinvestigated6-editand8-editmachineswhose
+resultswereportinthesubsequentsections.
+There is a signiﬁcant savings in bounding the number of edits on the number of
+paths in the resulting lattice. After composing with the basic edit machine, the lattice
+would contain O(n∗|
+summationtext
+|) arcs where n is the length of the input being edited. For
+the bounded k-edit machines this reduces to O(k∗|Σ|)arcsandO(|Σ|
+k
+)pathsfora
+constantk.
+7 Notethatthecloseststringaccordingtotheeditmetricmaynotbethecloseststringinmeaning.
+387
+ComputationalLinguistics Volume35,Number3
+Figure35
+4-editmachine.
+6.4.3 Smart
+Edit. We incorporate a number of additional heuristics and reﬁnements to
+tunethe4-editmachinebasedontheunderlyingapplicationdatabase.
+i. Deletion of SLM-only wordsWeaddarcstotheedittransducertoallowforfree
+deletion of words in the SLM training data which are not found in the grammar: for
+example,listingsinthairestaurantlistingsinmidtown→thairestaurantinmidtown.
+ii. Deletion of doubled wordsAcommonerrorobservedinSLMoutputwasdou-
+bling of monosyllabic words: for example, subway to the cloisters recognized as subway
+to to the cloisters.Weaddarcstotheeditmachinetoallowforfreedeletionofanyshort
+wordwhenprecededbythesameword.
+iii.ExtendedvariableweightingofwordsInsertionanddeletioncostswerefurther
+subdivided from two to three classes: a low cost for “dispensable” words, (e.g., please,
+would, looking, a, the), a high cost for special words (slot ﬁllers, e.g., chinese, cheap,
+downtown),andamediumcostforallotherwords,(e.g.,restaurant,ﬁnd).
+iv.AutocompletionofplacenamesItisunlikelythatgrammarauthorswillinclude
+allofthedifferentwaystorefertonamedentitiessuchasplacenames.Forexample,if
+thegrammarincludesmetropolitan museum of arttheusermayjustsaymetropolitan mu-
+seum.Thesechangescaninvolvesigniﬁcantnumbersofedits.Acapabilitywasadded
+to the edit machine to complete partial speciﬁcations of place names in a single edit.
+This involves a closed world assumption over the set of place names. For example, if
+theonlymetropolitanmuseuminthedatabaseisthemetropolitanmuseumofartweassume
+that we can insert of art after metropolitan museum. The algorithm for construction of
+these auto-completion edits enumerates all possible substrings (both contiguous and
+non-contiguous) for place names. For each of these it checks to see if the substring is
+foundinmorethanonesemanticallydistinctmemberoftheset.Ifnot,aneditsequence
+is added to the edit machine which freely inserts the words needed to complete the
+placename.Figure36illustratesoneoftheedittransductionsthatisaddedfortheplace
+namemetropolitanmuseumofart.Thealgorithmwhichgeneratestheautocompleteedits
+alsogeneratesnewstringstoaddtotheplacenameclassfortheSLM(expandedclass).
+In order to limit over-application of the completion mechanism, substrings starting
+in prepositions (of art → metropolitan museum of art) or involving deletion of parts of
+abbreviationsarenotconsideredforedits(bcbuilding→nbcbuilding).
+Notethattheapplication-speciﬁcstructureandweightingof Smart edit (iii,iv)can
+bederivedautomatically:Weusetheplace-namelistforautocompletionofplacenames
+andusethedomainentities,asdeterminedbywhichwordscorrespondtoﬁeldsinthe
+underlyingapplicationdatabase,toassignvariablecoststodifferententities.
+Figure36
+Auto-completionedits.
+388
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+Table8
+Conceptaccuracyfordifferenteditmodelson6-foldcross-validationexperimentsusinga
+data-drivenlanguagemodelforASR.
+Model Concept Predicate Argument
+Sentence Sentence Sentence
+Accuracy(%) Accuracy(%) Accuracy(%)
+Grammar-based 38.9 40.3 40.7
+(Noedits)
+Basicedit 51.5 63.1 52.6
+4-edit 53.0 62.6 53.9
+6-edit 58.2 74.7 59.0
+8-edit 57.8 75.7 58.6
+Smart4-edit 60.2 69.9 60.9
+Smart6-edit 60.2 73.7 61.3
+Smart8-edit 60.9 76.0 61.9
+Smartedit(exp) 59.7 70.8 60.5
+Smartedit(exp,lattice) 62.0 73.1 63.0
+Smartedit(lattice) 63.2 73.7 64.0
+6.4.4ExperimentsandResults.Wesummarizetheconceptaccuracyresultsfromthe6-fold
+cross-validation experiments using the different edit machines previously discussed.
+We also repeat the concept accuracy results from the grammar-based model with no
+edits for a point of comparison. When compared to the baseline of 38.9% concept
+accuracy without edits (No edits), Basic edit gave a relative improvement of 32%,
+yielding51.5%conceptaccuracy(Table8).Interestingly,bylimitingthenumberofedit
+operationsasin4-edit,weimprovedtheconceptaccuracy(53%)comparedtoBasicedit.
+Thereasonforthisimprovementisthatforcertaininpututterances,theBasiceditmodel
+creates a very large edited lattice and the composition with the grammar fails due to
+memory restrictions.
+8
+We also show improvement in concept accuracy by increasing
+thenumberofallowableeditoperations(upto8-edit).Theconceptaccuracyimproves
+withincreasingnumberofeditsbutwithdiminishingrelativeimprovements.
+The heuristics in Smart edit clearly improve on the concept accuracy of the basic
+edit models with a relative improvement of 55% over the baseline. Smart edit (exp)
+showstheconceptaccuracyofSmarteditrunningoninputfromanASRmodelwiththe
+expandedclassesrequiredforautocompletionofplacenames.Inspectionofindividual
+partitions showed that, while the expanded classes did allow for the correction of
+errorsonplacenames,theaddedperplexityintheASRmodelfromexpandingclasses
+resultedinerrorselsewhereandanoveralldropinconceptaccuracyof0.5%compared
+to Smart edit withoutexpanded classes. UsingASRlatticesasinputtotheeditmodels
+further improved the accuracy to the best concept sentence accuracy score of 63.2%, a
+relativeimprovementof62.5%overtheno-editmodel.Latticeinputalsoimprovedthe
+performanceofSmarteditwiththeexpandedclassesfrom59.7%to62%.
+To summarize, in Table 9 we tabulate the concept accuracy results from the best
+performingconﬁgurationofeachoftherobustunderstandingmethodsdiscussedinthis
+section.Itisclearthatthetechniquessuchastranslation-basededitandSmarteditthatcan
+exploitthedomain-speciﬁcgrammarimprovesigniﬁcantlyovertheclassiﬁcation-based
+8 However,theconceptaccuracyforthe70%ofutteranceswhichareassignedameaningusingthebasic
+editmodelwasabout73%.
+389
+ComputationalLinguistics Volume35,Number3
+Table9
+Summaryofconceptaccuracyresultsfromthedifferentrobustunderstandingtechniquesusing
+data-drivenlanguagemodelsforASR.
+Model Concept Predicate Argument
+Sentence Sentence Sentence
+Accuracy(%) Accuracy(%) Accuracy(%)
+Grammar-based 38.9(41.5) 40.3(43.1) 40.7(43.2)
+(Noedits)
+Classiﬁcation-based 34.0(58.3) 71.4(85.5) 32.8(61.4)
+Translation-basededit 54.2(60.8) 81.9(67.2) 54.5(61.6)
+Smartedit 63.2(68.4) 73.7(73.8) 64.0(69.4)
+approach.Furthermore,theheuristicsencodedinthesmartedittechniquethatexploit
+thedomainconstraintsoutperformthetranslation-basededittechniquethatisentirely
+data-dependent.
+We also show the results from the 10-fold cross-validation experiments in the
+table. As can be seen there is a signiﬁcant improvement in concept accuracy for data-
+driven techniques (classiﬁcation and translation-based edit) compared to the 6-fold
+cross-validationexperiments.Thisistobeexpectedbecausethedistributionsestimated
+fromthetrainingsetﬁtthetestdatabetterinthe10-foldexperimentsasagainst6-fold
+experiments.
+Based on the results we have presented in this section, it would be pragmatic to
+rapidly build a hand-crafted grammar-based conversational system that can be made
+robust using stochastic language modeling techniques and edit-based understanding
+techniques. Once the system is deployed and data collected, then a judicious balance
+ofdata-drivenandgrammar-basedtechniqueswouldmaximizetheperformanceofthe
+system.
+7. Robust Gesture Processing
+Gesture recognition has a lower error rate than speech recognition in this application.
+Even so, gesture misrecognitions and incompleteness of the multimodal grammar in
+specifyingspeechandgesturecombinationscontributetothenumberofutterancesnot
+beingassignedameaning.Weaddresstheissueofrobustnesstogestureerrorsinthis
+section.
+We adopted the edit-based technique used on speech utterances to improve ro-
+bustnessofmultimodalunderstanding.However,unlikeaspeechutterance,agesture
+stringhasastructuredrepresentation.Thegesturestringisrepresentedasasequenceof
+attribute–values(e.g.,gesture typetakesvaluesfrom{area, line, point, handwriting})and
+editingagesturerepresentationimpliesallowingforreplacementswithinthevalueset.
+We adopted a simple approach that allows for substitution and deletion of values for
+eachattribute,inadditiontothedeletionofanygesture.Wedidnotallowforinsertions
+of gestures as it is not clear what speciﬁc content should be assigned to an inserted
+gesture. One of the problems is that if you have, for example, a selection of two items
+andyouwanttoincreaseittothreeselecteditems,itisnotclearaprioriwhichentityto
+addasthethirditem.Weencodedtheeditoperationsforgestureeditingasaﬁnite-state
+transducerjustaswedidforeditingspeechutterances.Figure37illustratesthegesture
+edit transducer with delc representing the delection cost and substc the substitution
+cost. This method of manipulating the gesture recognition lattice is similar to gesture
+390
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+Figure37
+Aﬁnite-statetransducerforeditinggestures.
+aggregation, introduced in Section 3.4. In contrast to substitution and deletion of ges-
+tures,gestureaggregationinvolvesinsertionofnewgesturesintothelattice;however,
+eachintroducedgesturehasawell-deﬁnedmeaningbasedonthecombinationofvalues
+ofthegesturesbeingaggregated.
+WeevaluatedtheeffectivenessofthegestureeditmachineontheMATCHdataset.
+Thedataconsistedof174multimodalutterancesthatwerecoveredbythegrammar.We
+usedthetranscribedspeechutteranceandthegesturelatticefromthegesturerecognizer
+as inputs to the multimodal integration and understanding system. For 55.4% of the
+utterances, we obtained the identical attribute–value meaning representation as the
+human-transcribedmeaningrepresentation.
+Applying the gesture edit transducer on the gesture recognition lattices, and then
+integrating the result with the transcribed speech utterance produced a signiﬁcant
+improvementintheaccuracyoftheattribute–valuemeaningrepresentation.For68.9%
+of the utterances, we obtained the identical attribute–value meaning representation
+as the human-transcribed meaning representation, a 22.5% absolute improvement in
+the robustness of the system that can be directly attributed to robustness in gesture
+integrationandunderstanding.Infuturework,wewouldliketoexplorelearningfrom
+datahowtobalancegestureeditingandspeecheditingbasedontherelativereliabilities
+ofthetwomodalities.
+8. Conclusion
+We view the contributions of the research presented in this article from two perspec-
+tives. First, we have shown how the ﬁnite-state approach to multimodal language
+processing (Johnston and Bangalore 2005) can be extended to support applications
+with complex pen input and how the approach can be made robust through coupling
+with a stochastic speech recognition model using translation techniques or ﬁnite-state
+edit machines. We have investigated the options available for bootstrapping domain-
+speciﬁccorporaforlanguagemodelsbyexploitingdomain-speciﬁcandwide-coverage
+grammars, linguistic generalization of out-of-domain data, and adapting domain-
+independent corpora. We have shown that such techniques can closely approximate
+the accuracy of speech recognizers trained on domain-speciﬁc corpora. For robust
+391
+ComputationalLinguistics Volume35,Number3
+multimodalunderstandingwehavepresentedandcomparativelyevaluatedthreedif-
+ferenttechniquesbasedondiscriminativeclassiﬁcation,statisticaltranslation,andedit
+machines. We have investigated the strengths and limitations of these approaches
+in terms of their ability to process lattice input, their ability to exploit constraints
+from a domain-speciﬁc grammar, and their ability to utilize domain knowledge from
+the underlying application database. The best performing multimodal understanding
+system, using a stochastic ASR model coupled with the smart 4-edit transducer on
+lattice input, is signiﬁcantly more robust than the grammar-based system, achieving
+68.4%conceptsentenceaccuracy(10-fold)ondatacollectedfromnoviceﬁrsttimeusers
+of a multimodal conversational system. This is a substantial 35% relative improve-
+mentinperformancecomparedto50.7%conceptsentenceaccuracy(10-fold)usingthe
+grammar-basedlanguageandmultimodalunderstandingmodelswithoutedits.Inour
+explorationofapplyingedittechniquestothegesturelatticeswesawa22.5%absolute
+improvementinrobustness.
+The second perspective on the work views it as an investigation of a range of
+techniques that balance the robustness provided by data-driven techniques and the
+ﬂexibilityprovidedbygrammar-basedapproaches.Inthepastfourdecadesofspeech
+and natural language processing, both data-driven approaches and rule-based ap-
+proacheshavebeenprominentatdifferentperiodsintime.Moderate-sizedrule-based
+spoken language models for recognition and understanding are easy to develop and
+providetheabilitytorapidlyprototypeconversationalapplications.However,scalabil-
+ityofsuchsystemsisabottleneckduetotheheavycostofauthoringandmaintenance
+of rule sets and inevitable brittleness due to lack of coverage. In contrast, data-driven
+approaches are robust and provide a simple process of developing applications given
+availability of data from the application domain. However, this reliance on domain-
+speciﬁcdataisalsooneofthesigniﬁcantbottlenecksofdata-drivenapproaches.Devel-
+opment of conversational systems using data-driven approaches cannot proceed until
+data pertaining to the application domain is available. The collection and annotation
+of such data is extremely time-consuming and tedious, which is aggravated by the
+presence of multiple modalities in the user’s input, as in our case. Also, extending an
+existing application to support an additional feature requires adding additional data
+sets with that feature. We have shown how a balanced approach where statistical lan-
+guagemodelsarecoupledwithgrammar-basedunderstandingusingeditmachinescan
+be highly effective in a multimodal conversational system. It is important to note that
+thesetechniquesareequallyapplicableforspeech-onlyconversationalsystemsaswell.
+Given that the combination of stochastic recognition models with grammar-based
+understanding models provides robust performance, the question which remains is,
+after the initial bootstrapping phase, as more data becomes available, should this
+grammar-based approach be replaced with a data-driven understanding component?
+There are a number of advantages to the hybrid approach we have proposed which
+extendbeyondtheinitialdeploymentofanapplication.
+1. Theexpressivenessofthemultimodalgrammarallowsustospecify
+anycompositionalrelationshipsandmeaningthatwewant.Therange
+ofmeaningsandtheirrelationshiptotheinputstringcanbearbitrarily
+simpleorcomplex.
+2. Themultimodalgrammarprovidesanalignmentbetweenspeech
+andgestureinputandenablesmultimodalintegrationofcontent
+fromdifferentmodes.
+392
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+3. Withthegrammar-basedapproachitisstraightforwardtoquicklyadd
+supportfornewcommandstothegrammarorchangetherepresentation
+ofexistingcommands.TheonlyretrainingthatisneededisfortheASR
+model,anddatafortheASRmodelcaneitherbemigratedfromanother
+relateddomainorderivedthroughgrammarsampling.
+4. Mostimportantly,thisapproachhasthesigniﬁcantadvantagethatit
+doesnotrequireannotationofspeechdatawithmeaningrepresentations
+andalignmentofthemeaningrepresentationswithwordstrings.This
+canbecomplexandexpensive,involvingadetailedlabelingguideand
+instructionsforannotators.Incontrastinthisapproach,ifdataisused,all
+thatisneededistranscriptionoftheaudio,afarmorestraightforward
+annotationtask.Ifnodataisusedthengrammarsamplingcanbeused
+insteadandnoannotationofdataisneededwhatsoever.
+5. Althoughdata-drivenapproachestounderstandingarecommonplace
+inresearch,rule-basedtechniquescontinuetodominateinmuchofthe
+industry(Pieraccini2004).See,forexample,theW3CSRGSstandard
+(www.w3.org/TR/speech-grammar/).
+Acknowledgments
+Wededicatethisarticletothememoryof
+CandyKammwhosecontinuedsupport
+formultimodalresearchmadethiswork
+possible.WethankPatrickEhlen,Helen
+Hastie,PreetamMaloor,AmandaStent,
+GunaranjanVasireddy,MarilynWalker,
+andSteveWhittakerfortheircontributions
+totheMATCHsystem.Wealsothank
+RichardCoxandMazinGilbertfortheir
+ongoingsupportofmultimodalresearchat
+AT&TLabs–Research.Wewouldalsolike
+tothanktheanonymousreviewersfor
+theirmanyhelpfulcommentsand
+suggestionsforrevision.
+References
+Abney,S.P.1991.Parsingbychunks.In
+R.Berwick,S.Abney,andC.Tenny,
+editors,Principle-BasedParsing.IEEE,
+LosAlamitos,CA,pages257–278.
+Ades,A.E.andM.Steedman.1982.Onthe
+orderofwords.LinguisticsandPhilosophy,
+4:517–558.
+Alexandersson,J.andT.Becker.2001.
+Overlayasthebasicoperationfor
+discourseprocessinginamultimodal
+dialoguesystem.InProceedingsoftheIJCAI
+Workshop:KnowledgeandReasoningin
+PracticalDialogueSystems,pages8–14,
+Seattle,WA.
+Allauzen,C.,M.Mohri,M.Riley,and
+B.Roark.2004.Ageneralizedconstruction
+ofspeechrecognitiontransducers.In
+InternationalConferenceonAcoustics,Speech,
+andSignalProcessing,pages761–764,
+Montreal.
+Allauzen,C.,M.Mohri,andB.Roark.2003.
+Generalizedalgorithmsforconstructing
+statisticallanguagemodels.InProceedings
+oftheAssociationforComputational
+Linguistics,pages40–47,Sapporo.
+Allauzen,C.,M.Riley,J.Schalkwyk,
+W.Skut,andM.Mohri.2007.Openfst:
+Ageneralandefﬁcientweighted
+ﬁnite-statetransducerlibrary.In
+ProceedingsoftheNinthInternational
+ConferenceonImplementationandApplication
+ofAutomata,(CIAA2007),LectureNotesin
+ComputerScienceVol.4783,pages11–23.
+Springer,Berlin,Heidelberg.
+Allen,J.,D.Byron,M.Dzikovska,
+G.Ferguson,L.Galescu,andA.Stent.
+2001.Towardsconversational
+human-computerinteraction.
+AIMagazine,22(4):27–38.
+Andr´e,E.2002.Naturallanguagein
+multimedia/multimodalsystems.
+InR.Mitkov,editor,Handbookof
+ComputationalLinguistics.Oxford
+UniversityPress,Oxford,
+pages650–669.
+Bacchiani,M.andB.Roark.2003.
+Unsupervisedlanguagemodel
+adaptation.InProceedingsofthe
+InternationalConferenceonAcoustics,
+Speech,andSignalProcessing,
+pages224–227,HongKong.
+Bangalore,S.1997.ComplexityofLexical
+DescriptionsanditsRelevancetoPartial
+393
+ComputationalLinguistics Volume35,Number3
+Parsing.Ph.D.thesis,Universityof
+Pennsylvania,Philadelphia,PA.
+Bangalore,S.andM.Johnston.2000.
+Tight-couplingofmultimodallanguage
+processingwithspeechrecognition.
+InProceedingsoftheInternationalConference
+onSpokenLanguageProcessing,
+pages126–129,Beijing.
+Bangalore,S.andM.Johnston.2004.
+Balancingdata-drivenandrule-based
+approachesinthecontextofa
+multimodalconversationalsystem.
+InProceedingsoftheNorthAmerican
+AssociationforComputationalLinguistics/
+HumanLanguageTechnology,pages33–40,
+Boston,MA.
+Bangalore,S.andA.K.Joshi.1999.
+Supertagging:Anapproachtoalmost
+parsing.ComputationalLinguistics,
+25(2):237–265.
+Bangalore,S.andG.Riccardi.2000.
+Stochasticﬁnite-statemodelsforspoken
+languagemachinetranslation.In
+ProceedingsoftheWorkshoponEmbedded
+MachineTranslationSystems,pages52–59,
+Seattle,WA.
+Bangalore,S.andG.Riccardi.2002.
+Stochasticﬁnite-statemodelsofspoken
+languagemachinetranslation.Machine
+Translation,17(3):165–184.
+Bellik,Y.1995.InterfaceMultimodales:
+Concepts,Mod`elesetArchitectures.Ph.D.
+thesis,UniversityofParisXI(Orsay),
+France.
+Bellik,Y.1997.Mediaintegrationin
+multimodalinterfaces.InProceedings
+oftheIEEEWorkshoponMultimedia
+SignalProcessing,pages31–36,
+Princeton,NJ.
+Beutnagel,M.,A.Conkie,J.Schroeter,
+Y.Stylianou,andA.Syrdal.1999.The
+AT&Tnext-generationTTS.InJoint
+MeetingofASA;EAAandDAGA,
+pages18–24,Berlin.
+Boros,M.,W.Eckert,F.Gallwitz,G.G˘orz,
+G.Hanrieder,andH.Niemann.
+1996.Towardsunderstanding
+spontaneousspeech:wordaccuracy
+vs.conceptaccuracy.InProceedingsof
+theInternationalConferenceonSpoken
+LanguageProcessing,pages41–44,
+Philadelphia,PA.
+Brison,E.andN.Vigouroux.1993.
+Multimodalreferences:Agenericfusion
+process.Technicalreport,URIT-URA
+CNRS,UniversitPaulSabatier,Toulouse.
+Carpenter,R.1992.TheLogicofTypedFeature
+Structures.CambridgeUniversityPress,
+Cambridge.
+Cassell,J.2001.Embodiedconversational
+agents:Representationandintelligencein
+userinterface.AIMagazine,22:67–83.
+Cheyer,A.andL.Julia.1998.Multimodal
+Maps:AnAgent-BasedApproach.Lecture
+NotesinComputerScience,1374:103–113.
+Ciaramella,A.1993.Aprototype
+performanceevaluationreport.Technical
+ReportWP8000-D3,ProjectEsprit2218,
+SUNDIAL.
+Clark,S.andJ.Hockenmaier.2002.
+Evaluatingawide-coverageCCGparser.
+InProceedingsoftheLREC2002,Beyond
+ParsevalWorkshop,pages60–66,
+LasPalmas.
+Cohen,P.R.1991.Integratedinterfaces
+fordecisionsupportwithsimulation.
+InProceedingsoftheWinterSimulation
+Conference,pages1066–1072,Phoenix,AZ.
+Cohen,P.R.1992.Theroleofnatural
+languageinamultimodalinterface.
+InProceedingsoftheUserInterfaceSoftware
+andTechnology,pages143–149,
+Monterey,CA.
+Cohen,P.R.,M.Johnston,D.McGee,S.L.
+Oviatt,J.Clow,andI.Smith.1998a.The
+efﬁciencyofmultimodalinteraction:A
+casestudy.InProceedingsoftheInternational
+ConferenceonSpokenLanguageProcessing,
+pages249–252,Sydney.
+Cohen,P.R.,M.Johnston,D.McGee,S.L.
+Oviatt,J.Pittman,I.Smith,L.Chen,and
+J.Clow.1998b.Multimodalinteractionfor
+distributedinteractivesimulation.In
+M.MayburyandW.Wahlster,editors,
+ReadingsinIntelligentInterfaces.Morgan
+KaufmannPublishers,SanFrancisco,CA,
+pages562–571.
+Dowding,J.,J.M.Gawron,D.E.Appelt,
+J.Bear,L.Cherny,R.Moore,andD.B.
+Moran.1993.GEMINI:Anatural
+languagesystemforspoken-language
+understanding.InProceedingsofthe
+AssociationforComputationalLinguistics,
+pages54–61,Columbus,OH.
+Ehlen,P.,M.Johnston,andG.Vasireddy.
+2002.Collectingmobilemultimodal
+dataforMATCH.InProceedingsofthe
+InternationalConferenceonSpokenLanguage
+Processing,pages2557–2560,Denver,CO.
+Flickinger,D.,A.Copestake,andI.Sag.
+2000.HPSGanalysisofEnglish.
+InW.Wahlster,editor,Verbmobil:
+FoundationsofSpeech-to-SpeechTranslation.
+Springer–Verlag,Berlin,pages254–263.
+Galescu,L.,E.K.Ringger,andJ.F.Allen.
+1998.Rapidlanguagemodeldevelopment
+fornewtaskdomains.InProceedingsofthe
+ELRAFirstInternationalConferenceon
+394
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+LanguageResourcesandEvaluation(LREC),
+pages807–812,Granada.
+Gofﬁn,V.,C.Allauzen,E.Bocchieri,
+D.Hakkani-Tur,A.Ljolje,S.Parthasarathy,
+M.Rahim,G.Riccardi,andM.Saraclar.
+2005.TheAT&TWATSONspeech
+recognizer.InProceedingsofthe
+InternationalConferenceonAcoustics,Speech,
+andSignalProcessing,pages1033–1036,
+Philadelphia,PA.
+Gorin,A.L.,G.Riccardi,andJ.H.Wright.
+1997.HowMayIHelpYou?Speech
+Communication,23(1-2):113–127.
+Gupta,N.,G.Tur,D.Tur,S.Bangalore,
+G.Riccardi,andM.Rahim.2004.The
+AT&Tspokenlanguageunderstanding
+system.IEEETransactionsonSpeechand
+AudioProcessing,14(1):213–222.
+Gustafson,J.,L.Bell,J.Beskow,J.Boye,
+R.Carlson,J.Edlund,B.Granstr¨om,
+D.House,andM.Wirn.2000.Adapt—
+amultimodalconversationaldialogue
+systeminanapartmentdomain.In
+InternationalConferenceonSpokenLanguage
+Processing,pages134–137,Beijing.
+Haffner,P.,G.Tur,andJ.Wright.2003.
+OptimizingSVMsforcomplexcall
+classiﬁcation.InInternationalConferenceon
+Acoustics,Speech,andSignalProcessing,
+pages632–635,HongKong.
+Hauptmann,A.1989.Speechandgesture
+forgraphicimagemanipulation.In
+ProceedingsofCHI’89,pages241–245,
+Austin,TX.
+Jackendoff,R.2002.FoundationsofLanguage:
+Brain,Meaning,Grammar,andEvolution
+Chapter9.OxfordUniversityPress,
+NewYork.
+Johnston,M.1998a.Multimodallanguage
+processing.InProceedingsofthe
+InternationalConferenceonSpokenLanguage
+Processing,pages893–896,Sydney.
+Johnston,M.1998b.Uniﬁcation-based
+multimodalparsing.InProceedingsofthe
+AssociationforComputationalLinguistics,
+pages624–630,Montreal.
+Johnston,M.2000.Deixisandconjunctionin
+multimodalsystems.InProceedingsofthe
+InternationalConferenceonComputational
+Linguistics(COLING),pages362–368,
+Saarbr¨ucken.
+Johnston,M.,P.Baggia,D.C.Burnett,
+J.Carter,D.Dahl,G.McCobb,and
+D.Raggett.2007.EMMA:Extensible
+MultiModalAnnotationmarkuplanguage.
+Technicalreport,W3CCandidate
+Recommendation.
+Johnston,M.andS.Bangalore.2000.
+Finite-statemultimodalparsingand
+understanding.InProceedingsofthe
+InternationalConferenceonComputational
+Linguistics(COLING),pages369–375,
+Saarbr¨ucken.
+Johnston,M.andS.Bangalore.2004.
+Matchkiosk:Amultimodalinteractivecity
+guide.InProceedingsoftheAssociationof
+ComputationalLinguistics(ACL)Posterand
+DemonstrationSession,pages222–225,
+Barcelona.
+Johnston,M.andS.Bangalore.2005.
+Finite-statemultimodalintegrationand
+understanding.JournalofNaturalLanguage
+Engineering,11(2):159–187.
+Johnston,M.,S.Bangalore,A.Stent,
+G.Vasireddy,andP.Ehlen.2002a.
+Multimodallanguageprocessingfor
+mobileinformationaccess.InProceedings
+oftheInternationalConferenceonSpoken
+LanguageProcessing,pages2237–2240,
+Denver,CO.
+Johnston,M.,S.Bangalore,G.Vasireddy,
+A.Stent,P.Ehlen,M.Walker,S.Whittaker,
+andP.Maloor.2002b.MATCH:An
+architectureformultimodaldialog
+systems.InProceedingsoftheAssociationof
+ComputationalLinguistics,pages376–383,
+Philadelphia,PA.
+Johnston,M.,P.R.Cohen,D.McGee,S.L.
+Oviatt,J.A.Pittman,andI.Smith.
+1997.Uniﬁcation-basedmultimodal
+integration.InProceedingsofthe
+AssociationofComputationalLinguistics,
+pages281–288,Madrid.
+Joshi,A.andP.Hopely.1997.Aparserfrom
+antiquity.JournalofNaturalLanguage
+Engineering,2(4):6–15.
+Kanthak,S.andH.Ney.2004.FSA:An
+EfﬁcientandFlexibleC++Toolkit
+forFiniteStateAutomataUsing
+On-DemandComputation.InProceedings
+oftheAssociationforComputational
+LinguisticsConference,pages510–517,
+Barcelona.
+Kaplan,R.M.andM.Kay.1994.Regular
+modelsofphonologicalrulesystems.
+ComputationalLinguistics,20(3):331–378.
+Kartunnen,L.1991.Finite-stateconstraints.
+InProceedingsoftheInternational
+ConferenceonCurrentIssuesin
+ComputationalLinguistics,Universiti
+SainsMalaysia,Penang.
+Koons,D.B.,C.J.Sparrell,andK.R.
+Thorisson.1993.Integratingsimultaneous
+inputfromspeech,gaze,andhand
+gestures.InM.T.Maybury,editor,
+IntelligentMultimediaInterfaces.AAAI
+Press/MITPress,Cambridge,MA,
+pages257–276.
+395
+ComputationalLinguistics Volume35,Number3
+Koskenniemi,K.K.1984.Two-level
+Morphology:AGeneralComputationModel
+forWord-formRecognitionandProduction.
+Ph.D.thesis,UniversityofHelsinki.
+Larsson,S.,P.Bohlin,J.Bos,andD.Traum.
+1999.TrindiKitmanual.Technicalreport,
+TRINDIDeliverableD2.2,Gothenburg
+University,Sweden.
+Levenshtein,V.I.1966.Binarycodescapable
+ofcorrectingdeletions,insertionand
+reversals.SovietPhysicsDoklady,
+10:707–710.
+Mohri,M.,F.C.N.Pereira,andM.Riley.
+1998.Arationaldesignforaweighted
+ﬁnite-statetransducerlibrary.LectureNotes
+inComputerScience,1436:144–158.
+Neal,J.G.andS.C.Shapiro.1991.Intelligent
+multi-mediainterfacetechnology.InJ.W.
+SullivanandS.W.Tyler,editors,Intelligent
+UserInterfaces.AddisonWesley,NewYork,
+pages45–68.
+Nederhof,M.J.1997.Regular
+approximationsofCFLs:Agrammatical
+view.InProceedingsoftheInternational
+WorkshoponParsingTechnology,
+pages159–170,Boston,MA.
+Nishimoto,T.,N.Shida,T.Kobayashi,
+andK.Shirai.1995.Improvinghuman
+interfaceindrawingtoolusingspeech,
+mouse,andkeyboard.InProceedingsofthe
+4thIEEEInternationalWorkshoponRobot
+andHumanCommunication,ROMAN95,
+pages107–112,Tokyo.
+Noord,G.1997.FSAutilities:Atoolbox
+tomanipulateﬁnite-stateautomata.
+LectureNotesinComputerScience,
+1260:87–108.
+Och,F.J.andH.Ney.2003.Asystematic
+comparisonofvariousstatistical
+alignmentmodels.Computational
+Linguistics,29(1):19–51.
+Oviatt,S.,A.DeAngeli,andK.Kuhn.1997.
+Integrationandsynchronizationof
+inputmodesduringmultimodal
+human-computerinteraction.InCHI’97:
+ProceedingsoftheSIGCHIConferenceon
+HumanFactorsinComputingSystems,
+pages415–422,NewYork,NY.
+Oviatt,S.L.1997.Multimodalinteractive
+maps:Designingforhumanperformance.
+Human-ComputerInteraction,12(1):93–129.
+Oviatt,S.L.1999.Mutualdisambiguation
+ofrecognitionerrorsinamultimodal
+architecture.InProceedingsofthe
+ConferenceonHumanFactorsinComputing
+Systems:CHI’99,pages576–583,
+Pittsburgh,PA.
+Papineni,K.A.,S.Roukos,andT.R.Ward.
+1997.Feature-basedlanguage
+understanding.InProceedingsof
+EuropeanConferenceonSpeech
+CommunicationandTechnology,
+pages1435–1438,Rhodes.
+Pereira,F.C.N.andM.D.Riley.1997.
+Speechrecognitionbycompositionof
+weightedﬁniteautomata.InE.Roche
+andY.Schabes,editors,FiniteState
+DevicesforNaturalLanguageProcessing.
+MITPress,Cambridge,MA,USA,
+pages431–456.
+Pieraccini,R.2004.Spokenlanguage
+understanding:Theresearch/industry
+chasm.InHLT-NAACL2004Workshop
+onSpokenLanguageUnderstandingfor
+ConversationalSystemsandHigherLevel
+LinguisticInformationforSpeechProcessing,
+Boston,MA.
+Pollard,C.andI.A.Sag.1994.Head-Driven
+PhraseStructureGrammar.Center
+fortheStudyofLanguageand
+Information,UniversityofChicago
+Press,IL.
+Punyakanok,V.,D.Roth,andW.Yih.2005.
+Generalizedinferencewithmultiple
+semanticrolelabelingsystemsshared
+taskpaper.InProceedingsoftheAnnual
+ConferenceonComputationalNatural
+LanguageLearning(CoNLL),pages181–184,
+AnnArbor,MI.
+Rambow,O.,S.Bangalore,T.Butt,A.Nasr,
+andR.Sproat.2002.Creatingaﬁnite-state
+parserwithapplicationsemantics.In
+ProceedingsoftheInternationalConferenceon
+ComputationalLinguistics(COLING2002),
+pages1–5,Taipei.
+Ramshaw,L.andM.P.Marcus.1995.Text
+chunkingusingtransformation-based
+learning.InProceedingsoftheThird
+WorkshoponVeryLargeCorpora,
+pages82–94,Cambridge,MA.
+Riccardi,G.,R.Pieraccini,andE.Bocchieri.
+1996.Stochasticautomataforlanguage
+modeling.ComputerSpeechandLanguage,
+10(4):265–293.
+Rich,C.andC.Sidner.1998.COLLAGEN:
+Acollaborationmanagerforsoftware
+interfaceagents.UserModelingand
+User-AdaptedInteraction,8(3–4):315–350.
+Ringger,E.K.andJ.F.Allen.1996.A
+fertilitychannelmodelforpost-correction
+ofcontinuousspeechrecognition.
+InInternationalConferenceonSpoken
+LanguageProcessing,pages897–900,
+Philadelphia,PA.
+Ristad,E.S.andP.N.Yianilos.1998.
+Learningstring-editdistance.IEEE
+TransactiononPatternAnalysisand
+MachineIntelligence,20(5):522–532.
+396
+BangaloreandJohnston RobustUnderstandinginMultimodalInterfaces
+Roche,E.1999.Finite-statetransducers:
+parsingfreeandfrozensentences.In
+A.Kornai,editor,ExtendedFinite-State
+ModelsofLanguage.CambridgeUniversity
+Press,Cambridge,pages108–120.
+Rubine,D.1991.Specifyinggesturesby
+example.ComputerGraphics,25(4):329–337.
+Schapire,R.,M.Rochery,M.Rahim,and
+N.Gupta.2002.Incorporatingprior
+knowledgeinboosting.InProceedings
+oftheNineteenthInternationalConference
+onMachineLearning,pages538–545,
+Sydney.
+Schapire,R.E.1999.Abriefintroductionto
+boosting.InProceedingsofInternational
+JointConferenceonArtiﬁcialIntelligence,
+pages1401–1406,Stockholm.
+Souvignier,B.andA.Kellner.1998.Online
+adaptationforlanguagemodelsin
+spokendialoguesystems.InInternational
+ConferenceonSpokenLanguageProcessing,
+pages2323–2326,Sydney.
+Stent,A.,J.Dowding,J.Gawron,E.Bratt,
+andR.Moore.1999.TheCommandTalk
+spokendialoguesystem.InProceedingsof
+the27
+th
+AnnualMeetingoftheAssociationfor
+ComputationalLinguistics,pages183–190,
+CollegePark,MD.
+Thompson,C.A.andR.J.Mooney.2003.
+Acquiringword-meaningmappingsfor
+naturallanguageinterfaces.Journalof
+ArtiﬁcialIntelligenceResearch,18:1–44.
+vanTichelen,L.2004.Semantic
+interpretationforspeechrecognition.
+TechnicalReportW3C.
+Wahlster,W.2002.SmartKom:Fusionand
+ﬁssionofspeech,gestures,andfacial
+expressions.InProceedingsofthe1st
+InternationalWorkshoponMan-Machine
+SymbioticSystems,pages213–225,Kyoto.
+Walker,M.,R.Passonneau,andJ.Boland.
+2001.Quantitativeandqualitative
+evaluationofDARPACommunicator
+spokendialoguesystems.InProceedings
+ofthe39rdAnnualMeetingofthe
+AssociationforComputationalLinguistics
+(ACL/EACL-2001),pages515–522,
+Toulouse.
+Walker,M.A.,S.Whittaker,A.Stent,
+P.Maloor,J.D.Moore,M.Johnston,and
+G.Vasireddy.2004.Generationand
+evaluationofusertailoredresponsesin
+multimodaldialogue.CognitiveScience,
+28(5):811–840.
+Walker,M.A.,S.J.Whittaker,P.Maloor,
+J.D.Moore,M.Johnston,and
+G.Vasireddy.2002.Speech-Plans:
+Generatingevaluativeresponsesin
+spokendialogue.InProceedingsofthe
+InternationalNaturalLanguage
+GenerationConference,pages73–80,
+Ramapo,NY.
+Wang,Y.andA.Acero.2003.Combinationof
+CFGandn-grammodelinginsemantic
+grammarlearning.InProceedingsofthe
+EurospeechConference,pages2809–2812,
+Geneva.
+Ward,W.1991.Understandingspontaneous
+speech:ThePhoenixsystem.In
+ProceedingsoftheInternationalConference
+onAcoustics,Speech,andSignalProcessing,
+pages365–367,Washington,DC.
+Wauchope,K.1994.Eucalyptus:Integrating
+naturallanguageinputwithagraphical
+userinterface.TechnicalReport
+NRL/FR/5510–94-9711,Naval
+ResearchLaboratory,Washington,DC.
+XTAG.2001.Alexicalizedtree-adjoining
+grammarforEnglish.Technicalreport,
+UniversityofPennsylvania.Availableat
+www.cis.upenn.edu/∼xtag/
+gramrelease.html.
+Zettlemoyer,L.S.andM.Collins.2005.
+Learningtomapsentencestological
+form:Structuredclassiﬁcationwith
+probabilisticcategorialgrammars.
+InProceedingsoftheTwenty-First
+ConferenceonUncertaintyinArtiﬁcial
+Intelligence(UAI-05),pages658–66,
+Arlington,VA.
+397
+
+

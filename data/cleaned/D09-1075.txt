@@ -1,0 +1,836 @@
+Proceedings of the 2009 Conference on Empirical Methods in Natural Language Processing, pages 718–726,
+Singapore, 6-7 August 2009. c 2009 ACL and AFNLP
+Unsupervised Tokenization for Machine Translation
+Tagyoung Chung and Daniel Gildea
+Computer Science Department
+University of Rochester
+Rochester, NY 14627
+Abstract
+Training a statistical machine translation
+starts with tokenizing a parallel corpus.
+SomelanguagessuchasChinesedonotin-
+corporate spacing in their writing system,
+whichcreatesa challengefortokenization.
+Moreover,morphologicallyrichlanguages
+such as Korean present an even bigger
+challenge, since optimal token boundaries
+for machine translation in these languages
+are often unclear. Both rule-based solu-
+tions and statistical solutions are currently
+used. In this paper, we present unsuper-
+vised methods to solve tokenization prob-
+lem. Our methods incorporate informa-
+tion available from parallel corpus to de-
+termine a good tokenization for machine
+translation.
+1 Introduction
+Tokenizing a parallel corpus is usually the first
+step of training a statistical machine translation
+system. With languages such as Chinese, which
+has no spaces in its writing system, the main chal-
+lenge is to segment sentences into appropriate to-
+kens. With languages such as Korean and Hun-
+garian, although the writing systems of both lan-
+guages incorporate spaces between “words”, the
+granularity is too coarse compared with languages
+such as English. A single word in these lan-
+guages is composed of several morphemes, which
+often correspond to separate words in English.
+These languages also form compound nouns more
+freely. Ideally, we want to find segmentations for
+source and target languages that create a one-to-
+one mapping of words. However, this is not al-
+ways straightforward for two major reasons. First,
+what the optimal tokenization for machine trans-
+lation should be is not always clear. Zhang et al.(2008b) and Chang et al. (2008) show that get-
+ting the tokenization of one of the languages in
+the corpus close to a gold standard does not nec-
+essarily help with building better machine trans-
+lation systems. Second, even statistical methods
+requirehand-annotatedtrainingdata,whichmeans
+thatinresource-poorlanguages,goodtokenization
+is hard to achieve.
+In this paper, we explore unsupervised methods
+for tokenization, with the goal of automatically
+finding an appropriate tokenization for machine
+translation. We compare methods that have ac-
+cess to parallel corpora to methods that are trained
+solely using data from the source language. Unsu-
+pervisedmonolingualsegmentationhasbeenstud-
+ied as a model of language acquisition (Goldwater
+et al., 2006), and as model of learning morphol-
+ogy in European languages (Goldsmith, 2001).
+Unsupervised segmentation using bilingual data
+has been attempted for finding new translation
+pairs(KikuiandYamamoto,2002),andforfinding
+good segmentation for Chinese in machine trans-
+lation using Gibbs sampling (Xu et al., 2008). In
+this paper, further investigate the use of bilingual
+information to find tokenizations tailored for ma-
+chine translation. We find a benefit not only for
+segmentation of languages with no space in the
+writing system (such as Chinese), but also for the
+smaller-scale tokenization problem of normaliz-
+ing between languages that include more or less
+information in a “word” as defined by the writ-
+ing system, using Korean-English for our exper-
+iments. Here too, we find a benefit from using
+bilingual information, with unsupervised segmen-
+tation rivaling and in some cases surpassing su-
+pervised segmentation. On the modeling side,
+we use dynamic programming-based variational
+Bayes, making Gibbs sampling unnecessary. We
+also develop and compare various factors in the
+model to control the length of the tokens learned,
+and find a benefit from adjusting these parame-
+ters directly to optimize the end-to-end translation
+quality.
+718
+2 Tokenization
+Tokenization is breaking down text into lexemes
+— a unit of morphological analysis. For relatively
+isolatinglanguagessuchasEnglishandChinese, a
+wordgenerallyequalsasingletoken,whichisusu-
+ally a clearly identifiable unit. English, especially,
+incorporates spaces between words in its writing
+system, which makes tokenization in English usu-
+ally trivial. The Chinese writing system does not
+have spaces between words, but there is less am-
+biguity where word boundaries lie in a given sen-
+tence compared to more agglutinative languages.
+In languages such as Hungarian, Japanese, and
+Korean, what constitutes an optimal token bound-
+ary is more ambiguous. While two tokens are usu-
+allyconsideredtwoseparatewordsinEnglish,this
+may be not be the case in agglutinative languages.
+Although what is considered a single morpholog-
+ical unit is different from language to language,
+if someone were given a task to align words be-
+tween two languages, it is desirable to have one-
+to-one token mapping between two languages in
+order to have the optimal problem space. For ma-
+chine translation,one token should not necessarily
+correspond to one morphological unit, but rather
+should reflect the morphological units and writing
+system of the other language involved in transla-
+tion.
+For example, consider a Korean “word” meok-
+eoss-da, which means ate. It is written as a sin-
+gle word in Korean but consists of three mor-
+phemes eat-past-indicative. If one uses morpho-
+logical analysis as the basis for Korean tokeniza-
+tion, meok-eoss-da would be split into three to-
+kens, which is not desirable if we are translat-
+ing Korean to English, since English does not
+have these morphological counterparts. However,
+aHungarianwordszekr´enyemben,whichmeansin
+my closet, consists of three morphemes closet-my-
+inessive that are distinct words in English. In this
+case, we do want our tokenizer to split this “word”
+into three morphemes szekr´eny em ben.
+In this paper, we use segmentation and to-
+kenization interchangeably as blanket terms to
+cover the two different problems we have pre-
+sented here. The problem of segmenting Chinese
+sentences into words and the problem of segment-
+ing Korean or Hungarian “words” into tokens of
+rightgranularityaredifferentintheirnature. How-
+ever, our models presented in section 3 handle the
+both problems.
+3 Models
+We present two different methods for unsuper-
+vised tokenization. Both are essentially unigram
+tokenization models. In the first method, we try
+learning tokenization from word alignments with
+a model that bears resemblance to Hidden Markov
+models. WeuseIBMModel1(Brownetal., 1993)
+for the word alignment model. The second model
+is a relatively simpler monolingual tokenization
+model based on counts of substrings which serves
+as a baseline of unsupervised tokenization.
+3.1 Learning
+tokenization from alignment
+We use expectation maximization as our primary
+tools in learning tokenization form parallel text.
+Here, the observed data provided to the algorithm
+are the tokenized English string en1 and the unto-
+kenized string of foreign characters cm1 . The un-
+observed variables are both the word-level align-
+ments between the two strings, and the tokeniza-
+tion of the foreign string. We represent the tok-
+enizationwithastringsm1 ofbinaryvariables,with
+si = 1 indicating that the ith character is the final
+character in a word. The string of foreign words
+fℓ1 can be thought of as the result of applying the
+tokenization s to the character string c:
+f = s◦ c where ℓ =
+msummationdisplay
+i=1
+si
+We use IBM Model 1 as our word-level align-
+ment model, following its assumptions that each
+foreign word is generated independently from one
+English word:
+P(f|e) =
+summationdisplay
+a
+P(f,a | e)
+=
+summationdisplay
+a
+productdisplay
+i
+P(fi |eai)P(a)
+=
+productdisplay
+i
+summationdisplay
+j
+P(fi |ej)P(ai = j)
+and that all word-level alignments a are equally
+likely: P(a) = 1n for all positions. While Model 1
+has a simple EM update rule to compute posteri-
+ors for the alignment variables a and from them
+learn the lexical translation parameters P(f | e),
+we cannot apply it directly here because f itself is
+unknown, and ranges over an exponential number
+ofpossibilitiesdependingonthehiddensegmenta-
+tion s. Thiscanbeaddressedbyapplyingdynamic
+programing over the sequence s. We compute the
+719
+posterior probability of a word beginning at posi-
+tioni, endingatpositionj, andbeinggeneratedby
+English wordk:
+P(si...j = (1,0,...,0,1),a= k | e)
+= α(i)P(f |ek)P(a = k)β(j)P(c | e)
+where f = ci...cj is the word formed by con-
+catenating characters i through j, and a is a vari-
+able indicating which English position generated
+f. Hereαandβ are defined as:
+α(i) = P(ci1,si = 1 | e)
+β(j) = P(cmj+1,sj = 1 | e)
+These quantities resemble forward and backward
+probabilities of hidden Markov models, and can
+be computed with similar dynamic programming
+recursions:
+α(i) =
+Lsummationdisplay
+ℓ=1
+α(i−ℓ)
+summationdisplay
+a
+P(a)P(cii−ℓ |ea)
+β(j) =
+Lsummationdisplay
+ℓ=1
+summationdisplay
+a
+P(a)P(cj+ℓj |ea)β(j +ℓ)
+where L is the maximum character length for a
+word.
+Then, we can calculate the expected counts of
+individual word pairs being aligned (cji,ek) by ac-
+cumulating these posteriors over the data:
+ec(cji,ek) += α(i)P(a)P(c
+j
+i |ek)β(j)
+α(m)
+The M step simply normalizes the counts:
+˜P(f |e) = ec(f,e)summationtext
+eec(f,e)
+OurmodelcanbecomparedtoahiddenMarkov
+model in the following way: a target word gen-
+erates a source token which spans a zeroth order
+Markov chain of characters in source sentence,
+wherea“transition”representsasegmentationand
+a “emission” represents an alignment. The model
+uses HMM-like dynamic programming to do in-
+ference. For the convenience, we refer to this
+model as the bilingual model in the rest of the
+paper. Figure 1 illustrates our first model with
+an small example. Under this model we are not
+learning segmentation directly, but rather we are
+learning alignments between two sentences. The
+c1 c2 c3 c4
+f1 f2
+e1 e2
+Figure 1: The figure shows a source sentence
+f = f1,f2 = s ◦c1...c4 where s = (0,0,1,1)
+and a target sentence e = e1,e2. There is a seg-
+mentation between c3 and c4; thus c1, c2, c3 form
+f1 andc3 formsf2. f1 is generated bye2 andf2 is
+generated bye1.
+segmentation is by-product of learning the align-
+ment. We can find the optimal segmentation of
+a new source language sentence using the Viterbi
+algorithm. Given two sentences e and f,
+a∗ = argmax
+a
+P(f,a | e)
+and segmentation s∗ implied by alignment a∗ is
+theoptimalsegmentationoff foundbythismodel.
+3.2 Learning
+tokenization from substring
+counts
+The second tokenization model we propose is
+much simpler. More sophisticated unsupervised
+monolingual tokenization models using hierarchi-
+cal Bayesian models (Goldwater et al., 2006)
+and using the minimum description length prin-
+ciple (Goldsmith, 2001; de Marcken, 1996) have
+been studied. Our model is meant to serve as
+a computationally efficient baseline for unsuper-
+vised monolingual tokenization. Given a corpus
+of only source language of unknown tokenization,
+we want to find the optimal s given c — s that
+gives us thehighestP(s | c). AccordingtoBayes’
+rule,
+P(s | c) ∝P(c | s)P(s)
+Again, we assume that allP(s) are equally likely.
+Let f = s◦c = f1...fℓ, wherefi is a word under
+some possiblesegmentation s. We want tofind the
+s that maximizesP(f). We assume that
+P(f) = P(f1)×...×P(fℓ)
+To calculate P(fi), we count every possible
+720
+substring — every possible segmentation of char-
+acters — from the sentences. We assume that
+P(fi) = count(fi)summationtext
+kcount(fk)
+We can compute these counts by making a sin-
+gle pass through the corpus. As in the bilingual
+model, we limit the maximum size of f for prac-
+tical reasons and to prevent our model from learn-
+ing unnecessarily long f. With P(f), given a se-
+quence of characters c, we can calculate the most
+likely segmentation using the Viterbi algorithm.
+s∗ = argmax
+s
+P(f)
+Our rationale for this model is that if a span of
+charactersf = ci...cj is an independent token, it
+will occur often enough in different contexts that
+such a span of characters will have higher prob-
+ability than other spans of characters that are not
+meaningful. For the rest of the paper, this model
+will be referred to as the monolingual model.
+3.3 Tokenizing
+new data
+Since the monolingual tokenization only uses in-
+formation from a monolingual corpus, tokenizing
+new data is not a problem. However, with the
+bilingual model, we are learningP(f |e). We are
+relying on information available from e to get the
+best tokenization for f. However, the parallel sen-
+tences will not be available for new data we want
+to translate. Therefore, for the new data, we have
+to rely only on P(f) to tokenize any new data,
+which can be obtained by calculating
+P(f) =
+summationdisplay
+e
+P(f |e)P(e)
+With P(f) from the bilingual model, we can run
+theViterbialgorithminthesamemannerasmono-
+lingual tokenization model for monolingual data.
+We hypothesize that we can learn valuable infor-
+mation on which token boundaries are preferable
+in language f when creating a statistical machine
+translation system that translates from languagef
+to languagee.
+4 Preventing
+overfitting
+We introduce two more refinements to our word-
+alignment induced tokenization model and mono-
+lingual tokenization model. Since we are consid-
+ering every possible token f that can be guessed
+from our corpus, the data is very sparse. For the
+bilingual model, we are also using the EM algo-
+rithm to learn P(f | e), which means there is a
+danger of the EM algorithm memorizing the train-
+ingdataandtherebyoverfitting. WeputaDirichlet
+prior on our multinomial parameter for P(f | e)
+to control this situation. For both models, we also
+want a way to control the distribution of token
+length after tokenization. We address this problem
+by adding a length factor to our models.
+4.1 Variational
+Bayes
+Beal (2003) and Johnson (2007) describe vari-
+ational Bayes for hidden Markov model in de-
+tail, which can be directly applied to our bilingual
+model. WiththisBayesianextension,theemission
+probability of our first model can be summarized
+as follows:
+θe |α∼ Dir(α),
+fi |ei = e∼ Multi(θe).
+Johnson (2007) and Zhang et al. (2008a) show
+having small α helps to control overfitting. Fol-
+lowing this, we set our Dirichlet prior to be as
+sparse as possible. It is set atα = 10−6, the num-
+ber we used as floor of our probability.
+For the model incorporating the length factor,
+which is described in the next section, we do not
+place a prior on our transition probability, since
+there are only two possible states, i.e. P(s = 1)
+andP(s = 0). This distribution is not as sparse as
+the emission probability.
+Comparing variational Bayes to the traditional
+EM algorithm, the E step stays the same but the
+M step for calculating the emission probability
+changes as follows:
+˜P(f |e) = exp(ψ(ec(f,e) +α))
+exp(ψ(summationtexteec(f,e) +sα))
+whereψis the digamma function, andsis the size
+of the vocabulary from which f is drawn. Since
+we do not accurately know s, we set s to be the
+numberofallpossibletokens. Ascanbeseenfrom
+the equation, by settingαto a small value, we are
+discounting the expected count with help of the
+digamma function. Thus, having lower α leads to
+a sparser solution.
+4.2 Token
+length
+We now add a parameter that can adjust the to-
+kenizer’s preference for longer or shorter tokens.
+721
+ 0
+ 0.1
+ 0.2
+ 0.3
+ 0.4
+ 0.5
+ 0.6
+ 1  2  3  4  5  6
+ref
+P(s)=0.55
+lambda=3.16
+ 0
+ 0.1
+ 0.2
+ 0.3
+ 0.4
+ 0.5
+ 0.6
+ 1  2  3  4  5  6
+ref
+P(s)=0.58
+lambda=2.13
+Figure 2: Distribution of token length for (from left to right) Chinese, and Korean. “ref” is the empirical
+distribution from supervised tokenization. Two length factors — φ1 and φ2 are also shown. For φ1, the
+parameter to geometric distributionP(s) is set to the value learned from our bilingual model. Forφ2,λ
+is set using the criterion described in the experiment section.
+This parameter is beneficial because we want our
+distribution of token length after tokenization to
+resembletherealdistributionoftokenlength. This
+parameter is also useful because we also want to
+incorporate information on the number of tokens
+intheotherlanguageintheparallelcorpus. This is
+based on the assumption that, if tokenization cre-
+ates a one-to-one mapping, the number of tokens
+in both languages should be roughly the same. We
+canforcethetwolanguagestohaveaboutthesame
+number of tokens by adjusting this parameter. The
+third reason is to further control overfitting. Our
+observation is that certain morphemes are very
+common, such that they will be always observed
+attachedto other morphemes. For example, in Ko-
+rean, a nounattachedwithnominative casemarker
+is very common. Our model is likely to learn a
+noun attached with the morpheme — nominative
+case marker — rather than noun itself. This is not
+desirable when the noun occurs with less common
+morphemes; in these cases the morpheme will be
+split off creating inconsistencies.
+Wehaveexperimentedwithtwodifferentlength
+factors, each with one adjustable parameter:
+φ1(ℓ) = P(s)(1−P(s))ℓ−1
+φ2(ℓ) = 2−ℓλ
+The first, φ1, is the geometric distribution, where
+l is length of a token and P(s) is probability of
+segmentation between two characters. The second
+length factor φ2 was acquired through several ex-
+periments and was found to work well. As can
+been seen from Figure 2, the second factor dis-
+counts longer tokens more heavily than the geo-
+metric distribution. We can adjust the value of λ
+andP(s) toincreaseor decreasenumber of tokens
+after segmentation.
+For ourmonolingualmodel, incorporatingthese
+factors is straightforward. We assume that
+P(f) ∝P(f1)φ(ℓ1)×...×P(fn)φ(ℓn)
+whereℓi is the lengthoffi. Then, we use the same
+Viterbi algorithm to select the f1...fn that max-
+imizes P(f), thereby selecting the optimal s ac-
+cording to our monolingual model with a length
+factor. We pick the value of λ and P(s) that
+produces about the same number of tokens in the
+source side as in the target side, thereby incorpo-
+ratingsome informationabout the targetlanguage.
+For our bilingual model, we modify our model
+slightly to incorporate φ1, creating a hybrid
+model. Now, our forward probability of forward-
+backward algorithm is:
+α(i) =
+Lsummationdisplay
+ℓ=1
+α(i−l)φ1(ℓ)
+summationdisplay
+a
+P(a)P(cii−ℓ |ea)
+and the expected count of (cji,ek) is
+ec(cji,ek) += α(i)P(a)P(c
+j
+i |ek)β(j)φ1(j−i)
+α(m)
+For φ1, we can learn P(s) for the geometric dis-
+tribution from the model itself:1
+P(s) = 1m
+msummationdisplay
+i
+α(i)β(i)
+α(m)
+1The equation is for one sentence, but in practice, we sum
+over all sentences in the training data to calculate P(s).
+722
+We can also fixP(s) instead of learning it through
+EM. We incorporate φ2 into the bilingual model
+as follows: after learningP(f) from the bilingual
+model, we pick the λ in the same manner as the
+monolingual model and run the Viterbi algorithm.
+After applying the length factor, what we have
+is a log-linear model for tokenization, with two
+feature functions with equal weights: the length
+factor andP(f) learned from model.
+5 Experiments
+5.1 Data
+We tested our tokenization methods on two differ-
+ent language pairs: Chinese-English, and Korean-
+English. For Chinese-English, we used FBIS
+newswire data. The Korean-English parallel data
+was collected from news websites and sentence-
+aligned using two different tools described by
+Moore (2002) and Melamed (1999). We used sub-
+setsofeachparallelcorpusconsistingofabout2M
+words and 60K sentences on the English side. For
+our development set and test set, Chinese-English
+had about 1000 sentences each with 10 reference
+translations taken from the NIST 2002 MT eval-
+uation. For Korean-English, 2200 sentence pairs
+were randomly sampled from the parallel corpus,
+and held out from the training data. These were
+divided in half and used for test set and develop-
+ment set respectively. For all language pairs, very
+minimal tokenization — splitting off punctuation
+— was done on the English side.
+5.2 Experimental
+setup
+We used Moses (Koehn et al., 2007) to train
+machine translation systems. Default parameters
+were used for all experiments except for the num-
+berofiterationsforGIZA++(OchandNey, 2003).
+GIZA++ was run until the perplexity on develop-
+ment set stopped decreasing. For practical rea-
+sons, the maximum size of a token was set at three
+for Chinese, andfour forKorean.2 Minimum error
+rate training (Och, 2003) was run on each system
+afterwardsand BLEU score (Papineni et al., 2002)
+was calculated on the test sets.
+For the monolingual model, we tested two ver-
+sions with the length factorφ1, andφ2. We picked
+λandP(s) so that the number of tokens on source
+side (Chinese, and Korean) will be about the same
+2In the Korean writing system, one character is actually
+one syllable block. We do not decompose syllable blocks
+into individual consonants and vowels.
+as the number of tokens in the target side (En-
+glish).
+For the bilingual model, as explained in the
+model section, we are learningP(f | e), but only
+P(f) is available for tokenizing any new data. We
+compared two conditions: using only the source
+data to tokenize the source language training data
+according to P(f) (which is consistent with the
+conditions at test time), and using both the source
+and English data to tokenize the source language
+training data (which might produce better tok-
+enization by using more information). For the first
+length factor φ1, we ran an experiment where the
+model learns P(s) as described in the model sec-
+tion, andwe alsohadexperimentswhereP(s)was
+pre-setat0.9, 0.7, 0.5, and0.3forcomparison. We
+also ran an experiment with the second length fac-
+torφ2 whereλ was picked as the same manner as
+the monolingual model.
+We varied tokenization of development set and
+test set to match the training data for each ex-
+periment. However, as we have implied in the
+previous paragraph, in the one experiment where
+P(f | e) was used to segment training data, di-
+rectly incorporating information from target cor-
+pus, tokenization for test and development set is
+not exactly consistent with tokenization of train-
+ing corpus. Since we assume only source corpus
+is available at the test time, the test and the devel-
+opment set was tokenized only using information
+fromP(f).
+We also trained MT systems using supervised
+tokenizations and tokenization requiring a mini-
+mal effortfor the eachlanguagepair. For Chinese-
+English, the minimal effort tokenization is maxi-
+mal tokenization where every Chinese character is
+segmented. Since a number of Chinese tokeniz-
+ers are available, we have tried four different to-
+kenizations for the supervised tokenizations. The
+first one is the LDC Chinese tokenizer available at
+the LDC website3, which is compiled by Zhibiao
+Wu. The second tokenizer is a maxent-based to-
+kenizer described by Xue (2003). The third and
+fourth tokenizations come from the CRF-based
+Stanford Chinese segmenter described by Chang
+et al. (2008). The difference between third and
+fourth tokenization comes from the different gold
+standard, the third one is based on Beijing Uni-
+versity’s segmentation (pku) and the fourth one is
+based on Chinese Treebank (ctb). For Korean-
+3http://projects.ldc.upenn.edu/Chinese/LDC ch.htm
+723
+Chinese Korean
+BLEU F-score BLEU
+Supervised
+Rule-based morphological analyzer 7.27
+LDC segmenter 20.03 0.94
+Xue’s segmenter 23.02 0.96
+Stanford segmenter (pku) 21.69 0.96
+Stanford segmenter (ctb) 22.45 1.00
+Unsupervised
+Splitting punctuation only 6.04
+Maximal (Character-based MT) 20.32 0.75
+BilingualP(f |e) withφ1 P(s) = learned 19.25 6.93
+BilingualP(f) withφ1 P(s) = learned 20.04 0.80 7.06
+BilingualP(f) withφ1 P(s) = 0.9 20.75 0.87 7.46
+BilingualP(f) withφ1 P(s) = 0.7 20.59 0.81 7.31
+BilingualP(f) withφ1 P(s) = 0.5 19.68 0.80 7.18
+BilingualP(f) withφ1 P(s) = 0.3 20.02 0.79 7.38
+BilingualP(f) withφ2 22.31 0.88 7.35
+MonolingualP(f) withφ1 20.93 0.83 6.76
+MonolingualP(f) withφ2 20.72 0.85 7.02
+Table 1: BLEU score results for Chinese-English and Korean-English experiments and F-score of seg-
+mentation compared against Chinese Treebank standard. The highest unsupervised score is highlighted.
+English, the minimal effort tokenization splitting
+off punctuation and otherwise respectingthe spac-
+ing in the Korean writing system. A Korean mor-
+phologicalanalysistool4 wasusedtocreatethesu-
+pervised tokenization.
+For Chinese-English, since a gold standard for
+Chinese segmentationis available, we ran an addi-
+tional evaluation of tokenization from each meth-
+ods we have tested. We tokenized the raw text
+of Chinese Treebank (Xia et al., 2000) using all
+of themethods(supervised/unsupervised)we have
+described in this section except for the bilingual
+tokenization using P(f | e) because the English
+translation of the Chinese Treebank data was not
+available. We compared the result against the gold
+standard segmentation and calculated the F-score.
+6 Results
+ResultsfromChinese-EnglishandKorean-English
+experiments are presented in Table 1. Note that
+nature of data and number of references are dif-
+ferent for the two language pairs, and therefore
+the BLEU scores are not comparable. For both
+language pairs, our models perform equally well
+as supervised baselines, or even better. We can
+4http://nlp.kookmin.ac.kr/HAM/eng/main-e.html
+observe three things from the result. First, tok-
+enization of training data usingP(f |e) tested on
+a test set tokenized with P(f) performed worse
+than any other experiments. This affirms our be-
+lief that consistency in tokenization is important
+formachinetranslation,whichwasalsomentioned
+by Chang et al. (2008). Secondly, we are learning
+valuable information by looking at the target lan-
+guage. Compare the result of the bilingual model
+with φ2 as the length factor to the result of the
+monolingual model with the same length factor.
+The bilingual version consistently performed bet-
+ter than the monolingual model in all language
+pairs. This tells us we can learn better token
+boundaries by using information from the target
+language. Thirdly, our hypothesis on the need
+for heavy discount for longer tokens is confirmed.
+The valueforP(s)learnedbythe model was 0.55,
+and0.58forChinese,andKoreanrespectively. For
+both language pairs, this accurately reflects the
+empirical distribution of token length, as can be
+seen in Figure 2. However, experiments where
+P(s) was directly optimized performed better, in-
+dicating that this parameter should be optimized
+within the context of a complete system. The sec-
+ond length factor φ2, which discounts longer to-
+kens even more heavily, generally performed bet-
+724
+English the two presidents will hold a joint press conference at the end of their summit talks .
+Untokenized Korean uni396Auni3476uni3A41uni385Cuni39F9uni3CE7uni35BAuni3A0Buni351Auni3526uni360Funi3457uni35F4uni349Funi3A19uni3CE7uni343Euni39FAuni340Duni344Cuni3CE7uni35BAuni3440uni3459uni36F5uni3457uni38E9uni378Cuni3C76uni3CA2uni35B0.
+Supervised uni396Auni3476uni3A41uni385C uni39F9uni3CE7uni35BA uni3A0Buni351Auni3523 uni3134uni360Funi3457uni35F4uni349Funi3A19uni3CE7uni343E uni39FAuni340D uni344Cuni3CE7uni35BAuni3440uni3459 uni36F5uni3457uni38E9uni378Cuni3C76 uni3CA0 uni3134uni35B0.
+Bilingual P(f | e) with φ1 uni396Auni3476uni3A41uni385Cuni39F9uni3CE7uni35BA uni3A0Buni351Auni3526uni360Funi3457uni35F4uni349Funi3A19uni3CE7uni343E uni39FAuni340Duni344Cuni3CE7uni35BAuni3440uni3459 uni36F5uni3457uni38E9uni378Cuni3C76uni3CA2 uni35B0.
+Bilingual P(f) with φ2 uni396Auni3476uni3A41uni385C uni39F9uni3CE7uni35BA uni3A0Buni351Auni3526uni360Funi3457uni35F4uni349Funi3A19uni3CE7uni343E uni39FAuni340Duni344Cuni3CE7uni35BAuni3440uni3459 uni36F5uni3457uni38E9uni378Cuni3C76 uni3CA2uni35B0.
+Monolingual P(f) with φ1 uni396Auni3476uni3A41 uni385C uni39F9uni3CE7uni35BA uni3A0Buni351Auni3526uni360Funi3457uni35F4uni349Funi3A19uni3CE7uni343E uni39FAuni340Duni344Cuni3CE7uni35BAuni3440uni3459uni36F5uni3457uni38E9uni378Cuni3C76uni3CA2 uni35B0.
+Monolingual P(f) with φ2 uni396Auni3476uni3A41uni385C uni39F9uni3CE7uni35BA uni3A0Buni351Auni3526uni360Funi3457uni35F4uni349Funi3A19uni3CE7uni343E uni39FAuni340Duni344Cuni3CE7uni35BAuni3440uni3459uni36F5uni3457uni38E9uni378Cuni3C76 uni3CA2uni35B0.
+Figure 3: Sample tokenization results for Korean-English data. The underscores are added to clearly
+visualize where the breaks are.
+ter than the first length factor when used in con-
+junctionwiththe bilingualmodel. Lastly, F-scores
+of Chinese segmentations compared against the
+goldstandardshowshighersegmentationaccuracy
+does not necessarily lead to higher BLEU score.
+F-scorespresentedinTable 1are not directlycom-
+parable for all different experiments because the
+test data (Chinese Treebank) is used in trainingfor
+someofthesupervisedsegmenters,butthesenum-
+bers do show how close unsupervised segmenta-
+tions are to the gold standard. It is interesting to
+note that our highest unsupervised segmentation
+result does make use of bilingual information.
+Sample tokenization results for Korean-English
+experimentsarepresentedinFigure3. Weobserve
+that different configurations produce different tok-
+enizations, and the bilingual model produced gen-
+erally better tokenizations for translation com-
+pared to the monolingual models or the super-
+vised tokenizer. In this example, the tokenization
+obtained from the supervised tokenizer, although
+morphologicallycorrect,istoofine-grainedforthe
+purpose of translation to English. For example,
+it correctly tokenized the attributive suffix uni3134 -n
+however, this is not desirable since English has no
+such counterpart. Both variations of the monolin-
+gual tokenization have errors such as incorrectly
+not segmenting uni3440uni3459uni36F5 gyeol-gwa-reul, which is
+a compound of a noun and a case marker, intouni3440
+uni3459 uni36F5gyeol-gwa reul as the bilingual model was
+able to do.
+6.1 Conclusion
+and future work
+We have shown that unsupervised tokenization for
+machine translationis feasibleandcan outperform
+rule-based methods that rely on lexical analysis,
+or supervised statistical segmentations. The ap-
+proach can be applied both to morphological anal-
+ysis of Korean and the segmentation of sentences
+into words for Chinese, which may at first glace
+appear to be quite different problems. We have
+only shown how our methods can be applied to
+one language of the pair, where one language is
+generally isolating and the other is generally syn-
+thetic. However, our methods could be extended
+to tokenization for both languages by iterating be-
+tween languages. We also used the most simple
+word-alignment model, but more complex word
+alignment models could be incorporated into our
+bilingual model.
+Acknowledgments This work was supportedby
+NSF grants IIS-0546554 and ITR-0428020.
+References
+Matthew J. Beal. 2003. Variational Algorithms for Ap-
+proximate Bayesian Inference. Ph.D. thesis, Univer-
+sity College London.
+Peter F. Brown, Stephen A. Della Pietra, Vincent J.
+Della Pietra, and Robert L. Mercer. 1993. The
+mathematics of statistical machine translation: Pa-
+rameter estimation. Computational Linguistics,
+19(2):263–311.
+Pi-Chuan Chang, MichelGalley, and ChristopherMan-
+ning. 2008. Optimizing Chinese word segmentation
+for machine translation performance. In Proceed-
+ings of the Third Workshop on Statistical Machine
+Translation, pages 224–232.
+CarldeMarcken. 1996. Linguistic structureascompo-
+sition and perturbation. In Meeting of the Associa-
+tion for Computational Linguistics, pages 335–341.
+Morgan Kaufmann Publishers.
+John Goldsmith. 2001. Unsupervised learning of the
+morphology of a natural language. Computational
+Linguistics, 27(2):153–198.
+Sharon Goldwater, Thomas L. Griffiths, and Mark
+Johnson. 2006. Contextual dependencies in un-
+supervised word segmentation. In Proceedings of
+the International Conference on Computational Lin-
+guistics/Association for Computational Linguistics
+(COLING/ACL-06), pages 673–680.
+725
+Mark Johnson. 2007. Why doesn’t EM find good
+HMM POS-taggers? In 2007 Conference on Em-
+pirical Methods in Natural Language Processing
+(EMNLP), pages 296–305, Prague, Czech Republic,
+June. Association for Computational Linguistics.
+Genichiro Kikui and Hirofumi Yamamoto. 2002.
+Finding translation pairs from english-japanese un-
+tokenized aligned corpora. In Proceedings of the
+40th Annual Conference of the Association for
+Computational Linguistics (ACL-02) workshop on
+Speech-to-speech translation: algorithms and sys-
+tems, pages 23–30. Association for Computational
+Linguistics.
+Philipp Koehn, Hieu Hoang, Alexandra Birch, Chris
+Callison-Burch, Marcello Federico, Nicola Bertoldi,
+Brooke Cowan, Wade Shen, Christine Moran,
+Richard Zens, Chris Dyer, Ondrej Bojar, Alexan-
+dra Constantin, and Evan Herbst. 2007. Moses:
+Open source toolkit for statistical machine transla-
+tion. In Proceedings of the 45th Annual Confer-
+ence of the Association for Computational Linguis-
+tics (ACL-07), Demonstration Session, pages 177–
+180.
+I. Dan Melamed. 1999. Bitext maps and alignment
+via pattern recognition. Computational Linguistics,
+25:107–130.
+Robert C. Moore. 2002. Fast and accurate sentence
+alignment of bilingual corpora. In AMTA ’02: Pro-
+ceedings of the 5th Conference of the Association for
+Machine Translation in the Americas on Machine
+Translation: From Research to Real Users, pages
+135–144, London, UK. Springer-Verlag.
+Franz Josef Och and Hermann Ney. 2003. A sys-
+tematic comparison of various statistical alignment
+models. Computational Linguistics, 29(1):19–51.
+Franz Josef Och. 2003. Minimum error rate training
+for statistical machine translation. In Proceedings
+of the 41th Annual Conference of the Association for
+Computational Linguistics (ACL-03).
+Kishore Papineni, Salim Roukos, Todd Ward, and Wei-
+Jing Zhu. 2002. BLEU: A method for automatic
+evaluation of machine translation. In Proceedings
+of the 40th Annual Conference of the Association for
+Computational Linguistics (ACL-02).
+Fei Xia, Martha Palmer, Nianwen Xue, Mary Ellen
+Okurowski, John Kovarik, Shizhe Huang, Tony
+Kroch, and Mitch Marcus. 2000. Developing
+Guidelines and Ensuring Consistency for Chinese
+Text Annotation. In Proc. of the 2nd International
+Conference on Language Resources and Evaluation
+(LREC-2000), Athens, Greece.
+Jia Xu, Jianfeng Gao, Kristina Toutanova, and Her-
+mannNey. 2008. Bayesiansemi-supervisedchinese
+word segmentation for statistical machine transla-
+tion. In Proceedings of the 22nd International
+Conference on Computational Linguistics (Coling
+2008), pages 1017–1024, Manchester, UK, August.
+Coling 2008 Organizing Committee.
+Nianwen Xue. 2003. Chinese word segmentation as
+character tagging. In International Journal of Com-
+putational Linguistics and Chinese Language Pro-
+cessing, volume 8, pages 29–48.
+Hao Zhang, Chris Quirk, Robert C. Moore, and
+Daniel Gildea. 2008a. Bayesian learning of non-
+compositional phrases with synchronous parsing. In
+Proceedings of the 46th Annual Meeting of the As-
+sociation for Computational Linguistics (ACL-08),
+pages 97–105, Columbus, Ohio.
+Ruiqiang Zhang, Keiji Yasuda, and Eiichiro Sumita.
+2008b. Improved statistical machine translation by
+multiple Chinese word segmentation. In Proceed-
+ings of the Third Workshop on Statistical Machine
+Translation, pages 216–223.
+726
+

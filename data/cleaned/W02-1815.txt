@@ -1,0 +1,128 @@
+CombiningClassifiersforChineseWordSegmentation NianwenXue InstituteforResearchinCognitiveScience UniversityofPennsylvania Suite400A,3401Walnut Philadelphia,PA19014 xueniwen@linc.cis.upenn.edu SusanP.Converse Dept.ofComputerandInformationScience UniversityofPennsylvania 200South33rdStreet, Philadelphia,PA19104-6389 spc@linc.cis.upenn.edu Abstract In this paper we report results of a supervised machine-learning approach to Chinese word segmentation.
+First, a maximum entropytaggeristrainedonmanuallyannotated datatoautomaticallylabelsthecharacterswith tagsthatindicatethepositionofcharacterwithin a word.
+An error-driven transformation-based tagger is then trained to clean up the tagging inconsistencies of the first tagger.
+The tagged output is then converted into segmented text.
+Thepreliminaryresultsshowthatthisapproach is competitive comparedwith othersupervised machine-learning segmenters reported in previousstudies.
+1 Introduction
+It is generally agreed among researchers that word segmentation is a necessary first step in Chinese language processing.
+Most of the previous work in this area views a good dictionaryasthecornerstoneofthistask.Several word segmentation algorithms have been developedusingadictionaryasanessentialtool.
+Most notably, variants of the maximum matchingalgorithmhavebeenappliedtoword segmentation with considerable success.
+The resultsthathavebeenreportedaregenerallyin the upper 90 percentile range.
+However, the successofsuchalgorithmsispremisedonalarge, exhaustive dictionary.
+The accuracy of word segmentation degrades sharply as new words appear.
+Since Chinese word formation is a highlyproductiveprocess,newwordsarebound to appear in substantial numbers in realistic scenarios(WuandJiang1998,Xue2001),andit isvirtuallyimpossibletolistallthewordsina dictionary.Inrecentyears,asannotatedChinese corpora have become available, various machine-learningapproacheshavebeenapplied to Chinese word segmentation, with different levels of success.
+Compared with dictionarybasedapproaches,machine-learningapproaches havetheadvantageofnotneedingadictionary andthusaremoresuitableforuseonnaturally occurringChinesetext.Inthispaperwereport results of a supervised machine-learning approach towards Chinese word segmentation that combines two fairly standard machine learningmodels.Weshowthatthisapproachis verypromisingcomparedwithdictionary-based approaches as well as other machine-learning approaches that have been reported in the literature.
+2 Combining
+Classifiers for Chinesewordsegmentation Thetwomachine-learningmodelsweuseinthis work are the maximum entropy model (Ratnaparkhi 1996) and the error-driven transformation-based learning model (Brill 1994).Weusetheformerasthemainworkhorse and the latter to correct some of the errors producedbytheformer.
+2.1Reformulatingwordsegmentation asataggingproblem Before we apply the machine-learning algorithms we first convert the manually segmented words in the corpus into a tagged sequenceofChinesecharacters.Todothis,we tageachcharacterwithoneofthefourtags,LL, RR, MM and LR, depending on its position withinaword.ItistaggedLLifitoccursonthe leftboundaryofaword,andformsawordwith thecharacter(s)onitsright.ItistaggedRRifit occurs on the right boundary of a word, and formsawordwiththecharacter(s)onitsleft.It istaggedMMifitoccursinthemiddleofaword.
+ItistaggedLRifitformsawordbyitself.We callsuchtagsposition-of-character(POC)tags todifferentiatethemfromthemorefamiliarpartof-speech(POS)tags.Forexample,themanually segmentedstringin(1)awillbetaggedasshown in(1)b: (1)a.
+a0a2a1 a3a5a4 a6 a7 a8a10a9 a11 a12a14a13 a15a17a16 a18a20a19 a21a5a22 a23a25a24 a26a2a27 a28a17a29 b.
+a0 /LL a1 /RR a3 /LL a4 /RR a6 /LR a7 /LR a8 /LL a9 /RR a11 /LR a12 /LL a13 /RR a15 /LL a16 /RR a18 /LL a19 /RR a21 /LL a22 /RR a23 /LL a24 /RR a26 /LL a27 /RRa28 /LLa29 /RR c.Shanghaiplanstoreachthegoalof5,000 dollars in per capita GDP by the end of the century.
+Given a manually segmented corpus, a POCtagged corpus can be derived trivially with perfectaccuracy.Thereasonthatweusesuch POC-taggedsequencesofcharactersinsteadof applying n-gram rules to a segmented corpus directly (Hockenmaier and Brew 1998, Xue 2001)isthattheyaremucheasiertomanipulate inthetrainingprocess.Naturally,whilesome characters will have only one POC tag, most characterswillreceivemultiplePOCtags,inthe samewaythatwordscanhavemultiplePOStags.
+Theexamplein(2)showshowallfourofthe POC tags can be assigned to the character a22 (‘produce’): (2) a22 LL a22a31a30 'product' a22 LR a22 'produce' a22 MM a21a5a22a10a32 'productivity' a22 RR a33 a22 'startproduction' AlsoasinPOStags,thewaythecharacteris POC-tagged in naturally occurring text is affectedbythecontextinwhichitoccurs.For example,iftheprecedingcharacteristaggeda LRorRR,thenthenextcharactercanonlybe taggedLLorLR.Howacharacteristaggedis alsoaffectedbythesurroundingcharacters.For example, a34 (‘close’)shouldbetaggedRRifthe previouscharacteris a35 (‘open’)andneitherof themformsawordwithothercharacters,whileit shouldbetaggedLLifthenextcharacteris a36 (‘heart’)andneitherofthemformsawordwith other characters.
+This state of affairs closely resemblesthefamiliarPOStaggingproblemand lendsitselfnaturallytoasolutionsimilartothat ofPOStagging.Thetaskisoneofambiguity resolution in which the correct POC tag is determinedamongseveralpossiblePOCtagsin a specific context.
+Our next step is to train a maximumentropymodelontheperfectlyPOCtaggeddataderivedfromamanuallysegmented corpusandusethemodeltoautomaticallyPOCtagunseentext.
+2.2 Themaximumentropytagger
+The maximum entropy model used in POStagging is described in detail in Ratnaparkhi (1996)andthePOCtaggerhereusesthesame probability model.
+The probability model is defined over H x T, where H is the set of possiblecontextsor"histories"and Tisthesetof possibletags.Themodel'sjointprobabilityofa history handatag tisdefinedas ∏ = = k j f j th j thp 1 ),( ),( α piµ (i) wherea37 isanormalizationconstant, {a38, a39 1,..., a39 k } are the model parameters and {f 1,..., f k } are knownasfeatures,where f j (h,t) a40 {0,1}.Each feature f j has a corresponding parameter a41 j, which effectively serves as a "weight" of this feature.Inthetrainingprocess,givenasequence n of characters {c 1,…,c n } and their POC tags {t 1,...,t n } as training data, the purpose is to determine the parameters {a42, a43 1, ..., a43 k } that maximizethelikelihood Lofthetrainingdata using p: ∏∏∏ === == k j f j n i i n i i i t i h j thppL 111 ),( ),()( αpiµ (ii) Thesuccessofthemodelintaggingdependstoa largeextentontheselectionofsuitablefeatures.
+Given (h,t),afeaturemustencodeinformation thathelpstopredict t.Thefeaturesweusedin this experiment are instantiations of the followingfeaturetemplates: (3)Featuretemplatesusedinthistagger: a.Thecurrentcharacter b.The previous (next) character and the currentcharacter c.Theprevious(next)twocharacters d.Thetagofthepreviouscharacter e.
+The tag of the character two before the currentcharacter f.
+Whether the current character is a punctuationmark g.Whetherthecurrentcharacterisanumeral h.WhetherthecurrentcharacterisaLatin letter Ingeneral,given (h,t),thesefeaturesareinthe form of co-occurrence relations between t and sometypeofcontext.Forexample,    == = − otherwise RRtLLtif thf ii iii 0 &1 ),( 1 This feature will map to 1 and contribute towards p(h i,t i ) if c (i-1) is tagged LL and c i is taggedRR.
+Thefeaturetemplatesin(3)encodethreetypes ofcontexts.First,featuresbasedonthecurrent andsurroundingcharactersareextracted.Given acharacterinasentence,thismodelwilllookat thecurrentcharacter,theprevioustwoandnext two characters.
+For example, if the current characteris a0 (‘-ize’),itisverylikelythatitwill occurasasuffixinaword,thusreceivingthetag RR.Ontheotherhand,othercharactersmightbe equallylikelytoappearontheleft,ontheright or in the middle.
+In those cases, where a characteroccurswithinaworddependsonits surrounding characters.
+For example, if the currentcharacteris a1 (‘love’),itshouldperhaps be tagged LL if the next character is a2 (‘protect’).However,ifthepreviouscharacteris a3 (‘warm’),thenitshouldperhapsbetagged RR.
+Inthesecondtypeofcontext,featuresbasedon theprevioustagsareextracted.Informationlike thisisusefulinpredictingthePOCtagforthe currentcharacterjustasthePOStagsareuseful inpredictingthePOStagofthecurrentwordin asimilarcontext.Forexample,iftheprevious characteristaggedLRorRR,thismeansthatthe currentcharactermuststartaword,andshould betaggedeitherLLorLR.Finally,limitedPOStagginginformationcanalsobeusedtopredict howthecurrentcharactershouldbePOC-tagged.
+For example, a punctuation mark is generally treated as one segment in the CTB corpus.
+Therefore,ifacharacterisapunctuationmark, then it should be POC-tagged LR.
+This also meansthatthepreviouscharactershouldclosea wordandthefollowingcharactershouldstarta word.
+When the training is complete, the featuresandtheircorrespondingparameterswill be used to calculate theprobability of the tag sequence of a sentence when the tagger tags unseen data.
+Given a sequence of characters {c 1,...,c n }, the tagger searches for the tag sequence {t 1,...,t n }withthehighestconditional probability ∏ = = n i iinn htpccttP 1 11 )|(),...|,...( (iii) in which the conditional probability for each POCtag tgivenitshistory hiscalculatedas  ∈ ′ = Tt thP thp htp ' ),( ),( )|( (iv) 2.3 The transformation-based tagger Theerror-driventransformation-basedtaggerwe usedinthispaperisBrill'sPOStagger(1994) withminimalmodification.Thewaythistagger is set up makes it easy for it to work in conjunctionwithothertaggers.Whenitisused foritsoriginaltaskofPOStagging,themodelis trainedintwophases.Inthefirstphaselexical information, such as the affixes of a word, is learnedtopredictPOStags.Theruleslearnedin thisphasearethenappliedtothetrainingcorpus.
+In the second phase, contextual information is learnedtocorrectthewrongtagsproducedinthe firstphase.Inthesegmentationtask,sincewe aredealingwithsinglecharacters,bydefinition thereisnolexicalinformationassuch.Instead, the training data are first POC-tagged by the maximumentropymodelandthenusedbythe error-driventransformation-basedmodeltolearn the contextual rules.
+The error-driven transformation-basedmodellearnsarankedset ofrulesbycomparingtheperfectlyPOC-tagged corpus (the reference corpus) with the same corpustaggedbythemaximumentropymodel (the maxent-tagged corpus).
+At each iteration, thismodeltriestofindtherulethatachievesthe maximumgainifitisapplied.Therulewiththe maximumgainistheonethatmakesthemaxenttagged corpus most like the reference corpus.
+The maximum gain is calculated with an evaluation function which quantifies the gain and takes the largest value.
+The rules are instantiations of a set of pre-defined rule templates.Aftertherulewiththemaximumgain is found, it is applied to the maxent-tagged corpus,whichwillbetterresemblethereference corpusasaresult.Thisprocessisrepeateduntil the maximum gain drops below a pre-defined threshold, which indicates improvement achievedthroughfurthertrainingwillnolonger be significant.
+The training will then be terminated.Theruletemplatesarethesameas thoseusedinBrill(1994),exceptthattheserule templatesarenowdefinedovercharactersrather thanwords.
+(4) Rule templates used to learn contextual information: Changetag atotag bwhen: a.
+The preceding (following) character is tagged z.
+b.Thecharactertwobefore(after)istagged z.
+c. One of the two preceding (following) charactersistagged z.
+d. One of the three preceding (following) charactersistagged z.
+e.Theprecedingcharacteristagged zandthe followingcharacteristagged w.
+f. The preceding (following) character is tagged zandthecharactertwobefore(after)was tagged w.
+g.Thepreceding(following)characteris c.
+h.Thecharactertwobefore(after)is c.
+i. One of the two preceding (following) charactersis c.
+j. The current character is c and the preceding(following)characterisx . k.
+The current character is c and the preceding(following)characteristagged z.
+where a, b, zand warevariablesoverthesetof fourtags(LL,RR,LR,MM) Therankedsetofruleslearnedinthistraining process will be applied to the output of the maximumentropytagger.
+3 Experimentalresults
+We conducted three experiments.
+In the first experiment, we used the maximum matching algorithmtoestablishabaseline,ascomparing results across different data sources can be difficult.
+This experiment is also designed to demonstrate that even with a relatively small number of new words in the testing data, the segmentation accuracy drops sharply.
+In the second experiment, we applied the maximum entropymodeltotheproblemofChineseword segmentation.
+The results will show that this approach alone outperforms the state-of-the-art resultsreportedinpreviousworkinsupervised machine-learning approaches.
+In the third experimentwecombinedthemaximumentropy model with the error-driven transformationbased model.
+We used the error-driven transformation-based model to learn a set of rules to correct the errors produced by the maximumentropymodel.Thedataweusedare fromthePennChineseTreebank(Xia etal.
+2000, Xue et al . 2002) and they consist of Xinhua newswire articles.
+We took 250,389 words (426,292charactersor hanzi)worthofmanually segmented data and divided them into two chunks.
+The first chunk has 237,791 words (404,680 Chinese characters) and is used as training data.
+The second chunk has 12,598 words(21,612characters)andisusedastesting data.
+These data are used in all three of our experiments.
+3.1 ExperimentOne
+In this experiment, we conducted two subexperiments.
+In the first sub-experiment, we usedaforwardmaximummatchingalgorithmto segment the testing data with a dictionary compiledfromthetrainingdata.Thereare497 (or3.95%)newwords(wordsthatarenotfound inthetrainingdata)inthetestingdata.Inthe second sub-experiment, we used the same algorithmtosegmentthesametestingdatawith adictionarythatwascompiledfromBOTHthe trainingdataandthetestingdata,sothatthere areno“new”wordsinthetestingdata.
+3.2 ExperimentTwo
+Inthisexperiment,amaximumentropymodel was trained on a POC-tagged corpus derived from the training data described above.
+In the testingphase,thesentencesinthetestingdata werefirstsplitintosequencesofcharactersand thentaggedthismaximumentropytagger.The taggedtestingdataarethenconvertedbackinto word segments for evaluation.
+Note that converting a POC-tagged corpus into a segmentedcorpusisnotentirelystraightforward wheninconsistenttaggingoccurs.Forexampleit is possible that the tagger assigns a LL-LR sequencetotwoadjacentcharacters.Wemade noefforttoensurethebestpossibleconversion.
+The character that is POC-tagged LL is invariably combined with the following character,nomatterhowitistagged.
+3.3 ExperimentThree
+In this experiment, we used the maximum entropy model trained in experiment two to automaticallytagthetrainingdata.Thetraining accuracy of the maximum entropy model is 97.54% in terms of the number of characters taggedcorrectlyandthereare9940incorrectly taggedcharacters,outof404,680charactersin total.Wethenusedthisoutputandthecorrectly tagged data derived from the manually segmentedtrainingdata(asthereferencecorpus) tolearnasetoftransformationrules.214rules werelearnedinthisphase.These214ruleswere thenusedtocorrecttheerrorsofthetestingdata thatwasfirsttaggedbymaximumentropymodel inexperimenttwo.Asafinalstep,thetagged and correctedtesting data were converted into word segments.
+Again, no effort was made to optimize the segmentation accuracy during the conversion.
+3.4 Evaluation
+Inevaluatingourmodel,wecalculatedboththe tagging accuracy and segmentation accuracy.
+The calculation of the tagging accuracy is straightforward.Itissimplythetotalnumberof correctlyPOC-taggedcharactersdividedbythe total number of characters.
+In evaluating segmentationaccuracy,weusedthreemeasures: precision,recallandbalancedF-score.Precision (p) is defined as the number of correctly segmentedwordsdividedbythetotalnumberof words in the automatically segmented corpus.
+Recall(r)isdefinedasthenumberofcorrectly segmentedwordsdividedbythetotalnumberof words in the gold standard, which is the manuallyannotatedcorpus.F-score(f)isdefined asfollows: rp rp f + ×× = 2 (v) Theresultsofthethreeexperimentsaretabulated asfollows: tagger tagging accuracy segmentationaccuracy training testing testing p(%) r(%) f(%) 1 n/a n/a 87.34 92.34 89.77 2 n/a n/a 94.51 95.80 95.15 3 97.55 95.95 94.90 94.88 94.89 4 97.81 96.07 95.21 95.13 95.17 Table1 1=maximummatchingalgorithmappliedto testingdatawithnewwords 2=maximummatchingalgorithmappliedto testingdatawithoutnewwords 3=maximumentropytagger 4=maximumentropytaggercombinedwith thetransformation-basedtagger 4 Discussion TheresultsfromExperimentoneshowthatthe accuracy of the maximum matching algorithm degradessharplywhentherearenewwordsin thetestingdata,evenwhenthereisonlyasmall proportionofthem.Assuminganidealscenario wheretherearenonewwordsinthetestingdata, themaximummatchingalgorithmachievesanFscoreof95.15%.However,whentherearenew words(wordsnotfoundinthetrainingdata),the accuracy drops to only 89.77% in F-score.
+In contrast,themaximumentropytaggerachieves an accuracy of 94.89% measured by the balancedF-scoreevenwhentherearenewwords in the testing data.Thisresultis only slightly lower than the 95.15% that the maximum matchingalgorithmachievedwhenthereareno new words.
+The transformation-based tagger improvesthetaggingaccuracyby0.12%from 95.95%to96.07%.Thesegmentationaccuracy jumps to 95.17% (F-score) from 94.89%, an increase of 0.28%.
+That fact that the improvementinsegmentationaccuracyishigher thantheimprovementintaggingaccuracyshows that the transformation-based tagger is able to correctsomeoftheinconsistenttaggingerrors producedbythemaximumentropytagger.This is clearly demonstrated in the five highestranked transformation rules learned by this model: (5)Topfivetransformationrules RRMMNEXTTAGRR LLLRNEXTTAGLL LLLRNEXTTAGLR MMRRNEXTBIGRAMLRLR RRLRPREVBIGRAMRRLR Forexample,thefirstrulesaysthatifthenext characteristaggedRR,thenchangethecurrent tagtoMMfromRR,sinceanRRRRsequence isinconsistent.
+Incidentally, the combined segmentation accuracy is almost the same as that of the maximummatchingmethodwhenthereareno newwords.
+Evaluatingthisapproachagainstpreviousresults canbeatrickymatter.Thereareseveralreasons forthis.Oneisthatthesourceofdatacanaffect thesegmentationaccuracy.Sincetheresultsof machine-learning approaches are heavily dependent on the type of training data, comparison of segmenters trained on different dataisnotexactlyvalid.Thesecondreasonis thattheamountoftrainingdataalsoaffectsthe accuracyofsegmenters.Stillsomepreliminary observations can be made in this regard.
+Our accuracyismuchhigherthatthosereportedin HockenmaierandBrew(1998)andXue(2001), who used error-driven transformation-based learningtolearnasetofn-gramrulestodoa seriesofmergeandsplitoperationsondatafrom Xinhuanews,thesamedatasourceasours.The results they reported are 87.9% (trained on 100,000 words) and 90.2% (trained on 80,000 words)respectively,measuredbythebalanced F-score.
+Using a statistical model called prediction by partial matching (PPM), Teahan et al (2000) reportedasignificantlybetterresult.Themodel wastrainedonamillionwordsfromGuoJin's MandarinChinesePHcorpusandtestedonfive 500-segmentfiles.ThereportedF-scoresareina range between 89.4% and 98.6%, averaging 94.4%.
+Since the data are also from Xinhua newswire, some comparison can be made between our results and this model.
+With less trainingdata,ourresultsareslightlyhigher(by 0.48%)whenusingjustthemaximumentropy model.Whenthismodeliscombinedwiththe error-driven transformation-based learning model,ouraccuracyishigherby0.77%.Still, this comparison is just preliminary since differentsegmentationstandardscanalsoaffect segmentationaccuracy.
+5 Conclusion
+Thepreliminaryresultsshowthatourapproach is more robust than the dictionary-based approaches.
+They also show that the present approach outperforms other state-of-the-art machine-learningmodels.Wecanalsoconclude thatthemaximumentropymodelisapromising supervisedmachinelearningalternativethatcan be effectively applied to Chinese word segmentation.
+6 Acknowledgement
+ThisresearchwasfundedbyDARPAN6600100-1-8915.
+We gratefully acknowledge commentsfromtwoanonymousreviewers.
+References Eric Brill.
+1995. Some Advances In Rule-Based Part of Speech Tagging, AAAI1994 JuliaHockenmaierandChrisBrew.1998.Errordriven segmentation of Chinese.
+CommunicationsofCOLIPS,1:1:69-84.
+Adwait Ratnaparkhi.
+1996. A Maximum Entropy Part-of-Speech Tagger.
+In Proceedings of the Empirical Methods in Natural Language Processing Conference, May 17-18, 1996.
+University of Pennsylvania.
+W. J.
+Teahan, Rodger McNab, Yingying Wen and Ian H.
+Witten. 2000.
+A Compression-based Algorithm for Chinese Word Segmentation.
+Computational Linguistics,26:3:375-393 Andi Wu and Zixin Jiang.
+1998. Word Segmentation in Sentence Analysis.
+In Proceedings of the 1998 International Conference on Chinese Information Processing . Nov.1998,Beijing,pp.167-180.
+Fei Xia, Martha Palmer, Nianwen Xue, Mary EllenOkurowski,JohnKovarik,ShizheHuang, Tony Kroch,Mitch Marcus.
+2000. Developing Guidelines and Ensuring Consistency for Chinese Text Annotation.
+In Proc.
+of the 2nd International Conference on Language ResourcesandEvaluation(LREC-2000),Athens, Greece.
+NianwenXue.2001. DefiningandAutomatically IdentifyingWordsinChinese .PhDDissertation, UniversityofDelaware.
+Nianwen Xue, Fu-dong Chiou, Martha Palmer.
+2002. Building a Large Annotated Chinese Corpus.
+To appear in Proceedings of the 19th International Conference on Computational Linguistics.
+August 14 September 1, 2002.
+Taipei,Taiwan .
+

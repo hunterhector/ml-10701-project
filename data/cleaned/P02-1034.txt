@@ -1,0 +1,257 @@
+New Ranking Algorithms for Parsing and Tagging: Kernels over Discrete Structures, and the Voted Perceptron Michael Collins AT&T Labs-Research, Florham Park, New Jersey.
+mcollins@research.att.com Nigel Duffy iKuni Inc., 3400 Hillview Ave., Building 5, Palo Alto, CA 94304.
+nigeduff@cs.ucsc.edu Abstract This paper introduces new learning algorithms for natural language processing based on the perceptron algorithm.
+We show how the algorithms can be efficiently applied to exponential sized representations of parse trees, such as the “all subtrees” (DOP) representation described by (Bod 1998), or a representation tracking all sub-fragments of a tagged sentence.
+We give experimental results showing significant improvements on two tasks: parsing Wall Street Journal text, and namedentity extraction from web data.
+1 Introduction
+The perceptron algorithm is one of the oldest algorithms in machine learning, going back to (Rosenblatt 1958).
+It is an incredibly simple algorithm to implement, and yet it has been shown to be competitive with more recent learning methods such as support vector machines – see (Freund & Schapire 1999) for its application to image classification, for example.
+This paper describes how the perceptron and voted perceptron algorithms can be used for parsing and tagging problems.
+Crucially, the algorithms can be efficiently applied to exponential sized representations of parse trees, such as the “all subtrees” (DOP) representation described by (Bod 1998), or a representation tracking all sub-fragments of a tagged sentence.
+It might seem paradoxical to be able to efficiently learn and apply a model with an exponential number of features.1 The key to our algorithms is the 1Although see (Goodman 1996) for an efficient algorithm for the DOP model, which we discuss in section 7 of this paper.
+“kernel” trick ((Cristianini and Shawe-Taylor 2000) discuss kernel methods at length).
+We describe how the inner product between feature vectors in these representations can be calculated efficiently using dynamic programming algorithms.
+This leads to polynomial time2 algorithms for training and applying the perceptron.
+The kernels we describe are related to the kernels over discrete structures in (Haussler 1999; Lodhi et al.2001). A previous paper (Collins and Duffy 2001) showed improvements over a PCFG in parsing the ATIS task.
+In this paper we show that the method scales to far more complex domains.
+In parsing Wall Street Journal text, the method gives a 5.1% relative reduction in error rate over the model of (Collins 1999).
+In the second domain, detecting namedentity boundaries in web data, we show a 15.6% relative error reduction (an improvement in F-measure from 85.3% to 87.6%) over a state-of-the-art model, a maximum-entropy tagger.
+This result is derived using a new kernel, for tagged sequences, described in this paper.
+Both results rely on a new approach that incorporates the log-probability from a baseline model, in addition to the “all-fragments” features.
+2 Feature–Vector Representations of Parse Trees and Tagged Sequences This paper focuses on the task of choosing the correct parse or tag sequence for a sentence from a group of “candidates” for that sentence.
+The candidates might be enumerated by a number of methods.
+The experiments in this paper use the top a0 candidates from a baseline probabilistic model: the model of (Collins 1999) for parsing, and a maximumentropy tagger for named-entity recognition.
+2i.e., polynomial in the number of training examples, and the size of trees or sentences in training and test data.
+Computational Linguistics (ACL), Philadelphia, July 2002, pp.
+263-270. Proceedings of the 40th Annual Meeting of the Association for The choice of representation is central: what features should be used as evidence in choosing between candidates?
+We will use a function a1a3a2a5a4a7a6a9a8 a10a12a11 to denote a a13 -dimensional feature vector that represents a tree or tagged sequence a4. There are many possibilities for a1a14a2a5a4a7a6 . An obvious example for parse trees is to have one component of a1a3a2a5a4a7a6 for each rule in a context-free grammar that underlies the trees.
+This is the representation used by Stochastic Context-Free Grammars.
+The feature vector tracks the counts of rules in the tree a4, thus encoding the sufficient statistics for the SCFG.
+Given a representation, and two structures a4 and a15, the inner product between the structures can be defined as a1a3a2a5a4a7a6a17a16a18a1a3a2 a15 a6a20a19 a11 a21a22 a23a7a24a26a25 a22 a2a5a4a7a6 a25 a22 a2 a15 a6 The idea of inner products between feature vectors is central to learning algorithms such as Support Vector Machines (SVMs), and is also central to the ideas in this paper.
+Intuitively, the inner product is a similarity measure between objects: structures with similar feature vectors will have high values for a1a3a2a5a4a7a6a27a16a28a1a14a2 a15 a6 . More formally, it has been observed that many algorithms can be implemented using inner products between training examples alone, without direct access to the feature vectors themselves.
+As we will see in this paper, this can be crucial for the efficiency of learning with certain representations.
+Following the SVM literature, we call a function a29 a2a5a4a12a30 a15 a6 of two objects a4 and a15 a “kernel” if it can be shown that a29 is an inner product in some feature space a1 . 3 Algorithms 3.1 Notation This section formalizes the idea of linear models for parsing or tagging.
+The method is related to the boosting approach to ranking problems (Freund et al.1998), the Markov Random Field methods of (Johnson et al.1999), and the boosting approaches for parsing in (Collins 2000).
+The set-up is as follows:a31 Training data is a set of example input/output pairs.
+In parsing the training examples are a32a18a33 a22 a30a35a34 a22a37a36 where each a33 a22 is a sentence and each a34 a22 is the correct tree for that sentence.a31 We assume some way of enumerating a set of candidates for a particular sentence.
+We use a4 a22a39a38 to denote the a40 ’th candidate for the a41 ’th sentence in training data, and a42 a2 a33 a22 a6a43a19 a32 a4 a22 a24 a30a35a4 a22a45a44 a46a27a46a27a46 a36 to denote the set of candidates for a33 a22 .a31 Without loss of generality we take a4 a22 a24 to be the correct candidate for a33 a22 (i.e., a4 a22 a24 a19a47a34 a22 ).a31 Each candidate a4 a22a48a38 is represented by a feature vector a1a3a2a5a4 a22a48a38 a6 in the space a10a12a11 . The parameters of the model are also a vector a49 a8 a10a12a11 . The output of the model on a training or test example a33 is a50a52a51a54a53a56a55a57a50a59a58a61a60a63a62a65a64a67a66a45a68a70a69 a49 a16a18a1a3a2a5a4a7a6 . The key question, having defined a representation a1, is how to set the parameters a49 . We discuss one method for setting the weights, the perceptron algorithm, in the next section.
+3.2 The
+Perceptron Algorithm Figure 1(a) shows the perceptron algorithm applied to the ranking task.
+The method assumes a training set as described in section 3.1, and a representation a1 of parse trees.
+The algorithm maintains a parameter vector a49, which is initially set to be all zeros.
+The algorithm then makes a pass over the training set, only updating the parameter vector when a mistake is made on an example.
+The parameter vector update is very simple, involving adding the difference of the offending examples’ representations (a49 a19 a49a72a71 a1a14a2a5a4 a22 a24 a6a74a73a75a1a14a2a5a4 a22a39a38 a6 in the figure).
+Intuitively, this update has the effect of increasing the parameter values for features in the correct tree, and downweighting the parameter values for features in the competitor.
+See (Cristianini and Shawe-Taylor 2000) for discussion of the perceptron algorithm, including an overview of various theorems justifying this way of setting the parameters.
+Briefly, the perceptron algorithm is guaranteed3 to find a hyperplane that correctly classifies all training points, if such a hyperplane exists (i.e., the data is “separable”).
+Moreover, the number of mistakes made will be low, providing that the data is separable with “large margin”, and 3To find such a hyperplane the algorithm must be run over the training set repeatedly until no mistakes are made.
+The algorithm in figure 1 includes just a single pass over the training set.
+(a) Define: (b)Define: a76 a2a5a4a7a6a20a19 a49 a16a65a1a14a2a5a4a7a6 . a77 a2a5a4a7a6a20a19a79a78 a66 a22 a80 a38 a69a67a81 a22 a80 a38 a2a82a1a14a2a5a4 a22 a24 a6a17a16a65a1a3a2a5a4a7a6a83a73a84a1a3a2a5a4 a22a39a38 a6a17a16a65a1a3a2a5a4a7a6a54a6 Initialization: Set parameters a49 a19a86a85 Initialization: Set dual parameters a81 a22 a80 a38 a19a86a85 For a41 a19a88a87 a46a27a46a27a46 a0 For a41 a19a89a87 a46a27a46a27a46 a0 a40 a19 a50a52a51a54a53a56a55a57a50a59a58 a38 a23a7a24a35a90a48a90a48a90a91a52a92 a76 a2a5a4 a22a39a38 a6 a40 a19 a50a52a51a54a53a67a55a57a50a59a58 a38 a23a7a24a35a90a48a90a48a90a91a52a92 a77 a2a5a4 a22a39a38 a6 If a2a40a94a93 a19a89a87a65a6 Then a49 a19 a49a95a71 a1a14a2a5a4 a22 a24 a6a83a73a96a1a14a2a5a4 a22a39a38 a6 If a2 a40a94a93 a19a89a87a65a6 Then a81 a22a39a38 a19 a81 a22a39a38 a71 a87 Output on test sentence a33 : Output on test sentence a33 : a50a52a51a54a53a67a55a57a50a59a58 a60a97a62a18a64a67a66a28a68a37a69 a76 a2a5a4a7a6 . a50a52a51a98a53a67a55a57a50a59a58 a60a63a62a65a64a97a66a28a68a37a69 a77 a2a5a4a7a6 a46 Figure 1: a) The perceptron algorithm for ranking problems.
+b) The algorithm in dual form.
+this translates to guarantees about how the method generalizes to test examples.
+(Freund & Schapire 1999) give theorems showing that the voted perceptron (a variant described below) generalizes well even given non-separable data.
+3.3 The
+Algorithm in Dual Form Figure 1(b) shows an equivalent algorithm to the perceptron, an algorithm which we will call the “dual form” of the perceptron.
+The dual-form algorithm does not store a parameter vector a49, instead storing a set of dual parameters, a81 a22 a80 a38 for a41 a19 a87 a46a27a46a27a46 a0 a30 a40 a19a100a99 a46a27a46a27a46 a0 a22 . The score for a parse a4 is defined by the dual parameters as a77 a2a5a4a7a6a101a19 a21 a66 a22 a80 a38 a69 a81 a22 a80 a38 a2a82a1a14a2a5a4 a22 a24 a6a17a16a65a1a3a2a5a4a7a6a83a73a84a1a3a2a5a4 a22a39a38 a6a17a16a65a1a3a2a5a4a7a6a54a6 This is in contrast to a76 a2a5a4a7a6a3a19 a49 a16a52a1a14a2a5a4a7a6, the score in the original algorithm.
+In spite of these differences the algorithms give identical results on training and test examples: to see this, it can be verified that a49 a19 a78 a22 a80 a38 a81 a22 a80 a38 a2a102a1a3a2a5a4 a22 a24 a6a17a73a84a1a3a2a5a4 a22a48a38 a6a35a6, and hence that a77 a2a5a4a7a6a20a19 a76 a2a5a4a7a6, throughout training.
+The important difference between the algorithms lies in the analysis of their computational complexity.
+Say a103 is the size of the training set, i.e., a103 a19 a78 a22 a0 a22 . Also, take a13 to be the dimensionality of the parameter vector a49 . Then the algorithm in figure 1(a) takes a104 a2 a103a105a13 a6 time.4 This follows because a76 a2a5a4a7a6 must be calculated for each member of the training set, and each calculation of a76 involves a104 a2 a13 a6 time.
+Now say the time taken to compute the 4If the vectors a106a108a107a45a109a111a110 are sparse, then a112 can be taken to be the number of non-zero elements of a106, assuming that it takes a113a114a107a45a112a65a110 time to add feature vectors with a113a114a107a45a112a65a110 non-zero elements, or to take inner products.
+inner product between two examples is a115 . The running time of the algorithm in figure 1(b) is a104 a2 a103 a0 a115 a6 . This follows because throughout the algorithm the number of non-zero dual parameters is bounded by a0, and hence the calculation of a77 a2a5a4a7a6 takes at most a104 a2 a0 a115 a6 time.
+(Note that the dual form algorithm runs in quadratic time in the number of training examples a0, because a103a117a116 a0 .) The dual algorithm is therefore more efficient in cases where a0 a115a119a118a120a118a47a13 . This might seem unlikely to be the case – naively, it would be expected that the time to calculate the inner product a1a3a2a5a4a7a6a14a16a97a1a3a2 a15 a6 between two vectors to be at least a104 a2 a13 a6 . But it turns out that for some high-dimensional representations the inner product can be calculated in much better than a104 a2 a13 a6 time, making the dual form algorithm more efficient than the original algorithm.
+The dualform algorithm goes back to (Aizerman et al.64). See (Cristianini and Shawe-Taylor 2000) for more explanation of the algorithm.
+3.4 The
+Voted Perceptron (Freund & Schapire 1999) describe a refinement of the perceptron algorithm, the “voted perceptron”.
+They give theory which suggests that the voted perceptron is preferable in cases of noisy or unseparable data.
+The training phase of the algorithm is unchanged – the change is in how the method is applied to test examples.
+The algorithm in figure 1(b) can be considered to build a series of hypotheses a77a74a121 a2a5a4a7a6, for a34a20a19a89a87 a46a27a46a27a46 a0, where a77 a121 is defined as a77 a121 a2a5a4a7a6a20a19 a21 a66 a22a5a122 a121 a80 a38 a69 a81 a22 a80 a38 a2a82a1a14a2a5a4 a22 a24 a6a17a16a18a1a3a2a5a4a7a6a83a73a84a1a3a2a5a4 a22a39a38 a6a7a16a18a1a3a2a5a4a7a6a54a6 a77a74a121 is the scoring function from the algorithm trained on just the first a34 training examples.
+The output of a model trained on the first a34 examples for a sentence a33 a) S NP N John VP V saw NP D the N man b) NP D the N man NP D N D the N man NP D the N NP D N man Figure 2: a) An example parse tree.
+b) The sub-trees of the NP covering the man.
+The tree in (a) contains all of these subtrees, as well as many others.
+is a123a124a121 a2 a33 a6a125a19 a50a52a51a54a53a3a55a57a50a59a58 a60a97a62a18a64a67a66a28a68a37a69 a77a74a121 a2a5a4a7a6 . Thus the training algorithm can be considered to construct a sequence of a0 models, a123 a24 a46a27a46a27a46 a123 a91 . On a test sentence a33, each of these a0 functions will return its own parse tree, a123 a121 a2 a33 a6 for a34a43a19a126a87 a46a27a46a27a46 a0 . The voted perceptron picks the most likely tree as that which occurs most often in the set a32a59a123 a24 a2 a33 a6a127a30 a123 a44 a2 a33 a6 a46a27a46a27a46 a123 a91 a2 a33 a6 a36 . Note that a77a74a121 is easily derived from a77a74a121a129a128 a24, through the identity a77a74a121 a2a5a4a7a6 a19 a77a74a121a129a128 a24 a2a5a4a7a6 a71 a78 a91a59a130 a38 a23 a44 a81 a121 a80 a38 a2a102a1a3a2a5a4 a121 a24 a6a17a16a65a1a14a2a5a4a7a6a12a73a84a1a14a2a5a4 a121 a38 a6a17a16a65a1a3a2a5a4a7a6a54a6 . Because of this the voted perceptron can be implemented with the same number of kernel calculations, and hence roughly the same computational complexity, as the original perceptron.
+4 A
+Tree Kernel We now consider a representation that tracks all subtrees seen in training data, the representation studied extensively by (Bod 1998).
+See figure 2 for an example.
+Conceptually we begin by enumerating all tree fragments that occur in the training data a87 a46a27a46a27a46 a13 . Note that this is done only implicitly.
+Each tree is represented by a a13 dimensional vector where the a41 ’th component counts the number of occurences of the a41 ’th tree fragment.
+Define the function a25 a22 a2a5a4a7a6 to be the number of occurences of the a41 ’th tree fragment in tree a4, so that a4 is now represented as a1a3a2a5a4a7a6a131a19a132a2 a25 a24 a2a5a4a7a6a127a30 a25 a44 a2a5a4a7a6a127a30 a46a27a46a27a46 a30 a25 a11 a2a5a4a7a6a35a6 . Note that a13 will be huge (a given tree will have a number of subtrees that is exponential in its size).
+Because of this we aim to design algorithms whose computational complexity is independent of a13 . The key to our efficient use of this representation is a dynamic programming algorithm that computes the inner product between two examples a4 a24 and a4 a44 in polynomial (in the size of the trees involved), rather than a104 a2 a13 a6, time.
+The algorithm is described in (Collins and Duffy 2001), but for completeness we repeat it here.
+We first define the set of nodes in trees a4 a24 and a4 a44 as a133 a24 and a133 a44 respectively.
+We define the indicator function a134 a22 a2 a0 a6 to be a87 if sub-tree a41 is seen rooted at node a0 and 0 otherwise.
+It follows that a25 a22 a2a5a4 a24 a6a131a19 a78 a91a97a135 a62a52a136 a135 a134 a22 a2 a0 a24 a6 and a25 a22 a2a5a4 a44 a6a125a19 a78 a91a56a137 a62a52a136 a137 a134 a22 a2 a0 a44 a6 . The first step to efficient computation of the inner product is the following property:a138a105a139a102a140 a24a127a141a3a142 a138a105a139a102a140 a44 a141a144a143 a78 a22a63a145 a22 a139a82a140 a24a127a141 a145 a22 a139a102a140 a44 a141 a143 a78 a22 a139 a78 a91a63a135 a62a52a136 a135a147a146 a22 a139a149a148 a24a150a141a127a141 a139 a78 a91 a137 a62a52a136 a137 a146 a22 a139a102a148 a44 a141a127a141 a143 a78 a91a63a135 a62a56a136 a135 a78 a91 a137 a62a56a136 a137 a78 a22 a146 a22 a139a102a148 a24a127a141 a146 a22 a139a102a148 a44 a141 a143 a78 a91a63a135 a62a56a136 a135 a78 a91 a137 a62a56a136 a137a152a151 a139a149a148 a24a65a153 a148 a44 a141 where we define a154 a2 a0 a24 a30 a0 a44 a6a155a19 a78 a22 a134 a22 a2 a0 a24 a6 a134 a22 a2 a0 a44 a6 . Next, we note that a154 a2 a0 a24 a30 a0 a44 a6 can be computed efficiently, due to the following recursive definition:a31 If the productions at a0 a24 and a0 a44 are different a154 a2 a0 a24 a30 a0 a44 a6a12a19a86a85 . a31 If the productions at a0 a24 and a0 a44 are the same, and a0 a24 and a0 a44 are pre-terminals, then a154 a2 a0 a24 a30 a0 a44 a6a20a19a89a87 .5 a31 Else if the productions at a0 a24 and a0 a44 are the same and a0 a24 and a0 a44 are not pre-terminals, a154 a2 a0 a24 a30 a0 a44 a6a12a19 a91a52a156 a66 a91a63a135 a69 a157a38 a23a7a24 a2a158a87 a71a159a154 a2a129a160 a25 a2 a0 a24 a30 a40 a6a127a30a54a160 a25 a2 a0 a44 a30 a40 a6a35a6a98a6a161a30 where a0 a160a56a2 a0 a24 a6 is the number of children of a0 a24 in the tree; because the productions at a0 a24 /a0 a44 are the same, we have a0 a160a52a2 a0 a24 a6a162a19 a0 a160a56a2 a0 a44 a6 . The a41 ’th child-node of a0 a24 is a160 a25 a2 a0 a24 a30 a41 a6 . To see that this recursive definition is correct, note that a154 a2 a0 a24 a30 a0 a44 a6a159a19 a78 a22 a134 a22 a2 a0 a24 a6 a134 a22 a2 a0 a44 a6 simply counts the number of common subtrees that are found rooted at both a0 a24 and a0 a44 . The first two cases are trivially correct.
+The last, recursive, definition follows because a common subtree for a0 a24 and a0 a44 can be formed by taking the production at a0 a24 /a0 a44, together with a choice at each child of simply taking the non-terminal at that child, or any one of the common sub-trees at that child.
+Thus there are 5Pre-terminals are nodes directly above words in the surface string, for example the N, V, and D symbols in Figure 2.
+Lou Gerstner is chairman of IBM N N V N P N N V Gerstner is NN Lou N Lou N V ...
+a) b) Figure 3: a) A tagged sequence.
+b) Example “fragments” of the tagged sequence: the tagging kernel is sensitive to the counts of all such fragments.
+a2a158a87 a71a84a154 a2a129a160 a25 a41a149a163a129a13 a2 a0 a24 a30 a41 a6a127a30a54a160 a25 a41a149a163a129a13 a2 a0 a44 a30 a41 a6a35a6a35a6 possible choices at the a41 ’th child.
+(Note that a similar recursion is described by Goodman (Goodman 1996), Goodman’s application being the conversion of Bod’s model (Bod 1998) to an equivalent PCFG.) It is clear from the identity a1a3a2a5a4 a24 a6a162a16a7a1a3a2a5a4 a44 a6a89a19 a78 a91a97a135 a80 a91 a137 a154 a2 a0 a24 a30 a0 a44 a6, and the recursive definition of a154 a2 a0 a24 a30 a0 a44 a6, that a1a3a2a5a4 a24 a6a3a16a97a1a3a2a5a4 a44 a6 can be calculated in a104 a2a54a164 a133 a24 a164a45a164 a133 a44 a164a48a6 time: the matrix of a154 a2 a0 a24 a30 a0 a44 a6 values can be filled in, then summed.6 Since there will be many more tree fragments of larger size – say depth four versus depth three – it makes sense to downweight the contribution of larger tree fragments to the kernel.
+This can be achieved by introducing a parameter a85 a118 a165 a166 a87, and modifying the base case and recursive case of the definitions of a154 to be respectively a154 a2 a0 a24 a30 a0 a44 a6 a19 a165 and a154 a2 a0 a24 a30 a0 a44 a6 a19 a165a74a167 a91a52a156 a66 a91 a135 a69 a38 a23a7a24 a2a158a87 a71a168a154 a2a129a160 a25 a2 a0 a24 a30 a40 a6a127a30a54a160 a25 a2 a0 a44 a30 a40 a6a35a6a35a6 . This corresponds to a modified kernel a1a14a2a5a4 a24 a6a43a16a17a1a3a2a5a4 a44 a6a95a19 a78 a22 a165 a68 a22 a169a54a170 a92 a25 a22 a2a5a4 a24 a6 a25 a22 a2a5a4 a44 a6 where a33a171a41a70a172a97a173 a22 is the number of rules in the a41 ’th fragment.
+This is roughly equivalent to having a prior that large sub-trees will be less useful in the learning task.
+5 A
+Tagging Kernel The second problem we consider is tagging, where each word in a sentence is mapped to one of a finite set of tags.
+The tags might represent part-of-speech tags, named-entity boundaries, base noun-phrases, or other structures.
+In the experiments in this paper we consider named-entity recognition.
+6This can be a pessimistic estimate of the runtime.
+A more useful characterization is that it runs in time linear in the number of members a107a45a174 a135a35a175 a174 a137 a110a12a176a43a177 a135a12a178 a177 a137 such that the productions at a174 a135 and a174 a137 are the same.
+In our data we have found the number of nodes with identical productions to be approximately linear in the size of the trees, so the running time is also close to linear in the size of the trees.
+A tagged sequence is a sequence of word/state pairs a4a117a19 a32a171a179 a24a150a180 a33 a24 a46a27a46a27a46 a179 a91a61a180 a33 a91 a36 where a179 a22 is the a41 ’th word, and a33 a22 is the tag for that word.
+The particular representation we consider is similar to the all sub-trees representation for trees.
+A taggedsequence “fragment” is a subgraph that contains a subsequence of state labels, where each label may or may not contain the word below it.
+See figure 3 for an example.
+Each tagged sequence is represented by a a13 dimensional vector where the a41 ’th component a25 a22 a2a5a4a7a6 counts the number of occurrences of the a41 ’th fragment in a4 . The inner product under this representation can be calculated using dynamic programming in a very similar way to the tree algorithm.
+We first define the set of states in tagged sequences a4 a24 and a4 a44 as a133 a24 and a133 a44 respectively.
+Each state has an associated label and an associated word.
+We define the indicator function a134 a22 a2 a0 a6 to be a87 if fragment a41 is seen with left-most state at node a0, and 0 otherwise.
+It follows that a25 a22 a2a5a4 a24 a6a131a19 a78 a91 a135 a62a52a136 a135 a134 a22 a2 a0 a24 a6 and a25 a22 a2a5a4 a44 a6a120a19 a78 a91 a137 a62a52a136 a137 a134 a22 a2 a0 a44 a6 . As before, some simple algebra shows thata138a105a139a102a140 a24a127a141a3a142 a138a105a139a102a140 a44 a141a144a143 a78 a91a97a135 a62a56a136 a135 a78 a91 a137 a62a52a136 a137a152a151 a139a102a148 a24a65a153 a148 a44 a141 where we define a154 a2 a0 a24 a30 a0 a44 a6a155a19 a78 a22 a134 a22 a2 a0 a24 a6 a134 a22 a2 a0 a44 a6 . Next, for any given state a0 a24 a8 a133 a24 define a0 a173a27a181 a34a182a2 a0 a24 a6 to be the state to the right of a0 a24 in the structure a4 a24 . An analogous definition holds for a0 a173a171a181 a34a27a2 a0 a44 a6 . Then a154 a2 a0 a24 a30 a0 a44 a6 can be computed using dynamic programming, due to a recursive definition:a31 If the state labels at a0 a24 and a0 a44 are different a154 a2 a0 a24 a30 a0 a44 a6a12a19a86a85 . a31 If the state labels at a0 a24 and a0 a44 are the same, but the words at a0 a24 and a0 a44 are different, then a154 a2 a0 a24 a30 a0 a44 a6a12a19a89a87 a71a183a154 a2 a0 a173a27a181 a34a182a2 a0 a24 a6a127a30 a0 a173a27a181 a34a182a2 a0 a44 a6a35a6 . a31 Else if the state labels at a0 a24 and a0 a44 are the same, and the words at a0 a24 and a0 a44 are the same, then a154 a2 a0 a24 a30 a0 a44 a6a12a19a75a99 a71 a99a185a184 a154 a2 a0 a173a27a181 a34a182a2 a0 a24 a6a127a30 a0 a173a171a181 a34a27a2 a0 a44 a6a35a6 . There are a couple of useful modifications to this kernel.
+One is to introduce a parameter a85 a118 a165a186a166a155a87 which penalizes larger substructures.
+The recursive definitions are modfied to be a154 a2 a0 a24 a30 a0 a44 a6a100a19 a87 a71 a165 a154 a2 a0 a173a171a181 a34a27a2 a0 a24 a6a127a30 a0 a173a171a181 a34a27a2 a0 a44 a6a35a6 and a154 a2 a0 a24 a30 a0 a44 a6a20a19a75a99 a71 a99a67a165 a154 a2 a0 a173a27a181 a34a182a2 a0 a24 a6a127a30 a0 a173a171a181 a34a27a2 a0 a44 a6a35a6 respectively.
+This gives an inner product a78 a22 a165 a68 a22 a169a54a170 a92 a25 a22 a2a5a4 a24 a6 a25 a22 a2a5a4 a44 a6 where a33a171a41a70a172a97a173 a22 is the number of state labels in the a41 th fragment.
+Another useful modification is as follows.
+Define MODEL a187 40 Words (2245 sentences) LR LP CBs a188 CBs a189 CBs CO99 88.5% 88.7% 0.92 66.7% 87.1% VP 89.1% 89.4% 0.85 69.3% 88.2% MODEL a187 100 Words (2416 sentences) LR LP CBs a188 CBs a189 CBs CO99 88.1% 88.3% 1.06 64.0% 85.1% VP 88.6% 88.9% 0.99 66.5% 86.3% Figure 4: Results on Section 23 of the WSJ Treebank.
+LR/LP = labeled recall/precision.
+CBs = average number of crossing brackets per sentence.
+0 CBs, a189 CBs are the percentage of sentences with 0 or a187a159a189 crossing brackets respectively.
+CO99 is model 2 of (Collins 1999).
+VP is the voted perceptron with the tree kernel.
+a190 a41a102a191 a24 a2 a179 a24 a30 a179 a44 a6 for words a179 a24 and a179 a44 to be a87 if a179 a24 a19 a179 a44, a85 otherwise.
+Define a190 a41a149a191 a44 a2 a179 a24 a30 a179 a44 a6 to be a87 if a179 a24 and a179 a44 share the same word features, 0 otherwise.
+For example, a190 a41a102a191 a44 might be defined to be 1 if a179 a24 and a179 a44 are both capitalized: in this case a190 a41a102a191 a44 is a looser notion of similarity than the exact match criterion of a190 a41a102a191 a24 . Finally, the definition of a154 can be modified to: a31 If labels at a0 a24a127a180 a0 a44 are different, a154 a2 a0 a24 a30 a0 a44 a6a20a19a86a85 . a31 Else a154 a2 a0 a24 a30 a0 a44 a6a101a19 a2a158a87 a71 a85 a46a193a192 a190 a41a102a191 a24 a2 a179 a24 a30 a179 a44 a6 a71 a85 a46a193a192 a190 a41a149a191 a44 a2 a179 a24 a30 a179 a44 a6a35a6 a184a144a2a158a87 a71 a165a194a184 a154 a2 a0 a173a27a181 a34a27a2 a0 a24 a6a127a30 a0 a173a27a181 a34a182a2 a0 a44 a6a35a6a35a6 where a179 a24, a179 a44 are the words at a0 a24 and a0 a44 respectively.
+This inner product implicitly includes features which track word features, and thus can make better use of sparse data.
+6 Experiments
+6.1 Parsing Wall Street Journal Text We used the same data set as that described in (Collins 2000).
+The Penn Wall Street Journal treebank (Marcus et al.1993) was used as training and test data.
+Sections 2-21 inclusive (around 40,000 sentences) were used as training data, section 23 was used as the final test set.
+Of the 40,000 training sentences, the first 36,000 were used to train the perceptron.
+The remaining 4,000 sentences were used as development data, and for tuning parameters of the algorithm.
+Model 2 of (Collins 1999) was used to parse both the training and test data, producing multiple hypotheses for each sentence.
+In order to gain a representative set of training data, the 36,000 training sentences were parsed in 2,000 sentence chunks, each chunk being parsed with a model trained on the remaining 34,000 sentences (this prevented the initial model from being unrealistically “good” on the training sentences).
+The 4,000 development sentences were parsed with a model trained on the 36,000 training sentences.
+Section 23 was parsed with a model trained on all 40,000 sentences.
+The representation we use incorporates the probability from the original model, as well as the all-subtrees representation.
+We introduce a parameter a195 which controls the relative contribution of the two terms.
+If a196 a2a5a4a7a6 is the log probability of a tree a4 under the original probability model, and a1a3a2a5a4a7a6a197a19 a2 a25 a24 a2a5a4a7a6a127a30 a25 a44 a2a5a4a7a6a127a30 a46a27a46a27a46 a30 a25 a11 a2a5a4a7a6a35a6 is the feature vector under the all subtrees representation, then the new representation is a1 a44 a2a5a4a7a6a72a19 a2a102a198 a195a199a196 a2a5a4a7a6a127a30 a25 a24 a2a5a4a7a6a127a30 a25 a44 a2a5a4a7a6a127a30 a46a27a46a27a46 a30 a25 a11 a2a5a4a7a6a35a6, and the inner product between two examples a4 and a15 is a1 a44 a2a5a4a7a6a200a16 a1 a44 a2 a15 a6a20a19 a195a199a196 a2a5a4a7a6 a196 a2 a15 a6 a71 a1a3a2a5a4a7a6a111a16a158a1a14a2 a15 a6 . This allows the perceptron algorithm to use the probability from the original model as well as the subtrees information to rank trees.
+We would thus expect the model to do at least as well as the original probabilistic model.
+The algorithm in figure 1(b) was applied to the problem, with the inner product a1 a44 a2a5a4a7a6a12a16a18a1 a44 a2 a15 a6 used in the definition of a77 a2a5a4a7a6 . The algorithm in 1(b) runs in approximately quadratic time in the number of training examples.
+This made it somewhat expensive to run the algorithm over all 36,000 training sentences in one pass.
+Instead, we broke the training set into 6 chunks of roughly equal size, and trained 6 separate perceptrons on these data sets.
+This has the advantage of reducing training time, both because of the quadratic dependence on training set size, and also because it is easy to train the 6 models in parallel.
+The outputs from the 6 runs on test examples were combined through the voting procedure described in section 3.4.
+Figure 4 shows the results for the voted perceptron with the tree kernel.
+The parameters a195 and a165 were set to a85 a46a99 and a85 a46a193a201 respectively through tuning on the development set.
+The method shows a a85 a46a193a202a67a203 absolute improvement in average precision and recall (from 88.2% to 88.8% on sentences a166 a87a27a85a56a85 words), a 5.1% relative reduction in error.
+The boosting method of (Collins 2000) showed 89.6%/89.9% recall and precision on reranking approaches for the same datasets (sentences less than 100 words in length).
+(Charniak 2000) describes a different method which achieves very similar performance to (Collins 2000).
+(Bod 2001) describes experiments giving 90.6%/90.8% recall and precision for sentences of less than 40 words in length, using the all-subtrees representation, but using very different algorithms and parameter estimation methods from the perceptron algorithms in this paper (see section 7 for more discussion).
+6.2 Named–Entity Extraction Over a period of a year or so we have had over one million words of named-entity data annotated.
+The data is drawn from web pages, the aim being to support a question-answering system over web data.
+A number of categories are annotated: the usual people, organization and location categories, as well as less frequent categories such as brand-names, scientific terms, event titles (such as concerts) and so on.
+As a result, we created a training set of 53,609 sentences (1,047,491 words), and a test set of 14,717 sentences (291,898 words).
+The task we consider is to recover named-entity boundaries.
+We leave the recovery of the categories of entities to a separate stage of processing.
+We evaluate different methods on the task through precision and recall.7 The problem can be framed as a tagging task – to tag each word as being either the start of an entity, a continuation of an entity, or not to be part of an entity at all.
+As a baseline model we used a maximum entropy tagger, very similar to the one described in (Ratnaparkhi 1996).
+Maximum entropy taggers have been shown to be highly competitive on a number of tagging tasks, such as partof-speech tagging (Ratnaparkhi 1996), and namedentity recognition (Borthwick et.
+al 1998).
+Thus the maximum-entropy tagger we used represents a serious baseline for the task.
+We used a feature set which included the current, next, and previous word; the previous two tags; various capitalization and other features of the word being tagged (the full feature set is described in (Collins 2002a)).
+As a baseline we trained a model on the full 53,609 sentences of training data, and decoded the 14,717 sentences of test data using a beam search 7If a method proposes a204 entities on the test set, and a205 of these are correct then the precision of a method is a206a158a188a150a188a150a207a209a208a108a205a35a210a102a204 . Similarly, if a211 is the number of entities in the human annotated version of the test set, then the recall is a206a35a188a150a188a150a207a212a208a213a205a158a210a54a211 . P R F Max-Ent 84.4% 86.3% 85.3% Perc.
+86.1% 89.1% 87.6% Imp.
+10.9% 20.4% 15.6% Figure 5: Results for the max-ent and voted perceptron methods.
+“Imp.” is the relative error reduction given by using the perceptron.
+a214a119a215 precision, a216a194a215 recall, a217a119a215 F-measure.
+which keeps the top 20 hypotheses at each stage of a left-to-right search.
+In training the voted perceptron we split the training data into a 41,992 sentence training set, and a 11,617 sentence development set.
+The training set was split into 5 portions, and in each case the maximum-entropy tagger was trained on 4/5 of the data, then used to decode the remaining 1/5.
+In this way the whole training data was decoded.
+The top 20 hypotheses under a beam search, together with their log probabilities, were recovered for each training sentence.
+In a similar way, a model trained on the 41,992 sentence set was used to produce 20 hypotheses for each sentence in the development set.
+As in the parsing experiments, the final kernel incorporates the probability from the maximum entropy tagger, i.e. a1 a44 a2a5a4a7a6a200a16a111a1 a44 a2 a15 a6a218a19 a195a199a196 a2a5a4a7a6 a196 a2 a15 a6 a71 a1a3a2a5a4a7a6a114a16a219a1a3a2 a15 a6 where a196 a2a5a4a7a6 is the log-likelihood of a4 under the tagging model, a1a3a2a5a4a7a6a83a16a59a1a14a2 a15 a6 is the tagging kernel described previously, and a195 is a parameter weighting the two terms.
+The other free parameter in the kernel is a165, which determines how quickly larger structures are downweighted.
+In running several training runs with different parameter values, and then testing error rates on the development set, the best parameter values we found were a195 a19a220a85 a46a99, a165a95a19a221a85 a46a193a192 . Figure 5 shows results on the test data for the baseline maximum-entropy tagger, and the voted perceptron.
+The results show a 15.6% relative improvement in F-measure.
+7 Relationship
+to Previous Work (Bod 1998) describes quite different parameter estimation and parsing methods for the DOP representation.
+The methods explicitly deal with the parameters associated with subtrees, with sub-sampling of tree fragments making the computation manageable.
+Even after this, Bod’s method is left with a huge grammar: (Bod 2001) describes a grammar with over 5 million sub-structures.
+The method requires search for the 1,000 most probable derivations under this grammar, using beam search, presumably a challenging computational task given the size of the grammar.
+In spite of these problems, (Bod 2001) gives excellent results for the method on parsing Wall Street Journal text.
+The algorithms in this paper have a different flavor, avoiding the need to explicitly deal with feature vectors that track all subtrees, and also avoiding the need to sum over an exponential number of derivations underlying a given tree.
+(Goodman 1996) gives a polynomial time conversion of a DOP model into an equivalent PCFG whose size is linear in the size of the training set.
+The method uses a similar recursion to the common sub-trees recursion described in this paper.
+Goodman’s method still leaves exact parsing under the model intractable (because of the need to sum over multiple derivations underlying the same tree), but he gives an approximation to finding the most probable tree, which can be computed efficiently.
+From a theoretical point of view, it is difficult to find motivation for the parameter estimation methods used by (Bod 1998) – see (Johnson 2002) for discussion.
+In contrast, the parameter estimation methods in this paper have a strong theoretical basis (see (Cristianini and Shawe-Taylor 2000) chapter 2 and (Freund & Schapire 1999) for statistical theory underlying the perceptron).
+For related work on the voted perceptron algorithm applied to NLP problems, see (Collins 2002a) and (Collins 2002b).
+(Collins 2002a) describes experiments on the same named-entity dataset as in this paper, but using explicit features rather than kernels.
+(Collins 2002b) describes how the voted perceptron can be used to train maximum-entropy style taggers, and also gives a more thorough discussion of the theory behind the perceptron algorithm applied to ranking tasks.
+Acknowledgements Many thanks to Jack Minisi for annotating the named-entity data used in the experiments.
+Thanks to Rob Schapire and Yoram Singer for many useful discussions.
+References Aizerman, M., Braverman, E., & Rozonoer, L.
+(1964). Theoretical Foundations of the Potential Function Method in Pattern Recognition Learning.
+In Automation and Remote Control, 25:821–837.
+Bod, R.
+(1998). Beyond Grammar: An Experience-Based Theory of Language.
+CSLI Publications/Cambridge University Press.
+Bod, R.
+(2001). What is the Minimal Set of Fragments that Achieves Maximal Parse Accuracy?
+In Proceedings of ACL 2001.
+Borthwick, A., Sterling, J., Agichtein, E., and Grishman, R.
+(1998). Exploiting Diverse Knowledge Sources via Maximum Entropy in Named Entity Recognition.
+Proc. of the Sixth Workshop on Very Large Corpora.
+Charniak, E.
+(2000). A maximum-entropy-inspired parser.
+In Proceedings of NAACL 2000.
+Collins, M.
+1999. Head-Driven Statistical Models for Natural Language Parsing.
+PhD Dissertation, University of Pennsylvania.
+Collins, M.
+(2000). Discriminative Reranking for Natural Language Parsing.
+Proceedings of the Seventeenth International Conference on Machine Learning (ICML 2000).
+Collins, M., and Duffy, N.
+(2001). Convolution Kernels for Natural Language.
+In Proceedings of Neural Information Processing Systems (NIPS 14).
+Collins, M.
+(2002a). Ranking Algorithms for Named–Entity Extraction: Boosting and the Voted Perceptron.
+In Proceedings of ACL 2002.
+Collins, M.
+(2002b). Discriminative Training Methods for Hidden Markov Models: Theory and Experiments with the Perceptron Algorithm.
+In Proceedings of EMNLP 2002.
+Cristianini, N., and Shawe-Tayor, J.
+(2000). An introduction to Support Vector Machines and other kernel-based learning methods.
+Cambridge University Press.
+Freund, Y.
+& Schapire, R.
+(1999). Large Margin Classification using the Perceptron Algorithm.
+In Machine Learning, 37(3):277–296.
+Freund, Y., Iyer, R.,Schapire, R.E., & Singer, Y.
+(1998). An efficient boosting algorithm for combining preferences.
+In Machine Learning: Proceedings of the Fifteenth International Conference.
+San Francisco: Morgan Kaufmann.
+Goodman, J.
+(1996). Efficient algorithms for parsing the DOP model.
+In Proceedings of the Conference on Empirical Methods in Natural Language Processing, pages 143-152.
+Haussler, D.
+(1999). Convolution Kernels on Discrete Structures.
+Technical report, University of Santa Cruz.
+Johnson, M., Geman, S., Canon, S., Chi, S., & Riezler, S.
+(1999). Estimators for stochastic ‘unification-based” grammars.
+In Proceedings of the 37th Annual Meeting of the Association for Computational Linguistics.
+Johnson, M.
+(2002). The DOP estimation method is biased and inconsistent.
+Computational Linguistics, 28, 71-76.
+Lodhi, H., Christianini, N., Shawe-Taylor, J., & Watkins, C.
+(2001). Text Classification using String Kernels.
+In Advances in Neural Information Processing Systems 13, MIT Press.
+Marcus, M., Santorini, B., & Marcinkiewicz, M.
+(1993). Building a large annotated corpus of english: The Penn treebank.
+Computational Linguistics, 19, 313-330.
+Ratnaparkhi, A.
+(1996). A maximum entropy part-of-speech tagger.
+In Proceedings of the empirical methods in natural language processing conference.
+Rosenblatt, F.
+1958. The Perceptron: A Probabilistic Model for Information Storage and Organization in the Brain.
+Psychological Review, 65, 386–408.
+(Reprinted in Neurocomputing (MIT Press, 1998).)
+

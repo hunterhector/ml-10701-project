@@ -1,0 +1,1906 @@
+ExploitingSemanticRoleResources
+forPrepositionDisambiguation
+Tom O’Hara
+∗
+UniversityofMaryland,BaltimoreCounty
+JanyceWiebe
+∗∗
+UniversityofPittsburgh
+Thisarticledescribeshowsemanticroleresourcescanbeexploitedforprepositiondisambigua-
+tion.ThemainresourcesincludethesemanticroleannotationsprovidedbythePennTreebank
+andFrameNettaggedcorpora.TheresourcesalsoincludetheassertionscontainedintheFac-
+totum knowledge base, as well as information from Cyc and Conceptual Graphs. A common
+inventoryisderivedfromtheseinsupportofdeﬁnitionanalysis,whichisthemotivationforthis
+work.
+The disambiguation concentrates on relations indicated by prepositional phrases, and is
+framedasword-sensedisambiguationfortheprepositioninquestion.Anewtypeoffeaturefor
+word-sensedisambiguationisintroduced,usingWordNethypernymsascollocationsratherthan
+justwords.VariousexperimentsoverthePennTreebankandFrameNetdataarepresented,in-
+cludingprepositionsclassiﬁedseparatelyversustogether,andillustratingtheeffectsofﬁltering.
+SimilarexperimentationisdoneovertheFactotumdata,includingamethodforinferringlikely
+prepositionusagefromcorpora,asknowledgebasesdonotgenerallyindicatehowrelationships
+areexpressedinEnglish(incontrasttotheexplicitannotationsonthisinthePennTreebankand
+FrameNet).OtherexperimentsareincludedwiththeFrameNetdatamappedintothecommon
+relationinventorydevelopedfordeﬁnitionanalysis,illustratinghowprepositiondisambiguation
+mightbeappliedinlexicalacquisition.
+1.Introduction
+Englishprepositionsconveyimportantrelationsintext.Whenusedasverbaladjuncts,
+they are the principal means of conveying semantic roles for the supporting entities
+describedbythepredicate.Prepositiondisambiguationisachallengingproblem.First,
+prepositions are highly polysemous. A typical collegiate dictionary has dozens of
+senses for each of the common prepositions. Second, the senses of prepositions tend
+tobecloselyrelatedtooneanother.Forinstance,therearethreeduplicateroleassign-
+ments among the twenty senses for of in The Preposition Project (Litkowski and
+Hargraves2006),aresourcecontainingsemanticannotationsforcommonprepositions.
+∗ InstituteforLanguageandInformationTechnologies,Baltimore,MD21250.E-mail:
+tomohara@umbc.edu.
+∗∗ DepartmentofComputerScience,Pittsburgh,PA15260.E-mail:wiebe@cs.pitt.edu.
+Submissionreceived:7August2006;acceptedforpublication:21February2007.
+©2008AssociationforComputationalLinguistics
+ComputationalLinguistics Volume35,Number2
+Considerthedisambiguationoftheusagesofoninthefollowingsentences:
+(1) Thecutshouldbeblockedonproceduralgrounds.
+(2) Theindustryalreadyoperatesonverythinmargins.
+The choice between the purpose and manner meanings for on in these sentences is
+difﬁcult. The purpose meaning seems preferred for sentence 1, as grounds is a type of
+justiﬁcation. For sentence 2, the choice is even less clear, though the manner meaning
+seemspreferred.
+This article presents a new method for disambiguating prepositions using infor-
+mation learned from annotated corpora as well as knowledge stored in declarative
+lexical resources. The approach allows for better coverage and ﬁner distinctions than
+in previous work in preposition disambiguation. For instance, a traditional approach
+wouldinvolvemanuallydevelopingrulesforonthatspecifythesemantictypeofobjects
+associatedwiththedifferentsenses(e.g.,timefortemporal).Instead,weinferthisbased
+onlexicalassociationslearnedfromannotatedcorpora.
+The motivation for preposition disambiguation is to support a system for lexical
+acquisition (O’Hara 2005). The focus of the system is to acquire distinguishing infor-
+mationfortheconceptsservingtodeﬁnewords.Large-scalesemanticlexiconsmainly
+emphasizethetaxonomicrelationsamongtheunderlyingconcepts(e.g.,is-aandpart-
+of),andoftenlacksufﬁcientdifferentiationamongsimilarconcepts(e.g.,viaattributes
+orfunctionalrelationssuchasis-used-for).Forexample,inWordNet(Milleretal.1990),
+the standard lexical resource for natural language processing, the only relations for
+beagleandAfghanarethattheyarebothatypeofhound.Althoughthesizedifferencecan
+beinferredfromthedeﬁnitions,itisnotrepresentedintheWordNetsemanticnetwork.
+InWordNet,wordsaregroupedintosynonymsetscalledsynsets,whichrepresent
+theunderlyingconceptsandserveasnodesinasemanticnetwork.Synsetsareordered
+intoahierarchyusingthehypernymrelation(i.e.,is-a).Thereareseveralothersemantic
+relations, such aspart-whole,is-similar-to,anddomain-of. Nonetheless, in version 2.1 of
+WordNet,about30%ofthesynsetsfornounentriesarenotexplicitlydistinguishedfrom
+siblingsynsetsviasemanticrelations.
+To address such coverage problems in lexicons, we have developed an empirical
+approach to lexical acquisition, building upon earlier knowledge-based approaches in
+dictionarydeﬁnitionanalysis(Wilks,Slator,andGuthrie1996).Thisinvolvesatwo-step
+process:Deﬁnitionsareﬁrstanalyzedwithabroad-coverageparser,andthentheresult-
+ing syntactic relationships are disambiguated using statistical classiﬁcation. A crucial
+part of this process is the disambiguation of prepositions, exploiting online resources
+with semantic role usage information. The main resources are the Penn Treebank
+(PTB; Marcus et al. 1994) and FrameNet (Fillmore, Wooters, and Baker 2001), two
+popularcorporaprovidingrichannotationsonEnglishtext,suchasthesemanticroles
+associatedwithprepositionalphrasesincontext.Inadditiontothesemanticroleannota-
+tionsfromPTBandFrameNet,traditionalknowledgebases(KBs)areutilizedtoprovide
+trainingdatafortherelationclassiﬁcation.Inparticular,theFactotumKB(Cassidy2000)
+is used to provide additional training data for prepositions that are used to convey
+particular relationships. Information on preposition usage is not explicitly encoded in
+Factotum,soanewcorpusanalysistechniqueisemployedtoinfertheassociations.
+Detailsonthelexicalacquisitionprocess,includingapplicationandevaluation,can
+be found in O’Hara (2005). This article focuses on the aspects of this method relevant
+totheprocessingofprepositions.Inparticular,herewespeciﬁcallyaddresspreposition
+152
+O’HaraandWiebe ExploitingResourcesforPrepositionDisambiguation
+disambiguation using semantic role annotations from PTB, FrameNet, and Factotum.
+Ineachcase,classiﬁcationexperimentsarepresentedusingtherespectiveresourcesas
+trainingdatawithevaluationvia10-foldcrossvalidation.
+Thisarticleisorganizedasfollows.Section2presentsbackgroundinformationon
+therelationinventoriesusedduringclassiﬁcation,includingonedevelopedspeciﬁcally
+for deﬁnition analysis. Section 3 discusses the relation classiﬁers in depth with results
+givenforfourdifferentinventories.Section4discussesrelatedworkinrelationdisam-
+biguation,andSection5presentsourconclusions.
+2.SemanticRelationInventories
+The representation of natural language utterances often incorporates the notion of
+semantic roles, which are analogous to the slots in a frame-based representation. In
+particular, there is an emphasis on the analysis of thematic roles, which serve to tie
+the grammatical constituents of a sentence to the underlying semantic representation.
+Thematic roles are also called case roles, because in some languages the grammatical
+constituentsareindicatedbycaseinﬂections(e.g.,ablativeinLatin).Asusedhere,the
+term “semantic role” refers to an arbitrary semantic relation, and the term “thematic
+role” refers to a relation intended to capture the semantics of sentences (e.g., event
+participation).
+Which semantic roles are used varies widely in Natural Language Processing
+(NLP).Somesystemsusejustasmallnumberofverygeneralroles,suchasbeneﬁciary.
+At the other extreme, some systems use quite speciﬁc roles tailored to a particular
+domain,suchascatalystinthechemicalsense.
+2.1BackgroundonSemanticRoles
+Bruce (1975) presents an account of early case systems in NLP. For the most part,
+thosesystemshadlimitedcaseroleinventories,alongthelinesofthecasesdeﬁnedby
+Fillmore(1968).Palmer(1990)discussessomeofthemorecontentiousissuesregarding
+casesystems,includingadequacyforrepresentation,suchasreliancesolelyuponcase
+informationtodeterminesemanticsversustheuseofadditionalinferencemechanisms.
+Barker (1998) provides a comprehensive summary of case inventories in NLP, along
+withcriteriaforthequalitativeevaluationofcasesystems(generality,completeness,and
+uniqueness).Linguisticworkonthematicrolestendstousealimitednumberofroles.
+Frawley (1992) presents a detailed discussion of twelve thematic roles and discusses
+howtheyarerealizedindifferentlanguages.
+Duringtheshiftinemphasisawayfromsystemsthatworkinsmall,self-contained
+domainstothosethatcanhandleopen-endeddomains,therehasbeenatrendtowards
+the use of larger sets of semantic primitives (Wilks, Slator, and Guthrie 1996). The
+WordNetlexicon(Milleretal.1990)servesasoneexampleofthis.Asynsetisdeﬁned
+intermsofitsrelationswithanyoftheother100,000+synsets,ratherthanintermsofa
+setoffeatureslike[±ANIMATE].Therehasalsobeenashiftinfocusfromdeepunder-
+standing(e.g.,storycomprehension)facilitatedbyspeciallyconstructedKBstoshallow
+surface-level analysis (e.g., text extraction) facilitated by corpus analysis. Both trends
+seem to be behind the increase in case inventories in two relatively recent resources,
+namelyFrameNet(Fillmore,Wooters,andBaker2001)andOpenCyc(OpenCyc2002),
+bothofwhichdeﬁnewelloverahundredcaseroles.However,providedthatthecase
+rolesarewellstructuredinaninheritancehierarchy,bothparaphrasabilityandcoverage
+canbeaddressedbythesameinventory.
+153
+ComputationalLinguistics Volume35,Number2
+2.2InventoriesDevelopedforCorpusAnnotation
+With the emphasis on corpus analysis in computational linguistics, there has been a
+shiftawayfromrelyingonexplicitly-codedknowledgetowardstheuseofknowledge
+inferred from naturally occurring text, in particular text that has been annotated by
+humans to indicate phenomena of interest. For example, rather than manually devel-
+oping rules for preferring one sense of a word over another based on context, the
+mostsuccessfulapproacheshaveautomaticallylearnedtherulesbasedonword-sense
+annotations,asevidencedbytheSensevalcompetitions(Kilgarriff1998;Edmondsand
+Cotton2001).
+ThePennTreebankversionII(Marcusetal.1994)providedtheﬁrstlarge-scaleset
+of case annotations for general-purpose text. These are very general roles, following
+Fillmore (1968). The Berkeley FrameNet (Fillmore, Wooters, and Baker 2001) project
+currentlyprovidesthemostcomprehensivesetofsemanticrolesannotations.Theseare
+atamuchﬁnergranularitythanthoseinPTB,makingthemquiteusefulforapplications
+learningsemanticsfromcorpora.Relationdisambiguationexperimentsforbothofthese
+roleinventoriesarepresentedsubsequently.
+2.2.1PennTreebank.TheoriginalPTB(Marcus,Santorini,andMarcinkiewicz1993)pro-
+videdsyntacticannotationsintheformofparsetreesfortextfromtheWallStreetJournal.
+This resource is very popular in computational linguistics, particularly for inducing
+part-of-speechtaggersandparsers.PTBversionII(Marcusetal.1994)added20func-
+tionaltags,includingafewthematicrolessuchastemporal,direction,andpurpose.These
+canbeattachedtoanyverbcomplementbutnormallyoccurwithclauses,adverbs,and
+prepositions.
+For example, Figure 1 shows a parse tree using the extended annotation format.
+In addition to the usual syntactic constituents such as NP and VP, function tags are
+included. For example, the second NP gives the subject. This also shows that the ﬁrst
+prepositional phrase (PP) indicates the time frame, whereas the last PP indicates the
+Sentence:
+In 1982, Sports & Recreation’s managers and certain passive investors purchased the
+companyfromBrunswickCorp.ofSkokie,Ill.
+Parse:
+(S(PP-TMPIn(NP1982)), temporalextent
+(NP-SBJ grammaticalsubject
+(NP(NP(NPSports)&(NPRecreation)’s)
+managers)
+and(NPcertainpassiveinvestors))
+(VPpurchased
+(NPthecompany)
+(PP-CLRfrom closelyrelated
+(NP(NPBrunswickCorp.)
+(PP-LOCof locative
+(NP(NPSkokie),(NPIll)))
+))).)
+Figure1
+PennTreebankIIparsetreeannotationsample.Thefunctionaltagsareshowninboldface.
+154
+O’HaraandWiebe ExploitingResourcesforPrepositionDisambiguation
+Table1
+FrequencyofPennTreebankIIsemanticroleannotations.Relativefrequenciesestimatedoverthe
+countsforuniqueassignmentsgiveninthePTBdocumentation(bkt tags.lst),anddescriptions
+basedonBiesetal.(1995).Omitslow-frequencybenefactiverole.Thesyntacticroleannotations
+generallyhavehigherfrequencies;forexample,thesubjectroleoccurs49%ofthetime(outof
+about240,000totalannotations).
+Role Freq. Description
+temporal .113 indicateswhen,howoften,orhowlong
+locative .075 place/settingoftheevent
+direction .026 startingorendinglocation(trajectory)
+manner .021 indicatesmanner,includinginstrument
+purpose .017 purposeorreason
+extent .010 spatialextent
+location. The second PP is tagged as closely-related, which is one of the miscellaneous
+PTBfunctiontagsthataremoresyntacticinnature:“[CLR]occupysomemiddleground
+between arguments and adjunct” (Bies et al. 1995). Frequency information for the
+semanticroleannotationsisshowninTable1.
+2.2.2FrameNet.FrameNet(Fillmore,Wooters,andBaker2001)isstrivingtodevelopan
+Englishlexiconwithrichcasestructureinformationforthevariouscontextsthatwords
+can occur in. Each of these contexts is called a frame, and the semantic relations that
+occur in each frame are called frame elements (FE). For example, in the communica-
+tion frame, there are frame elements for communicator, message, medium, and so forth.
+FrameNetannotationsoccuratthephraselevelinsteadofthegrammaticalconstituent
+levelasinPTB.Figure2showsanexample.
+Table 2 displays the top 25 semantic roles by frequency of annotation. This shows
+that the semantic roles in FrameNet can be quite speciﬁc, as with the roles cognizer,
+evaluee,andaddressee.Inall,thereareover780rolesannotatedwithover288,000tagged
+instances.
+Sentence:
+Hewlett-Packard Co has rolled out a new range of ISDN connectivity enabling stand-
+aloneworkstationstocommunicateoverpublicorprivateISDNnetworks.
+Annotation:
+Hewlett-PackardCohasrolledoutanewrangeofISDNconnectivityenabling
+〈CFE=“Communicator”PT=“NP”〉standaloneworkstations〈/C〉
+to〈CTARGET=“y”〉communicate〈/C〉
+〈CFE=“Medium”PT=“PP”〉overpublicorprivateISDNnetworks〈/C〉.
+Figure2
+FrameNetannotationsample.Theconstituent(C)tagsidentifythephrasesthathavebeen
+annotated.Theframeelement(FE)attributesindicatethesemanticroles,andthephrasetype
+(PT)attributesindicatethetraditionalgrammaticalcategoryforthephrase.Forsimplicity,this
+exampleisformattedintheearlierFrameNetformat,buttheinformationistakenfromthe
+latestannotations(lu5.xml).
+155
+ComputationalLinguistics Volume35,Number2
+Table2
+CommonFrameNetsemanticroles.Thetop25of773rolesareshown,representingnearlyhalfof
+thetotalannotations(about290,000).DescriptionsbasedonFrameNet1.3framedocumentation.
+Role Freq. Description
+agent .037 personperformingtheintentionalact
+theme .031 objectbeingactedon,affected,etc.
+experiencer .029 beingwhohasaphysicalexperience,etc.
+goal .028 endpointofthepath
+speaker .028 individualthatcommunicatesthemessage
+stimulus .026 entitythatevokesresponse
+manner .025 mannerofperforminganaction,etc.
+degree .024 degreetowhicheventoccurs
+self-mover .023 volitionalagentthatmoves
+message .021 thecontentthatiscommunicated
+path .020 thetrajectoryofmotion,etc.
+cognizer .018 personwhoperceivestheevent
+source .017 thebeginningofthepath
+time .016 thetimeatwhichthesituationoccurs
+evaluee .016 thingaboutwhichajudgmenthasbeenmade
+descriptor .015 attributes,traits,etc.oftheentity
+body-part .014 locationonthebodyoftheexperiencer
+content .014 situationorstate-of-affairsthatattentionisfocusedon
+topic .014 subjectmatterofthecommunicatedmessage,etc.
+item .012 entitywhosescalarpropertyisspeciﬁed
+target .011 entitywhichishitbyaprojectile
+garment .011 clothingworn
+addressee .011 entitythatreceivesamessagefromthecommunicator
+protagonist .011 persontowhomamentalpropertyisattributed
+communicator .010 thepersonwhocommunicatesamessage
+2.3Other
+ArecentsemanticroleresourcethatisstartingtoattractinterestisthePropositionBank
+(PropBank), developed at the University of Pennsylvania (Palmer, Gildea, and Kings-
+bury 2005). It extends the Penn Treebank with information on verb subcategorization.
+Thefocusisonannotatingallverboccurrencesandalltheirargumentrealizationsthat
+occur in the Wall Street Journal, rather than select corpus examples as in FrameNet.
+Therefore,theroleinventoryisheavilyverb-centric,forexample,withthegenericlabels
+arg0 through arg4 denoting the main verbal arguments to avoid misinterpretations.
+VerbaladjunctsareassignedrolesbasedonPTBversionII(e.g.,argM-LOCandargM-
+TMP). PropBank has been used as the training data in recent semantic role labeling
+competitions as part of the Conferences on Computational Natural Language Learn-
+ing (Carreras and M`arquez 2004, 2005). Thus, it is likely to become as inﬂuential as
+FrameNetincomputationalsemantics.
+The Preposition Project similarly adds information to an existing semantic role
+resource, namely FrameNet. It is being developed by CL Research (Litkowski and
+Hargraves 2006) and endeavors to provide comprehensive syntactic and semantic in-
+formation on various usages of prepositions, which often are not represented well
+in semantic lexicons (e.g., they are not included at all in WordNet). The Preposition
+ProjectusesthesensedistinctionsfromtheOxfordDictionaryofEnglishandintegrates
+syntacticinformationaboutprepositionsfromcomprehensivegrammarreferences.
+156
+O’HaraandWiebe ExploitingResourcesforPrepositionDisambiguation
+2.4InventoriesforKnowledgeRepresentation
+This section describes three case inventories: one developed for the Cyc KB (Lenat
+1995), one used to deﬁne Conceptual Graphs (Sowa 1984), and one for the Factotum
+KB (Cassidy 2000). The ﬁrst two are based on a traditional knowledge representation
+paradigm. With respect to natural language processing, these approaches are more
+representativeoftheearlierapproachesinwhichdeepunderstandingisthechiefgoal.
+Factotum is also based on a knowledge representation paradigm, but in a sense also
+reﬂectstheempiricalaspectofthecorpusannotationapproach,becausetheannotations
+weredevelopedtoaddresstherelationsimplicitinRoget’sThesaurus.
+In this article, relation disambiguation experiments are only presented for Facto-
+tum,giventhattheothersdonotreadilyprovidesufﬁcienttrainingdata.However,the
+otherinventoriesarediscussedbecauseeachprovidesrelationtypesincorporatedinto
+theinventoryusedbelowforthedeﬁnitionanalysis(seeSection3.5).
+2.4.1Cyc.TheCycsystem(Lenat1995)isthemostambitiousknowledgerepresentation
+project undertaken to date, in development since 1984. The full Cyc KB is propri-
+etary, which has hindered its adoption in natural language processing. However, to
+encourage broader usage, portions of the KB have been made freely available to the
+public. For instance, there is an open-source version of the system called OpenCyc
+(www.opencyc.org), which covers the upper part of the KB and also includes the Cyc
+inferenceengine,KBbrowser,andothertools.Inaddition,researcherscanobtainaccess
+toResearchCyc,whichcontainsmostoftheKBexceptforproprietaryinformation(e.g.,
+internalbookkeepingassertions).
+Cycusesawiderangeofroletypes:verygeneralroles(e.g.,beneﬁciary);commonly
+occurring situational roles (e.g.,victim); and highly specialized roles (e.g.,catalyst). Of
+the 8,756 concepts in OpenCyc, 130 are for event-based roles (i.e., instances of actor-
+slot) with 51 other semantic roles (i.e., other instances ofrole). Table 3 shows the most
+commonlyusedevent-basedrolesintheKB.
+2.4.2 Conceptual
+Graphs. The Conceptual Graphs (CG) mechanism was introduced by
+Sowa(1984)forknowledgerepresentationaspartofhisConceptualStructurestheory.
+The original text listed two dozen or so thematic relations, such as destination and
+initiator. In all, 37 conceptual relations were deﬁned. This inventory formed the basis
+for most work in Conceptual Graphs. Recently, Sowa (1999) updated the inventory to
+allowforbetterhierarchicalstructuringandtoincorporatetheimportantthematicroles
+identiﬁed by Somers (1987). Table 4 shows a sample of these roles, along with usage
+estimatesbasedoncorpusanalysis(O’Hara2005).
+2.4.3 Factotum. The Factotum semantic network (Cassidy 2000) developed by Micra,
+Inc.,makesexplicitmanyoftherelationsinRoget’sThesaurus.
+1
+Outsideofproprietary
+resourcessuchasCyc,FactotumisthemostcomprehensiveKBwithrespecttofunctional
+relations, which are taken here to be non-hierarchical relations, excluding attributes.
+OpenCyc does include deﬁnitions of many non-hierarchical relations. However, there
+arenotmanyinstantiations(i.e.,relationshipassertions),becauseitconcentratesonthe
+higherleveloftheontology.
+1 FactotumisbasedonthepublicdomainversionofRoget’sThesaurus.Thelatterisfreelyavailablevia
+ProjectGutenberg(http://promo.net/pg),thankstoMicra,Inc.
+157
+ComputationalLinguistics Volume35,Number2
+Table3
+Mostcommonevent-basedrolesinOpenCyc.Descriptionsbasedoncommentsfromthe
+OpenCycknowledgebase(version0.7).Relativefrequenciesbasedoncountsobtained
+viaCyc’sutilityfunctions.
+Role Freq. Description
+done-by .178 relatesaneventtoits“doer”
+performed-by .119 doerdeliberatelydoesact
+object-of-state-change .081 objectundergoessomekindofintrinsicchangeofstate
+object-acted-on .057 objectisalteredoraffectedinevent
+outputs-created .051 objectcomesintoexistencesometimeduringevent
+transporter .044 objectfacilitatingconveyanceoftransportees
+transportees .044 objectbeingmoved
+to-location .041 wherethemovingobjectisfoundwheneventends
+object-removed .036 objectremovedfromitspreviouslocation
+inputs .036 pre-existingeventparticipantdestroyedorincorporated
+intoanewentity
+products .035 objectisoneoftheintendedoutputsofevent
+inputs-destroyed .035 objectexistsbeforeeventandisdestroyedduringevent
+from-location .034 wheresomemoving-objectinthemoveisfoundatthe
+beginning
+primary-object-moving .033 objectisinmotionatsomepointduringtheevent,and
+thismovementisfocal
+seller .030 agentsellssomethingintheexchange
+object-of-possession-transfer .030 rightstouseobjecttransferredfromoneagenttoanother
+transferred-thing .030 objectisbeingmoved,transferred,orexchangedinthe
+eventtransfer
+sender-of-info .030 senderisanagentwhoisthesourceofinformation
+transferred
+inputs-committed .028 objectexistsbeforeeventandcontinuestoexist
+afterwards,andasaresultofevent,objectbecomes
+incorporatedintosomethingcreatedduringevent
+object-emitted .026 objectisemittedfromtheemitterduringtheemission
+event
+The Factotum knowledge base is based on the 1911 version of Roget’s Thesaurus
+andspeciﬁestherelationsthatholdbetweentheRogetcategoriesandthewordslisted
+in each entry. Factotum incorporates information from other resources as well. For
+instance,theUniﬁedMedicalLanguageSystem(UMLS)formedthebasisfortheinitial
+inventoryofsemanticrelations,whichwaslaterrevisedduringtagging.
+Figure 3 shows a sample from Factotum. This illustrates that the basic Roget or-
+ganization is still used, although additional hierarchical levels have been added. The
+relations are contained within double braces (e.g., “{{has subtype}}”) and generally
+applyfromthecategorytoeachwordinthesynonymlistonthesameline.Forexample,
+the line with “{{result of}}” indicates that conversion is the result of transforming,
+as shown in the semantic relation listing that would be extracted. There are over 400
+differentrelationsinstantiatedintheknowledgebase,whichhasover93,000assertions.
+Some of these are quite specialized (e.g.,has-brandname).Inaddition,therearequitea
+fewinverserelations,becausemostoftherelationsarenotsymmetrical.Certainfeatures
+of the knowledge representation are ignored during the relation extraction used later.
+For example, relation speciﬁcations can have qualiﬁer preﬁxes, such as an ampersand
+toindicatethattherelationshiponlysometimesholds.
+158
+O’HaraandWiebe ExploitingResourcesforPrepositionDisambiguation
+Table4
+CommonsemanticrolesusedinConceptualGraphs.Inventoryanddescriptionsbasedon
+Sowa(1999,pages502–510).ThetermsituationisusedinplaceofSowa’snexus(i.e.,“factof
+togetherness”),whichalsocoversspatialstructures.Freq.givesestimatedrelativefrequencies
+fromO’Hara(2005).
+Role Freq. Description
+agent .267 entityvoluntarilyinitiatinganaction
+attribute .155 entitythatisapropertyofsomeobject
+characteristic .080 typesofpropertiesofentities
+theme .064 participantinvolvedwithbutnotchanged
+patient .061 participantundergoingstructuralchange
+location .053 participantofaspatialsituation
+possession .035 entityownedbysomeanimatebeing
+part .035 objectthatisacomponentofsomeobject
+origin .035 sourceofaspatialorambientsituation
+experiencer .035 animategoalofanexperience
+result .032 inanimategoalofanact
+instrument .027 resourceusedbutnotchanged
+recipient .019 animategoalofanact
+destination .013 goalofaspatialprocess
+point-in-time .011 participantofatemporalsituation
+path .011 resourceofaspatialorambientsituation
+accompaniment .011 objectparticipatingwithanother
+effector .008 sourceinvoluntarilyinitiatinganaction
+beneﬁciary .008 entitybeneﬁtingfromeventcompletion
+matter .005 resourcethatischangedbytheevent
+manner .005 entitythatisapropertyofsomeprocess
+source .003 presentatbeginningofactivity
+resource .003 materialnecessaryforsituation
+product .003 presentatendofactivity
+medium .003 resourcefortransmittinginformation
+goal .003 ﬁnalcausewhichispurposeorbeneﬁt
+duration .003 resourceofatemporalprocess
+because .003 situationcausinganothersituation
+amount .003 ameasureofsomecharacteristic
+Table5showsthemostcommonrelationsintermsofusageinthesemanticnetwork,
+and includes others that are used in the experiments discussed later.
+2
+The relative
+frequenciesjustreﬂectrelationshipsexplicitlylabeledintheKBdataﬁle.Forinstance,
+this does not account for implicit has-subtype relationships based on the hierarchical
+organization of the thesaural groups (e.g., 〈simple-change, has-subtype, conversion〉).
+The functional relations are shown in boldface. This excludes the meronym or part-
+whole relations (e.g., is-conceptual-part-of), in line with their classiﬁcation by Cruse
+(1986)ashierarchicalrelations.Thereasonforconcentratingonthefunctionalrelations
+isthatthesearemoreakintotherolestaggedinPTBandFrameNet.
+TheinformationinFactotumcomplementsWordNetthroughtheinclusionofmore
+functionalrelations(e.g.,non-hierarchicalrelationssuchasusesandis-function-of).For
+comparison purposes, Table 6 shows the semantic relation usage in WordNet version
+2 ThedatabaseﬁlesanddocumentationforthesemanticnetworkareavailablefromMicra,Inc.,via
+ftp://micra.com/factotum.
+159
+ComputationalLinguistics Volume35,Number2
+Originaldata:
+A.ABSTRACTRELATION
+...
+A6CHANGE(R140TOR152)
+...
+A6.1SIMPLECHANGE(R140)
+...
+A6.1.4CONVERSION(R144)
+#144.Conversion.
+N.{{has subtype(change,R140)}}conversion,transformation.
+{{has case:@R7,initialstate,ﬁnalstate}}.
+{{has patient:@R3a,object,entity}}.
+{{result of}} {{has subtype(process,A7.7)}}converting,transforming.
+{{has subtype}}processing.
+transition.
+Extractedrelationships:
+〈change,has-subtype,conversion〉〈change,has-subtype,transformation〉
+〈conversion,has-case,initialstate〉〈conversion,has-case,ﬁnalstate〉
+〈conversion,has-patient,object conversion,has-patient,entity〉
+〈conversion,is-result-of,converting〉〈conversion,is-result-of,transforming〉
+〈process,has-subtype,converting〉〈process,has-subtype,transforming〉
+〈conversion,has-subtype,processing〉
+Figure3
+SampledatafromFactotum.Basedonversion0.56ofFactotum.
+2.1. As can be seen from the table, the majority of the relations are hierarchical.
+3
+WordNet 2.1 averages just about 1.1 non-taxonomic properties per concept (includ-
+ing inverses but excluding hierarchical relations such as has-hypernym and is-member-
+meronym-of). OpenCyc provides a much higher average at 3.7 properties per concept,
+althoughwithanemphasisonargumentconstraintsandotherusagerestrictions.Fac-
+totum averages 1.8 properties per concept, thus complementing WordNet in terms of
+informationcontent.
+4
+2.5CombiningtheDifferentSemanticRoleInventories
+Itisdifﬁculttoprovideprecisecomparisonsoftheﬁveinventoriesjustdiscussed.Thisis
+duebothtothedifferentnatureoftheinventories(e.g.,developedforknowledgebases
+asopposedtobeingderivedfromnaturallanguageannotations)andduetothewaythe
+3InWordNet,theis-similar-torelationforadjectivescanbeconsideredashierarchical,asitlinkssatellite
+synsetstoheadsofadjectiveclusters(Miller1998).Forexample,thesatellitesynsetsfor“thirsty”and
+“rainless”arebothlinkedtotheheadsynsetfor“dry(vs.wet).”
+4 Theseﬁguresarederivedbycountingthenumberofrelationsexcludingtheinstanceandsubsetones
+andthendividingbythenumberofconcepts(i.e.,ratioofnon-hierarchicalrelationstoconcepts).Cyc’s
+commentsandlexicalassertionsarealsoexcluded,astheseareimplicitinFactotumandWordNet.
+WordNet’sis-derived-fromrelationsareomittedaslexicalinnature(theﬁgureotherwisewouldbe1.6).
+160
+O’HaraandWiebe ExploitingResourcesforPrepositionDisambiguation
+Table5
+CommonFactotumsemanticroles.Theseaccountfor80%oftheinstances.Boldfacerelationsare
+usedintheexperiments(Section3.4.2).
+Relation Freq. Description
+has-subtype .401 inverseofis-arelation
+is-property-of .077 objectwithgivensalientcharacter
+is-caused-by .034 forcethatistheoriginofsomething
+has-property .028 salientpropertyofanobject
+has-part .022 apartofaphysicalobject
+has-high-intensity .018 intensiﬁerforpropertyorcharacteristic
+has-high-level .017 implicationofactivity(e.g.,intelligence)
+is-antonym-of .016 generallyusedforlexicalopposition
+is-conceptual-part-of .015 partsofotherentities(e.g.,caserelations)
+has-metaphor .014 non-literalreferencetotheword
+causes
+mental
+.013 motivation(causationinthementalrealm)
+uses .012 atoolneedingactivemanipulation
+is-performed-by .012 humanactorfortheevent
+performs
+human
+.011 humanroleinperformingsomeactivity
+is-function-of .011 artifactpassivelyperformingthefunction
+has-result .010 morespeciﬁctypeofcauses
+has-conceptual-part .010 generalizationofhas-part
+is-used-in .010 activityordesiredeffectfortheentity
+is-part-of .010 distinguishespartfromgroupmembership
+causes .009 inverseofis-caused-by
+has-method .009 methodusedtoachievesomegoal
+is-caused-by
+mental
+.009 inverseofcauses
+mental
+has-consequence .008 causationduetoanaturalassociation
+has-commencement .007 statethatcommenceswiththeaction
+is-location-of .007 absolutelocationofanobject
+requires .004 objectorsub-actionneededforanaction
+is-studied-in .004 inquiresintoanyﬁeldofstudy
+is-topic-of .002 communicationdealingwithgivensubject
+produces .002 whatanactionyields,generates,etc.
+is-measured-by .002 instrumentformeasuringsomething
+is-job-of .001 occupationtitleforajobfunction
+is-patient-of .001 actionthattheobjectparticipatesin
+is-facilitated-by .001 objectorsub-actionaidinganaction
+is-biofunction-of .0003 biologicalfunctionofpartsoflivingthings
+was-performed-by .0002 is-performed-byoccurringinthepast
+has-consequence
+object
+.0002 consequenceforthepatientofanaction
+is-facilitated-by
+mental
+.0001 traitthatfacilitatessomehumanaction
+relation listings were extracted (e.g., just including event-based roles from OpenCyc).
+AscanbeseenfromTables2and3,FrameNettendstoreﬁnetherolesforagents(e.g.,
+communicator) compared to OpenCyc, which in contrast has more reﬁnements of the
+objectrole(e.g.,object-removed).TheConceptGraphsinventoryincludesmoreemphasis
+onspecializationrelationsthantheothers,ascanbeseenfromthetopentriesinTable4
+(e.g.,attribute).
+In the next section, we show how classiﬁers can be automatically developed for
+the semantic role inventories just discussed. For the application to dictionary deﬁn-
+ition analysis, we need to combine the classiﬁers learned over PTB, FrameNet, and
+Factotum. This can be done readily in a cascaded fashion with the classiﬁer for the
+most speciﬁc relation inventory (i.e., FrameNet) being used ﬁrst and then the other
+classiﬁersbeingappliedinturnwhenevertheclassiﬁcationisinconclusive.Thiswould
+161
+ComputationalLinguistics Volume35,Number2
+Table6
+SemanticrelationusageinWordNet.RelativefrequenciesforsemanticrelationsinWordNet
+(173,570totalinstances).Thistableomitslexicalrelations,suchastheis-derived-fromrelation
+(71,914instances).FrequenciesbasedonanalysisofdatabaseﬁlesforWordNet2.1.
+Relation Freq. Description
+has-hypernym .558 supersetrelation
+is-similar-to .130 similaradjectivesynset
+is-member-meronym-of .071 constituentmember
+is-part-meronym-of .051 constituentpart
+is-pertainym-of .046 nounthatadjectivepertainsto
+is-antonym-of .046 opposingconcept
+has-topic-domain .038 topicdomainforthesynset
+also-see .019 relatedentry(foradjectivesandverbs)
+has-verb-group .010 verbsensesgroupedbysimilarity
+has-region-domain .008 regiondomainforthesynset
+has-attribute .007 relatedattributecategoryorvalue
+has-usage-domain .007 usagedomainforthesynset
+is-substance-meronym-of .004 constituentsubstance
+entails .002 actionentailedbytheverb
+causes .001 actioncausedbytheverb
+has-participle .001 verbparticiple
+havetheadvantagethatnewresourcescouldbeintegratedintothecombinedrelation
+classiﬁer with minimal effort. However, the resulting role inventory would likely be
+heterogeneous and might be prone to inconsistent classiﬁcations. In addition, the role
+inventorycouldchangewhenevernewannotationresourcesareincorporated,making
+theoveralldeﬁnitionanalysissystemsomewhatunpredictable.
+Alternatively, the annotations can be converted into a common inventory, and a
+separate relation classiﬁer induced over the resulting data. This has the advantage
+thatthetargetrelation-typeinventoryremainsstablewhenevernewsourcesofrelation
+annotations are introduced. In addition, the classiﬁer will likely be more accurate as
+therearemoreexamplesperrelationtypeonaverage.Thedrawback,however,isthat
+annotations from new resources must ﬁrst be mapped into the common inventory
+beforeincorporation.
+Thelatterapproachisemployedhere.Thecommoninventoryincorporatessomeof
+the general relation types deﬁned by Gildea and Jurafsky (2002) for their experiments
+inclassifyingsemanticrelationsinFrameNetusingareducedrelationinventory.They
+deﬁned 18 relations (including a special-case null role for expletives), as shown in
+Table 7. These roles served as the starting point for the common relation inventory
+wedevelopedtosupportdeﬁnitionanalysis(O’Hara2005),withhalfoftherolesused
+as is and a few others mapped into similar roles. In total, twenty-six relations are
+deﬁned, including a few roles based on the PTB, Cyc, and Conceptual Graphs inven-
+Table7
+AbstractrolesdeﬁnedbyGildeaandJurafskybasedonFrameNet.TakenfromGildeaand
+Jurafsky(2002).
+agent cause degree experiencer force goal
+instrument location manner null path patient
+percept proposition result source state topic
+162
+O’HaraandWiebe ExploitingResourcesforPrepositionDisambiguation
+Table8
+Inventoryofsemanticrelationsfordeﬁnitionanalysis.Thisinventoryisinspiredbytherolesin
+Table7andisprimarilybasedonFrameNet(Fillmore,Wooters,andBaker2001)andConceptual
+Graphs(Sowa1999);italsoincludesrolesbasedonthePTBandCycinventories.
+Relation Description
+accompaniment entitythatparticipateswithanotherentity
+agent entityvoluntarilyperforminganaction
+amount quantityusedasameasureofsomecharacteristic
+area regioninwhichtheactiontakesplace
+category generaltypeorclassofwhichtheitemisaninstance
+cause non-agentiveentitythatproducesaneffect
+characteristic generalpropertiesofentities
+context backgroundforsituationorpredication
+direction eitherspatialsourceorgoal(sameasinPTB)
+distance spatialextentofmotion
+duration periodoftimethatthesituationapplieswithin
+experiencer entityundergoingsome(non-voluntary)experience
+goal locationthatanaffectedentityendsupin
+instrument entityorresourcefacilitatingeventoccurrence
+location referencespatiallocationforsituation
+manner propertyoftheunderlyingprocess
+means actiontakentoaffectsomething
+medium settinginwhichanaffectedentityisconveyed
+part componentofentityorsituation
+path trajectorywhichisneitherasourcenoragoal
+product entitypresentatendofevent(sameasCycproducts)
+recipient recipientoftheresource(s)
+resource entityutilizedduringevent(sameasCycinputs)
+source initialpositionofanaffectedentity
+theme entitysomehowaffectedbytheevent
+time referencetimeforsituation
+tories. Table 8 shows this role inventory along with a description of each case. In
+addition to traditional thematic relations, this includes a few specialization relations,
+whicharerelevanttodeﬁnitionanalysis.Forexample,characteristiccorrespondstothe
+general relation from Conceptual Graphs for properties of entities; and category gen-
+eralizes the corresponding FrameNet role, which indicates category type, to subsume
+other FrameNet roles related to categorization (e.g., topic). Note that this inventory is
+notmeanttobedeﬁnitiveandhasbeendevelopedprimarilytoaddressmappingsfrom
+FrameNetfortheexperimentsdiscussedinSection3.5.Thus,itislikelythatadditional
+roles will be required when additional sources of semantic relations are incorporated
+(e.g.,Cyc).Themappingswereproducedmanuallybyreviewingtheroledescriptionsin
+theFrameNetdocumentationandcheckingprepositionalusagesforeachtodetermine
+whichofthecommoninventoryrolesmightbemostrelevant.Assomeoftheroleswith
+the same name have frame-speciﬁc meanings, in a few cases this involved conﬂicting
+usages(e.g.,body-partassociatedwithbothareaandinstrument),whichwereresolvedin
+favorofthemorecommonusage.
+5
+5Seewww.cs.nmsu.edu/~tomohara/cl-prep-article/relation-mapping.htmlforthemapping,
+coveringcasesoccurringatleast50timesinFrameNet.
+163
+ComputationalLinguistics Volume35,Number2
+3.PrepositionDisambiguation
+Thissectionpresentstheresultsofourexperimentsonthedisambiguationofrelations
+indicatedbyprepositionalphrases.ResultsaregivenforPTB,FrameNet,andFactotum.
+ThePTBrolesaregeneral:Forexample,fortheprepositionfor,therearesixdistinctions
+(four, with low-frequency pruning). The PTB role disambiguation experiments thus
+address a coarse form of sense distinction. In contrast, the FrameNet distinctions are
+quitespeciﬁc:thereare192distinctionsassociatedwithfor(21withlow-frequencyprun-
+ing); and, there are 17 distinctions in Factotum (15 with low-frequency pruning). Our
+FrameNet and Factotum role disambiguation experiments thus address ﬁne-grained
+sensedistinctions.
+3.1Overview
+A straightforward approach for preposition disambiguation would be to use typical
+word-sensedisambiguationfeatures,suchastheparts-of-speechofsurroundingwords
+and, more importantly, collocations (e.g., lexical associations). Although this can be
+highly accurate, it tends to overﬁt the data and to generalize poorly. The latter is of
+particular concern here as the training data is taken from a different genre than the
+application data. For example, the PTB data is from newspaper text (speciﬁcally,Wall
+Street Journal), but the lexical acquisition is based on dictionary deﬁnitions. We ﬁrst
+discusshowclass-basedcollocationsaddressthisproblemandthenpresentthefeatures
+usedintheexperiments.
+Beforegettingintotechnicaldetails,aninformalexamplewillbeusedtomotivate
+theuseofhypernymcollocations.Considerthefollowingpurposeroleexamples,which
+aresimilartotheﬁrstexamplefromtheintroduction.
+(3) Thiscontentionwouldjustifydismissaloftheseactionson
+purpose
+prudentialgrounds.
+(4) Ramada’sstockrose87.5centson
+purpose
+thenews.
+ItturnsoutthatgroundsandnewsareoftenusedastheprepositionalobjectinPTB
+whenthesenseforonispurpose(orreason).Thus,thesewordswouldlikelybechosenas
+collocationsforthissense.However,forthesakeofgeneralization,itwouldbebetterto
+choosetheWordNethypernymsubjectmatter,asthatsubsumesbothwords.Thiswould
+thenallowthefollowingsentencetoberecognizedasindicatingpurposeeventhough
+censurewasnotcontainedinthetrainingdata.
+(5) Senatorsetshearingon
+purpose
+censureofBush.
+3.1.1Class-BasedCollocationsviaHypernyms. To overcome data sparseness problems, a
+class-based approach is used for the collocations, with WordNet synsets as the source
+ofthewordclasses.(Part-of-speechtagsareapopulartypeofclass-basedfeatureused
+inwordsensedisambiguation (WSD)tocapturesyntacticgeneralizations.) Recallthat
+theWordNetsynsethierarchycanbeviewedasataxonomyofconcepts.Therefore,in
+addition to using collocations in the form of other words, we use collocations in the
+formofsemanticconcepts.
+Word collocation features are derived by making two passes over the training
+data (e.g., “on” sentences with correct role indicated). The ﬁrst pass tabulates the
+164
+O’HaraandWiebe ExploitingResourcesforPrepositionDisambiguation
+co-occurrencecountsforeachofthecontextwords(i.e.,thoseinawindowaroundthe
+target word) paired with the classiﬁcation value for the given training instance (e.g.,
+theprepositionsensefromtheannotation).Thesecountsareusedtoderiveconditional
+probability estimates of each class value given co-occurrence of the various potential
+collocates. The words exceeding a certain threshold are collected into a list associated
+with the class value, making this a “bag of words” approach. In the experiments dis-
+cussedbelow,apotentialcollocate(coll)isselectedwhenevertheconditionalprobability
+fortheclass(C)valueexceedsthepriorprobabilitybyafactorgreaterthan20%:
+6
+P(C|coll)−P(C)
+P(C)
+≥ .20 (1)
+That is, for a given potential collocation word (coll) to be treated as one of the ac-
+tual collocation words, the relative percent change of the class conditional probability
+(P(C|coll))versusthepriorprobabilityfortheclassvalue(P(C))mustbe20%orhigher.
+Thesecondpassoverthetrainingdatadeterminesthevalueforthecollocationalfeature
+ofeachclassiﬁcationcategorybycheckingwhetherthecurrentcontextwindowhasany
+oftheassociatedcollocationwords.Notethatforthetestdata,onlythesecondpassis
+made,usingthecollocationlistsderivedfromthetrainingdata.
+Ingeneralizingthistoaclass-basedapproach,thepotentialcollocationalwordsare
+replacedwitheachoftheirhypernymancestorsfromWordNet.Theadjectivehierarchy
+is relatively shallow, so it is augmented by treating is-similar-to as has-hypernym. For
+example, the synset for “arid” and “waterless” is linked to the synset for “dry (vs.
+wet).”Adverbswouldbeincluded,butthereisnohierarchyforthem.Becausetheco-
+occurringwordsarenotsense-tagged,thisisdoneforeachsynsetservingasadifferent
+sense of the word. Likewise, in the case of multiple inheritance, each parent synset is
+used.Forexample,giventheco-occurringwordmoney,thecountswouldbeupdatedas
+ifeachofthefollowingtokenswereseen(groupedbysense).
+1. { medium of exchange#1, monetary system#1, standard#1, criterion#1,
+measure#2, touchstone#1, reference point#1, point of reference#1, ref-
+erence#3, indicator#2, signal#1, signaling#1, sign#3, communication#2,
+social relation#1,relation#1,abstraction#6}
+2. { wealth#4, property#2, belongings#1, holding#2, material possession#1,
+possession#2}
+3. { currency#1, medium of exchange#1, monetary system#1, standard#1,
+criterion#1, measure#2, touchstone#1, reference point#1, point of -
+reference#1, reference#3, indicator#2, signal#1, signaling#1, sign#3,
+communication#2,social relation#1,relation#1,abstraction#6}
+Thus, the word tokenmoneyis replaced by 41 synset tokens. Then, the same two-pass
+processjustdescribedisperformedoverthetextconsistingofthereplacementtokens.
+Although this introduces noise due to ambiguity, the conditional-probability selection
+scheme(Wiebe,McKeever,andBruce1998)compensatesbyselectinghypernymsynsets
+thattendtoco-occurwithspeciﬁcroles.
+6 The20%thresholdisaheuristicthatisﬁxedforallexperiments.Wetestedautomaticthresholdderivation
+forSenseval-3andfoundthattheoptimalpercentagedifferedacrosstrainingsets.Asvaluesnear20%
+werecommon,itisleftﬁxedratherthanaddinganadditionalfeature-thresholdreﬁnementstep.
+165
+ComputationalLinguistics Volume35,Number2
+Notethatthereisnopreferenceinthesystemforchoosingeitherspeciﬁcorgeneral
+hypernyms. Instead, they are inferred automatically based on the word to be disam-
+biguated (i.e., preposition for these experiments). Hypernyms at the top levels of the
+hierarchyarelesslikelytobechosen,astheymostlikelyoccurwithdifferentsensesfor
+the same word (as with relation#1 previously). However, hypernyms at lower levels
+tend not to be chosen, as there might not be enough occurrences due to other co-
+occurring words. For example, wealth#4 is unlikely to be chosen as a collocation for
+the second sense of money, as only a few words map into it, unlike property#2.The
+conditional-probability selection scheme (i.e., Equation (1)) handles this automatically
+withouthavingtoencodeheuristicsabouthypernymrank,andsoon.
+3.1.2ClassiﬁcationExperiments.A supervised approach for word-sense disambiguation
+isusedfollowingBruceandWiebe(1999).
+For each experiment, stratiﬁed 10-fold cross validation is used: The classiﬁers are
+repeatedly trained on 90% of the data and tested on the remainder, with the test sets
+randomlyselectedtoformapartition.Theresultsdescribedherewereobtainedusing
+the settings in Figure 4, which are similar to the settings used by O’Hara et al. (2004)
+in the third Senseval competition. The top systems from recent Senseval competitions
+(Mihalcea2002;Grozea2004)useavarietyoflexicalfeaturesforWSD.Wordsintheim-
+mediatecontext(Word±i)andtheirpartsofspeech(POS±i)arestandardfeatures.Word
+collocationsarealsocommon,buttherearevariouswaysoforganizingcollocationsinto
+features (Wiebe, McKeever, and Bruce 1998). We use the simple approach of having a
+singlebinaryfeaturepersense(e.g.,role)thatissettruewheneveranyoftheassociated
+collocationwordsforthatsenseareencountered(i.e.,per-class-binary).
+The main difference of our approach from more typical WSD systems (Mihalcea,
+Chklovski, and Kilgarriff 2004) concerns the hypernym collocations. The collocation
+context section of Figure 4 shows that word collocations can occur anywhere in the
+sentence, whereas hypernym collocations must occur within ﬁve words of the target
+Features:
+Prep: prepositionbeingclassiﬁed
+POS±i: part-of-speechofwordatoffseti
+Word±i: stemofwordatoffseti
+WordColl
+r
+: contexthaswordcollocationforroler
+HypernymColl
+r
+: contexthashypernymcollocationforroler
+Collocationcontext:
+Word: anywhereinthesentence
+Hypernym: within5wordsoftargetpreposition
+Collocationselection:
+Frequency: f(word) > 1
+Conditionalprobability: P(C|coll) ≥ .50
+Relativepercentchange: (P(C|coll)−P(C))/P(C) ≥ .20
+Organization: per-class-binary
+Modelselection:
+C4.5DecisiontreeviaWeka’sJ4.8classiﬁer(Quinlan1993;WittenandFrank1999)
+Figure4
+Featuresettingsusedinprepositionclassiﬁcationexperiments.AspectsthatdifferfromatypicalWSD
+systemareitalicized.
+166
+O’HaraandWiebe ExploitingResourcesforPrepositionDisambiguation
+prepositions (i.e., a ﬁve-word context window).
+7
+This reduced window size is used
+to make the hypernym collocations more related to the prepositional object and the
+modiﬁedterm.
+The feature settings in Figure 4 are used in three different conﬁgurations: word-
+basedcollocationsalone,hypernymcollocationsalone,andbothcollocationstogether.
+Combiningthetwotypesgenerallyproducesthebestresults,becausethisbalancesthe
+speciﬁccluesprovidedbythewordcollocationswiththegeneralizedcluesprovidedby
+thehypernymcollocations.
+UnlikethegeneralcaseforWSD,thesenseinventoryisthesameforallthewords
+being disambiguated; therefore, a single classiﬁer can be produced rather than indi-
+vidual classiﬁers. This has the advantage of allowing more training data to be used
+in the derivation of the clues indicative of each semantic role. However, if there were
+sufﬁcientannotationsforparticularpreposition,thenitwouldbeadvantageoustohave
+adedicatedclassiﬁer.Forexample,thepriorprobabilitiesfortheroleswouldbebased
+ontheusagesforthegivenpreposition.Therefore,weperformexperimentsillustrating
+thedifferencewhendisambiguatingprepositionswithasingleclassiﬁerversustheuse
+ofseparateclassiﬁers.
+3.2PennTreebankClassiﬁcationExperiments
+The ﬁrst set of experiments deals with preposition disambiguation using PTB. When
+deriving training data from PTB via the parse tree annotations, the functional tags as-
+sociatedwithprepositionalphrasesareconvertedintoprepositionsensetags.Consider
+thefollowingexcerptfromthesampleannotationforPTBshownearlier:
+(6)
+(S(PP-TMPIn(NP1982)), temporalextent
+(NP-SBJ grammaticalsubject
+(NP(NP(NPSports)&(NPRecreation)’s)
+managers)...
+Treatingtemporalastheprepositionsenseyieldsthefollowingannotation:
+(7) In
+TMP
+1982,Sports&Recreation’smanagers...
+The relative frequencies of the roles in the PTB annotations for PPs are shown in Ta-
+ble9.Ascanbeseen,severaloftherolesdonotoccuroftenwithPPs(e.g.,extent).This
+somewhat skewed distribution makes for an easier classiﬁcation task than the one for
+FrameNet.
+3.2.1Illustrationwith“at.” As an illustration of the probabilities associated with class-
+basedcollocations,considerthedifferencesinthepriorversusclass-basedconditional
+probabilities for the semantic roles of the preposition at in the Penn Treebank (ver-
+sionII).Table10showstheglobalprobabilitiesfortherolesassignedtoat,alongwith
+7 Thiswindowsizewaschosenafterestimatingthatonaveragetheprepositionalobjectsoccurwithin
+2.3±1.26wordsoftheprepositionandthattheaverageattachmentsiteiswithin3.0±2.98words.These
+ﬁgureswereproducedbyanalyzingtheparsetreesforthesemanticroleannotationsinthePTB.
+167
+ComputationalLinguistics Volume35,Number2
+Table9
+PennTreebanksemanticrolesforPPs.Omitslow-frequencybenefactiverelation.Freq.istherelative
+frequencyoftheroleoccurrence(36,476totalinstances).Exampleusagesaretakenfrom
+thecorpus.
+Role Freq. Example
+locative .472 workersatafactory
+temporal .290 expiredatmidnightTuesday
+direction .149 hasgrownatasluggishpace
+manner .050 CDsaimedatindividualinvestors
+purpose .030 openedfortrading
+extent .008 declinedby14%
+conditional probabilities for these roles given that certain high-level WordNet synsets
+occur in the context. In a context referring to a concrete concept (i.e., entity#1), the
+differenceintheprobabilitydistributionsforthelocativeandtemporalrolesshowsthat
+thelocativeinterpretation becomes even more likely. In contrast, in a context referring
+toanabstractconcept(i.e.,abstraction#6),thedifferenceintheprobabilitydistributions
+forthesamerolesshowsthatthetemporalinterpretationbecomesmorelikely.Therefore,
+theseclass-basedlexicalassociationscapturecommonsenseusagesoftheprepositionat.
+3.2.2Results.TheclassiﬁcationresultsfortheseprepositionsinthePennTreebankshow
+thatthisapproachisveryeffective.Table11showstheaccuracywhendisambiguating
+the 14 prepositions using a single classiﬁer with 6 roles. Table 11 also shows the per-
+class statistics, showing that there are difﬁculties tagging themannerrole (e.g., lowest
+F-score). For the single-classiﬁer case, the overall accuracy is 89.3%, using Weka’s J4.8
+classiﬁer(WittenandFrank1999),whichisanimplementationofQuinlan’s(1993)C4.5
+decisiontreelearner.
+Forcomparison,Table12showstheresultsforindividualclassiﬁerscreatedforthe
+prepositions annotated in PTB. A few prepositions only have small data sets, such as
+of which is used more for specialization relations (e.g., category) than thematic ones.
+Thistableisorderedbyentropy,whichmeasurestheinherentambiguityintheclasses
+asgivenbytheannotations.NotethattheBaselinecolumnistheprobabilityofthemost
+frequent sense, which is a common estimate of the lower bound for classiﬁcation
+Table10
+Priorandposteriorprobabilitiesofrolesfor“at”inthePennTreebank.P(R)istherelativefrequency.
+P(R|S)istheprobabilityoftherelationgiventhatthesynsetoccursintheimmediatecontextof
+at.RPC
+R,S
+istherelativepercentagechange:(P(R|S)−P(R))/P(R).
+Synset
+entity#1 abstraction#6
+Relation P(R) P(R|S) RPC
+R,S
+P(R|S) RPC
+R,S
+locative 73.5 75.5 0.03 67.0 −0.09
+temporal 23.9 22.5 −0.06 30.6 0.28
+manner 2.0 1.5 −0.25 2.0 0.00
+direction 0.6 0.4 −0.33 0.4 −0.33
+168
+O’HaraandWiebe ExploitingResourcesforPrepositionDisambiguation
+Table11
+OverallprepositiondisambiguationresultsoverPennTreebankroles.Asingleclassiﬁerisusedforall
+theprepositions.#Instancesisthenumberofroleannotations.#Classesisthenumberofdistinct
+roles.Entropymeasuresnon-uniformityoftheroledistributions.Baselineisestimatedbythe
+most-frequentrole.TheWordOnlyexperimentusesjustwordcollocations,HypernymOnlyjust
+useshypernymcollocations,andBothusesbothtypesofcollocations.Accuracyisaveragefor
+percentcorrectovertentrialsincrossvalidation. STDEVisthestandarddeviationoverthetrials.
+Experiment Accuracy STDEV
+WordCollocationsOnly 88.1 0.88
+HypernymCollocationsOnly 88.2 0.43
+BothCollocations 89.3 0.33
+DataSetCharacteristics
+#Instances: 27,308
+#Classes: 6
+Entropy: 1.831
+Baseline: 49.2
+WordOnly HypernymOnly Both
+Class Prec. Rec. F Prec. Rec. F Prec. Rec. F
+direction .953 .969 .960 .952 .967 .959 .956 .965 .961
+extent .817 .839 .826 .854 .819 .834 .817 .846 .829
+locative .879 .967 .921 .889 .953 .920 .908 .932 .920
+manner .797 .607 .687 .790 .599 .680 .826 .558 .661
+purpose .854 .591 .695 .774 .712 .740 .793 .701 .744
+temporal .897 .776 .832 .879 .794 .834 .845 .852 .848
+Table12
+Per-prepositiondisambiguationresultsoverPennTreebankroles.Aseparateclassiﬁerisusedforeach
+preposition,excludingroleswithlessthan1%relativefrequency.Freqgivesthepreposition
+frequency,andRolesthenumberofsenses.Entropymeasuresdatasetuniformity,andBaseline
+selectsmostcommonrole.TheWordandHypernymcolumnsshowresultswhenincludingjust
+wordandhypernymcollocationsrespectively,whereasBothincludesbothtypes.Eachcolumn
+showsaveragesforpercentcorrectovertentrials.TheMeanrowaveragesthevaluesofthe
+individualexperiments.
+Prep Freq. Roles Entropy Baseline Word Hypernym Both
+through 331 4 1.668 0.438 59.795 62.861 58.592
+by 1290 7 1.575 0.479 87.736 88.231 86.655
+as 220 3 1.565 0.405 95.113 96.377 96.165
+between 87 4 1.506 0.483 77.421 81.032 70.456
+of 30 3 1.325 0.567 63.182 82.424 65.606
+out 76 4 1.247 0.711 70.238 76.250 63.988
+for 1401 6 1.189 0.657 82.444 85.795 80.158
+on 1915 5 1.181 0.679 85.998 88.720 79.428
+in 14321 7 1.054 0.686 86.404 92.647 86.523
+throughout 59 2 0.998 0.525 61.487 35.949 63.923
+at 2825 5 0.981 0.735 84.178 90.265 85.561
+across 78 2 0.706 0.808 75.000 78.750 77.857
+from 1521 5 0.517 0.917 91.649 91.650 91.650
+to 3074 5 0.133 0.985 98.732 98.537 98.829
+Mean 1944.8 4.43 1.12 0.648 80.0 82.1 78.9
+169
+ComputationalLinguistics Volume35,Number2
+experiments. When using preposition-speciﬁc classiﬁers, the hypernym collocations
+surprisingly outperform the other conﬁgurations, most likely due to overﬁtting with
+word-basedclues:82.1%versus80.0%fortheword-onlycase.
+3.3FrameNetClassiﬁcationExperiments
+The second set of experiments perform preposition disambiguation using FrameNet.
+A similar preposition word-sense disambiguation experiment is carried out over the
+FrameNetsemanticroleannotationsinvolvingprepositionalphrases.Considerthesam-
+pleannotationshownearlier:
+(8) Hewlett-PackardCohasrolledoutanewrangeofISDNconnectivity
+enabling〈CFE=“Communicator”PT=“NP”〉standaloneworkstations〈/C〉
+to〈CTARGET=“y”〉communicate〈/C〉〈CFE=“Medium”PT=“PP”〉over
+publicorprivateISDNnetworks〈/C〉.
+Theprepositionalphraseannotationisisolatedandtreatedasthesenseofthepreposi-
+tion.Thisyieldsthefollowingsenseannotation:
+(9) Hewlett-PackardCohasrolledoutanewrangeofISDNconnectivity
+enablingstandaloneworkstationstocommunicateover
+Medium
+publicor
+privateISDNnetworks.
+Table13showsthedistributionofcommonrolesassignedtoprepositionalphrases.The
+topicroleisthemostfrequentcasenotdirectlycoveredinPTB.
+3.3.1Illustrationwith“at.” See Table 14 for the most frequent roles out of the 124 cases
+that were assigned toat, along with the conditional probabilities for these roles given
+that certain high-level WordNet synsets occur in the context. In a context referring
+to concrete entities, the role place becomes more prominent. However, in an abstract
+context,theroletimebecomesmoreprominent.Thus,similarbehaviortothatnotedfor
+PTBinSection3.2.1occurswithFrameNet.
+3.3.2 Results. Table 15 shows the results of classiﬁcation when all of the prepositions
+are classiﬁed together. Due to the exorbitant number of roles (641), the overall results
+are low. However, the combined collocation approach still shows slight improvement
+(23.3%versus23.1%).TheFrameNetinventorycontainsmanylow-frequencyrelations
+Table13
+MostcommonFrameNetsemanticrolesforPPs.Relativefrequenciesforrolesassignedto
+prepositionalphrasesinversion1.3(66,038instances),omittingcasesbelow0.01.
+Role Freq. Role Freq. Role Freq.
+goal .092 theme .022 whole .015
+path .071 manner .021 individuals .013
+source .043 area .018 location .012
+topic .040 reason .018 ground .012
+time .037 addressee .017 means .011
+place .033 stimulus .017 content .011
+170
+O’HaraandWiebe ExploitingResourcesforPrepositionDisambiguation
+Table14
+Priorandposteriorprobabilitiesofrolesfor“at”inFrameNet.Onlythetop5of641applicableroles
+areshown.P(R)istherelativefrequencyforrelation.P(R|S)istheprobabilityoftherelationgiven
+thatthesynsetoccursintheimmediatecontextofat.RPC
+R,S
+istherelativepercentagechange:
+(P(R|S)−P(R))/P(R).
+Synset
+entity#1 abstraction#6
+Relation P(R) P(R|S) RPC
+R,S
+P(R|S) RPC
+R,S
+place 15.6 19.0 21.8 16.8 7.7
+time 12.0 11.5 −4.2 15.1 25.8
+stimulus 6.6 5.0 −24.2 6.6 0.0
+addressee 6.1 4.4 −27.9 3.3 −45.9
+goal 5.5 6.3 14.5 6.0 9.1
+Table15
+PrepositiondisambiguationwithallFrameNetroles.All641rolesareconsidered.Entropymeasures
+datasetuniformity,andBaselineselectsmostcommonrole.
+Experiment Accuracy STDEV
+WordCollocationsOnly 23.078 0.472
+HypernymCollocationsOnly 23.206 0.467
+BothCollocations 23.317 0.556
+DataSetCharacteristics
+#Instances: 65,550
+#Classes: 641
+Entropy: 6.785
+Baseline: 9.3
+thatcomplicatethistypeofclassiﬁcation.Byﬁlteringoutrelationsthatoccurinlessthan
+1% of the role occurrences for prepositional phrases, substantial improvement results,
+asshowninTable16.Evenwithﬁltering,theclassiﬁcationischallenging(e.g.,18classes
+withentropy3.82).Table16alsoshowstheper-classstatistics,indicatingthatthemeans
+andplacerolesareposingdifﬁcultiesforclassiﬁcation.
+Table 17 shows the results when using individual classiﬁers, ordered by entropy.
+This illustrates that the role distributions are more complicated than those for PTB,
+yielding higher entropy values on average. In all, there are over 360 prepositions
+with annotations, 92 with ten or more instances each. (Several of the low-frequency
+casesareactuallyadverbs,suchasanywhere,butaretreatedasprepositionsduringthe
+annotation extraction.) The results show that the word collocations produce slightly
+better results: 67.8 versus 66.0 for combined collocations. Unlike the case with PTB,
+the single-classiﬁer performance is below that of the individual classiﬁers. This is
+due to the ﬁne-grained nature of the role inventory. When all the roles are considered
+together, prepositions are sometimes being incorrectly classiﬁed using roles that have
+not been assigned to them in the training data. This occurs when contextual clues are
+strongerforacommonlyusedrolethanfortheappropriateone.GivenPTB’ssmallrole
+inventory,thisproblemdoesnotoccurinthecorrespondingexperiments.
+3.4FactotumClassiﬁcationExperiments
+The third set of experiments deals with preposition disambiguation using Factotum.
+NotethatFactotumdoesnotindicatethewaytherelationshipsareexpressedinEnglish.
+171
+ComputationalLinguistics Volume35,Number2
+Table16
+OverallresultsforprepositiondisambiguationwithcommonFrameNetroles.Excludesroleswithless
+than1%relativefrequency.Entropymeasuresdatasetuniformity,andBaselineselectsmost
+commonrole.Detailedper-classstatisticsarealsoincluded,averagedoverthe10folds.
+Experiment Accuracy STDEV
+WordCollocationsOnly 73.339 0.865
+HypernymCollocationsOnly 73.437 0.594
+BothCollocations 73.544 0.856
+DataSetCharacteristics
+#Instances: 32974
+#Classes: 18
+Entropy: 3.822
+Baseline: 18.4
+WordOnly HypernymOnly Both
+Class Prec. Rec. F Prec. Rec. F Prec. Rec. F
+addressee .785 .332 .443 .818 .263 .386 .903 .298 .447
+area .618 .546 .578 .607 .533 .566 .640 .591 .613
+content .874 .618 .722 .895 .624 .734 .892 .639 .744
+goal .715 .766 .739 .704 .778 .739 .703 .790 .743
+ground .667 .386 .487 .684 .389 .494 .689 .449 .541
+individuals .972 .947 .959 .961 .945 .953 .938 .935 .936
+location .736 .524 .610 .741 .526 .612 .815 .557 .660
+manner .738 .484 .584 .748 .481 .584 .734 .497 .591
+means .487 .449 .464 .562 .361 .435 .524 .386 .441
+path .778 .851 .812 .777 .848 .811 .788 .849 .817
+place .475 .551 .510 .483 .549 .513 .474 .576 .519
+reason .803 .767 .784 .777 .773 .774 .769 .714 .738
+source .864 .980 .918 .865 .981 .919 .860 .978 .915
+stimulus .798 .798 .797 .795 .809 .802 .751 .752 .750
+theme .787 .811 .798 .725 .847 .779 .780 .865 .820
+time .585 .665 .622 .623 .687 .653 .643 .690 .664
+topic .831 .836 .833 .829 .842 .835 .856 .863 .859
+whole .818 .932 .871 .807 .932 .865 .819 .941 .875
+Similarly, WordNet does not indicate this, but it does include deﬁnition glosses. For
+example,
+(10)
+Factotum:
+〈drying,is-function-of,drier〉
+WordNet:
+dry
+alter
+removethemoisturefromandmakedry
+dryer
+appliance
+anappliancethatremovesmoisture
+Thesedeﬁnitionglossesmightbeusefulincertaincasesforinferringtherelationmarkers
+(i.e.,generalizedcasemarkers).Asis,Factotumcannotbeusedtoprovidetrainingdata
+for learning how the relations are expressed in English. This contrasts with corpus-
+basedannotations,suchasPTB(Marcusetal.1994)andFrameNet(Fillmore,Wooters,
+andBaker2001),wheretherelationshipsaremarkedincontext.
+3.4.1InferringSemanticRoleMarkers.To overcome the lack of context in Factotum, the
+relation markers are inferred through corpus checks, in particular through proximity
+searches involving the source and target terms from the relationship (i.e., 〈source,
+172
+O’HaraandWiebe ExploitingResourcesforPrepositionDisambiguation
+Table17
+Per-prepositiondisambiguationresultsoverFrameNetroles.Aseparateclassiﬁerisusedforeach
+preposition,excludingroleswithlessthan1%relativefrequency.Freqgivesthepreposition
+frequency,andRolesthenumberofsenses.Entropymeasuresdatasetuniformity,andBaseline
+selectsmostcommonrole.TheWordandHypernymcolumnsshowresultswhenincludingjust
+wordandhypernymcollocations,respectively,whereasBothincludesbothtypes.Eachcolumn
+showsaveragesforpercentcorrectovertentrials.TheMeanrowaveragesthevaluesofthe
+individualexperiments.
+Prep Freq. Roles Entropy Baseline Word Hypernym Both
+with 3758 25 4.201 19.6 59.970 57.809 61.924
+of 7339 22 4.188 12.8 85.747 84.663 85.965
+between 675 23 4.166 11.4 61.495 56.215 53.311
+under 286 26 4.045 25.5 29.567 33.040 33.691
+against 557 26 4.028 21.2 53.540 58.885 31.892
+for 2678 22 3.988 22.6 58.135 58.839 39.809
+by 3348 18 3.929 13.6 62.618 60.854 61.152
+on 3579 22 3.877 18.1 61.011 57.671 60.838
+at 2685 21 3.790 21.2 61.814 58.501 57.630
+in 6071 18 3.717 18.7 54.253 49.953 53.880
+as 1123 17 3.346 27.1 53.585 47.186 42.722
+to 4741 17 3.225 36.6 71.963 77.751 72.448
+behind 254 13 3.222 22.8 47.560 41.045 43.519
+over 1157 16 3.190 27.8 47.911 48.548 50.337
+after 349 16 2.837 45.8 62.230 65.395 61.944
+around 772 15 2.829 45.1 52.463 52.582 49.357
+from 3251 14 2.710 51.2 73.268 71.934 75.423
+round 389 12 2.633 34.7 46.531 50.733 49.393
+into 1923 14 2.208 62.9 79.175 77.366 80.846
+during 242 10 2.004 63.6 71.067 75.200 68.233
+like 570 9 1.938 62.3 82.554 79.784 85.666
+through 1358 10 1.905 66.0 77.800 77.798 79.963
+up 745 10 1.880 60.3 76.328 76.328 74.869
+off 647 9 1.830 63.8 90.545 86.854 90.423
+out 966 8 1.773 60.7 77.383 79.722 78.671
+across 894 11 1.763 67.6 80.291 80.095 80.099
+towards 673 10 1.754 67.9 65.681 71.171 65.517
+down 965 7 1.600 63.2 81.256 81.466 79.141
+along 723 9 1.597 72.5 87.281 86.862 86.590
+about 1894 8 1.488 72.2 83.214 76.663 83.899
+back 405 7 1.462 64.7 88.103 91.149 86.183
+past 275 9 1.268 78.9 85.683 86.423 85.573
+Mean 1727.9 14.8 2.762 43.8 67.813 67.453 65.966
+relation, target〉). For example, using AltaVista’s Boolean search,
+8
+this can be done via
+“source NEARtarget.”
+Unfortunately, this technique would require detailed post-processing of the Web
+search results, possibly including parsing, in order to extract the patterns. As an ex-
+pedient, common prepositions
+9
+are included in a series of proximity searches to ﬁnd
+8 AltaVista’sBooleansearchisavailableatwww.altavista.com/sites/search/adv.
+9 Thecommonprepositionsaredeterminedfromtheprepositionalphrasesassignedfunctional
+annotationsinthePennTreebank(Marcusetal.1994).
+173
+ComputationalLinguistics Volume35,Number2
+theprepositionoccurringmostfrequentlywiththegiventerms.Forinstance,giventhe
+relationship〈drying,is-function-of,drier〉,thefollowingsearcheswouldbeperformed.
+(11) drying NEARdrier NEARin
+drying NEARdrier NEARto
+...
+drying NEARdrier NEAR“around”
+Toaccountforprepositionsthatoccurfrequently(e.g.,of),pointwisemutualinfor-
+mation(MI)statistics(ManningandSch¨utze1999,pages66–68)areusedinplaceofthe
+rawfrequencywhenratingthepotentialmarkers.Thesearecalculatedasfollows:
+MI
+prep
+=log
+2
+P(X,Y)
+P(X)×P(Y)
+≈log
+2
+f(sourceNEARtarget NEARprep)
+f(sourceNEARtarget)×f(prep)
+(2)
+Such checks are done for the 25 most common prepositions to ﬁnd the preposition
+yieldingthehighestmutualinformationscore.Forexample,thetopthreemarkersfor
+the 〈drying,is-function-of,drier〉 relationshipbasedonthismetricareduring,after,and
+with.
+3.4.2 Method
+for Classifying Functional Relations. Given the functional relationships in
+Factotum along with the inferred relation markers, machine-learning algorithms can
+be used to infer what relation most likely applies to terms occurring together with a
+particular marker. Note that the main purpose of including the relation markers is to
+provide clues for the particular type of relation. Because the source term and target
+terms might occur in other relationships, associations based on them alone might not
+be as accurate. In addition, the inclusion of these clue words (e.g., the prepositions)
+makes the task closer to what would be done in inferring the relations from free text.
+The task thus approximates preposition disambiguation, using the Factotum relations
+assenses.
+Figure 5 gives the feature settings used in the experiments. This is a version of
+thefeaturesetusedinthePTBandFrameNetexperiments(seeFigure4),simpliﬁedto
+accountforthelackofsententialcontext.Figure6containssamplefeaturespeciﬁcations
+from the experiments discussed in the next section. The top part shows the original
+relationships from Factotum; the ﬁrst example indicates thatconnaturalizecausessimi-
+larity. Also included is the most likely relation marker inferred for each instance. This
+showsthat“n/a”isusedwheneveraprepositionforaparticularrelationshipcannotbe
+inferred.Thishappensintheﬁrstexamplebecauseconnaturalizeisarareterm.
+TheremainingpartsofFigure6illustratethefeaturevaluesthatwouldbederived
+forthethreedifferentexperimentconﬁgurations,basedontheinclusionofwordand/or
+hypernym collocations. In each case, the classiﬁcation variable is given by relation.
+For brevity, the feature speciﬁcation only includes collocation features for the most
+frequent relations. Sample collocations are also shown for the relations (e.g., vulgar-
+ity for is-caused-by). In the word collocation case, the occurrence of similarity is used
+to determine that the is-caused-by feature (WC
+1
+) should be positive (i.e., “1”) for the
+ﬁrst two instances. Note that there is no corresponding hypernym collocation due to
+conditional probability ﬁltering. In addition, although new is not included as a word
+collocation, one of its hypernyms, namely Adj:early#2, is used to determine that the
+has-consequencefeature(HC
+3
+)shouldbepositiveinthelastinstance.
+174
+O’HaraandWiebe ExploitingResourcesforPrepositionDisambiguation
+Context:
+Sourceandtargettermsfromrelationship(〈source,relation,target〉)
+Features:
+POS
+source
+: part-of-speechofthesourceterm
+POS
+target
+: part-of-speechofthetargetterm
+Prep: prepositionservingasrelationmarker(“n/a”ifnotinferable)
+WordColl
+r
+: 1iffcontextcontainsanywordcollocationforrelationr
+HypernymColl
+r
+: 1iffcontextcontainsanyhypernymcollocationforrelationr
+Collocationselection:
+Frequency: f(word) > 1
+Relativepercentchange: (P(C|coll)−P(C))/P(C) ≥ .20
+Organization: per-class-binarygrouping
+Modelselection:
+DecisiontreeusingWeka’sJ4.8classiﬁer(WittenandFrank1999)
+Figure5
+FeaturesusedinFactotumroleclassiﬁcationexperiments.SimpliﬁedversionofFigure4:Context
+onlyconsistsofthesourceandtargetterms.
+3.4.3 Results. To make the task more similar to the PTB and FrameNet cases covered
+previously, only the functional relations in Factotum are used. These are determined
+by removing the hierarchical relations (e.g., has-subtype and has-part) along with the
+attribute relations (e.g., is-property-of). In addition, in cases where there are inverse
+functions (e.g.,causesandis-caused-by), the most frequently occurring relation of each
+inversepairisused.Thisisdonebecausetherelationmarkerinferenceapproachdoes
+not account for argument order. The boldface relations in the listing shown earlier in
+Table5arethoseusedintheexperiment.Onlysingle-wordsourceandtargettermsare
+consideredtosimplifytheWordNethypernymlookup(i.e.,nophrasals).Theresulting
+data set has 5,959 training instances. The data set also includes the inferred relation
+markers(e.g.,oneprepositionpertraininginstance),thusintroducingsomenoise.
+Figure 6 includes a few examples from this data set. This shows that the original
+relationship 〈similarity, is-caused-by,rhyme〉 from Factotum is augmented with the
+by marker prior to classiﬁcation. Again, these markers are inferred via Web searches
+involvingthetermsfromtheoriginalrelationship.
+Table18showstheresultsoftheclassiﬁcation.Thecombineduseofbothcollocation
+types achieves the best overall accuracy at 71.2%, which is good considering that the
+baselineofalwayschoosingthemostcommonrelation(is-caused-by)is24.2%.Thiscom-
+bination generalizes well by using hypernym collocations, while retaining speciﬁcity
+via word collocations. The classiﬁcation task is difﬁcult, as suggested by the number
+of classes, entropy, and baseline values all being comparable to the ﬁltered FrameNet
+experiment(seeTable16).
+3.5CommonRelationInventoryClassiﬁcationExperiments
+The last set of experiments investigate preposition disambiguation using FrameNet
+mapped into a reduced semantic role inventory. For the application to lexical acqui-
+sition,thesemanticroleannotationsareconvertedintothecommonrelationinventory
+discussedinSection2.5.ToapplythecommoninventorytotheFrameNetdata,anno-
+tations using the 641 FrameNet relations (see Table 2) need to be mapped into those
+175
+ComputationalLinguistics Volume35,Number2
+RelationshipsfromFactotumwithinferredmarkers:
+Relationship Marker
+〈similarity,is-caused-by,connaturalize〉 n/a
+〈similarity,is-caused-by,rhyme〉 by
+〈approximate,has-consequence,imprecise〉 because
+〈new,has-consequence,patented〉 with
+Wordcollocationsonly:
+Relation POS
+s
+POS
+t
+Prep WC
+1
+WC
+2
+WC
+3
+WC
+4
+WC
+5
+WC
+6
+WC
+7
+is-caused-by NVBn/a1000000
+is-caused-by NN NN by 1 0 0 0 0 0 0
+has-consequence NN JJ because 0 0 0 0 0 0 0
+has-consequence JJ VBN with 0 0 0 0 0 0 0
+Samplecollocations:
+is-caused-by {bitterness,evildoing,monochrome,similarity,vulgarity}
+has-consequence {abrogate,frequently,insufﬁciency,nonplus,ornament}
+Hypernymcollocationsonly:
+Relation POS
+s
+POS
+t
+Prep HC
+1
+HC
+2
+HC
+3
+HC
+4
+HC
+5
+HC
+6
+HC
+7
+is-caused-by NVBn/a0000000
+is-caused-by NN by 0000000
+has-consequenceN Jbecause0000000
+has-consequenceJVBNwith0010000
+Samplecollocations:
+is-caused-by {N:hostility#3,N:inelegance#1,N:humorist#1}
+has-consequence {V:abolish#1,Adj:early#2,N:inability#1,V:write#2}
+Bothcollocations:
+Relation POS
+s
+POS
+t
+Prep WC
+1
+... WC
+7
+HC
+1
+HC
+2
+HC
+3
+...
+is-caused-by NN VB n/a 1 ... 0 0 0 0 ...
+is-caused-by NN NN by 1 ... 0 0 0 0 ...
+has-consequence NN JJ because 0 ... 0 0 0 0 ...
+has-consequence JJ VBN with 0 ... 0 0 0 1 ...
+Legend:
+POS
+s
+& POS
+t
+arethepartsofspeechforthesourceandtargetterms;and
+WC
+r
+& HC
+r
+arethewordandhypernymcollocationsasfollows:
+1.is-caused-by 2.is-function-of 3.has-consequence 4.has-result
+5.is-caused-by
+mental
+6.is-performed-by 7.uses
+Figure6
+SamplefeaturespeciﬁcationsforFactotumexperiments.EachrelationshipfromFactotumis
+augmentedwithonerelationalmarkerinferredviaWebsearches,asshownattopofﬁgure.
+Threedistinctsetsoffeaturevectorsareshownbasedonthetypeofcollocationincluded,
+omittingfeaturesforlow-frequencyrelations.
+176
+O’HaraandWiebe ExploitingResourcesforPrepositionDisambiguation
+Table18
+FunctionalrelationclassiﬁcationoverFactotum.Thisusestherelationalsourceandtargetterms
+withinferredprepositions.Theaccuracyﬁguresareaveragesbasedon10-foldcrossvalidation.
+Thegaininaccuracyforthecombinedexperimentversusthewordexperimentisstatistically
+signiﬁcantatp<.01(viaapairedt-test).
+Experiment Accuracy STDEV
+WordCollocationsOnly 68.4 1.28
+HypernymCollocationsOnly 53.9 1.66
+BothCollocations 71.2 1.78
+DataSetCharacteristics
+#Instances: 5,959
+#Classes: 21
+Entropy: 3.504
+Baseline: 24.2
+using the 26 common relations shown in Table 8. Results for the classiﬁcation of the
+FrameNet data mapped into the common inventory are shown in Table 19. As can
+be seen, the performance is well above that of the full classiﬁcation over FrameNet
+without ﬁltering (see Table 15). Although the low-frequency role ﬁltering yields the
+highest performance (see Table 16), this comes at the expense of having half of the
+training instances discarded. Corpus annotations are a costly resource, so such waste
+is undesirable. Table 19 also shows the per-class statistics, indicating that the means,
+direction,andpartrolesarehandledpoorlybytheclassiﬁer.Thelattertwoareduetothe
+relatively small training examples for the roles in question, which can be addressed
+partly by reﬁning the mapping from FrameNet. However, problems classifying the
+means role occur with all classiﬁers discussed in this article, suggesting that that role
+istoosubtletobeclassiﬁedwiththefeaturesetcurrentlyused.
+TheresultsinTable19alsoillustratethatthereduced,common-roleinventoryhas
+anadditionaladvantageofimprovingperformanceintheclassiﬁcation,comparedtoa
+cascadedapproach.ThisoccursbecauseseveralofthemiscellaneousrolesinFrameNet
+coversubtledistinctions thatarenotrelevant fordeﬁnitionanalysis(e.g.,cognizerand
+addressee).Thecommoninventorythereforestrikesabalancebetweentheoverlygeneral
+roles in PTB, which are easy to classify, and the overly specialized roles in FrameNet,
+whicharequitedifﬁculttoclassify.Nonetheless,acertaindegreeofclassiﬁcationdifﬁ-
+culty is inevitable in order for the inventory to provide adequate coverage of the dif-
+ferentdistinctionspresentindictionarydeﬁnitions.Notethat,byusingtheannotations
+fromPTBandFrameNet,theendresultisageneral-purposeclassiﬁer,notonetiedinto
+dictionarytext.Thus,itisusefulforothertasksbesidesdeﬁnitionanalysis.
+This classiﬁer was used to disambiguate prepositions in the lexical acquisition
+systemwedevelopedatNMSU(O’Hara2005).Evaluationoftheresultingdistinctions
+was performed by having the output of the system rated by human judges. Manu-
+ally corrected results were also evaluated by the same judges. The overall ratings are
+nothighinbothcases,suggestingthatsomeofthedistinctionsbeingmadearesubtle.
+For instance, for “counterintelligence achieved by deleting any information of value”
+from the deﬁnition of censoring, means is the preferred role for by, but manner is ac-
+ceptable.Likewise,characteristicisthepreferredroleforof,butcategoryisinterpretable.
+Thus, the judges differed considerably on these cases. However, as the ratings for
+the uncorrected output were close to those for the corrected output, the approach is
+promisingtouseforlexicalacquisition.Ifdesired,theper-roleaccuracyresultsshown
+inTable19couldbeincorporatedasconﬁdencevaluesassignedtoparticularrelation-
+ships extracted from deﬁnitions (e.g., 81% for those with source but only 21% when
+meansused).
+177
+ComputationalLinguistics Volume35,Number2
+4.RelatedWork
+The main contribution of this article concerns the classiﬁcation methodology (rather
+than the inventories for semantic roles), so we will only review other work related
+to this aspect. First, we discuss similar work involving hypernyms. Then, we address
+prepositionclassiﬁcationproper.
+Scott and Matwin (1998) use WordNet hypernyms for text classiﬁcation. They
+include a numeric density feature for any synset that subsumes words appearing in
+the document, potentially yielding hundreds of features. In contrast, the hypernym
+collocationsdiscussedinSection3.1.1involveabinaryfeatureforeachoftherelations
+beingclassiﬁed,usingindicativesynsetsbasedontheconditionalprobabilitytest.This
+test alleviates the need for their maximum height parameter to avoid overly general
+hypernyms. Their approach, as well as ours, considers all senses of a word, distrib-
+uting the alternative readings throughout the set of features. In comparison, Gildea
+Table19
+Resultsforprepositiondisambiguationwithcommonroles.TheFrameNetannotationsaremapped
+intothecommoninventoryfromTable8.Entropymeasuresdatasetuniformity,andBaseline
+selectsmostcommonrole.Detailedper-classstatisticsarealsoincluded,averagedoverthe
+10folds.
+Experiment Accuracy STDEV
+WordCollocationsOnly 62.9 0.345
+HypernymCollocationsOnly 62.6 0.487
+BothCollocations 63.1 0.639
+DataSetCharacteristics
+#Instances: 59,615
+#Classes: 24
+Entropy: 4.191
+Baseline: 12.2
+WordOnly HypernymOnly Both
+Class Prec. Rec. F Prec. Rec. F Prec. Rec. F
+accompaniment .630 .611 .619 .671 .605 .636 .628 .625 .626
+agent .623 .720 .667 .639 .726 .677 .616 .731 .668
+area .546 .475 .508 .541 .490 .514 .545 .501 .522
+category .694 .706 .699 .695 .700 .697 .714 .718 .716
+cause .554 .493 .521 .569 .498 .531 .540 .482 .509
+characteristic .595 .468 .523 .607 .474 .530 .584 .490 .532
+context .569 .404 .472 .577 .388 .463 .568 .423 .485
+direction .695 .171 .272 .701 .189 .294 .605 .169 .260
+duration .601 .465 .522 .589 .445 .503 .596 .429 .497
+experiencer .623 .354 .449 .606 .342 .435 .640 .378 .474
+goal .664 .683 .673 .662 .674 .668 .657 .680 .668
+instrument .406 .339 .367 .393 .337 .360 .405 .370 .385
+location .433 .557 .487 .427 .557 .483 .417 .553 .475
+manner .493 .489 .490 .483 .478 .479 .490 .481 .485
+means .235 .183 .205 .250 .183 .210 .254 .184 .212
+medium .519 .306 .382 .559 .328 .412 .529 .330 .403
+part .539 .289 .368 .582 .236 .323 .526 .301 .380
+path .705 .810 .753 .712 .813 .759 .706 .795 .748
+product .837 .750 .785 .868 .739 .788 .769 .783 .770
+recipient .661 .486 .559 .661 .493 .563 .642 .482 .549
+resource .613 .471 .530 .614 .458 .524 .618 .479 .539
+source .703 .936 .802 .697 .936 .799 .707 .937 .806
+theme .545 .660 .596 .511 .661 .576 .567 .637 .600
+time .619 .624 .621 .626 .612 .619 .628 .611 .619
+178
+O’HaraandWiebe ExploitingResourcesforPrepositionDisambiguation
+and Jurafsky (2002) instead just select the ﬁrst sense for their hypernym features for
+relationclassiﬁcation.Theyreportmarginalimprovementsusingthefeatures,whereas
+conﬁgurations with hypernym collocations usually perform best in our preposition
+disambiguationexperiments.
+Mohit and Narayanan (2003) use WordNet hypernyms to generalize patterns for
+information extraction inferred from FrameNet annotations by distributing support
+fromtermsco-occurringinannotationsforframeelementstothetermsforhypernyms.
+However,theydonotincorporateaﬁlteringstage,aswithourconditionalprobability
+test.Mihalcea(2002)showshowhypernyminformationcanbeusefulinderivingclues
+for unsupervised WSD. Patterns for co-occurring words of a given sense are induced
+fromsense-taggedcorpora.Eachpatternspeciﬁestemplatesfortheco-occurringwords
+in the immediate context window of the target word, as well as their corresponding
+synsets if known (e.g., sense tagged or unambiguous), and similarly the hypernym
+synsets if known. To disambiguate a word, the patterns for each of its senses are
+evaluatedinthecontext,andthesensewiththemostsupportischosen.
+Theworkhereaddressesrelationdisambiguationspeciﬁcallywithrespecttothose
+indicatedbyprepositionalphrases(i.e.,prepositionword-sensedisambiguation).Until
+recently, there has been little work on general-purpose preposition disambiguation.
+Litkowski (2002) and Srihari, Niu, and Li (2001) present approaches using manually
+derivedrules.Bothapproachesaccountforonlyahandfulofprepositions;incontrast,
+for FrameNet we disambiguate 32 prepositions via individual classiﬁers and over 100
+prepositionsviathecombinedclassiﬁer.LiuandSoo(1993)presentaheuristicapproach
+forrelationdisambiguationrelyinguponsyntacticcluesaswellasoccurrenceofspeciﬁc
+prepositions.Theyassignrolestoconstituentsofasentencefromcorpusdataprovided
+that sufﬁcient instances are available. Otherwise, a human trainer is used to answer
+questionsneededbythesystemfortheassignment.Theyreportan86%accuracyrate
+for the assignment of roles to verbal arguments in about 5,000 processed sentences.
+Alam (2004) sketches out how the preposition over might be disambiguated into one
+ofadozenrolesusingfeaturesbasedontheheadandcomplement,suchaswhetherthe
+headisamovementverborwhetherthecomplementreferstoaduration.Thesefeatures
+formthebasisforamanually-constructeddecisiontree,whichisinterpretedbyhandin
+anevaluationoversentencesfromtheBritishNationalCorpus(BNC),givingaprecision
+of 93.5%. Boonthum, Toida, and Levinstein (2006), building upon the work of Alam,
+show how WordNet can be used to automate the determination of similar head and
+complementproperties.Forexample,ifboththeheadandcomplementrefertopeople,
+with should be interpreted as accompaniment. These features form the basis for a
+disambiguationsystemusingmanuallyconstructedrulesaccountingfortencommonly
+occurring prepositions. They report a precision of 79% with a recall of 76% over an
+inventoryofsevenrolesinaposthocevaluationthatallowsforpartialcorrectness.
+Therehavebeenafewmachine-learningapproachesthataremoresimilartotheap-
+proachusedhere.GildeaandJurafsky(2002)performrelationdisambiguationusingthe
+FrameNetannotationsastrainingdata.Theyincludelexicalfeaturesfortheheadword
+of the phrase and the predicating word for the entire annotated frame (e.g., the verb
+corresponding to the frame under which the annotations are grouped). They also use
+severalfeaturesderivedfromtheoutputofaparser,suchastheconstituenttypeofthe
+phrase(e.g.,NP),thegrammaticalfunction(e.g.,subject),andapathfeaturelistingpart-
+of-speechtagsfromthetargetwordtothephrasebeingtagged.Theyreportanaccuracy
+of 78.5% with a baseline of 40.6% over the FrameNet semantic roles. However, by
+conditioningtheclassiﬁcationonthepredicatingword,therangeofrolesforaparticular
+classiﬁcationinstanceismorelimitedthanintheexperimentspresentedinthisarticle.
+179
+ComputationalLinguistics Volume35,Number2
+BlahetaandCharniak(2000)usethePTBannotationsforrelationdisambiguation.They
+useafewparser-derived features,suchastheconstituentlabelsfornearbynodesand
+part-of-speechforparentandgrandparentnodes.Theyalsoincludelexicalfeaturesfor
+theheadandalternativehead(becauseprepositionsareconsideredastheheadbytheir
+parser).Astheirclassiﬁertagsalladjuncts,theyincludethenominalandadverbialroles,
+which are syntactic and more predictable than the roles occurring with prepositional
+phrases.
+Therehavebeenrecentworkshopsfeaturingcompetitionsforsemanticroletagging
+(Carreras and M`arquez 2004, 2005; Litkowski 2004). A common approach is to tag all
+the semantic roles in a sentence at the same time to account for dependencies, such
+asviaHiddenMarkovModels.TotakeadvantageofaccurateSupportVectorMachine
+classiﬁcation,Pradhanetal.(2005)insteaduseapostprocessingphrasebasedontrigram
+modelsofroles.Theirsystemincorporatesalargevarietyoffeatures,buildinguponsev-
+eral different preceding approaches, such as including extensions to the path features
+fromGildeaandJurafsky(2002).Theirlexicalfeaturesincludethepredicaterootword,
+headwordsforthesentenceconstituentsandPPs,aswellastheirﬁrstandlastwords.
+Koomenetal.(2005)likewiseusealargefeatureset.Theyuseanoptimizationphaseto
+maximizesatisfactionoftheconstraintsimposedbythePropBankdataset,suchasthe
+numberofargumentsforparticularpredicates(e.g.,justtwoforstalk,arg0andarg1).
+Lastly, Ye and Baldwin (2006) show how ﬁltering can be used to constrain the
+hypernyms selected to serve as collocations, building upon our earlier work (O’Hara
+and Wiebe 2003). They report 87.7% accuracy in a setup similar to ours over PTB
+(i.e., a gain of 2 percentage points). They use a different type of collocation feature
+than ours: having a binary feature for each potential collocation rather than a single
+featureperclass.Thatis,theyuseOver-RangeBinaryratherthanPer-ClassBinary(Wiebe,
+McKeever,andBruce1998).Moreover,theyincludeseveralhundredofthesefeatures,
+ratherthanourseven(benefactivepreviouslyincluded),whichislikelythemainsource
+of improvement. Again, the per-class binary organization is a bag of words approach,
+soitworkswellonlywithalimitednumberofpotentialcollocations.Follow-upwork
+of theirs (Ye and Baldwin 2007) fared well in the recent preposition disambiguation
+competition, held as part of SemEval-2007 (Litkowski and Hargraves 2007). Thus, an
+immediate area forfuture work willbe toincorporate such improved feature sets. We
+will also investigate addressing sentential role constraints as in general semantic role
+tagging.
+5.Conclusion
+This article shows how to exploit semantic role resources for preposition disambigua-
+tion.Informationabouttwodifferenttypesofsemanticroleresourcesisprovided.The
+emphasis is on corpus-based resources providing annotations of naturally occurring
+text.ThePennTreebank(Marcusetal.1994)coversgeneralrolesforverbaladjunctsand
+FrameNet(Fillmore,Wooters,andBaker2001)includesawiderangeofdomain-speciﬁc
+roles for all verbal arguments. In addition, semantic role inventories from knowledge
+bases are investigated. Cyc (Lehmann 1996) provides ﬁne-grained role distinctions,
+Factotum(Cassidy2000)includesavarietyoffunctionalrelations,andworkinConcep-
+tual Graphs (Sowa 1999) emphasizes roles for attributes. Relations from both types of
+resourcesareconsideredwhendevelopingtheinventoryofrelationsusedfordeﬁnition
+analysis,asshowninTable8.
+The disambiguation concentrates on relations indicated by prepositional phrases,
+and is framed as word-sense disambiguation for the preposition in question. A new
+180
+O’HaraandWiebe ExploitingResourcesforPrepositionDisambiguation
+type of feature for word-sense disambiguation is introduced, using WordNet hyper-
+nymsascollocationsratherthanjustwords,asistypicallydone.Thefullfeaturesetis
+showninFigure4.VariousexperimentsoverthePTBandFrameNetdataarepresented,
+includingprepositionsclassiﬁedseparatelyversustogether,andillustratingtheeffects
+of ﬁltering. The main results in Tables 11 and 16 show that the combined use of word
+andhypernymcollocationsgenerallyachievesthebestperformance.Forrelationships
+derived from knowledge bases, the prepositions and other relational markers need to
+be inferred from corpora. A method for doing this is demonstrated using Factotum,
+withresultsshowninTable18.Inaddition,toaccountforgranularitydifferencesinthe
+semanticroleinventories,therelationsaremappedintoacommoninventorythatwas
+developed based on the inventories discussed in the article. This allows for improved
+classiﬁcation in cases where inventories provide overly specialized relations, such as
+thoseinFrameNet.ClassiﬁcationresultsareshowninTable19.
+Therecentcompetitionsonsemanticrelationlabelinghavehighlightedtheuseful-
+ness of incorporating a variety of clues for general-purpose relation disambiguation
+(Carreras and M`arquez 2005). Some of the techniques developed here for preposition
+disambiguation can likely help with relation disambiguation in general. For instance,
+there are quite a few lexical features, such as in Pradhan et al. (2005), which could be
+extendedtousesemanticclassesaswithourhypernymcollocations.Ingeneralitseems
+that, when lexical features are used in supervised machine learning, it is likely that
+correspondingclass-basedfeaturesbasedonhypernymscanbebeneﬁcialforimproved
+coverage.
+Other aspects of this approach are geared speciﬁcally to our goal of supporting
+lexical acquisition from dictionaries, which was the motivation for the emphasis on
+prepositiondisambiguation.Isolatingtheprepositionannotationsallowstheclassiﬁers
+to be more readily tailored to deﬁnition analysis, especially because predicate frames
+are not assumed as with other FrameNet relation disambiguation. Future work will
+investigate combining the general relation classiﬁers with preposition disambiguation
+classiﬁers,suchasisdoneinYeandBaldwin(2006).Futureworkwillalsoinvestigate
+improvements to the application to deﬁnition analysis. Currently, FrameNet roles are
+alwaysmappedtothesamecommoninventoryrole(e.g.,placetolocation).However,this
+shouldaccountfortheframeoftheannotationandperhapsothercontextinformation.
+Lastly, we will also look for more resources to exploit for preposition disambiguation
+(e.g.,ResearchCyc).
+Acknowledgments
+Theexperimentationforthisarticlewas
+greatlyfacilitatedthoughtheuseof
+computingresourcesatNewMexicoState
+University.Wearealsogratefulforthe
+extremelyhelpfulcommentsprovided
+bytheanonymousreviewers.
+References
+Alam,YukikoSasaki.2004.Decisiontrees
+forsensedisambiguationofprepositions:
+Caseofover.InProceedingsofthe
+ComputationalLexicalSemanticsWorkshop,
+pages52–59,Boston,MA.
+Barker,Ken.1998.Semi-AutomaticRecognition
+ofSemanticRelationshipsinEnglishTechnical
+Texts.Ph.D.thesis,Departmentof
+ComputerScience,UniversityofOttawa.
+Bies,Ann,MarkFerguson,KarenKatz,
+RobertMacIntyre,VictoriaTredinnick,
+GraceKim,MaryAnnMarcinkiewicz,
+andBrittaSchasberger.1995.Bracketing
+guidelinesforTreebankIIstyle:
+PennTreebankproject.Technical
+ReportMS-CIS-95-06,Universityof
+Pennsylvania.
+Blaheta,DonandEugeneCharniak.2000.
+Assigningfunctiontagstoparsedtext.
+InProceedingsofthe1stAnnualMeeting
+oftheNorthAmericanChapterofthe
+AmericanAssociationforComputational
+Linguistics(NAACL-2000),pages
+234–240,Seattle,WA.
+181
+ComputationalLinguistics Volume35,Number2
+Boonthum,Chutima,ShunichiToida,and
+IrwinB.Levinstein.2006.Preposition
+senses:Generalizeddisambiguation
+model.InProceedingsoftheSeventh
+InternationalConferenceonComputational
+LinguisticsandIntelligentTextProcessing
+(CICLing-2006),pages196–207,
+MexicoCity.
+Bruce,Bertram.1975.Casesystemsfor
+naturallanguage.ArtiﬁcialIntelligence,
+6:327–360.
+Bruce,RebeccaandJanyceWiebe.1999.
+Decomposablemodelinginnatural
+languageprocessing.Computational
+Linguistics,25(2):195–208.
+Carreras,XavierandLlu´ısM`arquez.2004.
+IntroductiontotheCoNLL-2004shared
+task:Semanticrolelabeling.InProceedings
+oftheEighthConferenceonNaturalLanguage
+Learning(CoNLL-2004),pages89–97,
+Boston,MA.
+Carreras,XavierandLlu´ısM`arquez.2005.
+IntroductiontotheCoNLL-2005shared
+task:Semanticrolelabeling.InProceedings
+oftheNinthConferenceonNaturalLanguage
+Learning(CoNLL-2005),pages152–164,
+AnnArbor,MI.
+Cassidy,PatrickJ.2000.Aninvestigation
+ofthesemanticrelationsintheRoget’s
+Thesaurus:Preliminaryresults.In
+ProceedingsoftheFirstInternational
+ConferenceonIntelligentTextProcessing
+andComputationalLinguistics
+(CICLing-2000),pages181–204,
+MexicoCity.
+Cruse,DavidA.1986.LexicalSemantics.
+CambridgeUniversityPress,Cambridge.
+Edmonds,PhilandScottCotton,editors.
+2001.ProceedingsoftheSenseval2Workshop.
+AssociationforComputationalLinguistics,
+Toulouse.
+Fillmore,Charles.1968.Thecaseforcase.
+InEmmonBachandRovertT.Harms,
+editors,UniversalsinLinguisticTheory.
+Holt,RinehartandWinston,NewYork,
+pages1–88.
+Fillmore,CharlesJ.,CharlesWooters,and
+CollinF.Baker.2001.Buildingalarge
+lexicaldatabankwhichprovides
+deepsemantics.InProceedingsofthe
+PaciﬁcAsianConferenceonLanguage,
+InformationandComputation,pages3–25,
+HongKong.
+Frawley,William.1992.LinguisticSemantics.
+LawrenceErlbaumAssociates,
+Hillsdale,NJ.
+Gildea,DanielandDanielJurafsky.2002.
+Automaticlabelingofsemanticroles.
+ComputationalLinguistics,28(3):245–288.
+Grozea,Cristian.2004.Findingoptimal
+parametersettingsforhighperformance
+wordsensedisambiguation.In
+Senseval-3:ThirdInternationalWorkshop
+ontheEvaluationofSystemsforthe
+SemanticAnalysisofText,pages125–128,
+Barcelona.
+Kilgarriff,Adam.1998.Senseval:Anexercise
+inevaluatingwordsensedisambiguation
+programs.InProceedingsoftheFirst
+InternationalConferenceonLanguage
+ResourcesandEvaluation(LREC’98),
+pages581–588,Granada.
+Koomen,Peter,VasinPunyakanok,Dan
+Roth,andWen-tauYih.2005.Generalized
+inferencewithmultiplesemanticrole
+labelingsystems.InProceedingsofthe
+NinthConferenceonComputationalNatural
+LanguageLearning(CoNLL),pages181–184,
+AnnArbor,MI.
+Lehmann,Fritz.1996.Bigposetsof
+participatingsandthematicroles.In
+PeterW.Eklund,GerardEllis,and
+GrahamMann,editors,Conceptual
+Structures:KnowledgeRepresentationas
+Interlingua,Springer-Verlag,Berlin,
+pages50–74.
+Lenat,DouglasB.1995.Cyc:Alarge-scale
+investmentinknowledgeinfrastructure.
+CommunicationsoftheACM,38(11):33–38.
+Litkowski,KennethC.2002.Digraph
+analysisofdictionarypreposition
+deﬁnitions.InProceedingsofthe
+SIGLEX/SENSEVALWorkshoponWord
+SenseDisambiguation:RecentSuccesses
+andFutureDirections,pages9–16,
+Philadelphia,PA.
+Litkowski,KennethC.2004.Senseval-3task:
+Automaticlabelingofsemanticroles.
+InProceedingsofSenseval-3:TheThird
+InternationalWorkshopontheEvaluationof
+SystemsfortheSemanticAnalysisofText,
+pages9–12,Barcelona.
+Litkowski,KennethC.andOrinHargraves.
+2006.CoverageandinheritanceinThe
+PrepositionProject.InThirdACL-SIGSEM
+WorkshoponPrepositions,pages37–44,
+Trento.
+Litkowski,KennethC.andOrinHargraves.
+2007.SemEval-2007task06:Word-sense
+disambiguationofprepositions.In
+ProceedingsoftheFourthInternational
+WorkshoponSemanticEvaluations
+(SemEval-2007),pages24–29,Prague.
+Liu,Rey-LongandVon-WunSoo.1993.An
+empiricalstudyonthematicknowledge
+acquisitionbasedonsyntacticcluesand
+heuristics.InProceedingsofthe31stAnnual
+MeetingoftheAssociationforComputational
+182
+O’HaraandWiebe ExploitingResourcesforPrepositionDisambiguation
+Linguistics(ACL-93),pages243–250,
+Columbus,OH.
+Manning,ChristopherD.andHinrich
+Sch¨utze.1999.FoundationsofStatistical
+NaturalLanguageProcessing.MITPress,
+Cambridge,MA.
+Marcus,Mitchell,GraceKim,MaryAnn
+Marcinkiewicz,RobertMacIntyre,
+AnnBies,MarkFerguson,KarenKatz,
+andBrittaSchasberger.1994.The
+PennTreebank:Annotatingpredicate
+argumentstructure.InProceedings
+oftheARPAHumanLanguage
+TechnologyWorkshop,pages110–115,
+Plainsboro,NJ.
+Marcus,MitchellP.,BeatriceSantorini,and
+MaryAnnMarcinkiewicz.1993.Building
+alargeannotatedcorpusofEnglish:The
+PennTreebank.ComputationalLinguistics,
+19(2):313–330.
+Mihalcea,Rada.2002.Instancebased
+learningwithautomaticfeature
+selectionappliedtowordsense
+disambiguation.InProceedingsof
+the19thInternationalConferenceon
+ComputationalLinguistics(COLING-2002),
+pages1–7,Taiwan.
+Mihalcea,Rada,TimothyChklovski,and
+AdamKilgarriff.2004.TheSenseval-3
+Englishlexicalsampletask.In
+Senseval-3:ThirdInternationalWorkshop
+ontheEvaluationofSystemsforthe
+SemanticAnalysisofText,pages25–28,
+Barcelona.
+Miller,GeorgeA.,RichardBeckwith,
+ChristianeFellbaum,DerekGross,and
+KatherineMiller.1990.WordNet:An
+on-linelexicaldatabase.International
+JournalofLexicography,3(4):Special
+IssueonWordNet.
+Miller,Katherine.1998.Modiﬁersin
+WordNet.InChristianeFellbaum,
+editor,WordNet:AnElectronicLexical
+Database.MITPress,Cambridge,MA,
+pages47–67.
+Mohit,BehrangandSriniNarayanan.
+2003.Semanticextractionwith
+wide-coveragelexicalresources.In
+CompanionVolumeoftheProceedings
+ofHLT-NAACL2003-ShortPapers,
+pages64–66,Edmonton.
+O’Hara,ThomasP.2005.Empiricalacquisition
+ofconceptualdistinctionsviadictionary
+deﬁnitions.Ph.D.thesis,Department
+ofComputerScience,NewMexico
+StateUniversity.
+O’Hara,Tom,RebeccaBruce,JeffDonner,
+andJanyceWiebe.2004.Class-based
+collocationsforword-sense
+disambiguation.InProceedingsof
+Senseval-3:TheThirdInternational
+WorkshopontheEvaluationofSystems
+fortheSemanticAnalysisofText,
+pages199–202,Barcelona.
+O’Hara,TomandJanyceWiebe.2003.
+Classifyingfunctionalrelationsin
+FactotumviaWordNethypernym
+associations.InProceedingsofthe
+FourthInternationalConferenceon
+IntelligentTextProcessingand
+ComputationalLinguistics(CICLing-2003),
+pages347–359,MexicoCity.
+OpenCyc.2002.OpenCycrelease0.6b.
+Availableatwww.opencyc.org.
+Palmer,Martha,DanGildea,andPaul
+Kingsbury.2005.ThePropositionBank:
+Acorpusannotatedwithsemanticroles.
+ComputationalLinguistics,31(1):71–106.
+Palmer,MarthaStone.1990.Semantic
+ProcessingforFiniteDomains.Cambridge
+UniversityPress,Cambridge.
+Pradhan,Sameer,KadriHacioglu,Valerie
+Krugler,WayneWard,JamesH.Martin,
+andDanielJurafsky.2005.Support
+vectorlearningforsemanticargument
+classiﬁcation.MachineLearning,
+60(1–3):11–39.
+Quinlan,J.Ross.1993.C4.5:Programsfor
+MachineLearning.MorganKaufmann,
+SanMateo,CA.
+Scott,SamandStanMatwin.1998.Text
+classiﬁcationusingWordNethypernyms.
+InProceedingsoftheCOLING/ACL
+WorkshoponUsageofWordNetinNatural
+LanguageProcessingSystems,pages38–44,
+Montreal.
+Somers,HaroldL.1987.ValencyandCasein
+ComputationalLinguistics.Edinburgh
+UniversityPress,Scotland.
+Sowa,JohnF.1984.ConceptualStructuresin
+MindandMachines.Addison-Wesley,
+Reading,MA.
+Sowa,JohnF.1999.KnowledgeRepresentation:
+Logical,Philosophical,andComputational
+Foundations.BrooksColePublishing,
+PaciﬁcGrove,CA.
+Srihari,Rohini,ChengNiu,andWeiLi.
+2001.Ahybridapproachfornamed
+entityandsub-typetagging.In
+Proceedingsofthe6thAppliedNatural
+LanguageProcessingConference,
+pages247–254,Seattle.
+Wiebe,Janyce,KennethMcKeever,and
+RebeccaF.Bruce.1998.Mapping
+collocationalpropertiesintomachine
+learningfeatures.InProceedingsofthe
+6thWorkshoponVeryLargeCorpora
+(WVLC-98),pages225–233,Montreal.
+183
+ComputationalLinguistics Volume35,Number2
+Wilks,Yorick,BrianM.Slator,andLouise
+Guthrie.1996.ElectricWords.MITPress,
+Cambridge,MA.
+Witten,IanH.andEibeFrank.1999.
+DataMining:PracticalMachine
+LearningToolsandTechniqueswithJava
+Implementations.MorganKaufmann,
+SanFrancisco,CA.
+Ye,PatrickandTimothyBaldwin.2006.
+Semanticrolelabelingofprepositional
+phrases.ACMTransactionsonAsian
+LanguageInformationProcessing(TALIP),
+5(3):228–244.
+Ye,PatrickandTimothyBaldwin.
+2007.MELB-YB:Prepositionsense
+disambiguationusingrichsemantic
+features.InProceedingsoftheFourth
+InternationalWorkshoponSemantic
+Evaluations(SemEval-2007),
+pages241–244,Prague.
+184
+This article has been cited by:
+1.Timothy Baldwin, Valia Kordoni, Aline Villavicencio. 2009. Prepositions in Applications:
+A Survey and Introduction to the Special IssuePrepositions in Applications: A Survey and
+Introduction to the Special Issue. Computational Linguistics 35:2, 119-149. [Citation] [PDF]
+[PDF Plus]
+

@@ -1,0 +1,971 @@
+XFST2FSA: Comparing Two Finite-State Toolboxes
+Yael Cohen-Sygal
+Department of Computer Science
+University of Haifa
+a0a2a1a4a3a6a5a8a7a10a9a11a7a4a12a14a13a16a15a17a1a11a18a20a19a6a1a21a13a22a1a17a7a14a13a23a18a24a5
+Shuly Wintner
+Department of Computer Science
+University of Haifa
+a12a20a15a4a25a26a5a10a0a8a9a11a7a4a12a14a13a16a15a17a1a11a18a20a19a6a1a21a13a22a1a17a7a14a13a23a18a24a5
+Abstract
+This paper introduces xfst2fsa, a compiler
+which translates grammars expressed in
+the syntax of the XFST  nite-state tool-
+box to grammars in the language of the
+FSA Utilities package. Compilation to
+FSA facilitates the use of grammars de-
+veloped with the proprietary XFST tool-
+box on a publicly available platform. The
+paper describes the non-trivial issues of
+the compilation process, highlighting sev-
+eral shortcomings of some published algo-
+rithms, especially where replace rules are
+concerned. The compiler augments FSA
+with most of the operators supported by
+XFST. Furthermore, it provides a means
+for comparing the two systems on compa-
+rable grammars. The paper presents the
+results of such a comparison.
+1 Introduction
+Finite-state technology is widely considered to be
+the appropriate means for describing the phonolog-
+ical and morphological phenomena of natural lan-
+guages since the pioneering works of Koskenniemi
+(1983) and Kaplan and Kay (1994). Finite state
+technology has some important advantages, making
+it most appealing for implementing natural language
+morphology. One can  nd it very hard, almost im-
+possible, to build the full automaton or transducer
+describing some morphological phenomena. This
+dif culty arises from the fact that there are a great
+number of morpho-phonological processes combin-
+ing together to create the full language. However, it
+is usually very easy to build a  nite state machine
+to describe a speci c morphological phenomenon.
+The closure properties of regular languages make
+it most convenient to implement each phenomenon
+independently and combine them together. More-
+over,  nite state techniques have the advantage of
+being ef cient in their time and space complexity,
+as the membership problem is solvable in time lin-
+ear in the length of the input. Furthermore, there are
+known algorithms for minimizing and determinizing
+automata and some restricted kinds of transducers.
+Several  nite state toolboxes (software packages)
+provide extended regular expression description lan-
+guages and compilers of the expressions to  nite
+state devices, automata and transducers (Karttunen
+et al., 1996; Beesley and Karttunen, 2003; Mohri,
+1996; van Noord and Gerdemann, 2001a; van No-
+ord and Gerdemann, 2001b). Such toolboxes typ-
+ically include a language for extended regular ex-
+pressions and a compiler from regular expressions
+to  nite-state devices (automata and transducers).
+These toolboxes also include ef cient implementa-
+tions of several standard algorithms on  nite state
+machines, such as union, intersection, minimiza-
+tion, determinization etc. More importantly, they
+also implement special operators that are useful for
+linguistic description, such as replacement (Kaplan
+and Kay, 1994; Mohri and Sproat, 1996; Karttunen,
+1997; Gerdemann and van Noord, 1999) or predi-
+cates over alphabet symbols (van Noord and Gerde-
+mann, 2001a; van Noord and Gerdemann, 2001b),
+and even operators for particular linguistic theories
+such as Optimality Theory (Karttunen, 1998; Gerde-
+mann and van Noord, 2000). Unfortunately, there
+are no standards for the syntax of extended regular
+expression languages and switching from one tool-
+box to another is a non-trivial task.
+This work focuses on two toolboxes, XFST
+(Beesley and Karttunen, 2003) and FSA Utilities
+(van Noord, 2000). Both are powerful tools for spec-
+ifying and manipulating  nite state machines (ac-
+ceptors and transducers) using extended regular ex-
+pression languages. In addition to the standard oper-
+ators, XFST also provides advanced operators such
+as replacement, markup, and restriction (Karttunen,
+1995; Karttunen, 1996; Karttunen, 1997; Karttunen
+and Kempe, 1995), and advanced methods such as
+compile-replace and  ag-diacritics. FSA, on the
+other hand, supports weighted  nite state machines
+and provides visualization of  nite state networks.
+In addition, FSA is built over Prolog, allowing the
+additional usage of Prolog predicates. A  rst signi -
+cant difference between the two packages is the wide
+variety of operators that XFST provides in compar-
+ison to FSA. However, FSA has the clear advantage
+of being a free, open source package, whereas XFST
+is proprietary.
+This paper describes xfst2fsa, a compiler which
+translates XFST grammars to grammars in the lan-
+guage of the FSA Utilities package.1 There is a
+strong parallelism between the languages, but cer-
+tain constructs are harder to translate and require
+more innovation. In particular, all the replace op-
+erators that XFST provides do not exist in FSA and
+had to be re-implemented. In this work we relate
+only to the core of the  nite state calculus  nacurrency1 ve
+automata and transducers. We do not deal with ex-
+tended features such as the weighted networks of
+FSA or with advanced methods such as Prolog ca-
+pabilities in FSA and compile replace and  ag dia-
+critics in XFST.
+The contribution of this work is manifold. Our
+main motivation is to facilitate the use of grammars
+developed with XFST on publicly available systems.
+Furthermore, this work gives a closer insight into the
+theoretical algorithms which XFST is based on. We
+show that the algorithms published in the literature
+are incomplete and require re nement in order to be
+correct for all inputs. Moreover, our compiler en-
+riches FSA with implementations of several replace
+rules, thereby scaling up the system and improving
+1The system and the source code are available for download
+from http://cl.haifa.ac.il/projects/fstfsa/index.shtml
+its expressivity. Finally, this work offers an inves-
+tigation of two similar, but different systems: the
+compiler facilitates a comparison of the two systems
+on very similar benchmarks.
+2 The
+xfst2fsa compiler
+Compilation of a given XFST grammar into an
+equivalent FSA code is done in two main stages:
+ rst, the XFST grammar is parsed, and a tree rep-
+resenting its syntax is created. Then, by traversing
+the tree, the equivalent FSA grammar is generated.
+In order to parse XFST grammars, a speci ca-
+tion of the XFST syntax is required. Unfortunately,
+we were unable to obtain a formal speci cation
+and we resorted to reconstructing it from available
+documentation (Beesley and Karttunen, 2003).This
+turned out to be a minor inconvenience; a more ma-
+jor obstacle was the semantics of XFST expressions,
+especially those involving advanced operators such
+as replace rules, markup and restriction. We exem-
+plify in this section some of these issues.
+XFST operators can be divided into three groups
+with respect to their FSA equivalence: those which
+have an equivalent operator in FSA, those which do
+not but can be easily constructed from basic FSA op-
+erators, and those whose constructions is more com-
+plicated. In what follows we refer to operators of
+the  rst two groups as basic operators. Figure 1 dis-
+plays a comparison table of some basic operators in
+XFST and FSA.2 For example, consider the XFST
+operator a27a29a28a31a30 ( contains at most one ). This opera-
+tor is not provided by FSA but can be constructed as
+a32
+a27a20a30a34a33a34a35a31a36a31a37a8a38a40a39a24a41a43a42a8a44a16a30a46a45a47a30a49a48a50a45a51a28a49a52a24a53a54a45a55a28a49a52a56a33a57a27a40a30a24a58 . It is now
+provided by FSA in our publicly available package
+of extended FSA operators. The same holds for
+XFST operators such as a30a14a59a47a60a46a59a16a61 (internally ignore),
+a27a46a59a16a30 (contains one) etc. As another example con-
+sider the XFST operator a62 (n-ary concatenation). It
+does not have an equivalent operator in FSA, but it
+can be simply constructed in FSA by explicitly ex-
+pressing the concatenation as many times as needed.
+Thus, the XFST regular expression a44a64a63a29a52a50a65a67a66a54a62a69a68a10a48 is
+translated into the equivalent FSA regular expres-
+sion a32 a63a24a52a70a45a29a44a71a66a72a45a73a66a72a45a73a66a4a48a29a58 . Similar techniques are used
+for other basic XFST operators such as a30a17a62a75a74a76a37 (more
+2The complete list of XFST operators and the way they
+where translated into FSA can be found in Appendix A.
+than n concatenations of A), a30a17a62 a32 a37a14a45a64a77a8a58 (n to k con-
+catenations of A) etc.
+Another minor issue is the different operator
+precedence in XFST and FSA. This problem was
+solved by bracketing each translated operator in
+XFST with ‘( )’ to force the correct precedence.
+Special care is needed in order to deal with XFST
+operators of the third group, e.g., all the replace,
+markup and restriction rules in XFST. These rules
+do not have any equivalents in FSA, and hence the
+only way to use them in FSA is to implement them
+from scratch. This was done using the existing
+documentation (Karttunen, 1995; Karttunen, 1996;
+Karttunen, 1997; Karttunen and Kempe, 1995) on
+the construction of these operators from the basic
+ones. However, not all the operators are fully doc-
+umented and in some cases some innovation was
+needed. As an example, consider the XFST opera-
+tor a30a49a78a24a79a49a33a31a61 (obligatory, lower to upper, left to right,
+longest match replacement). To the best of our
+knowledge, this operator is not documented. How-
+ever, by Karttunen (1995), the operator a30a29a79a49a33a31a61 (oblig-
+atory, lower to upper replacement ) is de ned as
+a44a73a61a29a33a49a74a20a30a49a48a14a59a22a35 (where a61a4a33a10a74a40a30 is the obligatory, upper to
+lower replacement of the language B by the lan-
+guage A). We then concluded that a30a24a78a24a79a10a33a20a61 is con-
+structed as a44a80a61a29a78a49a33a49a74a40a30a10a48a14a59a22a35 (where a44a73a61a24a78a24a33a49a74a20a30a49a48 is the oblig-
+atory, upper to lower, left to right, longest match re-
+placement of the language B by the language A) and
+from Karttunen (1996) the construction of the oper-
+ator a61a29a78a24a33a10a74a40a30 is known.
+For some of the documented operators, we found
+that the published algorithms are erroneous in
+some special cases. Consider the replace operator
+a30a29a33a10a74a20a61a81a65a10a65a83a82a85a84a87a86 (conditional replacement of the
+language A by the language B, in the context of
+L on the left and R on the right side, where both
+contexts are on the upper side). In Karttunen (1997;
+1995), a detailed description of the construction of
+this operator is given. In addition, Karttunen (1997)
+discusses some boundary cases, such as the case
+in which the language A contains the empty string.
+We discovered that there are some cases which are
+not discussed as boundary ones in Karttunen (1997)
+and for which the standard algorithm in Karttunen
+(1997; 1995) does not produce the expected result
+by the de nition of the operator denotation. One
+such case is a rule of the form a30a29a33a10a74a20a61a88a65a10a65a89a84a90a28 , where
+A and B are some regular expressions denoting
+languages. This rule states that any member of the
+language A on the upper side is replaced by all
+members of the language B on the lower side when
+the upper side member is not followed by the end of
+the string on which the rule operates. For example,
+the rule a63a49a33a10a74a76a66a91a65a10a65a89a84a90a28 is expected to generate
+the automaton of Figure 2. However, a direct
+implementation of the algorithms of Karttunen
+(1997; 1995) always yields a network accepting the
+empty language, independently of the way A and B
+are de ned. Other ambiguous cases are discussed in
+Vaillette (2004).
+a
+?a92 b
+a : b
+a
+a : b
+?a92 b
+Figure 2: Desired interpretation of the regular ex-
+pression aa93a95a94 b a96a97a96 ?
+Furthermore, in some cases XFST produces net-
+works that are somewhat different from the ones
+in the literature: the relations (as sets) are equal
+but the resulting automata (as graphs) are not iso-
+morphic. For example, consider the replace rule
+a63a49a33a10a74a76a66a98a65a10a65a100a99a87a84a57a101 . This expression is compiled by
+XFST to the automaton shown in Figure 3. Imple-
+menting this rule from basic operators as described
+in Karttunen (1997; 1995), results in the automaton
+of Figure 4. Observe that in some cases multiple ac-
+cepting paths are obtained. This is probably a result
+of adding e-self-loops in order to deal correctly with
+e symbols, following Pereira and Riley (1997); the
+multiple paths can then be removed using  lters. We
+assume that the same solution is adopted by XFST.
+This solution requires direct access to the underly-
+ing network, and cannot be applied at the level of
+the regular expression language. Therefore, we did
+not utilitize it in our implementation of replace rules.
+To validate the construction of the compiler, one
+would ideally want to check that the obtained FSA
+XFST syntax FSA syntax Meaning
+a30a8a52 a30a8a52 Kleene star
+a30a88a65a102a61
+a32
+a30a50a45a47a61a4a58 union
+a30a57a103a57a61 a30a57a103a57a61 intersection
+a30a34a33a87a61 a30a34a33a87a61 A minus B
+a30a29a60a31a61 a35a31a36a31a37a8a38a40a39a24a41a43a42a22a30a46a45a47a61a2a53 A ignoring B
+a27a40a30 a27a40a30 containment
+a27a29a28a76a30
+a32
+a27a20a30a34a33a34a35a31a36a20a37a4a38a40a39a24a41a43a42a6a44a73a30a46a45a47a30a49a48a46a45a55a28a49a52a24a53a104a45a105a28a10a52a87a33a34a27a20a30a29a58 maximum one containment
+a30a106a61 a44a16a30a50a45a47a61a24a48 concatenation
+a30a17a62a23a37 does not exist n-ary concatenation
+a30a14a59a16a107a14a59a73a61 a30a57a107a57a61 crossproduct
+a30a14a59a64a38a108a59a73a61 a30a109a38a106a61 composition
+a42a110a30a6a53 a30a17a62 optionality
+a44a111a48 a42a112a53 precedence
+a86a113a59a22a35 a35a69a37a24a114a29a41a40a39a10a115a50a42a47a86a11a53 or a35a69a37a24a114a29a41a20a39a2a116a31a41a70a42a117a86a17a53 regular relation inverse
+Figure 1: A comparison table of some simple classic operators in XFST and FSA
+?a92 aa92 ba92 d c
+?a92 ba92 d
+c
+?a92 aa92 b a : ba
+c
+d
+Figure 3: Automaton created from the regular ex-
+pression aa93a95a94 b a96a97a96 c d by XFST
+networks are equivalent to the XFST ones from
+which they were generated. Unfortunately, this is
+only possible for very small networks, since XFST
+does not allow to print its networks, when they are
+signi cantly large. We could only test XFST net-
+works and their FSA images over test strings to vali-
+date the identity of the outputs. In addition to check-
+ing each operator by itself for several instances, we
+tested the compiler on a more comprehensive code,
+namely HAMSAH (Yona and Wintner, 2005), which
+was designed and implemented using XFST. We
+successfully converted the entire network into FSA
+with the compiler. Exhaustive tests produced the
+same outputs for both networks.
+?a92 aa92 ba92 d c
+?a92 ba92 d
+c
+?a92 aa92 b a : ba
+c
+d
+a : e
+e : b
+Figure 4: Automaton created from the regular ex-
+pression aa93a95a94 b a96a97a96 c d by the published algorithm
+3 Comparison
+of XFST and FSA
+A byproduct of the compiler is a full implementa-
+tion, in FSA, of a vast majority of XFST’s opera-
+tors.3 In addition to the contribution to FSA users,
+this also facilitates an effective comparison between
+the two toolboxes on similar benchmarks. We now
+describe the results of such a comparison, focusing
+on usability and performance.
+3.1 Display
+of networks
+FSA displays networks in two possible formats: as
+text, by listing the network states and transitions,
+3We implemented in FSA all the operators of XFST, except
+parallel conditional replace rules and some direct replacement
+and markup rules.
+and through a graphical user interface. The GUI that
+FSA employs is user friendly, allows many kinds
+of manipulations of the networks and signi cantly
+helps to the understanding of the networks, espe-
+cially when they are small. The viewing parame-
+ters can be scaled by the user, thus improving the
+visualization possibilities. Moreover, networks can
+be saved in many different formats including bi-
+nary (for fast loading and saving), text (allowing in-
+spection of the network without the necessity to use
+FSA) and postscript (for printing). FSA also enables
+generation of C, C++, Java and Prolog code, imple-
+menting analysis with a network.
+XFST, on the other hand, prints its networks only
+in text format, and even this is supported for small
+networks only. Networks in XFST can be saved
+in binary format only, thus requiring the usage of
+XFST in order to inspect the network. With respect
+to visual display and ease of use, therefore, FSA has
+clear bene ts over XFST.
+3.2 Performance
+A true comparison of the two systems should com-
+pare two different grammars, each designed speci -
+cally for one of the two toolboxes, yielding the same
+comprehensive network. However, as such gram-
+mars are not available, we compared the two tool-
+boxes using a grammar designed and implemented
+in XFST and its conversion into FSA. Again we used
+HAMSAH (Yona and Wintner, 2005) for this pur-
+pose. The Hebrew morphological analyzer is a large
+XFST grammar: the complete network consists of
+approximately 2 million states and 2.2 million arcs.
+We also inspected two subnetworks: the Hebrew ad-
+jectives network (approximately 100,000 states and
+120,000 arcs) and the Hebrew nouns network (ap-
+proximately 700,000 states and 950,000 arcs). Each
+of the networks was created by composing a series
+of rules over a large-scale lexicon. Since Hebrew
+morphology is non-trivial, the  nal network is cre-
+ated by composing many intermediate complex reg-
+ular expressions (including many replace rules and
+compositions). The grammars were compiled and
+executed on a 64-bit computer with 16Gb of mem-
+ory. The table in Figure 5 shows the differences
+in compilation and analysis times and memory re-
+quirements between the two toolboxes. XFST per-
+formed immeasurably better than FSA. In particular,
+we were unable to use the complete FSA network for
+analysis, compared to analyzing 70 words per sec-
+ond with the full network in XFST. Another issue
+that should be noticed is the difference in memory
+requirements.
+4 Conclusions
+We presented a compiler which translates XFST
+grammars to grammars in the language of the FSA
+Utilities package. This work allows a closer look
+into two of the most popular  nite state toolboxes.
+Although FSA has the advantage of being a pub-
+licly available software, we discovered that it does
+not scale up as well as XFST. However, for the non-
+expert user or for teaching purposes, where more
+modest networks are manipulated, FSA seems to be
+more friendly, especially with regard to graphical
+representation of networks. With our new imple-
+mentation of replace rules in FSA, it seems that for
+such uses FSA is better. However, for larger sys-
+tems and when time performance is an issue, XFST
+is preferable.
+This work can be extended in several directions.
+Not all XFST operators are implemented in FSA.
+Some for lack of documentation and some simply
+require more time for implementation. Thus, fur-
+ther work can be done to construct more opera-
+tors (see footnote 3). We believe that replace rules
+still hide boundary cases which require special treat-
+ment. More work is needed in order to locate such
+cases. Furthermore, other  nite state toolboxes ex-
+ist (Mohri, 1996) which present different operators.
+Extending the compiler to convert XFST grammars
+into those formalisms will provide opportunities for
+better comparison of different  nite-state toolboxes.
+On a different course, an fsa2xfst compiler can be
+constructed. Such a compiler will enable a reverse
+performance comparison, i.e. using a larger network
+for FSA and making it operational in XFST. Notice
+that in contrast to the xfst2fsa direction, this course
+is rather trivial: FSA allows the user to save its net-
+works in a readable format (listing the network states
+and arcs). Although XFST is not capable of read-
+ing any format but its own, Kleene (1954) presents a
+simple algorithm for generating from a given FSA a
+regular expression denoting it. Using this algorithm,
+an XFST regular expression denoting the network
+FSA XFST
+Time Memory Time Memory
+complete network 13h 43m a118 11G 27m 41s a118 3G
+Compilation nouns network 2h 29m 11m 4s
+adjectives network 14m 56s 8m 21s
+complete network, 350 words not possible 5s
+Analysis nouns network, 120 nouns 1h 50m 0.17s
+adjectives network, 50 adjectives 2m 34s 0.17s
+Figure 5: Times and memory requirements
+can be generated. The only disadvantage of such an
+approach is that the resulting XFST expression will
+be most cumbersome.
+Acknowledgments
+This research was supported by The Israel Science
+Foundation (grant no. 136/01). We are grateful to
+Gertjan van Noord and Shlomo Yona for their help.
+References
+Kenneth R. Beesley and Lauri Karttunen. 2003. Finite-
+State Morphology. CSLI Publications.
+Dale Gerdemann and Gertjan van Noord. 1999. Trans-
+ducers from rewrite rules with backreferences. In
+Ninth Conference of the European Chapter of the As-
+sociation for Computational Linguistics, pages 126 
+133, Bergen Norway.
+Dale Gerdemann and Gertjan van Noord. 2000. Approx-
+imation and exactness in  nite state optimality the-
+ory. In Proceedings of Sigphon Workshop on Finite
+State Phonology (invited paper), pages 34 45, Luxem-
+bourg. http://xxx.lanl.gov/ps/cs.CL/0006038 or ROA-
+403-08100 at http://ruccs.rutgers.edu/roa.html.
+Ronald M. Kaplan and Martin Kay. 1994. Regular mod-
+els of phonological rule systems. Computational Lin-
+guistics, 20(3):331 378, September.
+Lauri Karttunen and Andre Kempe. 1995. The parallel
+replacement operation in  nite state calculus. Tech-
+nical Report 1995-021, Rank Xerox research centre  
+Grenoble laboratory.
+Lauri Karttunen, Jean-Pierre Chanod, Gregory Grefen-
+stette, and Anne Schiller. 1996. Regular expressions
+for language engineering. Natural Language Engi-
+neering, 2(4):305 328.
+Lauri Karttunen. 1995. The replace operator. In Pro-
+ceedings of the 33rd Annual Meeting of the Associa-
+tion for Computational Linguistics, pages 16 24.
+Lauri Karttunen. 1996. Directed replacement. In Pro-
+ceedings of ACL’96, pages 108 115.
+Lauri Karttunen. 1997. The replace operator. In Em-
+manuel Roche and Yves Schabes, editors, Finite-State
+Language Processing, Language, Speech and Com-
+munication, chapter 4, pages 117 147. MIT Press,
+Cambridge, MA.
+Lauri Karttunen. 1998. The proper treatment of Optimal-
+ity Theory in computational phonology. In Finite-state
+methods in natural language processing, pages 1 12,
+Ankara, June.
+S. C. Kleene. 1954. Representation of events in nerve
+nets and  nite automata. In C. E. Shannon and J. Mc-
+Carthy, editors, Automata Studies, pages 3 42. Prince-
+ton University Press.
+Kimmo Koskenniemi. 1983. Two-Level Morphology: a
+General Computational Model for Word-Form Recog-
+nition and Production. The Department of General
+Linguistics, University of Helsinki.
+Mehryar Mohri and Richard Sproat. 1996. An ef cient
+compiler for weighted rewrite rules. In Proceedings of
+the 34th Annual Meeting of the Association for Com-
+putational Linguistics, pages 231 238, Santa Cruz.
+Mehryar Mohri. 1996. On some applications of  nite-
+state automata theory to natural language processing.
+Natural Language Engineering, 2(1):61 80.
+Fernando Pereira and Michael Riley. 1997. Speech
+recognition by composition of weighted  nite au-
+tomata. In Emmanuel Roche and Yves Schabes, ed-
+itors, Finite-State Language Processing, pages 431 
+453. MIT Press, Cambridge.
+Nathan Vaillette. 2004. Logical Speci cation of Finite-
+State Transductions for Natural Language Processing.
+Ph.D. thesis, Ohio State University.
+Gertjan van Noord and Dale Gerdemann. 2001a. An ex-
+tendible regular expression compiler for  nite-state ap-
+proaches in natural language processing. In O. Boldt
+and H. Jcurrency1urgensen, editors, Automata Implementation,
+number 2214 in Lecture Notes in Computer Science.
+Springer.
+Gertjan van Noord and Dale Gerdemann. 2001b. Finite
+state transducers with predicates and identity. Gram-
+mars, 4(3):263 286.
+Gertjan van Noord, 2000. FSA6 Reference Manual.
+Shlomo Yona and Shuly Wintner. 2005. A  nite-
+state morphological grammar of hebrew. In Proceed-
+ings of the ACL-2005 Workshop on Computational Ap-
+proaches to Semitic Languages.
+Appendix
+A A comparison table of XFST and FSA operators
+A.1 Symbols
+XFST syntax FSA syntax Meaning
+a a single symbol a
+%a119 or  * escape(*) or ’*’ escape literal symbol
+abc abc multi-character symbol
+? ? any symbol
+0 or a120a51a121 or a122a122a69a122a122 a120a123a121 epsilon symbol, the empty string
+a124 abcd
+a125 a120aa92 ba92 ca92 da121 single character brace
+A.2 Basic operators
+XFST syntax FSA syntax Meaning
+Aa119 Aa119 Kleene star
+Aa126 Aa126 iteration (Kleene plus)
+A a96 B a124 Aa92 Ba125 union
+A & B A & B intersection
+A a93 B A a93 B A minus B
+a127 A
+a120a129a128 Aa121 & ? term complement
+a128 A a128 A complement
+Aa130 B ignorea131 Aa92 Ba132 A ignoring B
+Aa133a134a130a10a133B ignorea131 Aa92 Ba132a8a93
+a124
+a120Ba92 ?a119a123a121 a92 a120?a119 a92 Ba121a71a125 A ignoring internally B
+$A $A containment
+$a133A $A a93 ignorea131a117a120Aa92 Aa121 a92 ?a119a75a132 one containment
+$?A a124 $A a93 ignorea131a117a120Aa92 Aa121 a92 ?a119a75a132 a92 ?a119a135a93 $Aa125 maximum one containment
+A B a120Aa92 Ba121 concatenation
+A n n-ary concatenation
+A a124 na92 ka125 n to k concatenations of A
+A a94 n more than n concatenations of A
+A a136 n less than n concatenations of A
+Aa133xa133B A x B crossproduct
+Aa133oa133B A o B composition
+a131 Aa132 A optionality
+a : b a : b symbol pair
+[ ] ( ) order control
+Ra133Pa133Q a124 Ra92 a131 domaina131 Qa132a4a93 domaina131 Ra132a117a132 o Qa125 upper-side priority union
+Ra133 pa133Q a124 Ra92 Q o a131 rangea131 Qa132a4a93 rangea131 Ra132a117a132a110a125 lower-side priority union
+Ra133a51a93 ua133Q a131 domaina131 Ra132a4a93 domaina131 Qa132a117a132 o R upper-side minus
+Ra133a51a93 la133Q R o a131 rangea131 Ra132a4a93 rangea131 Qa132a117a132 lower-side minus
+A a136 B a128 $a120Ba92 Aa121 A before B
+A a94 B a128 $a120Aa92 Ba121 A after B
+Aa133r reversea131 Aa132 reverse
+Ra133u or Ra1331 domaina131 Ra132 upper language of the regular relation R
+Ra133l or Ra1332 rangea131 Ra132 lower language of the regular relation R
+Ra133i inverta131 Ra132 or inversea131 Ra132 regular relation inverse
+A.3 Restriction
+XFST restriction rules are not provided by FSA, nor did we implement them. Therefore, we only present
+their syntax in XFST.
+a137 A
+a138a139a94 L R
+a137 A
+a138a139a94 L1 R1a92 L2 R2a92 a133a117a133a117a133 a92 Ln Rn
+A.4 Replacement
+XFST replace rules do not exist in FSA. We present implementation of most of them in FSA, based on
+(Karttunen, 1995; Karttunen, 1996; Karttunen, 1997; Karttunen and Kempe, 1995). XFST replace rules can
+be divided into 4 groups:
+1. Unconditional replace rules (one rule with no context).
+2. Unconditional parallel replace rules (several rules with no context that are performed at the same time).
+3. Conditional replace rules (one rule and one condition).
+4. Conditional parallel replace rules (several rules and/or several contexts).
+A.4.1 a93a95a94 (obligatory, upper to lower replacement)
+a137 XFST syntax: A
+a93a140a94 B
+Meaning: Unconditional replacement of the language A by the language B.
+Construction: [a120NO A a120A a133xa133 Ba121a31a121a71a119 NO A] where NO A abbreviates a128 $a120 A a93a141a120a110a121a31a121 .
+a137 XFST syntax: A1
+a93a140a94 B1a92 a133a117a133a117a133 a92 Ana93a95a94 Bn
+Meaning: Unconditional parallel replacement of the language A1 by the language B1 and the language
+A2 by the language B2 ... and the language An by the language Bn.
+Construction: a120a31a120 N R a121a75a119 N a121 where N denotes the language of strings that do not contain any Ai:
+N a138a142a128 $a120a20a120A1 a96a75a133a97a133a97a133a10a96 Ana121a31a93a141a120a22a121a31a121
+and R stands for the relation that pairs every Ai with the corresponding Bi:
+R a138a57a120a31a120A1 a133xa133B1a121a2a96a69a133a97a133a97a133a49a96a20a120An a133xa133Bna121a31a121
+.
+a137 XFST syntax: A
+a93a140a94 B a96a97a96 L R
+Meaning: Conditional replacement of the language A by the language B. This is like the relation
+Aa93a143a94 B except that any instance of A in the upper string corresponds to an instance of B in the lower
+string only when it is preceded by an instance of L and followed by an instance of R. Other instances of
+A in the upper string remain unchanged. A, B, L, and R must all denote simple languages, not relations.
+The slant of the double bars indicates whether the precede/follow constraints refer to the instance of A
+in the upper string or to its image in the lower string. In the a96a97a96 version, both contexts refer to the upper
+string.
+Construction: InsertBrackets a133oa133 ConstrainBrackets a133oa133 Le ftContext a133oa133 RightContext a133oa133 Replace a133oa133
+RemoveBrackets where:
+ Let a136 and a94 be two symbols not in S. The escape character % is used since a136 and a94 are saved
+symbols in XFST.
+ InsertBrackets a138a57a120a31a120a51a121a8a136a143a93 % a136a81a96 % a94a144a121
+InserBrackets eliminates from the upper side language all context markers that appear on the lower
+side.
+ ConstrainBrackets a138a57a120a145a128 $a120% a136 % a94a72a121a31a121
+ConstrainBrackets denotes the language consisting of strings that do not contain a136a142a94 anywhere.
+ Le ftContext a138a57a120a145a128a109a120a145a128a57a120a146a133a97a133a97a133LEFTa121a147a120a148a136a95a133a97a133a97a133a121a20a121 & a128a57a120a31a120a146a133a97a133a97a133LEFTa121a140a128a57a120a148a136a140a133a97a133a97a133a121a20a121a31a121
+LeftContext denotes the language in which any instance of a136 is immediately preceded by LEFT
+and every LEFT is immediately followed by a136 , ignoring irrelevant brackets. a120a146a133a97a133a97a133LEFTa121 denotes
+a120a31a120 ?a119 La130a24a120% a136a81a96 % a94a72a121a31a121a76a93a141a120? a119 % a136a113a121a31a121 , the language of all strings ending in L, ignoring all brackets
+except for a  nal a136 . a120a148a136a106a133a97a133a97a133a121 denotes a120% a136a143a130 % a94 ?a119a123a121 , the language of strings beginning with a136 ,
+ignoring the other bracket.
+ RightContext a138a57a120a149a128a106a120a20a120a146a133a97a133a97a133a10a94a72a121a112a128a57a120RIGHTa133a97a133a97a133a121a69a121 & a128a57a120a145a128a57a120a146a133a97a133a97a133a40a94a72a121a150a120RIGHTa133a97a133a97a133a121a76a121a31a121
+RightContext denotes the language in which any instance of a94 is immediately followed by RIGHT
+and any RIGHT is immediately preceded by a94 , ignoring irrelevant brackets. a120RIGHTa133a97a133a97a133a121 denotes
+a120a24a120 Ra130a24a120% a136a151a96 % a94a72a121 ?a119a113a121a10a93a152a120% a136 ?a119a123a121a8a121 , the language of all strings beginning with R, ignoring all
+brackets except for an initial a94 . a120a146a133a97a133a97a133a29a94a72a121 denotes a120? a119 % a94a56a130 % a136a72a121 , the language of strings ending
+with a94 , ignoring the other bracket.
+ The de nition of Replace divides into three cases:
+1. If A does not contain the empty string (epsilon) then
+Replace a138a109a120% a136 Aa130a24a120% a136a81a96 % a94a72a121 % a94a153a93a95a94 % a136 Ba130a24a120% a136a81a96 % a94a72a121 % a94a72a121
+This is the unconditional replacement of a136 A a94 by a136 B a94 , ignoring irrelevant brackets.
+2. If A is the empty string (i.e., A a138 e) then
+Replace a138a57a120% a94 % a136a153a93a95a94 % a136 Ba119 % a94a72a121
+3. If A contains the empty string but is not equal to it (i.e., contains other strings too) then
+Replace a138
+a120% a136 Aa130a24a120% a136a147a96 % a94a72a121 % a94a88a93a140a94 % a136 Ba130a24a120% a136a150a96 % a94a72a121 % a94a72a121 a92 % a94 % a136a153a93a143a94 % a136 Ba119 % a94
+That is, the  rst two cases are performed in parallel.
+ RemoveBrackets a138a85a120 % a136a154a96 % a94a155a93a87a94a156a120a145a121a10a121 . RemoveBrackets denotes the relation that maps the
+strings of the upper language to the same strings without any context markers.
+a137 XFST syntax: A
+a93a140a94 B a130a31a130 L R
+Meaning: Conditional replacement of the language A by the language B. This is like the relation
+Aa93a143a94 B a96a97a96 L R except that the // variant requires the left context on the lower side of the replacement
+and the right context on the upper side.
+Construction: InsertBrackets a133oa133 ConstrainBrackets a133oa133 RightContext a133oa133 Replace a133oa133 Le ftContext a133oa133
+RemoveBrackets where InsertBrackets, ConstrainBrackets, RightContext, Replace, LeftContext and
+RemoveBrackets are the same as above.
+a137 XFST syntax: A
+a93a140a94 B
+a127a31a127 L R
+Meaning: Conditional replacement of the language A by the language B. This is like the relation
+Aa93a140a94 B a96a97a96 L R except that the a127a31a127 variant requires the left context on the upper side of the replacement
+and the right context on the lower side.
+Construction: InsertBrackets a133oa133 ConstrainBrackets a133oa133 Le ftContext a133oa133 Replace a133oa133 RightContext a133oa133
+RemoveBrackets where InsertBrackets, ConstrainBrackets, RightContext, Replace, LeftContext and
+RemoveBrackets are the same as above.
+a137 XFST syntax: A
+a93a140a94 B
+a127
+a130 L R
+Meaning: Conditional replacement of the language A by the language B. This is like the relation
+Aa93a140a94 B a96a97a96 L R except that in the a127 a130 variant, both contexts refer to the lower string.
+Construction: InsertBrackets a133oa133 ConstrainBrackets a133oa133 Replace a133oa133 Le ftContext a133oa133 RightContext a133oa133
+RemoveBrackets where InsertBrackets, ConstrainBrackets, RightContext, Replace, LeftContext and
+RemoveBrackets are the same as above.
+The rest of the obligatory upper to lower replace rules are conditional parallel replace rules that where not
+implemented. An example of such a rule is A11a93a95a94 B11a92 a133a117a133a117a133 a92 A1na93a140a94 B1n a96a97a96 L11 R11a92 a133a117a133a117a133 a92 L1m R1m.
+A.4.2 a131a47a93a95a94a157a132 (optional, upper to lower replacement)
+a137 XFST syntax: A
+a131a47a93a140a94a158a132 B
+Construction: a120a31a120 ?a119a159a120A a133xa133 Ba121a31a121a71a119 ?a119a50a121 .
+a137 XFST syntax: A1
+a131a47a93a95a94a158a132 B1a92 a133a117a133a117a133 a92 Ana131a47a93a95a94a157a132 Bn
+Construction: a120a31a120 ?a119 R a121a71a119 ?a119a46a121 where R stands for the relation that pairs every Ai with the corresponding
+Bi: R a138a57a120a31a120A1 a133xa133B1a121a2a96a69a133a97a133a97a133a49a96a76a120An a133xa133Bna121a31a121 .
+a137 XFST syntax: A
+a131a47a93a140a94a158a132 B a96a97a96 L R, Aa131a47a93a95a94a157a132 B a130a31a130 L R, Aa131a47a93a140a94a157a132 B
+a127a31a127 L R, A
+a131a47a93a95a94a158a132 B
+a127
+a130 L R
+Construction: The same as the construction for the corresponding rules with the operator a93a57a94 with
+the difference that in the Replace stage, for each one of the three cases the obligatory upper to lower
+replace operator a93a140a94 is replaced by the optional upper to lower replace operator a131a47a93a143a94a158a132 .
+The rest of the optional upper to lower replace rules are conditional parallel replace rules and were not
+implemented.
+A.4.3 a136a95a93 (obligatory, lower to upper replacement)
+a137 XFST syntax: A
+a136a95a93 B
+Construction: a120Ba93a95a94 Aa121a80a133i
+a137 XFST syntax: A1
+a136a95a93 B1a92 a133a117a133a117a133 a92 An a136a140a93 Bn
+Construction: a120 B1a93a95a94 A1a92 a133a117a133a117a133 a92 Bna93a143a94 An a121a80a133i
+a137 XFST syntax: A
+a136a95a93 B a96a97a96 L R, A a136a95a93 B a130a31a130 L R, A a136a95a93 B a127a31a127 L R, A a136a95a93 B a127 a130 L R
+Construction: The same as the construction for the corresponding rules with the operator a93a57a94 with
+the difference that in the Replace stage, for each one of the three cases the obligatory upper to lower
+replace operator a93a140a94 is replaced by the operator a136a95a93 .
+The rest of the obligatory lower to upper replace rules are conditional parallel replace rules and were not
+implemented.
+A.4.4 a131a47a136a95a93a157a132 (optional, lower to upper replacement)
+a137 XFST syntax: A
+a131a47a136a140a93a158a132 B
+Construction: a120Ba131a47a93a95a94a157a132 Aa121a80a133i
+a137 XFST syntax: A1
+a131a47a136a95a93a158a132 B1a92 a133a117a133a117a133 a92 Ana131a47a136a95a93a157a132 Bn
+Construction: a120 B1a131a47a93a95a94a157a132 A1a92 a133a117a133a117a133 a92 Bna131a47a93a95a94a157a132 An a121a80a133i
+a137 XFST syntax: A
+a131a47a136a140a93a158a132 B a96a97a96 L R, Aa131a47a136a95a93a157a132 B a130a31a130 L R, Aa131a47a136a140a93a157a132 B
+a127a31a127 L R, A
+a131a47a136a95a93a158a132 B
+a127
+a130 L R
+Construction: The same as the construction for the corresponding rules with the operator a93a57a94 with
+the difference that in the Replace stage, for each one of the three cases the obligatory upper to lower
+replace operator a93a140a94 is replaced by the operator a131a47a136a95a93a157a132 .
+The rest of the optional lower to upper replace rules are conditional parallel replace rules and were not
+implemented.
+A.4.5 a136a95a93a95a94 (obligatory, upper to lower, lower to upper replacement)
+a137 XFST syntax: A
+a136a95a93a143a94 B
+Construction: Let @ be a character not in S. We use the escape character % to precede @, since @ is
+a reserved character in XFST. Thus, A a136a95a93a95a94 B is de ned as
+a128 $a120%@a121
+a133oa133
+A a93a143a94 %@
+a133oa133
+%@ a136a95a93 B
+a133oa133
+a128 $a120%@a121
+a137 XFST syntax: A1
+a136a95a93a140a94 B1a92 a133a117a133a117a133 a92 An a136a95a93a140a94 Bn
+Construction: Let @1a92 a133a117a133a117a133 a92 @n be characters not in S. We use the escape character % to precede each
+@i, since @ is a reserved character in XFST. Thus, A a136a95a93a95a94 B is de ned as
+a128 $a120%@1 a96a6a133a117a133a117a133a70a96 %@na121
+a133oa133
+A1 a93a140a94 %@1 a92 a133a117a133a117a133 a92 An a93a140a94 %@n
+a133oa133
+%@1 a136a95a93 B1 a92 a133a117a133a117a133 a92 %@n a136a95a93 Bn
+a133oa133
+a128 $a120%@1 a96a6a133a117a133a117a133a70a96 %@na121
+The rest of the obligatory upper to lower and lower to upper replace rules are conditional replace rules
+and they were not implemented.
+A.4.6 a131a47a136a95a93a95a94a158a132 (optional, upper to lower, lower to upper replacement)
+a137 XFST syntax: A
+a131a47a136a140a93a143a94a157a132 B
+Construction: Let @ be a character not in S. We use the escape character % to precede @, since @ is
+a reserved character in XFST. Thus, Aa131a47a136a140a93a95a94a158a132 B is de ned as
+a128 $a120%@a121
+a133oa133
+A a131a47a93a143a94a157a132 %@
+a133oa133
+%@ a131a47a136a95a93a158a132 B
+a133oa133
+a128 $a120%@a121
+The rest of the optional upper to lower and lower to upper replace rules are conditional and parallel replace
+rules and they were not implemented.
+A.4.7 @a93a140a94 (obligatory, upper to lower, left to right, longest match replacement)
+The following operations are the same as in section A.4.1, except that instead of a93a160a94 occurs @a93a95a94 . As
+a93a143a94 represented an obligatory upper to lower replacement, @a93a143a94 represents an obligatory upper to lower
+left to right longest match replacement. Instances of the language A on the upper side of the relation are
+replaced selectively. The selection factors each upper language string uniquely into A and non-A substrings.
+The factoring is based on a left-to-right and longest match regimen. The starting locations are selected from
+left-to-right. If there are overlapping instances of A starting at the same location, only the longest one is
+replaced by all strings of B.
+a137 XFST syntax: A@
+a93a140a94 B
+Construction: InitialMatch a133oa133 Le ftToRight a133oa133 LongestMatch a133oa133 Replacement
+Where:
+ Let  a92 a136 a92 a94 be characters not in S. We use the escape character % to precede them since they are
+reserved characters in XFST.
+ InitialMatch a138
+a128 $a120 % a96 % a136a81a96 % a94a161a121
+a133oa133
+a120a146a133a31a133a121a6a93a95a94 % a96a97a96 A
+where a120a146a133a2a133a121a135a93a90a94 LOW ER a96a97a96 LEFT RIGHT is a version of empty string replacement that al-
+lows only one application between any LEFT and RIGHT. The construction for a120a146a133a43a133a121a72a93a162a94
+LOWER a96a97a96 LEFT RIGHT is the same as for UPPER a93a57a94 LOW ER a96a97a96 LEFT RIGHT except
+that Replace a138a57a120% a94 % a136a153a93a95a94 % a136 LOWER % a94a72a121 .
+ Le ftToRight a138
+a120a145a128 $a120% a121a17a120% : % a136 UPPERa122 0 : % a94a144a121a31a121a71a119a144a128 $a120% a121
+a133oa133
+% a93a95a94a88a120a55a121
+where UPPERa122 a138a57a120 Aa130a24a120% a121a31a93a141a120?a119 % a121a20a121
+ LongestMatch a138a95a128 $a120 % a136a88a120 UPPERa122a122 & $a120% a94a72a121a31a121a31a121
+where UPPERa122a122 a138 Aa130a24a120% a136a81a96 % a94a72a121a113a93a162a120 ?a119a159a120 % a136a81a96 % a94a72a121a31a121
+ Replacement a138 % a136a152a128 $a120% a94a72a121 % a94a88a93a95a94 B
+The rest of the obligatory upper to lower left to right longest match replace rules are conditional and
+parallel replace rules and they were not implemented.
+The following XFST operators were not implemented:
+a137 @
+a94 (obligatory, upper to lower, left to right, shortest match replacement)
+a137
+a93a143a94 @ (obligatory, upper to lower, right to left, longest match replacement)
+a137
+a94 @ right (obligatory, upper to lower, right to left, shortest match replacement)
+A.5 Markup
+Markup rules take an input string and mark it by inserting some strings before and after it. XFST markup
+rules do not exist in FSA. We present the implementation of most of them in FSA, based on Karttunen
+(1996).
+a137 XFST syntax: A
+a93a140a94 La133a117a133a117a133 R
+Meaning: Markup. Instances of the language A on the upper side of the relation are selected for
+markup. Each selected A string is marked by inserting all strings of L to its left and all strings of R to
+its right. The selected A strings themselves remain unchanged, along with the non-A segments.
+Construction: A a93a95a94 L A R
+a137 XFST syntax: A@
+a93a140a94 La133a117a133a117a133 R
+Meaning: Directed markup. Instances of the language A on the upper side of the relation are selected
+for markup under left-to-right, longest match regimen. Thus, the starting locations are selected from
+left-to-right. If there are overlapping instances of A starting at the same location, only the longest one
+is replaced by all strings of B. Each selected A string is marked by inserting all strings of R to its left
+and all strings of S to its right. The selected A strings themselves remain unchanged, along with the
+non-A segments.
+Construction: InitialMatch a133oa133 Le ftToRight a133oa133 LongestMatch a133oa133 Insrtion
+Where:
+ Let  a92 a136 a92 a94 be characters not in S. We use the escape character % to precede them since they are
+reserved characters in XFST.
+ InitialMatch a138
+a128 $a120 % a96 % a136a81a96 % a94a161a121
+a133oa133
+a120a146a133a31a133a121a6a93a95a94 % a96a97a96 A
+where a120a146a133a2a133a121a135a93a90a94 LOW ER a96a97a96 LEFT RIGHT is a version of empty string replacement that al-
+lows only one application between any LEFT and RIGHT. The construction for a120a146a133a43a133a121a72a93a162a94
+LOWER a96a97a96 LEFT RIGHT is the same as for UPPER a93a57a94 LOW ER a96a97a96 LEFT RIGHT except
+that Replace a138a57a120% a94 % a136a153a93a95a94 % a136 LOWER % a94a72a121 .
+ Le ftToRight a138
+a120a145a128 $a120% a121a17a120% : % a136 UPPERa122 0 : % a94a144a121a31a121a71a119a144a128 $a120% a121
+a133oa133
+% a93a95a94a88a120a55a121
+where UPPERa122a69a138a57a120 Aa130a24a120% a121a31a93a141a120?a119 % a121a20a121
+ LongestMatch a138a95a128 $a120 % a136a88a120 UPPERa122a122 & $a120% a94a72a121a31a121a31a121
+where UPPERa122a122a76a138 Aa130a24a120% a136a81a96 % a94a72a121a113a93a162a120 ?a119a159a120 % a136a81a96 % a94a72a121a31a121
+ Insrtion a138 % a136a153a93a95a94 L a92 % a94a153a93a95a94 R
+The rest of the markup rules were not implemented since we could not obtain any documentation of their
+constructions. These operators are:
+a137 XFST syntax: A@
+a94 La133a117a133a117a133 R
+Meaning: Directed markup. Instances of the language A on the upper side of the relation are selected
+for markup under left-to-right, shortest match regimen. Thus, the starting locations are selected from
+left-to-right. If there are overlapping instances of A starting at the same location, only the shortest one
+is replaced by all strings of B. Each selected A string is marked by inserting all strings of R to its left
+and all strings of S to its right. The selected A strings themselves remain unchanged, along with the
+non-A segments.
+a137 XFST syntax: A
+a93a140a94 @La133a117a133a117a133 R
+Meaning: Directed markup. Instances of the language A on the upper side of the relation are selected
+for markup under right-to-left, longest match regimen. Thus, the starting locations are selected from
+right-to-left. If there are overlapping instances of A starting at the same location, only the longest one
+is replaced by all strings of B. Each selected A string is marked by inserting all strings of R to its left
+and all strings of S to its right. The selected A strings themselves remain unchanged, along with the
+non-A segments.
+a137 XFST syntax: A
+a94 @La133a117a133a117a133 R
+Meaning: Directed markup. Instances of the language A on the upper side of the relation are selected
+for markup under right-to-left, shortest match regimen. Thus, the starting locations are selected from
+right-to-left. If there are overlapping instances of A starting at the same location, only the shortest one
+is replaced by all strings of B. Each selected A string is marked by inserting all strings of R to its left
+and all strings of S to its right. The selected A strings themselves remain unchanged, along with the
+non-A segments.
+A.6 Boundary symbol for restriction and replacement
+In the restriction, a138a163a94 , and conditional replacement, a93a56a94 a92 a131a47a93a56a94a157a132 a92 a136a56a93 a92 a131a47a136a152a93a158a132 a92 a136a112a93a56a94 a92 a131a47a136a56a93a112a94a157a132 a92 @a93a112a94 a92 @ a94
+a92 a93a95a94 @a92 a94 @ expressions we can use a special boundary marker, a133#a133, to refer to the beginning or to the end
+of a string. In the left context, the boundary marker signals the beginning of the string; in the right context
+it means the end of the string.
+Construction: We do not deal with all the cases where the boundary symbol a133#a133 can be used. We only
+deal with boundary cases contexts that are in one of the following forms (Le ftContext and RightContext are
+assumed not to contain a133#a133):
+a137
+a133#a133 Le ftContext RightContext
+a137
+a120a146a133#a133 Le ftContexta121 RightContext
+a137
+a120a146a133#a133a121 Le ftContext RightContext
+a137
+a120a97a120a146a133#a133a121 Le ftContexta121 RightContext
+a137 Le ftContext RightContext
+a133#a133
+a137 Le ftContext
+a120RightContext a133#a133a121
+a137 Le ftContext RightContext
+a120a146a133#a133a121
+a137 Le ftContext
+a120RightContext a120a146a133#a133a121a97a121
+a137
+a133#a133 Le ftContext RightContext a133#a133
+a137
+a120a146a133#a133 Le ftContexta121 RightContext a133#a133
+a137
+a120a146a133#a133a121 Le ftContext RightContext a133#a133
+a137
+a120a97a120a146a133#a133a121 Le ftContexta121 RightContext a133#a133
+a137
+a133#a133 Le ftContext a120RightContext a133#a133a121
+a137
+a120a146a133#a133 Le ftContexta121 a120RightContext a133#a133a121
+a137
+a120a146a133#a133a121 Le ftContext a120RightContext a133#a133a121
+a137
+a120a97a120a146a133#a133a121 Le ftContexta121 a120RightContext a133#a133a121
+a137
+a133#a133 Le ftContext RightContext a120a146a133#a133a121
+a137
+a120a146a133#a133 Le ftContexta121 RightContext a120a146a133#a133a121
+a137
+a120a146a133#a133a121 Le ftContext RightContext a120a146a133#a133a121
+a137
+a120a97a120a146a133#a133a121 Le ftContexta121 RightContext a120a146a133#a133a121
+a137
+a133#a133 Le ftContext a120RightContext a120a146a133#a133a121a97a121
+a137
+a120a146a133#a133 Le ftContexta121 a120RightContext a120a146a133#a133a121a97a121
+a137
+a120a146a133#a133a121 Le ftContext a120RightContext a120a146a133#a133a121a97a121
+a137
+a120a97a120a146a133#a133a121 Le ftContexta121 a120RightContext a120a146a133#a133a121a97a121
+As we do not deal with restriction rules we need to deal with boundary cases only in replace rules. The
+replace rules were constructed from six stages: InsertBrackets, ConstrainBrackets, LeftContext, RightCon-
+text, Replace and RemoveBrackets. In boundary cases where the left context is in the beginning of a string,
+only the LeftContext stage is changed. The LeftContext stage was de ned as
+Le ftContext a138a57a120a149a128a106a120a149a128a57a120a146a133a97a133a97a133LEFTa121a150a120a148a136a140a133a97a133a97a133a121a20a121 & a128a106a120a40a120a146a133a97a133a97a133LEFTa121a56a128a106a120a148a136a140a133a97a133a97a133a121a40a121a20a121
+where a120a146a133a97a133a97a133LEFTa121 denoted
+a120a31a120 ?a119 La130a24a120% a136a81a96 % a94a72a121a31a121a31a93a144a120?a119 % a136a113a121a31a121
+and a120a148a136a95a133a97a133a97a133a121 denoted
+a120% a136a164a130 % a94 ?a119a123a121
+The de nition of LeftContext is not changed but the de nition of a120a146a133a97a133a97a133LEFTa121 is changed into
+a120a20a120 La130a24a120% a136a91a96 % a94a72a121a31a121a76a93a141a120?a119 % a136a72a121a31a121
+In boundary cases where the right context is at the end of a string, only the RightContext stage is changed.
+The RightContext stage was de ned as
+RightContext a138a57a120a69a128a106a120a20a120a146a133a97a133a97a133a40a94a72a121a112a128a57a120RIGHTa133a97a133a97a133a121a75a121 & a128a57a120a145a128a57a120a146a133a97a133a97a133a10a94a72a121a150a120RIGHTa133a97a133a97a133a121a76a121a31a121
+where a120RIGHTa133a97a133a97a133a121 denoted
+a120a31a120 Ra130a24a120% a136a81a96 % a94a72a121 ?a119a50a121a31a93a141a120% a136 ?a119a123a121a20a121
+and a120a146a133a97a133a97a133a10a94a72a121 denoted
+a120?a119 % a94a152a130 % a136a113a121
+The de nition of RightContext is not changed but the de nition of a120RIGHTa133a97a133a97a133a121 is changed into
+a120a31a120 Ra130a24a120% a136a91a96 % a94a72a121a31a121a76a93a141a120% a136 ?a119a123a121a20a121
+In boundary cases where both the right context and the left context are at the end and in the beginning of
+a string respectively, both the RightContext and the LeftContext stages are changed as described above.
+The idea behind these changes is that the context part of replacement expression can be actually seen as
+? a119 LEFT RIGHT ?a119 and by simply eliminating one of the ?a119 in one of the ends we can relate to a
+boundary case. The de nitions that were changed above did exactly that: eliminated the appropriate ?a119 for
+each case. More complicated cases, for example aa93a143a94 b a96a97a96a31a120a146a133#a133a29a96 aa121 should be dealt by conditional parallel
+replacement. For example, aa93a143a94 b a96a97a96a76a120a146a133#a133a49a96 aa121 , should be interpreted as
+aa93a95a94 b a96a97a96a76a120a146a133#a133a121 a92a117a92 aa93a95a94 b a96a97a96a31a120aa121
+Since we do not deal with conditional parallel replacement, we cannot deal with these cases.
+A.7 Order of Precedence
+A.7.1 XFST
+The following list de nes the order of precedence of all XFST operators. Operators of same precedence
+are evaluated from left to right, except the pre x operators a131a80a128 a127 $ $? $a133a134a132 that are evaluated from right
+to left. The list begins with the operators of highest precedence, i.e., with the most tightly binding ones.
+Operators of same precedence are on the same line.
+:
+a128
+a127 $ $? $
+a133
+a126 a119  a1331 a1332 a133u a133l a133i a133r
+a130
+concatenation
+a94a153a136
+a96 & a93
+a138a163a94 a93a143a94 a131a47a93a95a94a157a132a165a136a140a93a81a131a47a136a143a93a157a132a90a136a95a93a143a94 a131a47a136a95a93a95a94a157a132 @a93a95a94 @ a94 a93a143a94 @ a94 @
+a133xa133a21a133oa133
+A.7.2 FSA
+The following list de nes the order of precedence in FSA:
+: a130
+a133a97a133
+a126 a119  
+& a93
+o x xx
+! #
+A.8 Advanced techniques
+Both XFST and FSA have advanced techniques that do no exist in the other toolbox. For XFST these
+techniques include Compile-Replace and Flag-Diacritics; for FSA these techniques include predicates and
+weighted networks.
+

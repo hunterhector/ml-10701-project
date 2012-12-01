@@ -1,0 +1,242 @@
+1:245	Coling 2008 22nd International Conference on Computational Linguistics Advanced Dynamic Programming in Computational Linguistics: Theory, Algorithms and Applications Tutorial notes Liang Huang Department of Computer and Information Science University of Pennsylvania c2008, Liang Huang Licensed under the Creative Commons Attribution-Noncommercial-Share Alike 3.0 Nonported license http://creativecommons.org/licenses/by-nc-sa/3.0/ Some rights reserved Order copies of this and other Coling proceedings from: Association for Computational Linguistics (ACL) 209 N. Eighth Street Stroudsburg, PA 18360 USA Tel: +1-570-476-8006 Fax: +1-570-476-0860 acl@aclweb.org Design by Chimney Design, Brighton, UK Production and manufacture by One Digital, Brighton, UK ii Outline Dynamic Programming (DP) is an important class of algorithms widely used in many areas of speech and language processing.
+2:245	It provides efficient solutions to seemingly intractable inference over exponentially-large spaces by sharing overlapping subproblems.
+3:245	Notable instances of DP include the well-known Viterbi and Forward-Backward Algorithms for finite-state models, and the CKY Algorithm for context-free parsing and syntax-based machine translation.
+4:245	The Dijkstra and A* Algorithms, although less obvious, can also be viewed as DP instances.
+5:245	In fact, almost all inference algorithms in the NLP/CL literature involve some sort of DP.
+6:245	With this overwhelming popularity, a unified view of various DP algorithms would not only provide NLP researchers a better understanding but help them design new DP algorithms in practice.
+7:245	This tutorial, therefore, surveys two such theoretical frameworks: the semiring framework in the context of finite-state methods, and the hypergraph framework in the context of parsing and machine translation.
+8:245	Under each of these two paradigms, we review two most important types of DP algorithms, namely the Viterbi-style topological algorithms and the Dijkstra-style best-first algorithms.
+9:245	Wherever relevant, we will discuss typical instances of these algorithms in practice, which include applications in tagging and chunking, word alignment, phrase-based translation, syntactic parsing, and syntax-based translation.
+10:245	Structure The tutorial will be structured as follows: 1.
+11:245	Dynamic Programming on Lattices/Graphs under the Semiring Framework (a) Motivations and Examples (b) Semirings (c) Viterbi Algorithm (d) Dijkstra and A* Algorithms (e) Comparison between Viterbi and Dijkstra/A* Algorithms 2.
+12:245	Dynamic Programming on Packed Forests under the Hypergraph Framework (a) Hypergraphs and Related Formalisms (b) Examples in Parsing and Machine Translation (c) Generalized Viterbi Algorithm; CKY Parsing (d) Knuth and A* Algorithms 3.
+13:245	Extensions: Non-Optimization Problems and k-best Inference (a) Forward-backward and Inside-Outside Algorithms (b) k-best Inference in Graphs and Hypergraphs Prerequisites None!
+14:245	iii Instructor Liang Huang// Department of Computer & Information Science (CIS)// 3330 Walnut Street// Levine Hall// University of Pennsylvania// Philadelphia, PA 19104, USA// Email: lhuang3 at cis.upenn.edu Liang Huang is finishing his PhD study at the University of Pennsylvania, co-supervised by Aravind Joshi and Kevin Knight (USC/ISI).
+15:245	He is mainly interested in the theoretical aspects of computational linguistics, in particular, efficient algorithms in parsing and machine translation, generic dynamic programming, and formal properties of synchronous grammars.
+16:245	His thesis work develops a series of forest-based methods that have been applied to many problems in NLP including k-best parsing, forest rescoring and reranking, and forest-based translation.
+17:245	This work received the outstanding paper award at ACL 2008 and a best paper award nomination at ACL 2007.
+18:245	He was also a recipient of the University Prize for Excellence in Teaching at Penn, and had designed and lectured one of the first Python Programming courses for CS undergraduates in the US.
+19:245	iv Coling 2008: Advanced Dynamic Programming in Computational Linguistics  Tutorial notes Manchester, August 2008 Advanced Dynamic Programming in Semiring and Hypergraph Frameworks  Liang Huang Department of Computer and Information Science University of Pennsylvania lhuang3@cis.upenn.edu July 15, 2008 Abstract Dynamic Programming (DP) is an important class of algorithms widely used in many areas of speech and language processing.
+20:245	Recently there have been a series of work trying to formalize many instances of DP algorithms under algebraic and graph-theoretic frameworks.
+21:245	This tutorial surveys two such frameworks, namely semirings and directed hypergraphs, and draws connections between them.
+22:245	We formalize two particular types of DP algorithms under each of these frameworks: the Viterbi-style topological algorithms and the Dijkstra-style best-first algorithms.
+23:245	Wherever relevant, we also discuss typical applications of these algorithms in Natural Language Processing.
+24:245	1 Introduction Many algorithms in speech and language processing can be viewed as instances of dynamic programming (DP) (Bellman, 1957).
+25:245	The basic idea of DP is to solve a bigger problem by divide-and-conquer, but also reuses the solutions of overlapping subproblems to avoid recalculation.
+26:245	The simplest such example is a Fibonacci series, where each F(n) is used twice (if cached).
+27:245	The correctness of a DP algorithm is ensured by the optimal substructure property, which informally says that an optimal solution must contain optimal subsolutions for subproblems.
+28:245	We will formalize this property as an algebraic concept of monotonicity in Section 2.
+29:245	 Survey paper to accompany the COLING 2008 tutorial on dynamic programming.
+30:245	The material presented here is based on the authors candidacy exam report at the University of Pennsylvania.
+31:245	I would like to thank Fernando Pereira for detailed comments on an earlier version of this survey.
+32:245	This work was supported by NSF ITR EIA-0205456.
+33:245	1 search space \ ordering topological-order best-first graph + semirings (2) Viterbi (3.1) Dijkstra/A* (3.2) hypergraph + weight functions (4) Gen. Viterbi (5.1) Knuth/A* (5.2) Table 1: The structure of this paper: a two dimensional classification of dynamic programming algorithms, based on search space (rows) and propogation ordering (columns).
+34:245	Corresponding section numbers are in parentheses.
+35:245	This report surveys a two-dimensional classification of DP algorithms (see Table 1): we first study two types of search spaces (rows): the semiring framework (Mohri, 2002) when the underlying representation is a directed graph as in finite-state machines, and the hypergraph framework (Gallo et al., 1993) when the search space is hierarchically branching as in context-free grammars; then, under each of these frameworks, we study two important types of DP algorithms (columns) with contrasting order of visiting nodes: the Viterbi style topological-order algorithms (Viterbi, 1967), and the Dijkstra-Knuth style best-first algorithms (Dijkstra, 1959; Knuth, 1977).
+36:245	This survey focuses on optimization problems where one aims to find the best solution of a problem (e.g. shortest path or highest probability derivation) but other problems will also be discussed.
+37:245	2 Semirings The definitions in this section follow Kuich and Salomaa (1986) and Mohri (2002).
+38:245	Definition 1.
+39:245	A monoid is a triple (A,, 1) where  is a closed associative binary operator on the set A,and1 is the identity element for , i.e., for all a  A, a  1=1  a = a. A monoid is commutative if  is commutative.
+40:245	Definition 2.
+41:245	A semiring is a 5-tuple R =(A,,, 0, 1) such that 1.
+42:245	(A,, 0) is a commutative monoid.
+43:245	2.
+44:245	(A,, 1) is a monoid.
+45:245	3.
+46:245	 distributes over : for all a, b, c in A, (a  b)  c =(a  c)  (b  c), c  (a  b)=(c  a)  (c  b).
+47:245	4.
+48:245	0isanannihilator for : for all a in A, 0  a = a  0=0.
+49:245	2 Semiring Set   0 1 intuition/application Boolean {0, 1}   0 1 logical deduction, recognition Viterbi [0, 1] max  0 1 prob.
+50:245	of the best derivation Inside R + {+} +  0 1 prob.
+51:245	of a string Real R{+} min + + 0 shortest-distance Tropical R + {+} min + + 0 with non-negative weights Counting N +  0 1 number of paths Table 2: Examples of semirings Table 2 shows some widely used examples of semirings and their applications.
+52:245	Definition 3.
+53:245	A semiring (A,,, 0, 1) is commutative if its multiplicative operator  is commutative.
+54:245	For example, all the semirings in Table 2 are commutative.
+55:245	Definition 4.
+56:245	A semiring (A,,, 0, 1) is idempotent if for all a in A, a  a = a. Idempotence leads to a comparison between elements of the semiring.
+57:245	Lemma 1.
+58:245	Let (A,,, 0, 1) be an idempotent semiring, then the relation  defined by (a  b)  (a  b = a) is a partial ordering over A, called the natural order over A. However, for optimization problems, a partial order is often not enough since we need to compare arbitrary pair of values, which requires a total ordering over A. Definition 5.
+59:245	An idempotent semiring (A,,, 0, 1) is totally-ordered if its natural order is a total ordering.
+60:245	An important property of semirings when dealing with optimization problems is monotonicity, which justifies the optimal subproblem property in dynamic programming (Cormen et al., 2001) that the computation can be factored (into smaller problems).
+61:245	Definition 6.
+62:245	Let K =(A,,, 0, 1) be a semiring, and  a partial ordering over A.WesayK is monotonic if for all a, b, c  A (a  b)  (a  c  b  c) (a  b)  (c  a  c  b) 3 Lemma 2.
+63:245	Let (A,,, 0, 1) be an idempotent semiring, then its natural order is monotonic.
+64:245	In the following section, we mainly focus on totally-ordered semirings (whose natural order is monotonic).
+65:245	Another (optional) property is superiority which corresponds to the nonnegative weights restriction in shortest-path problems.
+66:245	When superiority holds, we can explore the vertices in a best-first order as in the Dijkstra algorithm (see Section 3.2).
+67:245	Definition 7.
+68:245	Let K =(A,,,0, 1) be a semiring, and  a partial ordering over A.WesayK is superior if for all a,b  A a  a  b, b  a  b. Intuitively speaking, superiority means the combination of two elements always gets worse (than each of the two inputs).
+69:245	In shortest-path problems, if you traverse an edge, you always get worse cost (longer path).
+70:245	In Table 2, the Boolean, Viterbi, and Tropical semirings are superior while the Real semiring is not.
+71:245	Lemma 3.
+72:245	Let (A,,,0, 1) be a superior semiring with a partial order  over A, then for all a  A 1  a  0.
+73:245	Proof.
+74:245	For all a  A,wehave1  1  a = a by superiority and 1 being the identity of ; on the other hand, we have a  0  a = 0 by superiority and 0 being the annihilator of .
+75:245	This property, called negative boundedness in (Mohri, 2002), intuitively illustrates the direction of optimization from 0, the initial value, towards as close as possible to 1, the best possible value.
+76:245	3 Dynamic Programming on Graphs Following Mohri (2002), we next identify the common part shared between these two algorithms as the generic shortest-path problem in graphs.
+77:245	Definition 8.
+78:245	A (directed) graph is a pair G =(V,E)whereV is the set of vertices and E the set of edges.
+79:245	A weighted (directed) graph is a graph G =(V,E) with a mapping w : E mapsto A that assigns each edge a weight from the semiring (A,,, 0, 1).
+80:245	Definition 9.
+81:245	The backward-star BS(v) of a vertex v is the set of incoming edges and the forward-star FS(v) the set of outgoing edges.
+82:245	4 Definition 10.
+83:245	A path  in a graph G is a sequence of consecutive edges, i.e.  = e 1 e 2 e k where e i and e i+1 are connected with a vertex.
+84:245	We define the weight (or cost) of path  to be w()= k circlemultiplydisplay i=1 w(e i )(1) We denote P(v) to be the set of all paths from a given source vertex s to vertex v. In the remainder of the section we only consider single-source shortest-path problems.
+85:245	Definition 11.
+86:245	The best weight (v) of a vertex v is the weight of the best path from the source s to v: 1 (v)= braceleftBigg 1 v = s circleplustext P(v) w() v negationslash= s (2) For each vertex v, the current estimate of the best weight is denoted by d(v), which is initialized in the following procedure: procedure Initialize(G, s) for each vertex v negationslash= s do d(v)  0 d(s)  1 The goal of a shortest-path algorithm is to repeatedly update d(v)for each vertex v to some better value (based on the comparison )sothat eventually d(v) will converge to (v), a state we call fixed.
+87:245	For example, the generic update along an incoming edge e =(u, v) for vertex v is 2 d(v)  = d(u)  w(e)(3) Notice that we are using the current estimate of u to update v,soif later on d(u) is updated we have to update d(v) as well.
+88:245	This introduces the problem of cyclic updates, which might cause great ineciency.
+89:245	To alleviate this problem, in the algorithms presented below, we will not trigger the update until u is fixed, so that the u  v update happens at most once.
+90:245	3.1 Viterbi Algorithm for DAGs In many NLP applications, the underlying graph exhibits some special structural properties which lead to faster algorithms.
+91:245	Perhaps the most common 1 By convention, if P(v)=,wehave(v)=0.
+92:245	2 Here we adopt the C notation where a  = b means the assignment a  a  b. 5 of such properties is acyclicity, as in Hidden Markov Models (HMMs).
+93:245	For acyclic graphs, we can use the Viterbi (1967) Algorithm 3 which simply consists of two steps: 1.
+94:245	topological sort 2.
+95:245	visit each vertex in the topological ordering and do updates The pseudo-code of the Viterbi algorithm is presented in Algorithm 1.
+96:245	Algorithm 1 Viterbi Algorithm.
+97:245	1: procedure Viterbi(G, w, s) 2: topologically sort the vertices of G 3: Initialize(G, s) 4: for each vertex v in topological order do 5: for each edge e =(u, v)inBS(v) do 6: d(v) = d(u)  w(e) The correctness of this algorithm (that d(v)=(v) for all v after execution) can be easily proved by an induction on the topologically sorted sequence of vertices.
+98:245	Basically, at the end of the outer-loop, d(v)isfixedto be (v).
+99:245	This algorithm is widely used in the literature and there have been some alternative implementions.
+100:245	Variant 1.
+101:245	If we replace the backward-star BS(v) in line 5 by the forwardstar FS(v) and modify the update accordingly, this procedure still works (see Algorithm 2 for pseudo-code).
+102:245	We refer to this variant the forwardupdate version of Algorithm 1.
+103:245	4 The correctness can be proved by a similar induction (that at the beginning of the outer-loop, d(v)isfixedtobe(v)).
+104:245	Algorithm 2 Forward update version of Algorithm 1.
+105:245	1: procedure Viterbi-Forward(G, w, s) 2: topologically sort the vertices of G 3: Initialize(G, s) 4: for each vertex v in topological order do 5: for each edge e =(v,u)inFS(v) do 6: d(u) = d(v)  w(e) 3 Also known as the Lawler (1976) algorithm in the theory community, but he considers it as part of the folklore.
+106:245	4 This is not to be confused with the forward-backward algorithm (Baum, 1972).
+107:245	In fact both forward and backward updates here are instances of the forward phase of a forward-backward algorithm.
+108:245	6 Variant 2.
+109:245	Another popular implemention is memoized recursion (Cormen et al., 2001), which starts from a target vertex t and invokes recursion on sub-problems in a top-down fashion.
+110:245	Solved sub-problems are memoized to avoid duplicate calculation.
+111:245	The running time of the Viterbi algorithm, regardless of which implemention, is O(V + E) because each edge is visited exactly once.
+112:245	It is important to notice that this algorithm works for all semirings as long as the graph is a DAG, although for non-total-order semirings the semantics of (v) is no longer best weight since there is no comparison.
+113:245	See Mohri (2002) for details.
+114:245	Example 1 (Counting).
+115:245	Count the number of paths between the source vertex s and the target vertex t in a DAG.
+116:245	Solution Use the counting semiring (Table 2).
+117:245	Example 2 (Longest Path).
+118:245	Compute the longest (worst cost) paths from the source vertex s in a DAG.
+119:245	Solution Use the semiring (R{}, max, +,, 0).
+120:245	Example 3 (HMM Tagging).
+121:245	See Manning and Schutze (1999, Chap.
+122:245	10).
+123:245	3.2 Dijkstra Algorithm The well-known Dijkstra (1959) algorithm can also be viewed as dynamic programming, since it is based on optimal substructure property, and also utilizes the overlapping of sub-problems.
+124:245	Unlike Viterbi, this algorithm does not require the structural property of acyclicity; instead, it requires the algebraic property of superiority of the semiring to ensure the correctness of best-first exploration.
+125:245	Algorithm 3 Dijkstra Algorithm.
+126:245	1: procedure Dijkstra(G, w, s) 2: Initialize(G, s) 3: Q  V [G] triangleright prioritized by d-values 4: while Q negationslash=do 5: v  Extract-Min(Q) 6: for each edge e =(v,u)inFS(v) do 7: d(u) = d(v)  w(e) 8: Decrease-Key(Q, u) The time complexity of Dijkstra Algorithm is O((E + V )logV )witha binary heap, or O(E+V log V ) with a Fibonacci heap (Cormen et al., 2001).
+127:245	7 Since Fibonacci heap has an excessively high constant overhead, it is rarely used in real applications and we will focus on the more popular binary heap case below.
+128:245	For problems that satisfy both acyclicity and superiority, which include many applications in NLP such as HMM tagging, both Dijkstra and Viterbi can apply (Nederhof, 2003).
+129:245	So which one is better in this case?
+130:245	From the above analysis, the complexity O((V + E)logV )ofDijkstra look inferior to Viterbis O(V +E) (due to the overhead for maintaining the priority queue), but keep in mind that we can quit as long as the solution for the target vertex t is found, at which time we can ensure the current solution for the target vertex is already optimal.
+131:245	So the real running time of Dijkstra depends on how early the target vertex is popped from the queue, or how good is the solution of the target vertex compared to those of other vertices, and whether this early termination is worthwhile with respect to the priority queue overhead.
+132:245	More formally, suppose the complete solution is ranked rth among V vertices, and we prefer Dijkstra to be faster, i.e., r V (V + E)logr<(V + E), then we have r log r<V (4) as the condition to favor Dijkstra to Viterbi.
+133:245	However, in many real-world applications (especially AI search, NLP parsing, etc.), often times the complete solution (a full parse tree, or a source-sink path) ranks very low among all vertices (Eq.
+134:245	4 does not hold), so normally the direct use of Dijkstra does not bring speed up as opposed to Viterbi.
+135:245	To alleviate this problem, there is a popular technique named A* (Hart et al., 1968) described below.
+136:245	3.2.1 A* Algorithm for State-Space Search We prioritize the queue using a combination d(v)   h(v) of the known cost d(v) from the source vertex, and an estimate  h(v)ofthe (future) cost from v to the target t: h(v)= braceleftBigg 1 v = t circleplustext P(v,t) w() v negationslash= t (5) where P(v,t) is the set of paths from v to t. In case where the estimate  h(v) is admissible, namely, no worse than the true future cost h(v),  h(v)  h(v) for all v, 8 we can prove that the optimality of d(t)whent is extracted still holds.
+137:245	Our hope is that d(t)   h(t)=d(t)  1=d(t) ranks higher among d(v)   h(v)andcanbepoppedsooner.
+138:245	TheDijkstra Algorithm is a special case of the A* Algorithm where  h(v)=1 for all v. 4 Hypergraphs Hypergraphs, as a generalization of graphs, have been extensively studied since 1970s as a powerful tool for modeling many problems in Discrete Mathematics.
+139:245	In this report, we use directed hypergraphs (Gallo et al., 1993) to abstract a hierarchically branching search space for dynamic programming, where we solve a big problem by dividing it into (more than one) sub-problems.
+140:245	Classical examples of these problems include matrix-chain multiplication, optimal polygon triangulation, and optimal binary search tree (Cormen et al., 2001).
+141:245	Definition 12.
+142:245	A (directed) hypergraph is a pair H = V,E with a set R,whereV is the set of vertices, E is the set of hyperedges,andR is the set of weights.
+143:245	Each hyperedge e  E is a triple e = T(e),h(e),f e ,where h(e)  V is its head vertex and T(e)  V  is an ordered list of tail vertices.
+144:245	f e is a weight function from R |T(e)| to R. Note that our definition diers slightly from the classical definitions of Gallo et al.145:245	(1993) and Nielsen et al.146:245	(2005) where the tails are sets rather than ordered lists.
+147:245	In other words, we allow multiple occurrences of the same vertex in a tail and there is an ordering among the components.
+148:245	We also allow the head vertex to appear in the tail creating a self-loop which is ruled out in (Nielsen et al., 2005).
+149:245	Definition 13.
+150:245	We denote |e| = |T(e)| to be the arity of the hyperedge 5 . If |e| =0,thenf e ()  R is a constant (f e is a nullary function) and we call h(e)asource vertex.
+151:245	We define the arity of a hypergraph to be the maximum arity of its hyperedges.
+152:245	A hyperedge of arity one degenerates into an edge, and a hypergraph of arity one is standard graph.
+153:245	Similar to the case of graphs, in many applications presented below, there is also a distinguished vertex t  V called target vertex.
+154:245	We can adapt the notions of backwardand forward-star to hypergraphs.
+155:245	5 The arity of e is dierent from its cardinality defined in (Gallo et al., 1993; Nielsen et al., 2005) which is |T(e)| +1.
+156:245	9 Definition 14.
+157:245	The backward-star BS(v) of a vertex v is the set of incoming hyperedges {e  E | h(e)=v}.Thein-degree of v is |BS(v)|.Theforwardstar FS(v) of a vertex v is the set of outgoing hyperedges {e  E | v  T(e)}.
+158:245	The out-degree of v is |FS(v)|.
+159:245	Definition 15.
+160:245	The graph projection of a hypergraph H = V,E,t,R is a directed graph G = V,E prime  where E prime = {(u, v) |e  BS(v), s.t. u  T(e)}.
+161:245	A hypergraph H is acyclic if its graph projection G is acyclic; then a topological ordering of H is an ordering of V that is a topological ordering in G. 4.1 Weight Functions and Semirings We also extend the concepts of monotonicity and superiority from semirings to hypergraphs.
+162:245	Definition 16.
+163:245	A function f : R m mapsto R is monotonic with regarding to precedesequal, if for all i  1m (a i precedesequal a prime i )  f(a 1 ,,a i ,,a m ) precedesequal f(a 1 ,,a prime i ,,a m ).
+164:245	Definition 17.
+165:245	A hypergraph H is monotonic if there is a total ordering precedesequal on R such that every weight function f in H is monotonic with regarding to precedesequal.
+166:245	We can borrow the additive operator  from semiring to define a comparison operator a  b = braceleftBigg aaprecedesequal b, b otherwise.
+167:245	In this paper we will assume this monotonicity, which corresponds to the optimal substructure property in dynamic programming (Cormen et al., 2001).
+168:245	Definition 18.
+169:245	A function f : R m mapsto R is superior if the result of function application is worse than each of its argument: i  1m, a i precedesequal f(a 1 ,,a i ,,a m ).
+170:245	A hypergraph H is superior if every weight function f in H is superior.
+171:245	10 4.2 Derivations To do optimization we need to extend the notion of paths in graphs to hypergraphs.
+172:245	This is, however, not straightforward due to the assymmetry of the head and the tail in a hyperedge and there have been multiple proposals in the literature.
+173:245	Here we follow the recursive definition of derivations in (Huang and Chiang, 2005).
+174:245	See Section 6 for the alternative notion of hyperpaths.
+175:245	Definition 19.
+176:245	A derivation D of a vertex v in a hypergraph H, its size |D| and its weight w(D) are recursively defined as follows:  If e  BS(v)with|e| =0,thenD = e, epsilon1 is a derivation of v, its size |D| = 1, and its weight w(D)=f e ().
+177:245	 If e  BS(v)where|e| > 0andD i is a derivation of T i (e) for 1  i |e|,thenD = e, D 1 D |e|  is a derivation of v, its size |D| = 1+ summationtext |e| i=1 |D i | and its weight w(D)=f e (w(D 1 ),,w(D |e| )).
+178:245	The ordering on weights in R induces an ordering on derivations: D precedesequal D prime i w(D) precedesequal w(D prime ).
+179:245	We denote D(v) to be the set of derivations of v andextendthebest weight in definition 11 to hypergraph: Definition 20.
+180:245	The best weight (v) of a vertex v is the weight of the best derivation of v: (v)= braceleftBigg 1 v is a source vertex circleplustext DD(v) w(D) otherwise (6) 4.3 Related Formalisms Hypergraphs are closely related to other formalisms like AND/OR graphs, context-free grammars, and deductive systems (Shieber et al., 1995; Nederhof, 2003).
+181:245	In an AND/OR graph, the OR-nodes correspond to vertices in a hypergraph and the AND-nodes, which links several OR-nodes to another OR-node, correspond to a hyperedge.
+182:245	Similarly, in context-free grammars, nonterminals are vertices and productions are hyperedges; in deductive systems, items are vertices and instantied deductions are hyperedges.
+183:245	Table 3 summarizes these correspondences.
+184:245	Obviously one can construct a corresponding hypergraph for any given AND/OR graph, context-free grammar, or deductive system.
+185:245	However, the hypergraph formulation provides greater 11 hypergraph AND/OR graph context-free grammar deductive system vertex OR-node symbol item source-vertex leaf OR-node terminal axiom target-vertex root OR-node start symbol goal item hyperedge AND-node production instantiated deduction ({u 1 ,u 2 },v,f) v f  u 1 u 2 u 1 : au 2 : b v : f(a,b) Table 3: Correspondence between hypergraphs and related formalisms.
+186:245	modeling flexibility than the weighted deductive systems of Nederhof (2003): in the former we can have a separate weight function for each hyperedge, where as in the latter, the weight function is defined for a deductive (template) rule which corresponds to many hyperedges.
+187:245	5 Dynamic Programming on Hypergraphs Since hypergraphs with weight functions are generalizations of graphs with semirings, we can extend the algorithms in Section 3 to the hypergraph case.
+188:245	5.1 Generalized Viterbi Algorithm The Viterbi Algorithm (Section 3.1) can be adapted to acyclic hypergraphs almost without modification (see Algorithm 4 for pseudo-code).
+189:245	Algorithm 4 Generalized Viterbi Algorithm.
+190:245	1: procedure General-Viterbi(H) 2: topologically sort the vertices of H 3: Initialize(H) 4: for each vertex v in topological order do 5: for each hyperedge e in BS(v) do 6: e is ({u 1 ,u 2 ,,u |e| },v,f e ) 7: d(v) = f e (d(u 1 ),d(u 2 ),,d(u |e| )) The correctness of this algorithm can be proved by a similar induction.
+191:245	Its time complexity is O(V + E) since every hyperedge is visited exactly once (assuming the arity of the hypergraph is a constant).
+192:245	The forward-update version of this algorithm, however, is not as trivial as the graph case.
+193:245	This is because the tail of a hyperedge now contains several vertices and thus the forwardand backward-stars are no longer symmetric.
+194:245	The naive adaption would end up visiting a hyperedge many 12 times.
+195:245	To ensure that a hyperedge e is fired only when all of its tail vertices have been fixed to their best weights, we maintain a counter r[e]ofthe remaining vertices yet to be fixed (line 5) and fires the update rule for e when r[e] = 0 (line 9).
+196:245	This method is also used in the Knuth algorithm (Section 5.2).
+197:245	Algorithm 5 Forward update version of Algorithm 4.
+198:245	1: procedure General-Viterbi-Forward(H) 2: topologically sort the vertices of H 3: Initialize(H) 4: for each hyperedge e do 5: r[e] |e| triangleright counter of remaining tails to be fixed 6: for each vertex v in topological order do 7: for each hyperedge e in FS(v) do 8: r[e]  r[e]  1 9: if r[e]==0then triangleright all tails have been fixed 10: e is ({u 1 ,u 2 ,,u |e| },h(e),f e ) 11: d(h(e)) = f e (d(u 1 ),d(u 2 ),,d(u |e| )) 5.1.1 CKY Algorithm The most widely used algorithm for parsing in NLP, the CKY algorithm (Kasami, 1965), is a specific instance of the Viterbi algorithm for hypergraphs.
+199:245	The CKY algorithm takes a context-free grammar G in Chomsky Normal Form (CNF) and essentially intersects G with a DFA D representing the input sentence to be parsed.
+200:245	The resulting search space by this intersection is an acyclic hypergraph whose vertices are items like (X,i,j) and whose hyperedges are instantiated deductive steps like ({(Y,i,k)(Z,k,j)}, (X,i,j),f) for all i<k<jif there is a production X  YZ.
+201:245	The weight function f is simply f(a,b)=a  b  w(X  YZ).
+202:245	The Chomsky Normal Form ensures acyclicity of the hypergraph but there are multiple topological orderings which result in dierent variants of the CKY algorithm, e.g., bottom-up CKY, left-to-right CKY, and right-toleft CKY, etc. 5.2 Knuth Algorithm Knuth (1977) generalizes the Dijkstra algorithm to what he calls the grammar problem, which essentially corresponds to the search problem in a monotonic superior hypergraph (see Table 3).
+203:245	However, he does not provide 13 an ecient implementation nor analysis of complexity.
+204:245	Graehl and Knight (2004) present an implementation that runs in time O(V log V + E)using the method described in Algorithm 5 to ensure that every hyperedge is visited only once (assuming the priority queue is implemented as a Fibonaaci heap; for binary heap, it runs in O((V + E)logV )).
+205:245	Algorithm 6 Knuth Algorithm.
+206:245	1: procedure Knuth(H) 2: Initialize(H) 3: Q  V [H] triangleright prioritized by d-values 4: for each hyperedge e do 5: r[e] |e| 6: while Q negationslash=do 7: v  Extract-Min(Q) 8: for each edge e in FS(v) do 9: e is ({u 1 ,u 2 ,,u |e| },h(e),f e ) 10: r[e]  r[e]  1 11: if r[e]==0then 12: d(h(e)) = f e (d(u 1 ),d(u 2 ),,d(u |e| )) 13: Decrease-Key(Q, h(e)) 5.2.1 A* Algorithm on Hypergraphs We can also extend the A* idea to hypergraphs to speed up the Knuth Algorithm.
+207:245	A specific case of this algorithm is the A* parsing of Klein and Manning (2003) where they achieve significant speed up using carefully designed heuristic functions.
+208:245	More formally, we first need to extend the concept of (exact) outside cost from Eq.
+209:245	5: (v)= braceleftBigg 1 v = t circleplustext DD(v,t) w(D) v negationslash= t (7) where D(v,t) is the set of (partial) derivations using v as a leaf node.
+210:245	This outside cost can be computed from top-down following the inverse topological order: for each vertex v, for each incoming hyperedge e = ({u 1 ,,u |e| },v,f e )  BS(v), we update (u i )  = f e (d(u 1 )d(u i1 ),(v),d(u i+1 )d(u |e| )) for each i. Basically we replace d(u i )by(v)foreachi.
+211:245	In case weight functions are composed of semiring operations, as in shortest paths (+) or probabilistic 14 grammars (), this definition makes sense, but for general weight functions there should be some formal requirements to make the definition sound.
+212:245	However, this topic is beyond the scope of this paper.
+213:245	6 Extensions and Discussions In most of the above we focus on optimization problems where one aims to find the best solution.
+214:245	Here we consider two extensions of this scheme: non-optimization problems where the goal is often to compute the summation or closure, and k-best problems where one also searches for the 2nd, 3rd, through kth-best solutions.
+215:245	Both extensions have many applications in NLP.
+216:245	For the former, algorithms based on the Inside semiring (Table 1), including the forward-backward algorithm (Baum, 1972) and Inside-Outside algorithm (Baker, 1979; Lari and Young, 1990) are widely used for unsupervised training with the EM algorithm (Dempster et al., 1977).
+217:245	For the latter, since NLP is often a pipeline of several modules, where the 1-best solution from one module might not be the best input for the next module, and one prefers to postpone disambiguation by propogating a k-best list of candidates (Collins, 2000; Gildea and Jurafsky, 2002; Charniak and Johnson, 2005; Huang and Chiang, 2005).
+218:245	The k-best list is also frequently used in discriminative learning to approximate the whole set of candidates which is usually exponentially large (Och, 2003; McDonald et al., 2005).
+219:245	6.1 Beyond Optimization Problems We know that in optimization problems, the criteria for using dynamic programming is monotonicity (definitions 6 and 16).
+220:245	But in non-optimization problems, since there is no comparison, this criteria is no longer applicable.
+221:245	Then when can we apply dynamic programming to a non-optimization problem?
+222:245	Cormen et al.223:245	(1990) develop a more general criteria of closed semiring where  is idempotent and infinite sums are well-defined and present a more sophisticated algorithm that can be proved to work for all closed semirings.
+224:245	This definition is still not general enough since many non-optimization semirings including the Inside semiring are not even idempotent.
+225:245	Mohri (2002) solves this problem by a slightly dierent definition of closedness which does not assume idempotence.
+226:245	His generic single-source algorithm subsumes many classical algorithms like Dijkstra, Bellman-Ford (Bellman, 1958), and Viterbi as specific instances.
+227:245	It remains an open problem how to extend the closedness definition to the case of weight functions in hypergraphs.
+228:245	15 6.2 k-best Extensions The straightforward extension from 1-best to k-best is to simply replace the old semiring (A,,, 0, 1) by its k-best version (A k , k , k , 0 k , 1 k )where each element is now a vector of length k,withtheith component represent the ith-best value.
+229:245	Since  is a comparison, we can define  k to be the top-k elements of the 2k elements from the two vectors, and  k the top-k elements of the k 2 elements from the cross-product of two vectors: a  k b =  prime k ({a i | 1  i  k}{b j | 1  j  k}) a  k b =  prime k {a i  b j | 1  i,j  k} where  prime k returns the ordered list of the top-k elements in a set.
+230:245	A similar construction is obvious for the weight functions in hypergraphs.
+231:245	Now we can re-use the 1-best Viterbi Algorithm to solve the k-best problem in a generic way, as is done in (Mohri, 2002).
+232:245	However, some more sophisticated techniques that breaks the modularity of semirings results in much faster k-best algorithms.
+233:245	For example, the Recursive Enumeration Algorithm (REA) (Jimenez and Marzal, 1999) uses a lazy computation method on top of the Viterbi algorithm to eciently compute the ith-best solution based on the 1st, 2nd, , (i  1)th solutions.
+234:245	A simple k-best Dijkstra algorithm is described in (Mohri and Riley, 2002).
+235:245	For the hypergraph case, the REA algorithm has been adapted for k-best derivations (Jimenez and Marzal, 2000; Huang and Chiang, 2005).
+236:245	Applications of this algorithm include k-best parsing (McDonald et al., 2005; Mohri and Roark, 2006) and machine translation (Chiang, 2007).
+237:245	It is also implemented as part of Dyna (Eisner et al., 2005), a generic langauge for dynamic programming.
+238:245	The k-best extension of the Knuth Algorithm is studied by Huang (2005).
+239:245	A separate problem, k-shortest hyperpaths, has been studied by Nielsen et al.240:245	(2005).
+241:245	Eppstein (2001) compiles an annotated bibliography for k-shortest-path and other related k-best problems.
+242:245	7 Conclusion This report surveys two frameworks for formalizing dynamic programming and presents two important classes of DP algorithms under these frameworks.
+243:245	We focused on 1-best optimization problems but also discussed other scenarios like non-optimization problems and k-best solutions.
+244:245	We believe that a better understanding of the theoretical foundations of DP is benefitial for NLP researchers.
+245:245	16
+

@@ -1,0 +1,855 @@
+CoNLL 2008: Proceedings of the 12th Conference on Computational Natural Language Learning, pages 119–126
+Manchester, August 2008
+EasyasABC?FacilitatingPictorialCommunication
+viaSemanticallyEnhancedLayout
+AndrewB.Goldberg,XiaojinZhu,CharlesR.Dyer,MohamedEldawy,LijieHeng
+DepartmentofComputerSciences
+UniversityofWisconsin,Madison,WI53706,USA
+{goldberg, jerryzhu, dyer, eldawy, ljheng}@cs.wisc.edu
+Abstract
+Pictorial communication systems convert
+natural language text into pictures to as-
+sistpeoplewithlimitedliteracy.Wedefine
+a novel and challenging problem: picture
+layout optimization. Given an input sen-
+tence, weseektheoptimalwaytolayout
+word icons such that the resulting picture
+bestconveysthemeaningoftheinputsen-
+tence. To this end, we propose a family
+ofintuitive“ABC”layouts,whichorganize
+iconsinthreegroups.Weformalizelayout
+optimization as a sequence labeling prob-
+lem, employingconditionalrandomfields
+asourmachinelearningmethod. Enabled
+by novel applications of semantic role la-
+beling and syntactic parsing, our trained
+modelmakeslayoutpredictionsthatagree
+well with human annotators. In addition,
+we conduct a user study to compare our
+ABClayoutversusthestandardlinearlay-
+out.Thestudyshowsthatoursemantically
+enhancedlayoutispreferredbynon-native
+speakers,suggestingithasthepotentialto
+be useful for people with other forms of
+limitedliteracy,too.
+1 Introduction
+A picture is worth a thousand words—especially
+when you are someone with communicative dis-
+orders, a foreign language speaker, or a young
+child.Pictorialcommunicationsystemsaimtoau-
+tomatically convert general natural language text
+into meaningful pictures. A perfect pictorial
+c©2008. Licensed under the Creative Commons
+Attribution-Noncommercial-Share Alike 3.0 Unported li-
+cense (http://creativecommons.org/licenses/by-nc-sa/3.0/).
+Somerightsreserved.
+communication system can turn signs and opera-
+tioninstructionsintoeasy-to-understandgraphical
+forms; combined with optical character recogni-
+tioninput,apersonalassistantdevicecouldcreate
+suchvisualtranslationson-the-flywithoutthehelp
+ofacaretaker. Pictorialcommunicationmayalso
+facilitateliteracydevelopmentandrapidbrowsing
+ofdocumentsthroughpictorialsummaries.
+Pictorial communication research is in its in-
+fancy with a spectrum of experimental systems,
+which we review in Section 2. At one end of
+the spectrum, some systems render highly realis-
+tic3Dscenesbutrequirespecificscene-descriptive
+language. At the other end, some systems per-
+formdictionary-basediconictransliteration(turn-
+ingwordsintoicons
+1
+onebyone)onarbitrarytext
+butthepicturescanbehardtounderstand. Weare
+interested in using pictorial communication as an
+assistive communication tool. Thus, our system
+needstobeabletohandlegeneraltextyetproduce
+easy-to-understandpictures,whichisinthemiddle
+of the spectrum. To this end, our system adopts
+a “collage” approach (Zhu et al., 2007). Given a
+pieceoftext(e.g.,asentence),itfirstidentifiesim-
+portantandeasy-to-depictwords(orphrases)with
+natural language processing (NLP)techniques. It
+then finds one good icon per word, either from a
+manually created picture-dictionary, or via image
+analysis on image search results. Finally, it lays
+out the icons to create the picture. Each step in-
+volvesseveralinterestingresearchproblems.
+This paper focuses exclusively on the picture
+layout component and addresses the following
+question: Can we use machine learning and NLP
+techniquestolearnagoodpicturelayoutthatim-
+1
+Inthispaper, an icon referstoasmallthumbnailimage
+corresponding to a word or phrase. A picture refers to the
+overalllargeimagecorrespondingtothewholetext.
+119
+provespicturecomprehensionforourtargetaudi-
+encesoflimitedliteracy? Wefirstproposeasim-
+pleyetnovelpicturelayoutschemecalled“ABC.”
+Next, we design a Conditional Random Field-
+basedsemantictaggerforpredictingtheABClay-
+out. Finally, we conduct a user study contrasting
+ourABClayouttothelinearlayoutusediniconic
+transliteration.Themaincontributionofthispaper
+istointroducethenoveltaskoflayoutprediction,
+learned using linguistic features including Prop-
+Bank role labels, part-of-speech tags, and lexical
+features.
+2 PriorPictorialCommunicationWork
+At one extreme, there has been significant prior
+workon“text-to-scene”typesystems,whichwere
+oftenintendedtoaidgraphicdesignersinplacing
+objectsina3Denvironment.Examplesystemsin-
+cludeNALIG(Adornietal.,1983),SPRINT(Ya-
+mada et al., 1992), Put (Clay and Wilhelms,
+1996), and others (Brown and Chandrasekaran,
+1981).Perhapsthebestknownsystemofthistype,
+WordsEye(CoyneandSproat,2001),usesalarge
+manuallytaggedcollectionof3Dpolyhedralmod-
+elstocreatephoto-realisticscenes.Similarly,Car-
+Sim (Johansson et al., 2005) can create animated
+scenes,butoperatesexclusivelyinthelimiteddo-
+mainofreconstructingroadaccidentsfromtraffic
+reports.Thesesystemscatertodetaileddescriptive
+textwithvisualandspatialelements. Theyarenot
+intendedasassistivetoolstocommunicategeneral
+text,whichisourgoal.
+Severalsystems(Zhuetal.,2007;Mihalceaand
+Leong, 2006; Joshi et al., 2006) attempt to bal-
+ancelanguagecoverageversuspicturesophistica-
+tion. Theyperformsomeformofkeywordselec-
+tion,andselectcorrespondingiconsautomatically
+froma2Dimagedatabase.Theresultisapictorial
+summary representing the main idea of the origi-
+naltext,butpreciselydeterminingtheoriginaltext
+bylookingatthepicturecanbedifficult.
+Attheotherextreme,augmentativeandalterna-
+tive communication software allows users to in-
+put arbitrary text. The words, and sometimes
+common phrases, are semi-automatically translit-
+erated into icons, and displayed in sequential or-
+der. Users must learn special icons, which corre-
+spondtofunctionwords,beforetheresultingpic-
+tures can be fully understood. Examples include
+SymWriter(WidgitSoftware,2007)andBlissym-
+bols(Hehner,1980).
+Otherthanexplicitscene-descriptivelanguages,
+pictorial communication systems have not suffi-
+ciently addressed the issue of picture layout for
+generaltext. Webelieveagoodlayoutcanbetter
+communicatethetextapictureistryingtoconvey.
+Thepresentworkstudiestheuseofasemantically
+inspired layout to enhance pictorial communica-
+tion.Forsimplicity,werestrictourattentiontothe
+layoutofasinglesentence. Weanticipatetheuse
+of text simplification (Chandrasekar et al., 1996;
+VickreyandKoller,2008)toconvertcomplextext
+intoasetofappropriateinputsforoursystem.
+3 TheABCLayout
+Agoodpicturelayoutschememustbeintuitiveto
+humans and easy to generate by computers. To
+design such a layout, we conducted a pilot study.
+Five human annotators produced free-hand pic-
+turesofmanysentences.Analyzingthesepictures,
+we found a large amount of agreement in the use
+ofarrowstomarkactionsandtoprovidestructure
+towhatwouldotherwisebeajumbleoficons.
+Motivatedbythepilotstudy,weproposeasim-
+ple layout scheme called ABC. It features three
+positions, referred to as A, B, and C. In addition,
+anarrowpointsfromAthroughBtoC(Figure1).
+Thesepositionsaremeanttodenotecertainseman-
+tic roles: roughly speaking, A denotes “who,” B
+denotes “what action,” and C denotes “to whom,
+forwhat.” Eachpositioncancontainanynumber
+oficons,eachrepresentingawordorphraseinthe
+text. Words that do not play a significant role in
+thetextwillbeomittedfromtheABClayout.
+TherearetwomainadvantagesoftheABClay-
+out:
+1.TheABCpositioningoficonsallowsusersto
+infer the semantic role of the corresponding con-
+cepts.Inparticular,wefoundthatverbscanbedif-
+ficulttodepictandunderstandwithoutsuchhints.
+TheBpositionservesasanactionindicatortodis-
+ambiguate between multiple senses of the same
+icon.Forexample,inFigure1,theschoolbusicon
+clearlyrepresentstheverbphrase“ridesthebus,”
+ratherthanjustthenoun“bus.”
+2.Suchalayoutisparticularlyamenabletoma-
+chinelearning. Specifically,wecanturntheprob-
+lemoffindingtheoptimallayoutforaninputsen-
+tence into a sequence tagging problem, which is
+well-studiedinNLP.
+120
+The girl rides the bus to school in the morning
+O A B B B O C O O B
+Figure 1: Example ABC picture layout, original
+text,andtagsequence.
+3.1 ABCLayoutasSequenceTagging
+Givenaninputsentence,onecanassigneachword
+atagfromtheset{A,B,C,O}.Thebottomrowin
+Figure1showsanexampletagsequence. Thetag
+specifiestheABClayoutpositionoftheiconcor-
+respondingtothatword.TagOmeans“other”and
+marks words not included in the picture. Within
+eachposition,iconsappearinthewordorderinthe
+inputsentence.Therefore,atagsequenceuniquely
+determinesanABClayoutofthepicture.
+Finding the optimal ABC layout of the input
+sentenceisthusequivalenttocomputingthemost
+likely tag sequence given the input sentence. We
+adopt a machine learning approach by training a
+sequence tagger for this task. To do so, we need
+tocollectlabeledtrainingdataintheformofsen-
+tenceswithmanuallyannotatedtagsequences.We
+discussourannotationeffortnext,andpresentour
+machinelearningmodelsinSection4.
+3.2 HumanAnnotatedTrainingData
+Weaskedthefiveannotatorstomanuallylabel571
+sentences compiled from several online sources,
+includinggradeschooltextsabouthistoryandsci-
+ence,children’sbooks,andrecentnewsheadlines.
+Somesentenceswerewrittenbytheannotatorsand
+describe daily activities. The annotators tagged
+eachsentenceusingaWeb-basedtooltodrag-and-
+dropiconsintothedesiredpositionsinthelayout
+2
+.
+To gauge the quality of the manually labeled
+data, and to understand the difficulty of the ABC
+2
+Themanualtaggingactuallyemploysamoredetailedtag
+set to denote phrase structure: Each A, B, or C tag is com-
+binedwithamodifierof b (beginphrase)or i (insidephrase).
+Forexample,thephrase“ridesthebus”inFigure1istagged
+with B
+b
+B
+i
+B
+i, and shares one icon. The icons were also
+manuallyselectedbytheannotatorfromalistofWebimage
+searchresults.
+layout, we computed inter annotator agreement
+among three of the five annotators on a common
+setof48sentences.Consideringallpair-wisecom-
+parisons of the three annotators, the overall aver-
+agetagagreementwas77%.Thismeasurestheto-
+talnumberofmatchingtags(acrossallsentences)
+divided by the total number of tags. Matching
+strictlyrequiresboththecorrecttagandthecorrect
+modifier. WealsocomputedFleiss’kappa,which
+measures the degree of inter-annotatoragreement
+beyond the amount expected by chance (Fleiss,
+1971). Thevaluesrangefrom0to1,with1indi-
+catingperfectagreement. Thekappastatisticwas
+0.71, which is often considered moderate to high
+agreement.
+Furtherinspection revealed that most disagree-
+ment was due to annotators reversing A and C
+tags. This could arise from interpreting passive
+sentences in different ways or trying to represent
+physicalmovement.Forexample,someannotators
+founditmorenaturaltodepicteatingbyplacinga
+fooditeminAandtheeaterinC,treatingthear-
+rowasthetransferoffood.Itwasalsocommonfor
+annotatorstodisagreeonwhethercertainadverbs
+andtimemodifiersbelonginBorinC.Thesedif-
+ferencesallsuggestthehighlysubjectivenatureof
+conceptualizingpicturesfromtext.
+4 AConditionalRandomFieldModelfor
+ABCLayoutPrediction
+We now introduce our approach to automatically
+predicting the ABC layout of an input sentence.
+Whileitwasmostnaturalforhumanannotatorsto
+annotate text at the word level, early experiments
+quicklyrevealedthatpredictingtagsatthislevelis
+quitechallenging.Mostofthisstemsfromthefact
+that human annotators tend to fragment the text
+intomanysmallsegmentsbasedontheavailability
+ofgoodicons. Forexample,thephrase“thewhite
+pygmyelephant”maybetaggedas“OAOA”be-
+causeitisdifficultfortheannotatortofindanicon
+ofthisexactphraseortheword“pygmy,”buteasy
+tofindiconsof“white”and“elephant”separately.
+Essentially,humanannotationcombinestwotasks
+inone:decidingwhereeachphrasegoesinthelay-
+out,anddecidingwhichwordswithinaphrasecan
+bedepictedwithicons.
+Torectifythissituation,wemakelayoutpredic-
+tions at the level of chunks (phrases); that is, we
+automaticallybreakthetextintochunks,thenpre-
+dictoneA,B,C,orOtagforeachchunk.Sincethe
+121
+tagchoicesmadefordifferentchunksmaydepend
+on each other, we employ Conditional Random
+Fields(CRF)(Laffertyetal.,2001),whicharefre-
+quentlyusedinsequentiallabelingtaskslikeinfor-
+mation extraction. Ourchoice of chunking is de-
+scribedinSection4.1,andtheCRFmodelsandin-
+putfeaturesaredescribedinSection4.2. Thetask
+ofdecidingwhichwordswithinachunkshouldap-
+pearinthepictureisaddressedbya“wordpictura-
+bility”model,andisdiscussedinaseparatepaper.
+For training, we automatically map the word-
+leveltagsinourannotateddatatochunk-leveltags
+basedonthemajorityABCtagwithinachunk.
+4.1 ChunkingbySemanticRoleLabeling
+Ideally, we would like semantically coherent text
+chunks to be represented pictorially in the same
+layoutposition. Toobtainsuchchunks,welever-
+age existing semantic role labeling (SRL) tech-
+nology (Palmeret al., 2005; Gildea and Jurafsky,
+2002). SRLisanactiveNLPtaskinwhichwords
+orphrasesinasentenceareassignedalabelindi-
+catingtheroletheyplaywithrespecttoaparticu-
+larverb(alsoknownasthetargetpredicate). SRL
+systems like FrameNet (Baker et al., 1998) and
+PropBank (Palmer et al., 2005) aim to provide a
+richrepresentationforapplicationsrequiringsome
+degreeofnaturallanguageunderstanding,andare
+thus perfectly suited for our needs. We shall fo-
+cusonPropBanklabelsbecausetheyareeasierto
+use for our task. To obtain semantic role labels,
+we use the automatic statistical semantic role la-
+beler ASSERT (Pradhan et al., 2004), trained to
+identify PropBank arguments through the use of
+supportvectormachinesandfullsyntacticparses.
+TounderstandhowSRLcanbeusefulforderiv-
+ing pictorial layouts, consider the sentence “The
+boy gave the ball to the girl.” PropBank marks
+the semantic role labels of the “arguments” of
+verbs.Thetargetverb“give”ispartoftheframeset
+“transfer,”withcorearguments“Arg0: giver”(the
+boy), “Arg1: thing given” (the ball), and “Arg2:
+entity given to” (the girl). Verbs can also in-
+volvenon-coremodifierarguments,suchasArgM-
+TMP (time), ArgM-LOC (location), ArgM-CAU
+(cause), etc. The entities playing semantic roles
+are likely to be entities we want to portray in a
+picture. For PropBank, Arg0 often represents an
+Agent,andArg1thePatientorTheme.Ifwecould
+mapthedifferentsemanticrolelabelstoABCtags
+withsimplerules,thenwewouldbedone.
+Unfortunately, it is not this simple, as Prop-
+Bank roles are verb-specific. As Palmer et al.pointedout,“Noconsistentgeneralizationscanbe
+made across verbs for the higher-numbered argu-
+ments”(Palmeretal., 2005). Intheaboveexam-
+ple, we might expect a layout rule of [Arg0]→A,
+[Target,Arg1]→B,[Arg2]→C.However,thisrule
+doesnotgeneralizetootherverbs,suchas“drive,”
+as in the sentence “The boy drives his parents
+crazy,”whichalsohasthreecorearguments“Arg0:
+driver,” “Arg1: thing in motion,” and “Arg2: sec-
+ondary predication on Arg1.” However, here the
+action is figurative, and we would expect a lay-
+outrulethatputsArg1inpositionC:[Arg0]→A,
+[Target]→B,[Arg1,Arg2]→C.
+In addition, while modifierarguments have the
+same meaning across verbs, their pictorial repre-
+sentation may differ based on context. Consider
+thesentences“PolarbearsliveintheArctic.” and
+“Yesterday at the zoo, the students saw a polar
+bear.” In the former, a human annotator is likely
+to place an icon for the ArgM-LOC “in the Arc-
+tic”inpositionC(e.g.,followingapolarbearicon
+inAandahouseiconinB).However,theArgM-
+LOC in the second sentence, “at the zoo,” seems
+moreappropriatelyplacedinpositionBsinceitde-
+scribeswherethisparticularactionoccurred.
+Finally, the situation is further complicated
+when a sentence contains multiple verbs. SRL
+treats each verb in isolation, producing multiple
+setsofrolelabels,yetourgoalistoproduceasin-
+gle picture. Clearly, the mapping from semantic
+rolestolayoutpositionsisnon-trivial.Wedescribe
+ourstatisticalmachinelearningapproachnext.
+4.2 OurCRFModelsandFeatures
+We use a linear-chain CRF as our sequence tag-
+ging model. A CRF is a discriminative model of
+theconditionalprobability p(y|x),where y isthe
+sequenceoflayouttagsin Y ={A,B,C,O},and x
+is the sequence of SRL chunks produced by the
+processdescribedinSection4.1.OurCRFhasthe
+generalform
+p(y|x) =
+1
+Z(x)
+exp
+
+
+|x|
+summationdisplay
+t=1
+K
+summationdisplay
+k=1
+λ
+k
+f
+k
+(y
+t, y
+t−1, x, t)
+
+
+where the model parameters are {λ
+k
+}. We
+use binary features f
+k
+(y
+t, y
+t−1, x, t) detailed be-
+low. Finally, we use an isotropic Gaussian prior
+N(0,σ
+2
+I) onparametersasregularization.
+122
+Weexploredthreeversionsoftheabovemodel
+by specializing the weighted feature function
+λ
+k
+f
+k
+(). Model1ignoresthepairwiselabelpoten-
+tials and treats each labeling prediction indepen-
+dently: λ
+jk
+1
+{y
+t
+=j}
+f
+k
+(x, t),where 1
+{z}
+isanindi-
+catorfunctionon z. Thisisequivalenttoamulti-
+classlogisticregressionclassifier. Model2resem-
+blesaHiddenMarkovModel(HMM)byfactoring
+pairwise label potentials and emission potentials:
+λ
+ij
+1
+{y
+t−1
+=i}
+1
+{y
+t
+=j}
++λ
+jk
+1
+{y
+t
+=j}
+f
+k
+(x, t).Finally,
+Model 3 hasthemostgenerallinear-chainpoten-
+tial: λ
+ijk
+1
+{y
+t−1
+=i}
+1
+{y
+t
+=j}
+f
+k
+(x, t). Model3isthe
+mostflexible,buthasthemostweightstolearn.
+We use the following binary predicate features
+f
+k
+(x, t)inallourmodels,evaluatedoneachchunk
+producedbythesemanticrolelabeler:
+1.PropBankrolelabel(s)ofthechunk(e.g.,Tar-
+get, Arg0, Arg1, ArgM-LOC). A chunk can have
+multiplerolelabelsifthesentencecontainsmulti-
+pleverbs;inthiscase,wemergethemultipleSRL
+resultsbytakingtheirunion.
+2. Part-of-speech tags of all the words in the
+chunk. All syntactic parsing results are obtained
+from the Stanford Parser (Klein and Manning,
+2003),usingthedefaultPCFGmodel.
+3. Phrasetype(e.g.,NP,VP,PP)ofthedeepest
+syntacticparsetreenodecoveringtheentirechunk.
+We also include a feature indicating whether the
+phraseisnestedwithinanancestorVP.
+4.Lexicalfeatures:individualwordidentitiesin
+thetop5000mostfrequentwordsintheGoogle1T
+5gramcorpus(BrantsandFranz,2006). Forother
+words,weusetheirautomaticallypredictedWord-
+Netsupersenses(CiaramitaandAltun,2006). Su-
+persenses are 41 broad semantic categories (e.g.,
+noun.location, verb.communication). By dividing
+lexicalfeaturesinthisway,wehopetolearnspe-
+cific qualities of common words, but generalize
+acrossrarerwords.
+We also experimented with features derived
+fromtypeddependencyrelations,butthesedidnot
+improve our models. We suspect the PropBank
+rolelabelscapturemuchofthesameinformation.
+Inaddition,theGoogle5000-wordlistwasthebest
+amongseveralwordliststhatweexploredforsplit-
+tingupthelexicalfeatures.
+4.3 CRFExperimentalResults
+We trained our CRF models using the MAL-
+LET toolkit (McCallum, 2002). Our complete
+datasetconsistsofthe571manuallyannotatedsen-
+10
+−1
+10
+0
+10
+1
+0.71
+0.72
+0.73
+0.74
+0.75
+0.76
+0.77
+0.78
+Variance
+Accuracy and F1
+ 
+ 
+Accuracy
+F1
+Model 1
+Model 2
+Model 3
+Figure 2: 5-fold cross validation results for dif-
+ferentvaluesoftheregularizationparameter(vari-
+ance σ
+2
+) and three CRF models predicting A, B,
+C,orOlayouttags.
+tences (tags mapped to chunk-level). The only
+tuning parameter is the Gaussian prior variance,
+σ
+2
+. We performed 5-fold cross validation, vary-
+ingσ
+2
+andcomparingperformanceacrossmodels.
+Figure 2 demonstrates that peak per-chunk accu-
+racy (77.6%) and macro-averaged F1 scores are
+achievedusingthemostgeneralsequencelabeling
+model. Asaresult,theuserstudyinthenextsec-
+tionisbasedonlayoutspredictedbyModel3with
+σ
+2
+= 1.0,trainedonallthedata.
+To understand which features contribute most
+to performance, we experimented with removing
+each of the four types (individually). Peak accu-
+racy drops the most when lexical features are re-
+moved (76.4%), followed by PropBank features
+(76.5%), phrase features (76.9%), and POS fea-
+tures(77.1%).
+Thefeaturesinthefinallearnedmodelmakein-
+tuitive sense. It prefers tag transitions A→B and
+B→C,butnotA→CorC→A.Themodellikesthe
+word “I” and noun phrases (not nested in a verb
+phrase)tohavetagA.VerbsandArgM-NEGsare
+frequently tagged B, while noun.object’s, Arg4s,
+and ArgM-CAUs are typically C. The model dis-
+couragesArg0sandconjunctionsinB,anddislikes
+adverbialphrasesandnoun.time’sinC.
+While 77.6% cross validation accuracy may
+seem low, it is in fact close to the 81% inter an-
+notatoragreement
+3,andthusclosetooptimal.The
+confusionmatrix(notshown)revealsthatmoster-
+3
+The81%agreementisonmappedchunk-leveltagswith-
+outmodifiers(Fleiss’kappa0.74),whilethe77%agreement
+inSection3.2isonword-leveltagswithmodifiers.
+123
+rors probably arise from disagreements in the in-
+dividualannotators. Themostcommonerrorsare
+predicting B for chunks labeled O and confusing
+tagsBandC.Manuallyinspectingthepicturesin
+ourtraining set showsthat annotators often omit-
+tedtheverb(suchas“is”or“has”)andlefttheB
+position empty, since it could be inferred by the
+presenceofthearrowandtheimagesinAandC.
+Also,annotatorstendedtodisagreeonthelocation
+of adverbial expressions, dividing them between
+positions B and C. Finally, only 3.3% of chunks
+wereincorrectlyomittedfromthepictures.There-
+fore,weconcludethatourCRFmodelsarecapable
+ofpredictingtheABClayouts.
+5 UserStudy
+We have proposed the ABC layout, and showed
+thatwecanlearntopredictitreasonablywell.But
+animportantquestionremains: Can the proposed
+ABC layout help a target audience of limited lit-
+eracy understand pictures better, compared to the
+linearlayoutusedinstate-of-the-artaugmentative
+and alternative communication software? Wede-
+scribe a user study as our first attempt to answer
+thisquestion.Thislineofworkhastwomainchal-
+lenges: one is the practical difficulty of working
+withhumansubjectsoflimitedliteracy;theotheris
+thelackofaquantitativemeasureofpicturecom-
+prehension.
+[Subjects]:Topartiallyovercomethefirstchal-
+lenge, we recruited two groups of subjects with
+medium and high literacy respectively, in hopes
+of extrapolating our findings towards the low lit-
+eracygroup. Specifically,themediumgroupcon-
+sisted of seven non-native English speakers who
+speaksomedegreeofEnglish—“mediumliteracy”
+refers to their English fluency; twelve native En-
+glish speakers comprised the high literacy group.
+All subjects were adults and did not include the
+authors of this paper or the five annotators. The
+subjects had no prior exposure to pictorial com-
+municationsystems.
+[Material]: We randomly chose 90 test sen-
+tences from three sources
+4
+representing our
+target application domains: short narratives
+written by and for individuals with commu-
+nicative disorders (symbolworld.org);
+one-sentence news synopses written in simple
+English targeting foreign language learners
+(simpleenglishnews.com); and the child
+4
+Distinctfromthesourcesofthe571trainingsentences.
+writing sections of the LUCY corpus (Sampson,
+2003). We created two pictures for each test
+sentence: one using a linear layout and one
+using an ABC layout. For the linear layout,
+we used SymWriter. Typing text in SymWriter
+automatically produces a left-to-right sequence
+of icons, chosen from an icon database. In cases
+where SymWriter suggests several possible icons
+foraword,wemanuallyselectedthebestone.For
+words not in the database, we found appropriate
+thumbnail images using Web image search. This
+is how a typical user would use SymWriter. To
+produce the ABC layout, we applied the trained
+CRF tagger Model 3 to the test sentence. After
+obtainingA,B,C,andOtagsfortextchunks,we
+placedthecorrespondingicons(fromSymWriter’s
+linearlayout)inthecorrectlayoutpositions.Icons
+for words tagged O did not appear in the ABC
+versionofthepicture. Asidefromthisdifference,
+both pictures of each test sentence contained
+exactly the same icons—the only difference was
+thelayout.
+[Protocol]: All 19 subjects observed each of
+the 90 test sentences exactly once: 45 with the
+linear layout and 45 with the ABC layout. The
+layoutsandtheorderofsentenceswerebothran-
+domizedthroughoutthesequence,andthesubjects
+were counter-balanced so each sentence’s linear
+and ABC layouts were viewed by roughly equal
+numbers of subjects. At the start of the study,
+each subject read a brief introduction describing
+thetaskandsawanexampleofeachlayoutstyle.
+Then for each test sentence, we displayed a pic-
+ture,andthesubjecttypedaguessoftheunderly-
+ingsentence.Finally,thesubjectprovidedaconfi-
+dencerating(2=“almostsure,”1=“maybecorrect,”
+or 0=“no idea”). We measured response time as
+the time from image display until sentence/rating
+submission.Figure3showsatestsentenceinboth
+layouts,togetherwithseveralsubjects’guesses.
+[Evaluation metrics]: As noted above, the
+second main challenge is measuring picture
+comprehension—we need a way to compare the
+original sentences with the subjects’ guesses. In
+many ways, this is like machine translation (via
+pictures), so we turned to two automatic eval-
+uation metrics: BLEU-1 (Papineni et al., 2002)
+and METEOR (LavieandAgarwal, 2007). BLEU-1
+computes unigram precision (i.e., fraction of re-
+sponsewordsthatexactlymatchwordsintheorig-
+inal), multiplied by a brevity penalty for omit-
+124
+“wesingasongaboutafarm.”
+“isingaboutthefarmandanimals”
+“wesangforthefarmerandhegaveusanimals.”
+“Someonewenttohisgrandfather’sfarm
+andplayedwiththeanimals”
+“ican’tsinginthechoirbecauseihavetotend
+totheanimals.”
+“twinssingoldmacdonaldhasafarm”
+“theysangaboutafarm”
+“theysingoldmcdonaldhadafarm.”
+“wehaveafarmwithasheep,apigandacow.”
+“twopeoplesingoldmcdonaldhadafarm”
+“wesangoldmcdonaldonthefarm.”
+“theybothsing‘oldmacdonaldhadafarm’.”
+Figure 3: The linear and ABC layout pictures for the test sentence “We sang Old MacDonald had a
+farm.”andsomesubjects’guesses.NotethepredictedABClayoutomitstheambiguous“had”icon.
+ting words. In contrast, METEOR finds a one-to-
+onewordalignmentbetweenthetextsthatallows
+partial matches (after stemming and by consider-
+ing WordNet-based synonyms) and optionally ig-
+nores stop words. Based on this alignment, uni-
+gramprecision,recall,andweightedFmeasureare
+computed,andthefinalMETEORscoreisobtained
+by scaling F to account for word-order preserva-
+tion. We computed METEOR using its default pa-
+rametersandthestopwordlistfromtheSnowball
+project(Porter,2001).
+[Results]:WereportaverageMETEORandBLEU
+scores, confidence ratings, and response time for
+the 4 conditions (native vs. non-native, ABC vs.
+linear) in Table 1. The most striking observation
+isthatnativespeakersperformbetter(intermsof
+METEOR and BLEU) with the linear layout, while
+non-nativespeakersdobetterwithABC.
+5
+To explain this finding, it is worth noting that
+SymWriterpicturesincludefunctionwords,whose
+icons are abstract but distinct. We speculate that
+even though none of our subjects were trained to
+recognize these function-word icons, the native
+speakersaremoreaccustomedtotheEnglishsyn-
+tactic structure, so they may be able to transliter-
+ate those icons back to words. In an ABC lay-
+5
+Using a Mann-Whitney rank sum test, the difference in
+native speakers’ METEOR scores is statistically significant
+(p = 0.003), though the other differences are not (native
+BLEU, p = 0.085; non-native METEOR, p = 0.172; non-
+native BLEU, p = 0.170). Nevertheless, we observe some
+evidence to support our hypothesis that non-native speak-
+ers benefit from the ABC layout, and we intend to conduct
+follow-upexperimentstotesttheclaimfurther.
+Non-native Native
+ABC Linear ABC Linear
+METEOR 0.1975 0.1800 0.2955 0.3335
+BLEU 0.1497 0.1456 0.2710 0.3011
+Conf. 0.50 0.47 0.90 0.89
+Time 47.4s 47.8s 38.1s 38.6s
+Table1:Userstudyresults.
+out, the sentence order is mostly removed, and
+some phrases might be omitted due to the O tag.
+Thusnativespeakersdonotgetasmanysyntactic
+hints. On the other hand, non-native speakers do
+not have the same degree of built-in English syn-
+tacticknowledge. Assuch,theydonotgainmuch
+from seeing the whole sentence sequence includ-
+ing function-word icons. Instead, they may have
+benefited from the ABC layout’s added organiza-
+tionandpotentialexclusionofirrelevanticons.
+Ifthisreasoningholds, ithasinterestingimpli-
+cations forviewers who have lowerEnglish liter-
+acy: they might take away more meaning from a
+semanticallystructuredlayoutlikeABC.Verifying
+thisisadirectionforfuturework.
+Finally, it is interesting that all subjects feel
+moreconfidentintheirresponsestoABClayouts
+thanlinearlayouts, and, despitetheiraddedcom-
+plexity,ABClayoutsdonotrequiremoreresponse
+timethanlinearlayouts.
+125
+6 Conclusions
+Weproposedasemanticallyenhancedpicturelay-
+out for pictorial communication. We formulated
+our ABC layout prediction problem as sequence
+tagging, and trained CRF models with linguistic
+features including semantic role labels. A user
+studyindicatedthatourABClayouthasthepoten-
+tialtofacilitatepicturecomprehensionforpeople
+withlimitedliteracy. Futureworkincludesincor-
+poratingABClayoutsintoourpictorialcommuni-
+cation system, improving other components, and
+verifyingourfindingswithadditionaluserstudies.
+Acknowledgments
+ThisworkissupportedbyNSFIIS-0711887,and
+bytheWisconsinAlumniResearchFoundation.
+References
+Adorni,G.,M.DiManzo,andG.Ferrari. 1983. Natu-
+rallanguageinputforscenegeneration. InACL.
+Baker,C.F.,C.J.Fillmore,andJ.B.Lowe. 1998. The
+BerkeleyFrameNetProject. InCOLING.
+Brants,T.andA.Franz. 2006. Web1T5-gramversion
+1.1. LinguisticDataConsortium,Philadelphia.
+Brown, D. C. and B. Chandrasekaran. 1981. Design
+considerationsforpictureproductioninanaturallan-
+guagegraphicssystem. SIGGRAPH,15(2).
+Chandrasekar, R., C. Doran, and B. Srinivas. 1996.
+Motivationsandmethodsfortextsimplification. In
+COLING.
+Ciaramita, M. and Y. Altun. 2006. Broad-coverage
+sense disambiguation and information extraction
+withasupersensesequencetagger. InEMNLP.
+Clay, S. R. and J. Wilhelms. 1996. Put: Language-
+based interactive manipulation of objects. IEEE
+ComputerGraphicsandApplications,16(2).
+Coyne, B. and R. Sproat. 2001. WordsEye: An au-
+tomatic text-to-scene conversion system. In SIG-
+GRAPH.
+Fleiss,J.L. 1971. Measuringnominalscaleagreement
+amongmanyraters. PsychologicalBulletin,76(5).
+Gildea,D.andD.Jurafsky. 2002. Automaticlabeling
+ofsemanticroles. ComputationalLinguistics,28(3).
+Hehner, B. 1980. Blissymbols for use. Blissymbolics
+CommunicationInstitute.
+Johansson, R., A. Berglund, M. Danielsson, and
+P. Nugues. 2005. Automatic text-to-scene conver-
+sioninthetrafficaccidentdomain. InIJCAI.
+Joshi,D.,J.Z.Wang,andJ.Li. 2006. Thestorypictur-
+ingengine—asystemforautomatictextillustration.
+ACMTransactionsonMultimediaComputing,Com-
+munications,andApplications,2(1).
+Klein,D.andC.D.Manning. 2003. Accurateunlexi-
+calizedparsing. InACL.
+Lafferty,J.,A.McCallum,andF.Pereira. 2001. Con-
+ditionalrandomfields: Probabilisticmodelsforseg-
+mentingandlabelingsequencedata. InICML.
+Lavie, A. and A. Agarwal. 2007. METEOR: An au-
+tomaticmetricforMTevaluationwithhighlevelsof
+correlationwithhumanjudgments. InSecondWork-
+shoponStatisticalMachineTranslation,June.
+McCallum, A. K. 2002. Mallet: A machine learning
+forlanguagetoolkit. http://mallet.cs.umass.edu.
+Mihalcea, R. and B. Leong. 2006. Toward commu-
+nicatingsimplesentencesusingpictorialrepresenta-
+tions. In Association of Machine Translation in the
+Americas.
+Palmer, M., D. Gildea, and P. Kingsbury. 2005. The
+propositionbank: Anannotated corpusofsemantic
+roles. ComputationalLinguistics,31(1).
+Papineni, K., S.Roukos, T.Ward, andW.Zhu. 2002.
+BLEU: a method for automatic evaluation of ma-
+chinetranslation. InACL.
+Porter, M. F. 2001. Snowball: A language for stem-
+mingalgorithms. http://snowball.tartarus.org/.
+Pradhan, S., W. Ward, K. Hacioglu, J. Martin, and
+D.Jurafsky. 2004. Shallowsemanticparsingusing
+supportvectormachines. InHLT/NAACL.
+Sampson, G. 2003. The structure of children’s writ-
+ing: Movingfromspokentoadultwrittennorms. In
+Granger, S. and S. Petch-Tyson, editors, Extending
+theScopeofCorpus-BasedResearch.Rodopi.
+Vickrey,D.andD.Koller. 2008. Sentencesimplifica-
+tionforsemanticrolelabeling. InACL. Toappear.
+Widgit Software. 2007. SymWriter.
+http://www.mayer-johnson.com.
+Yamada, A., T. Yamamoto, H. Ikeda, T. Nishida, and
+S. Doshita. 1992. Reconstructing spatial image
+fromnaturallanguagetexts. InCOLING.
+Zhu, X., A. B. Goldberg, M. Eldawy, C. Dyer, and
+B.Strock. 2007. AText-to-Picturesynthesissystem
+foraugmentingcommunication. InAAAI.
+126
+

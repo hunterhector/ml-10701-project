@@ -1,0 +1,288 @@
+Low-cost, High-performance Translation Retrieval: Dumber is Better Timothy Baldwin Department of Computer Science Tokyo Institute of Technology 2-12-1 O-okayama, Meguro-ku, Tokyo 152-8552 JAPAN tim@cl.cs.titech.ac.jp Abstract In this paper, we compare the relative eﬀects of segment order, segmentation and segment contiguity on the retrieval performance of a translation memory system.
+We take a selection of both bag-of-words and segment order-sensitive string comparison methods, and run each over both characterand word-segmented data, in combination with a rangeof local segment contiguitymodels(intheformofN-grams).
+Overtwodistinctdatasets,weﬁndthat indexing according to simple character bigrams produces a retrieval accuracy superior to any of the tested word Ngrammodels.
+Further,intheiroptimum conﬁguration,bag-of-wordsmethodsare showntobeequivalenttosegmentordersensitive methods in terms of retrieval accuracy,butmuchfaster.
+Wealsoprovideevidencethatourﬁndingsarescalable.
+1 Introduction
+Translation memories (TMs) are a list of translation records (source language strings pairedwithauniquetargetlanguagetranslation), which the TM system accesses in suggesting a list of target language (L2)translationcandidatesforagivensourcelanguage(L1)input(Trujillo,1999;Planas,1998).Translationretrieval (TR) is a description of this process of selecting fromtheTMasetoftranslationrecords(TRecs) ofmaximumL1similaritytoagiveninput.
+Typicallyinexample-basedmachinetranslation,either asingleTRecisretrievedfromtheTMbasedon a match with the overall L1 input, or the input is partitioned into coherent segments, and individual translations retrieved for each (Sato and Nagao, 1990; Nirenburg et al., 1993); this is the ﬁrststeptowardgeneratingacustomisedtranslationfortheinput.
+Withstand-aloneTMsystems, ontheotherhand,thesystemselectsanarbitrary numberoftranslationcandidatesfallingwithina certain empirical corridor of similarity with the overallinputstring,andsimplyoutputsthesefor manualmanipulationbytheuserinfashioningthe ﬁnaltranslation.
+Akeyassumptionsurroundingthebulkofpast TRresearchhasbeenthatthegreaterthematch stringency/linguistic awareness of the retrieval mechanism, the greater the ﬁnal retrieval accuracywillbecome.
+Naturally,anyappreciationin retrievalcomplexitycomesatapriceintermsof computationaloverhead.
+Wethusfollowthelead ofBaldwinandTanaka(2000)inaskingthequestion: whatistheempiricaleﬀectonretrievalperformance of diﬀerent match approaches?
+Here, retrieval performance is deﬁned as the combinationofretrievalspeedandaccuracy,withtheideal methodoﬀeringfastresponsetimesathighaccuracy.
+In this paper, we choose to focus on retrieval performancewithin a Japanese–EnglishTR context.
+One key area of interest with Japanese is the eﬀect that segmentation has on retrieval performance.
+As Japanese is a non-segmenting language (does not explicitly delimit words orthographically), we can take the brute-force approach in treating each string as a sequence of characters (character-based indexing), or alternativelycallupon segmentationtechnologyin partitioningeachstringintowords(word-based indexing).
+Orthogonaltothisisthequestionof sensitivityto segment order.
+Thatis, shouldour match mechanism treat each string as an unorganisedmultisetofterms(thebag-of-wordsapproach), or attempt to ﬁnd the match that best preserves the original segment order in the input (the segment order-sensitive approach)?
+We tackle this issue by implementing a sample ofrepresentativebag-of-wordsandsegmentordersensitive methods and testing the retrieval performanceof each.
+As athird orthogonalparameter, we consider the eﬀects of segment contiguity.
+Thatis,domatchesovercontiguoussegments provide closer overall translation correspondence thanmatchesoverdisplacedsegments?
+Segment contiguityiseitherexplicitlymodelledwithinthe stringmatchmechanism,orprovidedasanadd-in intheformofsegmentN-grams.
+To preempt the major ﬁndings of this paper, over a series of experiments we ﬁnd that character-based indexing is consistently superior to word-based indexing.
+Furthermore, the bagof-words methods we test are equivalent in retrieval accuracy to the more expensive segment order-sensitivemethods,butsuperiorinretrieval speed.
+Finally,segmentcontiguitymodelsprovide beneﬁts in terms of both retrieval accuracy and retrieval speed, particularly when coupled with character-basedindexing.
+We thus provideclear evidencethathigh-performanceTRisachievable withnaivemethods,andmoresothatsuchmethods outperform more intricate, expensive methods.
+Thatis,thedumbertheretrievalmechanism, thebetter.
+Below,wereviewtheorthogonalparametersof segmentation, segment order and segment contiguity(§2).
+Wethenpresentarangeofbothbagof-wordsandsegmentorder-sensitivestringcomparison methods (§ 3) and detail the evaluation methodology (§ 4).
+Finally, we evaluate the differentmethodsinaJapanese–EnglishTRcontext (§ 5),beforeconcludingthepaper(§ 6).
+2 Basic
+Parameters In this section, we review three parametertypes that we suggest impinge on TR performance, namelysegmentation,segmentorder,andsegment contiguity.
+2.1 Segmentation
+Despite non-segmenting languages such as Japanese not making use of segment delimiters, it is possible to artiﬁcially partition oﬀ a given string into constituent morphemes through the process of segmentation.
+We will collectively term the resultant segments as words for the remainderofthispaper.
+Looking to past research on string comparison methods for TM systems, almost all systems involving Japanese as the source language rely on segmentation (Nakamura, 1989; Sumita and Tsutsumi, 1991; Kitamura and Yamamoto, 1996; Tanaka, 1997), with Sato(1992) and SatoandKawase(1994) providing rare instances of character-based systems.
+This is despite FujiiandCroft(1993) providing evidence from Japanese information retrieval that character-basedindexingperformscomparablyto word-based indexing.
+In analogous research, BaldwinandTanaka(2000) compared characterand word-based indexing within a Japanese– EnglishTRcontextandfoundcharacter-basedindexingtoholdaslightempiricaladvantage.
+Themostobviousadvantageofcharacter-based indexing over word-based indexing is that there is no pre-processing overhead.
+Other arguments for character-basedindexing overword-basedindexing are that we: (a) avoid the need to commitourselvestoaparticularanalysistypeinthe case of ambiguity or unknown words; (b) avoid theneedforstemming/lemmatisation;and(c)to alargeextentgetaroundproblemsrelatedtothe normalisationoflexicalalternation.
+Notethatallmethodsdescribedbelowareapplicabletobothword-andcharacter-basedindexing.
+To avoidconfusion between the twolexeme types,wewillcollectivelyrefertotheelementsof indexingassegments.
+2.2 SegmentOrder
+Ourexpectation is that TRecs that preservethe segment order observed in the input string will provide closer-matching translations than TRecs containingthosesamesegmentsinadiﬀerentorder.
+As far as we are aware, there is no TM system operating from Japanese that does not rely onword/segment/characterordertosomedegree.
+Tanaka(1997) uses pivotalcontent wordsidentiﬁed by the user to search through the TM and locate TRecs which contain those same content wordsinthesameorderandpreferablythesame segment distance apart.
+Nakamura(1989) similarlygivespreferencetoTRecsinwhichthecontentwordscontainedintheoriginalinputoccurin thesamelinearorder,althoughthereisthescope to back oﬀ to TRecs which do not preserve the originalwordorder.
+SumitaandTsutsumi(1991) take the opposite tack in iteratively ﬁltering out NPs and adverbs to leave only functional wordsandmatrix-levelpredicates,andﬁndTRecs which contain those same key words in the same ordering, preferably with the same segment types between them in the same numbers.
+SatoandKawase(1994)employamorelocalmodelof character orderinmodellingsimilarityaccordingtoN-gramsfashionedfromtheoriginalstring.
+2.3 Segmentcontiguity
+Giventheinputα 1 α 2 α 3 α 4,wewouldexpectthat ofα 1 β 1 α 2 β 2 α 3 β 3 α 4 andα 1 α 2 α 3 α 4 β 1 β 2 β 3,the latterwouldprovideatranslationmorereﬂective of the translation for the input.
+This intuition iscapturedeitherbyembeddingsomecontiguity weightingfacilitywithinthestringmatchmechanism(inthecaseofweightedsequentialcorrespondence—seebelow),orprovidinganindependent model of segment contiguity in the form of segmentN-grams.
+TheparticularN-gramorderswetestaresimple unigrams(1-grams),purebigrams(2-grams),and mixed unigrams/bigrams.
+TheseN-grammodels are implemented as a pre-processing stage, followingsegmentation(whereapplicable).
+Allthis involves is mutating the original strings into Ngrams of the desired order, while preserving the originalsegmentorderandsegmentationschema.
+FromtheJapanesestringF·w·�[natu·no·ame] “summerrain”, 1 forexample,wewouldgenerate thefollowingvariants(commontobothcharacterandword-basedindexing): 1-gram:F·w·� 2-gram:Fw·w� Mixed1/2-gram:F·Fw·w·w�·� 3 String Comparison Methods As the starting point for evaluation of the three parameter types targeted in this research,wetaketwobag-of-words(segmentorderoblivious)andthreesegmentorder-sensitivemethods,therebymodellingtheeﬀectsofsegmentorder(un)awareness.
+Wethenruneachmethodover bothsegmentedandunsegmenteddataincombinationwiththevariousN-grammodelsproposed above,tocapturethefullrangeofparametersettings.
+Theparticularbag-of-wordapproacheswetarget are the vector space model (Manning and Sch¨utze, 1999, p300) and “token intersection”.
+For segment order-sensitive approaches, we test 3-operationeditdistanceandsimilarity,andalso “weightedsequentialcorrespondence”.
+Allmethodsareformulatedtooperateoveran arbitrarywt schemata,althoughinL1stringcomparison throughout this paper, we assume that any segment made up entirely of punctuation is givena wt of0,andanyothersegmenta wt of1.
+1 Character
+boundaries (which double as word boundaries in this case) indicated by “·”.
+All methods are subject to a threshold on translation utility, and in the case that the threshold is not achieved, the null string is returned.
+Thevariousthresholdsareasfollows: Comparison method Threshold Vectorspacemodel 0.5 Tokenintersection 0.4 3-operationeditdistance len(IN) 3-operationeditsimilarity 0.4 Weightedseq.correspondence 0.2 where IN istheinputstring,and len istheconventionalsegmentlengthoperator.
+Variousoptimisationsweremadetoeachstring comparisonmethodtoreduceretrievaltime,ofthe type described by BaldwinandTanaka(2000).
+Whilethedetailsarebeyondthescopeofthispaper,suﬃcetosaythatthesegmentorder-sensitive methodsbeneﬁtedfromthegreatestoptimisation, andthatlittlewasdonetoacceleratethealready quickbag-of-wordsmethods.
+3.1 Bag-of-WordsMethods VectorSpaceModel Within our implementation of the vector spacemodel(VSM),thesegmentcontentofeach stringisdescribedasavector,madeupofasingle dimensionforeachsegmenttypeoccurringwithin S or T.
+The value of each vector component is givenas the weighted frequencyof that type accordingtoits wt value.
+Thestringsimilarityof S and T is then deﬁned as the cosine of the angle betweenvectors vector S and vector T,respectively,calculated as: cos( vector S, vector T)= vector S · vector T | vector S|| vector T| = summationtext j s j t j radicalBig summationtext j s 2 j radicalBig summationtext j t 2 j TokenIntersection The token intersection of S and T is deﬁned as the cumulative intersecting frequency of segment types appearing in each of the strings, normalised according to the combined segment lengths of S and T using Dice’s coeﬃcient.
+Formally,thisequatesto: tint(S,T)= 2 × summationtext e∈S,T min parenleftBig freq S (e),freq T (e) parenrightBig len(S)+len(T) whereeach e isasegmentoccurringineither S or T,freq S (e)isdeﬁnedasthewt-basedfrequencyof segmenttype e occurringinstring S,and len(S) isthesegmentlengthofstring S,thatisthe wtbasedcountofsegmentscontainedin S (similarly for T).
+3.2 SegmentOrder-sensitiveMethods 3-opEditDistanceandSimilarity Essentially, the segment-based 3-operation editdistancebetweenstringsSandT istheminimumnumberofprimitiveeditoperationsonsinglesegmentsrequiredtotransform S into T (and vice versa).
+The three edit operations are segment equality (segments s i and t j areidentical), segment deletion (deletesegment s i )and segment insertion (insert segment a into a givenposition instringS).
+Thecostassociatedwitheachoperationisdeterminedbythewt valuesoftheoperand segments,withtheexceptionofsegmentequality whichisdeﬁnedtohaveaﬁxedcostof0.
+Dynamic programming (DP) techniques are used to determine the minimum edit distance between a given string pair, following the classic 4-operation edit distance formulation of WagnerandFisher(1974).
+2 For3-operationedit distance, the edit distance between strings S = s 1 s 2...s m and T = t 1 t 2 ...t n is deﬁned as D 3op (S,T): D 3op (S,T)=d 3 (m,n) d 3 (i,j)=       0 if i =0∧j =0 d 3 (0,j− 1) + wt(t j ) if i =0∧j negationslash=0 d 3 (i − 1,0) + wt(s i ) if i negationslash=0∧j =0 min parenleftbigg d 3 (i − 1,j)+wt(s i ), d 3 (i,j − 1) + wt(t j ), m 3 (i,j) parenrightbigg otherwise m 3 (i,j)= braceleftBig d 3 (i − 1,j− 1) if s i = s j ∞ otherwise It is possible to normalise operation edit distance D 3op into 3-operation edit similarity S 3op bywayof: S 3op (S,T)=1− D 3op (S,T) len(S)+len(T) WeightedSequentialCorrespondence Weightedsequentialcorrespondence(originally proposedinBaldwinandTanaka(2000))goesone step further than edit distance in analysing not onlysegmentsequentiality,butalsothecontiguity ofmatchingsegments.
+Weighted sequential correspondence associates an incremental weight (orthogonal to our wt weights)witheachmatchingsegmentassessingthe contiguity of left-neighbouring segments, in the manner described by Sato(1992) for characterbased matching.
+Namely, the kth segment of a matched substring is given the multiplicative weightmin(k,Max), where Max is a positiveinteger.
+This weighting up of contiguous matches isfacilitatedthroughtheDPalgorithmgivenbelow: S w (S,T)=s(m,n) s(i,j)= braceleftBigg 0 if i =0∨j =0 max parenleftbigg s(i − 1,j), s(i,j − 1), s(i − 1,j− 1) + m w (i,j) parenrightbigg otherwise m w (i,j)= braceleftBig cm(i,j) × wt(i) if s i = s j 0 otherwise cm(i,j)= braceleftBig 0 if i =0∨j =0∨s i negationslash= t j min(Max,cm(i− 1,j− 1) + 1) otherwise 2 The fourth operator in 4-operation edit distance is segment substitution.
+Theﬁnalsimilarityisdeterminedas: WSC(S,T)= 2 ×S w (S,T) len WSC (S)+len WSC (T) where len WSC (S)istheweightedlengthof S,deﬁnedas: len WSC (S)= summationtext m i=1 wt(s i ) × min(Max,i) 4 Evaluation Specifications 4.1 DetailsoftheDataset As our main dataset, we used 3033 unique Japanese–EnglishTRecsextractedfromconstruction machinery ﬁeld reports for the purposes of thisresearch.
+MostTRecscompriseasinglesentence,withanaverageJapanesecharacterlength of 27.7and English wordlength of 13.3.
+Importantly, our dataset constitutes a controlled language,thatis,agivenwordwilltendtobetranslatedidenticallyacrossallusages,andonlyalimitedrangeofsyntacticconstructionsareemployed.
+Insecondaryevaluationofretrievalperformance over diﬀering data sizes, we extracted 61,236 Japanese–EnglishTRecsfromtheJEIDAparallel corpus(Isahara,1998),whichismadeupofgovernment white papers.
+The alignment granularityofthissecondcorpusismuchcoarserthanfor theﬁrstcorpus,withasingleTRecoftenextendingovermultiplesentences.
+TheaverageJapanese characterlengthofeachTRecis76.3,andtheaverageEnglishwordlength is35.7.
+Thelanguage used in the JEIDA corpus is highly constrained, althoughnotascontrolledasthatintheﬁrstcorpus.
+The construction of TRecs from both corpora wasbasedonexistingalignmentdata,andnofurthereﬀortwasmadetosubdividepartitions.
+For Japanese word-based indexing, segmentationwascarriedout primarilywith ChaSenv2.0 (Matsumoto et al., 1999), and where speciﬁcally mentioned,JUMANv3.5(KurohashiandNagao, 1998)andALTJAWS 3 werealsoused.
+4.2 Semi-stratiﬁedCrossValidation Retrieval accuracy was determined by way of 10-fold semi-stratiﬁed cross validation over the dataset.
+As part of this, all Japanese strings of length 5 characters or less were extracted from the dataset, and cross validation was performed overthe residue, including the shorter strings in thetrainingdata(i.e.TM)oneachiteration.
+InN-foldstratiﬁedcrossvalidation,thedataset is divided into N equally-sized partitions of uniformclassdistribution.
+Evaluationisthencarried out N times, taking each partition as the heldouttestdata,andtheremainingpartitionsasthe trainingdataoneachiteration; theoverallaccuracy is averaged over the N data conﬁgurations.
+Asourdatasetisnotpre-classiﬁedaccordingtoa discreteclassdescription,wearenotabletoperformtruedatastratiﬁcationovertheclassdistribution.
+Instead,wecarryout“semi-stratiﬁcation” overtheL1segmentlengthsoftheTRecs.
+3 http://www.kecl.ntt.co.jp/icl/mtg/resources/altjaws.html 4.3 EvaluationoftheOutput Evaluationofretrievalaccuracyiscarriedoutaccordingtoamodiﬁedversionofthemethodproposed by BaldwinandTanaka(2000).
+The ﬁrst stepinthisprocessistodeterminethesetof“optimal”translationsbywayofthesamebasicTR procedureasdescribedabove,exceptthatweuse the held-out translationfor each input to search throughtheL2componentoftheTM.AsforL1 TR,athresholdontranslationutilityisthenappliedtoascertainwhethertheoptimaltranslations aresimilarenoughtothemodeltranslationtobe ofuse, andin thecasethatthis thresholdisnot achieved,theemptystringisreturnedasthesole optimaltranslation.
+Next, we proceedtoascertainwhether the actualsystemoutputcoincideswithoneoftheoptimal translations, and rate the accuracy of each method according to the proportion of optimal outputs.
+Ifmultipleoutputsareproduced,weselect from among them randomly.
+This guaranteesauniquetranslationoutputanddiﬀersfrom the methodology of BaldwinandTanaka(2000), whojudgedthe systemoutputtobe “correct”if thepotentiallymultiplesetoftop-rankingoutputs containedanoptimaltranslation,placingmethods withgreaterfan-outofoutputsatanadvantage.
+Soastoﬁlteroutanybiastowardsagivenstring comparisonmethodinTR,wedeterminetranslationoptimalitybasedonboth3-operationeditdistance(operatingoverEnglishwordbigrams)and alsoweightedsequential correspondence(operating over English word unigrams).
+We then derivetheﬁnaltranslationaccuracyastheaverage of the accuracies from the respective evaluation sets.
+Here again, our approachdiﬀers from that of BaldwinandTanaka(2000), whobased determination oftranslationoptimalityexclusivelyon 3-operationeditdistance(operatingoverwordunigrams), a method which we found to produce a strongbiastoward3-operationeditdistanceinL1 TR.
+Indeterminingtranslationoptimality,allpunctuation and stop words were ﬁrst ﬁltered out of each L2 (English) string, and all remaining segmentsscoredata wt of1.
+Stopwordsaredeﬁned as those contained within the SMART (Salton, 1971)stopwordlist.
+4 Perhaps
+the main drawback of our approach to evaluation is that we assume a unique model translationforeachinput,whereinfact,multiple translationsofequivalentqualitycouldreasonably beexpected toexist.
+Inourcase,however,both corpora represent relatively controlled languages andlanguageuseishencehighlypredictable.
+The proposedevaluationmethodologyisthusjustiﬁed.
+5 Results
+and Supporting Evidence 5.1 Basicevaluation Inthissection,wetestourﬁvestringcomparison methodsovertheconstructionmachinerycorpus, under both characterand word-based indexing, and with each of unigrams, bigrams and mixed unigrams/bigrams.
+The retrieval accuracies and times for the diﬀerent string comparison methods are presented in Figs.
+1 and 2, respectively.
+4 ftp://ftp.cornell.cs.edu/pub/smart/english.stop 50 52 54 56 58 60 62 VSM TINT 3opD 3opS WSC VSM TINT 3opD 3opS VSM TINT 3opD 3opS Retrieval accuracy (%) String comparison method Word-based indexingChar-based indexing * * * * * * 1-gram 2-gram 1/2-gram Figure1: Basicretrievalaccuracies Hereandinsubsequentgraphs,“VSM”refersto the vector space model, “TINT” to token intersection, “3opD”to3-opedit distance, “3opS”to 3-op edit similarity, and “WSC” to weighted sequential correspondence; the bag-of-wordsmethodsarelabelledinitalicsandthesegmentordersensitivemethodsinbold.
+InFigs.1and2,results forthe three N-grammodels arepresentedseparately,withineachofwhich,thedataissectioned oﬀ into the diﬀerent stringcomparisonmethods.
+Weighted sequential correspondence was tested withaunigrammodelonly,duetoitsinbuiltmodellingofsegmentcontiguity.
+Barsmarkedwithan asterisk indicate a statistically signiﬁcant 5 gain over the corresponding indexing paradigm (i.e.
+character-basedindexingvs.word-basedindexing foragivenstringcomparisonmethodandN-gram order).
+TimesinFig.2arecalibratedrelativeto 3-operationeditdistancewithwordunigrams,and plottedagainstalogarithmictimeaxis.
+Resultstocomefromtheseﬁgurescanbesummarisedasfollows: • Character-based indexing is consistently superior to word-based indexing, particularly when combined with bigrams or mixed unigrams/bigrams.
+• Intermsofrawtranslationaccuracy,thereis verylittletoseparatethebestofthebag-ofwordsmethodsfromthebestofthesegment order-sensitivemethods.
+• Withcharacter-basedindexing,bigramsoﬀer tangiblegainsintranslationaccuracyatthe sametimeasgreatlyacceleratingtheretrieval process.
+With word-based indexing, mixed unigrams/bigrams oﬀer the best balance of translationaccuracyandcomputationalcost.
+• Weighted sequential correspondenceis moderately successful in terms of accuracy, but grosslyexpensive.
+Based on the above results, we judge bigrams to be the best segment contiguity model for character-based indexing, and mixed unigrams/bigramstobethebestsegmentcontiguity 5 As determined by the paired t test (p<0.05).
+1 10 100 VSM TINT 3opD 3opS WSC VSM TINT 3opD 3opS VSM TINT 3opD 3opS Relative retrieval time String comparison method Word-based indexing Char-based indexing 1-gram 2-gram 1/2-gram Figure2: Basicunitretrievaltimes model for word-based indexing, and for the remainderofthispaper,presentonlythesetwosets ofresults.
+While we have been able to conﬁrm the ﬁndingofBaldwinandTanaka(2000)thatcharacterbasedindexingissuperiortoword-basedindexing, wearenoclosertodeterminingwhythisshouldbe thecase.
+Inthefollowingsectionswelooktoshed somelightonthisissuebyconsideringeachof: (i) theretrievalaccuracyforothersegmentationsystems,(ii)theeﬀectsoflexicalnormalisation,and (iii)thescalabilityandreproducibilityofthegiven resultsoverdiﬀerentdatasets.
+Finally,wepresent a brief qualitativeexplanation forthe overallresults.
+5.2 Theeﬀectsofsegmentationand lexicalnormalisation Above, we observed that segmentation consistentlybroughtaboutadegradationintranslation retrieval for the given dataset.
+Automated segmentationinevitablyleadstoerrors,whichcould possibly impinge on the accuracy of word-based indexing.
+Alternatively, the performance drop couldsimplybecausedsomehowbyourparticular choiceofsegmentationmodule,thatisChaSen.
+First, we used JUMAN to segment the constructionmachinerycorpus,andevaluatedtheresultant dataset in the exact same manner as for the ChaSen output.
+Similarly, we ran a developmentversionofALTJAWSoverthesamecorpustoproducetwodatasets,theﬁrstsimplysegmented and the secondboth segmentedand lexically normalised.
+By lexical normalisation, we meanthateachwordisconvertedtoitscanonical form.
+Themainsegmenttypesthatnormalisation hasan eﬀect onareverbsand adjectives(conjugatingwords),andalsoloan-wordnounswithan optionallongﬁnalvowel(e.g.monit¯a“monitor”⇒ monita)andwordswithmultipleinter-replaceable kanji realisations (e.g.
+F �[zy¯ubuN] “suﬃcient” ⇒ G �).
+TheretrievalaccuraciesforJUMAN,andALTJAWS with and without lexical normalisation are presented in Fig.
+3, juxtaposed against the retrieval accuracies for character-based indexing (bigrams) and also ChaSen (mixed unigrams/bigrams)fromSection5.1.
+Asteriskedbars 50 52 54 56 58 60 62 VSM TINT 3opD 3opS WSC Retrieval accuracy (%) String comparison method ChaSen Char-based JUMAN ALTJAWS (−norm) ALTJAWS (+norm) * * * * * * * * * * * Figure 3: Results using diﬀerent segmentation modules indicateastatisticallysigniﬁcantgaininaccuracy overChaSen.
+LookingﬁrsttotheresultsforJUMAN,thereis againinaccuracyoverChaSenforallstringcomparison methods.
+With ALTJAWS, also, a consistentgaininperformanceisevidentwithsimple segmentation,thedegreeofwhichissigniﬁcantly higher than for JUMAN.
+The addition of lexicalnormalisationenhancesthiseﬀectmarginally.
+Notice that character-based indexing (based on character bigrams) holds a clear advantage over thebestoftheword-basedindexingresultsforall stringcomparisonmethods.
+Basedontheabove,wecanstatethatthechoice of segmentation system does have a modest impactonretrievalaccuracy,butthattheeﬀectsof lexicalnormalisationarehighlylocalised.
+In the following,welooktoquantifytherelationshipbetweenretrievalandsegmentationaccuracy.
+Inthenextstepofevaluation,wetookarandom sampleof200TRecsfromtheoriginaldataset,and raneachofChaSen,JUMANandALTJAWSover the Japanesecomponent ofeach.
+We then manually evaluated the output in terms of segment precisionandrecall,deﬁnedrespectivelyas: Segmentprecision= #correctsegsinoutput Total#segsinoutput Segmentrecall= #correctsegsinoutput Total#segsinmodeldata One slight complication in evaluating the output of the three systems is that they adopt incongruentmodelsofconjugation.
+Wethusmade allowanceforvariationintheanalysisofverband adjectivecomplexes,andfocusedonthesegmentationofnouncomplexes.
+A performance breakdown for ChaSen (CS), JUMAN(JM)andALTJAWS(AJ)ispresentedin Tab.1.
+ALTJAWSwasfoundtooutperformthe remaining two systems in terms of segment precision, while ChaSen and JUMAN performed at theexactsamelevelofsegmentprecision.
+Looking next to segment recall, ChaSen signiﬁcantly outperformedbothALTJAWSandJUMAN.The sourceof almost all errorsin recall, and roughly half of errors in precision for both ChaSen and CS JM AJ Ave.segs/TRec 13.0 12.0 11.7 Segmentprecision 98.3% 98.3% 98.6% Segmentrecall 98.1% 96.2% 97.7% Sentenceaccuracy 70.5% 59.0% 72.0% Totalsegmenttypes 650 656 634 Table1: Segmentationperformance JUMAN was katakana sequences such as g¯etorokku-barubu “gate-lock valve”, transcribed from English.
+ALTJAWS, on the other hand, was remarkablysuccessfulatsegmentingkatakanaword sequences,achievingasegmentprecisionof100% and segment recall approaching 99%.
+This is thoughttohavebeenthemaincauseforthedisparityinretrievalaccuracyforthethreesystems, aggravated by the fact that most katakana sequenceswerekeytechnicalterms.
+Togainaninsightintoconsistencyinthecase of error, we further calculated the total number ofsegmenttypesintheoutput,expectingtoﬁnd a core set of correctly-analysedsegments, of relativelyconstantsizeacrossthediﬀerentsystems, plus an unpredictable component of segment errors,ofvariablesize.
+Thesystemgeneratingthe fewest segment types can thus be said to be the mostconsistent.
+Based on the segment type counts in Tab.
+1, ALTJAWS errs more consistently than the remaining two systems, and there is very little to separateChaSenandJUMAN.Thisisthoughtto havehadsomeimpactontheinﬂatedretrievalaccuracyforALTJAWS.
+To summarise, there would seem to be a direct correlation between segmentation accuracy andretrievalperformance,withsegmentationaccuracyonkeyterms(katakanasequences)having aparticularlykeeneﬀectontranslationretrieval.
+In this respect, ALTJAWS is superior to both ChaSenandJUMANforthetargetdomain.
+Additionally,complementingsegmentationwithlexicalnormalisationwouldseemtoproducemeager performancegains.
+Lastly,despitetheslightgains toword-basedindexingwiththediﬀerentsegmentation systems, it is still signiﬁcantly inferior to character-basedindexing.
+5.3 Scalabilityofperformance
+Allresultstodatehavearisenfromevaluationover asingledatasetofﬁxedsize.
+Inordertovalidate the basic ﬁndings from above and observe how increases in the data size aﬀect retrieval performance,wenextranthestringcomparisonmethodsoverdiﬀering-sizedsubsetsoftheJEIDAcorpus.
+WesimulateTMsofdiﬀeringsizebyrandomly splitting the JEIDA corpus into ten partitions, and running the various methods ﬁrst over partition1,thenoverthecombinedpartitions1and 2,andsoonuntilalltenpartitionsarecombined togetherintothefullcorpus.
+Wetestedallstring comparisonmethodsotherthanweightedsequential correspondence over the ten subsets of the JEIDA corpus.
+Weighted sequential correspondence was excluded from evaluation due to its overall sub-standard retrieval performance.
+The translation accuracies for the diﬀerent methods 40 50 60 70 80 90 5976 11952 17937 23922 29898 35874 41859 47835 53820 61236 Accuracy (%) Dataset size (# translation records) 1/2-gram 3opS +seg 2-gram 3opS −seg 1/2-gram 3opD +seg 2-gram 3opD −seg 1/2-gram VSM +seg 2-gram VSM −seg Figure4: Retrievalaccuraciesoverdatasetsofincreasingsize overthetendatasetsofvaryingsize,areindicated in Fig.
+4, with each string comparison method tested under characterbigrams (“2-gram −seg”) and mixed word unigrams/bigrams (“1/2-gram +seg”) as above.
+The results for token intersectionhavebeenomittedfromthegraphduetotheir beingalmostidenticaltothoseforVSM.
+Astrikingfeatureofthegraphisthatitisrightdecreasing,whichisessentiallyanartifactofthe inﬂatedlengthofeachTRec(seeSection4.1)and resultant data sparseness.
+That is, for smaller datasets,inthebulkofcases,noTRecintheTM issimilarenoughtotheinputtowarrantconsiderationasatranslationcandidate(i.e.thetranslationutilitythresholdisgenerallynotachieved).
+Forlargerdatasets,ontheotherhand,wearehaving to make more subtle choices as to the ﬁnal translationcandidate.
+One key trend in Fig.
+4 is the superiority of characterover word-based indexing for each of the three string comparison methods, at a relativelyconstantlevel asthe TM sizegrows.
+Also of interest is the ﬁnding that there is very little to distinguish bag-of-words from segment ordersensitive methods in terms of retrieval accuracy intheirrespectivebestconﬁgurations.
+As with the original dataset from above, 3operation edit similarity was the strongest performer just nosing out (character bigram-based) VSM forline honours, with 3-operationedit distancelaggingwellbehind.
+Next, we turn to consider the mean unit retrieval times for eachmethod, under the twoindexingparadigms.
+TimesarepresentedinFig.5, plottedonceagainonalogarithmicscaleinorder toﬁtthefullfan-outofretrievaltimesontoasingle graph.
+VSM and 3-operation edit distance were themostconsistentperformers,bothmaintaining retrievalspeedsinlinewiththosefortheoriginal datasetataroundorunder1.0(i.e.thesameretrievaltimeperinputas3-operationeditdistance runoverwordunigramsfortheconstructionmachinery dataset).
+Most importantly, only minor increases in retrieval speed were evident as the TM size increased, which were then reversed for the larger datasets.
+All three string comparison methods displayed this convex shape, although the ﬁnal running time for 3-operation edit similarity under characterand word-based indexing 1 10 100 5976 11952 17937 23922 29898 35874 41859 47835 53820 61236 Relative retrieval time Dataset size (# translation records) 2-gram VSM −seg 1/2-gram VSM +seg 2-gram 3opD −seg 1/2-gram 3opD +seg 1/2-gram 3opD +seg 2-gram 3opD −seg Figure 5: Relative unit retrieval times over datasetsofincreasingsize was,respectively,around10and100timesslower than that for VSM or 3-operation edit distance overthesamedataset.
+Tocombinetheﬁndingsforaccuracyandspeed, VSMundercharacter-basedindexingsuggestsitselfasthepickofthediﬀerentsystemconﬁgurations,combiningbothspeedandconsistentaccuracy.
+That is, it oﬀers the best overall retrieval performance.
+5.4 Qualitativeevaluation
+Above,weestablishedthatcharacter-basedindexingissuperiortoword-basedindexingfordistinct datasets and a range of segmentation modules, even when segmentation is coupled with lexical normalisation.Additionally,weprovidedevidence totheeﬀectthatbag-of-wordsmethodsoﬀersuperiortranslationretrievalperformancetosegment order-sensitive methods.
+We are still no closer, however, to determining why this should be the case.
+Here,weseektoprovideanexplanationfor theseintriguingresults.
+Firstcomparingcharacter-andword-basedindexing, we found that the disparity in retrieval accuracy was largely related to the scoring of katakanawords,whicharesigniﬁcantlylongerin characterlengththannativeJapanesewords.
+For the construction machinery dataset as analysed with ChaSen, for example, the average character length of katakana words is 3.62, as compared to 2.05 overall.
+Under word-based indexing, all words are treated equally and character length does not enter into calculations.
+Thus a katakana word is treated identically to any other word type.
+Under character-based indexing, onthe otherhand, the longerthe word, the moresegmentsitgenerates,andasinglematching katakanasequencethustendstocontributemore heavily to the ﬁnal score than other words.
+Effectively, therefore, katakana sequences receive a higherscorethankanjiandothersequences,producing apreferenceforTRecswhich incorporate the same katakana sequences as the input.
+As notedabove,katakanasequencesgenerallyrepresentkeytechnicalterms,andsuchweightingthus tendstobebeneﬁcialtoretrievalaccuracy.
+Wenextexaminethereasonforthehighcorrelationinretrievalaccuracybetweenbag-of-words andsegmentorder-sensitivemethodsintheiroptimum conﬁgurations (i.e.
+when coupled with character bigrams).
+Essentially, the probability of a given segment set permuting in diﬀerent string contexts diminishes as the number of co-occurring segments decreases.
+That is, for a given string pair, the greater the segment overlap between them (relative to the overall string lengths),thelowertheprobabilitythatthosesegments are going to occur in diﬀerent orderings.
+This is particularly the case when local segment contiguity is modelled within the segment description,asoccursforthecharacterbigramand mixedworduni/bigrammodels.
+Forhigh-scoring matches, therefore, segment ordersensitivity becomes largely superﬂuous, and the slight edge in retrieval accuracy for segment order-sensitive methods tends to comefor mid-scoringmatches, inthevicinityofthetranslationutilitythreshold.
+6 Conclusion
+This research has been concerned with the relative import of segmentation, segment order and segment contiguity on translation retrieval performance.
+We simulated the eﬀects of word ordersensitivityvs.bag-of-wordswordorderinsensitivity by implementing a total of ﬁve comparison methods: two bag-of-words approaches and three word order-sensitive approaches.
+Each of these methods was then tested under characterbased and word-based indexing and in combinationwitharangeofN-grammodels,andtherelative performance of each such system conﬁguration evaluated.
+Character-based indexing was foundtobesuperiortoword-basedindexing,particularlywhensupplementedwithacharacterbigrammodel.
+Wewentontodiscoverastrongcorrelationbetween retrieval accuracyand segmentation accuracy/consistency, and that lexical normalisation producesmarginalgainsinretrievalperformance.
+We further tested the eﬀects of incremental increasesindataonretrievalperformance,andconﬁrmedourearlierﬁndingthatcharacter-basedindexingissuperiortoword-basedindexing.
+Atthe same time, we discoveredthat in their best conﬁgurations,theretrievalaccuraciesofourbag-ofwordsandsegmentordersensitivestringcomparisonmethodsareroughlyequivalent,butthatthe computationaloverheadforbag-of-wordsmethods toachievethataccuracyisconsiderablylowerthan thatforsegmentordersensitivemethods.
+References T.
+Baldwin and H.
+Tanaka. 2000.
+The eﬀects of word order and segmentation on translation retrieval performance.
+In Proc.
+of the 18th International Conference on Computational Linguistics (COLING 2000), pages 35–41.
+H.FujiiandW.B.Croft. 1993.
+Acomparisonofindexing techniques for Japanese text retrieval.
+In Proc.
+of 16th International ACM-SIGIR Conference on Research and Development in Information Retrieval (SIGIR’93), pages 237–46.
+H. Isahara.
+1998. JEIDA’s English–Japanese bilingual corpus project.
+In Proc.
+of the 1st International Conference on Language Resources and Evaluation (LREC’98), pages 471–81.
+E. Kitamura and H.
+Yamamoto. 1996.
+Translation retrieval system using alignment data from parallel texts.
+In Proc.
+of the 53rd Annual Meeting of the IPSJ, volume 2, pages 385–6.
+(In Japanese).
+S. Kurohashi and M.
+Nagao. 1998.
+Nihongo keitaikaiseki sisutemu JUMAN [Japanese morphological analysis system JUMAN] version 3.5.
+Technical report, Kyoto University.
+(In Japanese).
+C. Manning and H.
+Sch¨utze. 1999.
+Foundations of Statistical Natural Language Processing.
+MIT Press.
+Y. Matsumoto, A.
+Kitauchi, T.
+Yamashita, and Y.
+Hirano.
+1999. Japanese Morphological Analysis System ChaSen Version 2.0 Manual.
+Technical Report NAIST-IS-TR99009, NAIST.
+N.Nakamura. 1989.
+Translationsupportbyretrieving bilingual texts.
+In Proc.
+of the 38th Annual Meeting of the IPSJ, volume 1, pages 357–8.
+(In Japanese).
+S.Nirenburg, C.Domashnev, andD.J.Grannes. 1993.
+Two approaches to matching in example-based machine translation.
+In Proc.
+of the 5th International Conference on Theoretical and Methodological Issues in Machine Translation (TMI-93), pages 47– 57.
+E. Planas.
+1998. A Case Study on Memory Based Machine Translation Tools.
+PhD Fellow Working Paper, United Nations University.
+G. Salton.
+1971. The SMART Retrieval System: Experiments in Automatic Document Processing.
+Prentice-Hall. S.
+Sato and T.
+Kawase. 1994.
+A High-Speed Best Match Retrieval Method for Japanese Text.
+Technical Report IS-RR-94-9I, JAIST.
+S. Sato and M.
+Nagao. 1990.
+Toward memorybasedtranslation.
+In Proc.
+of the 13th International Conference on Computational Linguistics (COLING ’90), pages 247–52.
+S. Sato.
+1992. CTM: An example-based translation aid system.
+In Proc.
+of the 14th International Conference on Computational Linguistics (COLING ’92), pages 1259–63.
+E.SumitaandY.Tsutsumi. 1991.
+Apracticalmethod of retrieving similar examples for translation aid.
+Transactions of the IEICE, J74-D-II(10):1437–47.
+(In Japanese).
+H. Tanaka.
+1997. An eﬃcient way of gauging similarity between long Japanese expressions.
+In Information Processing Society of Japan SIG Notes, volume 97, no.
+85, pages 69–74.
+(In Japanese).
+A. Trujillo.
+1999. Translation Engines: Techniques for Machine Translation.
+Springer Verlag.
+A. Wagner and M.
+Fisher. 1974.
+The string-tostring correction problem.
+Journal of the ACM, 21(1):168–73 .
+

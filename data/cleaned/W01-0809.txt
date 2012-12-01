@@ -1,0 +1,299 @@
+Generation of Vietnamese for French-Vietnamese and EnglishVietnamese Machine Translation DOAN-NGUYEN Hai Groupe de recherche sur l'asymétrie des langues naturelles, Université du Québec à Montréal, H3C-3P8, Canada.
+E-mail: c1322@er.uqam.ca and Laboratoire d'Analyse et de Technologie du Langage (LATL) Faculté des Lettres, Université de Genève 2, rue de Candolle, CH-1211 Genève 4, Switzerland Abstract This paper presents the implementation of the Vietnamese generation module in ITS3, a multilingual machine translation (MT) system based on the Government & Binding (GB) theory.
+Despite well-designed generic mechanisms of the system, it turned out that the task of generating Vietnamese posed non-trivial problems.
+We therefore had to deviate from the generic code and make new design and implementation in many important cases.
+By developing corresponding bilingual lexicons, we obtained prototypes of French-Vietnamese and English-Vietnamese MT, the former being the first known prototype of this kind.
+Our experience suggests that in a principle-based generation system, the parameterized modules, which contain language-specific and lexicalized properties, deserve more attention, and the generic mechanisms should be flexible enough to facilitate the integration of these modules.
+1 Introduction
+Although Vietnamese is now spoken by about 80 millions people in the world, there has not been much work on machine translation (MT) from and to this language, except some EnglishVietnamese MT implementations (eg.
+DoanNguyen, 1994) of minor success.
+As far as we know, there has been yet no similar implementation for French-Vietnamese MT.
+This paper presents the implementation of the generation module for Vietnamese in ITS3, a multilingual MT system developed at the Laboratoire d'Analyse et de Technologie du Langage (LATL), University of Geneva.
+Together with the generation module, we construct bilingual lexicons, and thus obtain prototypes of French-Vietnamese and EnglishVietnamese MT.
+As Vietnamese is very different from European languages, the implementation of the generation module for Vietnamese based on the generic mechanisms of ITS3 poses non-trivial problems.
+We present here some main problems and their solutions, such as the construction of Vietnamese noun phrases (NPs), verb phrases (VPs), adverbial phrases (AdvPs), relative clauses, etc.
+2 Brief
+description of ITS3 ITS3 (Wehrli, 1992; Etchegoyhen & Wehrli, 1998; L'haire & al, 2000) can now translate from French to English and vice versa.
+Modules for other languages such as German, Italian, are under development.
+ITS3 is a principle-based system, linguistically inspired by the Government & Binding (GB) theory.
+(See eg.
+Haegeman (1994) for an introduction to GB, Berwick & al (1991) for principle-based systems).
+The system chooses the classical analysis-transfer-generation approach of MT (see Hutchins & Sommers, 1992).
+ITS3 works on single isolated sentences.
+A sentence in the source language is analyzed into a logicolinguistic structure, called pseudo-semantic structure (PSS).
+After a lexical transfer phase, this PSS is passed to the generation phase, which finally produces the sentence in the target language.
+By default, ITS3 gives a unique solution, the best one.
+Let's take an example of French-English translation to illustrate the process.
+The analysis phase consists of two steps: GB-based syntax analysis and PSS construction.
+Syntax analysis is carried out by the IPS parser (Wehrli, 1992), which builds the X-bar structure of the sentence, using many filtering constraints (on thematic roles, on cases, etc).
+to reduce overgeneration.
+(1) La maison a été vendue.
+(2) [TP [DP la [NP maison]]i [T' a [VP été [VP vendue [DP ei]]]]] A PSS is then derived from the syntax analysis results (Etchegoyhen & Wehrli, 1998).
+Components of the sentence are represented in corresponding frame-liked structures.
+For example, a clause gives rise to a PSS of type CLS, which contains the main verb or adjective (the Predicate slot) and other information on tense, mood, voice, etc., as well as the PSS's of its arguments and adjuncts (the Satellites).
+Similarly, a noun phrase gives rise to a PSS of type DPS, which contains, besides the main noun (the Property slot), its number, gender, referential index for binding resolution, etc.
+A PSS thus contains abstract linguistic values for "closed" features (tense, mood, voice, number, gender, etc.), and lexical values for "open" features (CLS Predicate, DPS Property, etc.).
+PSS[{ } CLS[ Mood : real Tense : E = S InfoFunction : categorical Modality : undefined Aspect : (non progressive, perfective) Voice : passive Causative : not causative Negation : not negated Utterance type : declaration Predicate : vendre ]CLS Satellites { PSS[{ } Theta role : theme DPS[ Property : maison Operator : the Number : singular Gender : feminine Ref.
+index : i ]DPS ]PSS } ]PSS In the lexical transfer phase, the lexical units in the PSS are replaced by those in the target language, using frequency data for translation selection.
+In the generation phase, a generic engine called GBGEN (Etchegoyhen & Wehrle, 1998; Etchegoyhen & al, 1999) cooperates with language-specific modules to construct the output from the PSS in three steps.
+First, Dstructure generation maps the PSS into an X-bar structure in a top-down fashion (see 3a).
+Next, S-structure generation carries out movements and bindings (3b).
+Finally, morphological realization is done (3c), and the result is output, as in (3d).
+(3) (a) [CP [TP [VP aux [VP aux [VP sell [DP the [NP house]]i]]]]] (b) [CP [TP [DP the [NP house]]i [T' [VP aux [VP aux [VP sell [DP ei]]]]]]] (c) [CP [TP [DP the [NP house]]i [T' [VP has [VP been [VP sold [DP ei]]]]]]] (d) The house has been sold.
+Note that ITS3 does only lexical, and not structural, transfer.
+This approach can therefore be considered as half transfer half interlingual.
+It is not the purpose of this paper to discuss the pros and cons of the transfer and interlingual approaches in MT.
+See eg.
+Gdaniec (1998) for discussions about advantages of a particular transfer-based MT system, and Dorr (1993) for an interlingual one.
+The latter, also based on GB, concentrates on treating mismatches across languages, an issue less considered in ITS3.
+It needs however to use very complex representations for its interlingual approach, hence is not likely to become a practical system.
+As for the specification issue, ITS3 chooses to be purely procedural.
+All generic engines and language-specific modules are written in Modula-2.
+Procedure templates are designed so that one can fill in language-specific parameters when adding a new language.
+However, this is not always straightforward, as one will see in the integration of Vietnamese below.
+In general, any development requires to read, understand, and often modify some parts of the huge code.
+This is an important reason why a declarative approach would be preferred (see eg.
+Emele & al, 1992; Nicolov & Mellish, 2000).
+Unfortunately, we do not have at our disposal any declarative system with high-quality French analysis.
+Also, as best as we know, there are no parallel French-Vietnamese or EnglishVietnamese corpora built so far to think of statistical or example-based MT approaches.
+ITS3 is one among few systems that can do French syntax analysis with large lexical and grammatical coverage.
+It can therefore serve our main purpose to develop a prototype of FrenchVietnamese MT in a short term.
+3 Generation
+of Vietnamese In this section, we present the problems and our solutions for constructing Vietnamese NPs, VPs, AdvPs, relative clauses, etc.
+in ITS3.
+Below we will use generalized notions of NP and VP in GB, that of DP and TP, respectively.
+3.1 DP
+construction 3.1.1 Vietnamese noun categorizers Many Vietnamese nouns have to be preceded by a "categorizer" to form an NP.
+For example, knowing that a0a2a1a3a0a5a4a6a0a2a7a9a8a10a12a11a5a0a2a13a14a0a16a15a12a1a17a11a18a0a5a4a9a0a19a7a21a20a22a23a8a24a0, we cannot translate "a cat" into a25 a0a19a7a9a8a10a12a11a6a7a21a20a22a23a8a3a0, but a0a2a7a9a8a10a12a11 a26a28a27a30a29 a7a21a20a22a23a8a24a0. Here "a7a21a20a22a23a8 " needs the categorizer "con".
+A categorizer is also a noun, giving some vague idea on the semantic class of the noun which requires it.
+For example, almost every noun designating an animal needs "con".
+However, there seems to be no general rule to determine the categorizer for a particular noun.
+We therefore specify the categorizer for each noun in the Vietnamese lexicon.
+This information helps to form Vietnamese NPs appropriately, eg.
+"a cat" gives rise to (4) [DP a7a9a8a10a12a11 [NP con [NP a7a21a20a22a23a8 ]]], but "a language" to (5) [DP a7a9a8a10a12a11 [NP a31a33a32 a8a34 a31a21a31a33a32a36a35a37 ]], because "a31a33a32 a8a34 a31a21a31a33a32a36a35a37 a0 needs no categorizer.
+3.1.2 Plural
+DPs One important task in DP construction for many languages is to assure agreement (on number, gender, etc.).
+Vietnamese words are morphologically invariant with respect to all these concepts.
+For plural DPs, we need to add an appropriate determiner: a quantifier if it is specified ("two students" = [DP a38 a1a36a39a41a40a43a42a41a44a46a45a47a39 a31 a38 a48 a39a49a20a34 a31a33a50a51a50 a13 "some students" = [DP a48 a1a22a43a39a52a40a43a42a41a44a53a45a47a39 a31 a38 a48 a39a49a20a34 a31a33a50a51a50 ), or "a31 a38 a35a37a23a31a33a32 " otherwise ("(the) students" = [DP a31 a38 a35a37a23a31a33a32 [NP a45a47a39 a31 a38 a48 a39a49a20a34 a31a33a50a51a50 ).
+3.1.3 Determiners
+GBGEN supposes a 1-1 mapping in which a determiner in a language corresponds to a universal operator and vice versa, eg.: English French Operator each chaque every this, these ce, cette, ces demonstrative no aucun, aucune no "Ces chats", eg., is analyzed into a PSS like (note the Operator slot): DPS[ Property : chat Operator : demonstrative Number : plural Ref.
+index : ]DPS After "chat" is replaced by "cat", this gives [DP these [NP cats]].
+This model does not apply totally to Vietnamese DPs.
+Some operators correspond to a determiner as prescribed by the model.
+Some do not, but require instead an adjective after the noun, and some others need both a determiner and an adjective.
+Operator English/ French Vietnamese every each cat/ chaque chat a0a2a1a4a3 a5a7a6a8a10a9 a0a2a11a4a3a13a12a15a14a10a16 a0a2a11a4a3a18a17a18a19a20a21a14a23a22a24a22a25a22 demonstrative (singular) this cat/ ce chat a0a2a1a4a3a26a0a2a11a4a3a27a12a15a14a28a16a29a0a2a11a4a3 a17a18a19a20a15a14a30a0a2a31a4a3 a32a34a33a35a21a36 a22a25a22a25a22a24a22 demonstrative (plural) these cats/ ces chats a0a2a1a4a3 a32a38a37a40a39a41a10a32a34a42 a0a2a11a4a3 a12a15a14a10a16a43a0a2a11a4a3a44a17a18a19a20a15a14a45a0a2a31a4a3 a32a34a33a35a21a36 a22a24a22a25a22a24a22 no no cat/ aucun chat a0a2a1a4a3 a46a38a37a34a6a47a28a32a40a42 a0a2a11a4a3 a12a15a14a10a16a43a0a2a11a4a3a44a17a18a19a20a15a14a45a0a2a31a4a3 a32a34a33a35a28a6 a22a24a22a25a22a24a22 3.1.4 Strategy for Vietnamese DP construction It turns out to be somewhat problematic to construct Vietnamese DPs in the generic model of GBGEN.
+First, the procedure template for deriving the determiner from the DPS Operator slot does not expect that there may be an adjective after the noun.
+Modifying this procedure template would lead to many obligatory changes in modules for all other languages of the system.
+Moreover, this would not mean that the template be generic enough for every human language.
+Second, the generic model does not evidently foresee a facility for treating Vietnamese categorizers.
+We therefore found more convenient to develop a specialized1 procedure for Vietnamese DP construction.
+This allows a safe treatment of Vietnamese DPs while still respecting the available system.
+This procedure computes the determiner and post-nominal adjective from the Operator and Number slots of the DPS.
+A DP is then projected from the determiner.
+Its NP complement is built from the main noun (the Property slot in the DPS).
+If the noun needs a categorizer, which is given in its lexical entry, the NP will be of structure [NP Categorizer [NP Main]], otherwise it will be only [NP Main].
+Finally, the post-nominal adjective is added as a complement of the NP.
+3.2 TP
+construction The principal strategy of GBGEN for TP construction is to create the following general 1 As understood in object-oriented paradigm.
+frame, and attempt to fill it gradually with appropriate elements: [TP [T' Modal [VP Perfective [VP Passive [VP Progresive [VP Main]]]]]] where Modal, Perfective, Passive, and Progressive stand for auxiliary verbs representing respectively the modal, perfective, passive, and progressive aspects of the TP, and Main is the main verb.
+See example (3) above.
+This model seems to work at least with French and English.
+However, Vietnamese has many differences from these languages on verbal notions and on VP formation, as will be presented in the following.
+3.2.1 Tenses
+and aspects In Vietnamese, verbs are not conjugated, and tense and aspect are generally understood in context.
+"He sleeps", "He slept", "He is sleeping" eg., can all be translated in suitable contexts into "a48a50a49a23a51a53a52a2a54a55a49a57a56a59a58a60 ".
+To explicit the tense and aspect, Vietnamese uses some adverbs as shown below.
+He sleeps [TP [NP a31a4a16a57a61a63a62a65a64a28a22a66a0a2a67a69a68a70a0a2a71a4a3 a16a23a72a10a73a74a75a22a24a22a25a22 He slept [TP [NP a31a4a16a57a61a76a62a65a64a28a22a7a0a2a67a69a68 a77a59a33a41 a0a2a71a4a3 a16a23a72a10a73a74a75a22a24a22a25a22 He will sleep [TP [NP a31a4a16a57a61a78a62a65a64a28a22a79a0a2a67a69a68 a80a82a81a41 a0a2a71a4a3 a16a23a72a10a73a74a75a22a24a22a25a22 He is sleeping [TP [NP a31a4a16a57a61a83a62a65a64a28a22a84a0a2a67a69a68 a77a59a33a85a32a40a42 a0a2a71a4a3 a16a23a72a10a73a74a75a22a24a22a25a22 He has slept [TP [NP a31a4a16a57a61a76a62a65a64a28a22a7a0a2a67a69a68 a77a59a33a41 a0a2a71a4a3 a16a23a72a10a73a74a75a22a24a22a25a22 There are some cases where it is difficult to have a concise translation in Vietnamese, eg.
+"He has been sleeping" may be translated into "a48a86a49a23a51a76a52a2a54 a87 a54a88a89a49a57a56a59a58a60 " (past tense emphasized) or "a48a86a49a23a51a43a52a2a54 a87 a54a57a49a57a56a27a49a57a56a59a58a60 " (progressive aspect emphasized) 2.
+We choose the one that seems preferable, eg.
+the second sentence for this example.
+2 It
+is impossible to say *" a90a92a91a15a93a95a94a96a30a97a15a96a98a99a97a15a96a100a91a15a101a30a91a15a101a28a102a103 " or *"a90a92a91a15a93a104a94a96a84a97a15a96a15a91a15a101a84a97a100a96a98a59a91a15a101a28a102a103 ".
+3.2.2 Negation
+and modality The Negation slot of a CLS specifies whether it is in negative form or not.
+The Modality slot contains an abstract value for the modality of the verb, eg.
+possibility corresponds to English "can" and French "pouvoir", obligation to "must" and "devoir".
+GBGEN foresees an orthogonal combination of negation and modality; it inserts "not" after the modal verb for English, or "ne" and "pas" around it for French.
+In Vietnamese, one generally adds the adverb "a0a2a1a4a3a5a7a6a4a8 " before the verb to form a negation.
+a9a11a10a13a12 a14a15a3a5a17a16 a18a19a1a21a20a22a24a23a13a25 a9a27a26a29a28a24a30 a6a4a25 a12 a9a32a31a19a12 a14a15a3a5a17a16 a33a35a34a37a36 a38a40a39a42a41 a18a19a1a21a20a22a24a23a13a25 a9a27a26a44a43 a3a45a6a46a3a46a47 a28a24a30 a6a4a25 a12 a9a11a48a13a12 a14a15a3a5a17a16 a18 a3a50a49a35a47a51a1a46a52a53a54a18a19a1a21a20a22a24a23a13a25 a9a27a26 a18a55a20a4a6 a28a24a30 a6a46a25 a12 a9a40a56a21a12 a14a15a3a5a17a16 a33a35a34a37a36 a38a40a39a42a41 a18 a3a50a49a35a47a51a1a46a52a57 a18a19a1a21a20a22a24a23a13a25 a9a27a26 a18a55a20a4a6a4a6a46a3a46a47 a28a24a30 a6a46a25 a12 Evidently, this orthogonal model will have trouble in translation, because a modal verb in negative form may have different logical interpretations from one language to another.
+For example, "must" = "a58a44a1a21a20 a59a11a16 ", "a26a61a60a62a30a64a63 a47 a28a24a30 a6 " = "a14a15a3a5a17a16 a58a44a1a21a20 a59a11a16 a18a19a1a21a20a22a24a23 ", but (10) I must not run.
+cannot be translated into "a14a15a3a5a17a16 a33a35a34a65a36 a38a40a39a42a41 a58a44a1a21a20 a59a11a16 a18a19a1a21a20a22a24a23 ", which means "I don't have to run".
+The right translation should be a9a67a66a4a66a64a12 a14a15a3a5a17a16 a33a35a34a37a36 a38a40a39a42a41 a68a15a69a13a70a22a71a18 a18a19a1a21a20a22a24a23a13a25 using another modal, "a68a15a69a13a70a22a71a18 ".
+At the moment, the specifications in the PSS does not allow to determine the logical interpretation of a negated modal verb.
+In waiting for an improvement of GBGEN on this issue, we implement a temporary solution which helps to translate negative modal verbs from English and French, specifically, to Vietnamese.
+The appropriate Vietnamese negative modal verb form is derived not only from the Modality slot of the interested CLS, as done in GBGEN, but also by examining its Negation slot.
+3.2.3 Passive
+Passivization is realized in Vietnamese by adding "a68a15a69a13a70a22a71a18 " or "a72a21a73 " before the verb.
+"a74a37a73 " is used when the subject suffers a bad effect from the action, otherwise "a68a15a69a13a70a22a71a18 " is used.
+We put "a68a15a69a13a70a22a71a18 " or "a72a21a73 " in the specifier component of the VP, ie.
+[Spec, VP].
+The choice of "a68a15a69a13a70a22a71a18 " or "a72a21a73 " for a verb is considered as a lexical one, and stored in the Vietnamese lexicon.
+(12) Le chat a été tué.
+(The cat was killed.) a9a67a66a64a75a4a12 a76a19a14a42a77a78a76a17a79a80a77a82a81a54a3a21a6 a60 a52a83a84a3a21a85a19a16a86a76a19a14a54a87a13a68a4a20 a88a45a76a2a89a35a77 a90a21a91 a76a2a89a92a87 a8a15a16a51a52a93a94a47a15a52a2a16 a85a24a85a24a85a24a85 (14) Le livre a été écrit par John.
+(The book was written by John.) a9a67a66a64a95a4a12 a76a19a14a42a77a96a76a17a79a80a77a98a97 a30 a23a21a52a53a7a6 a63 a20a51a49a99a18a19a1a21a85a19a16a42a76a55a14a86a87a7a68a4a20 a88a29a76a2a89a35a77 a100a102a101a35a103a104a64a105 a76a2a89a92a87a7a106a64a16a51a52a93a94a47a15a52a2a16a46a76a17a77a37a77a96a72a4a70 a59a11a16a4a107a2a3a4a1a21a6a4a85a24a85a24a85a24a85a24a85 3.2.4 Translations of be/être The lexical transfer procedure in ITS3 does not take into account the interaction between the components of the sentence when it translates the lexical units in the PSS.
+In particular, the English "be" is always translated into the French "être", and vice versa.
+However, to translate be/être into Vietnamese, one has to distinguish between at least three cases3.
+He is a student a108a110a109a4a111a113a112a27a114a116a115a50a117a86a118a35a115a50a119a110a120 a121a123a122a124 a115a50a125a110a120a127a126a129a128a130a71a112 a131a7a132 a109a4a111a62a133 a132a27a134a135 a109 ]]] He is intelligent a108a110a109a4a111a78a112a27a114a136a115a50a117a86a118a110a115a50a119a110a120 a137a11a138a84a139a15a140a27a141 a115a50a108a110a120 a112a123a111a42a128 a135 a109a4a142 a126 a132 a109a4a111a46a143a67a143a11a143 ( a47a51a1a42a144 is optional.) This flag is of this country a145 a114a146a61a147a2a148a149a150a109a42a114a149a19a151a98a115a50a117a54a118a15a115a50a119a110a120 a137a11a138a67a139a15a140a153a152a29a121a123a122a124 a152a136a138a84a139a15a140a154a121a123a122a124a13a141 a115a50a120a155a120a156a147a19a157a158a24a114a159a109a4a160a15a148a146a17a147 a109a42a114a149a71a151a15a143a11a143a67a143 (Here a47a51a1a42a144 a161 a162 a20 a83 or even a47a51a1a42a144a150a162 a20 a149 are all possible and optional.) For the first case, it suffices to test the theta role of the complement of the verb in the PSS, which should be THEME, to have the right translation "a162 a20 a83 ".
+In the last two cases, whether using "a47a51a1a42a144 " or "a162 a20 a83 " a128a21a163a37a109 a134a21a132 a112a123a111 a134 a163 is too delicate to explain, as it concerns pragmatic issues.
+We decide to put 3 We ignored to treat, eg., the case of be + infinitive ("He is to do it", "a164a153a165a2a166a168a167 a169 a170a155a171a42a172a11a173a174 a175 a169 a176a99a177a98a178a55a179 a180a181a7a182a29a183a64a184 a185 ").
+"(a0a2a1a4a3 )" for the second case where the complement is an AP, and "(a0a2a1a4a3 /a5 a6a7a9a8 " for all other cases.
+3.2.5 Strategy
+for Vietnamese TP construction From the discussion above, it seems not very natural to follow the construction order of GBGEN in building Vietnamese TPs, neither to reuse some of its pre-designed procedure templates, such as selecting auxiliary verbs.
+We need rather to implement a different strategy.
+At first, a simple frame [TP [T' [VP ...]]] is built as D-structure.
+Verbal information, such as tense, aspect, modality, negation, is gathered from the PSS as much as possible.
+The complete TP is then constructed based on the combination of gathered information, and in an order particular to Vietnamese.
+The adverb representing the tense/aspect of the clause, if exists, will occupy the head position of the TP.
+The modal, passive, and main verb make up layers of VPs in the TP.
+Values of negation and modal are computed together.
+The maximal frame looks like: [TP [T' Tense [VP Negation [V' Modal [VP Passive [V' Main]]]]]] For example, for the sentence (16) Il n'a pas pu être tué.
+(He could not be killed.) the past tense gives "a10a11a6a12 ", the negation and the modality combine and give "a13a14a1a11a15a16a18a17a11a19a20a0a2a1a22a21a23 "4, and the passive gives "a24a26a25 " by consulting the lexical entry of the verb "a19a28a27a2a21a29a30a0 ": a31a9a32a28a33 a8 a34a36a35a4a37a38a34a40a39a41a37a43a42a44a17a22a1a45a0a46a6a11a47a36a27a48a34a49a35a51a50a40a10a11a6a12a44a34a53a52a54a37a55a34a53a52a56a50a57a13a53a1a11a15a16a18a17a11a19 a0a2a1a22a21a23a58a34a53a52a54a37a59a24a26a25a54a34a53a52a56a50a60a19a28a27a2a21a29a30a0a28a21a53a27 a47a57a47a57a47a57a47a57a47a57a47 In particular, if the main verb is a translation of be/être (checked with a bit in the lexical entry), its complements will be examined to give the right translation.
+4 " a61a57a62a64a63a65a67a66a53a68a70a69a62a64a71a72 " is a concise and more frequent form of "a61a57a62a64a63a65a67a66a53a68 a73 a63a74a26a69a62a64a71a72 " (see example (9)).
+3.3 Other
+constructions 3.3.1 AdvP location In ITS3, a large set of adverbs and, more generally, adverbial phrases (AdvPs) are classified into semantic groups, specified by a value.
+For example, English "much" and French "beaucoup" are assigned the abstract value degree.
+GBGEN uses this information to locate the generated AdvP in an appropriate position.
+This generic approach is not perfect.
+For example, the equivalent adverbs "where" (English), "où" (French), and "a75a76a77a10a11a6a16a40a78 " (Vietnamese) all have the where value, and would be moved to [Spec, CP] of the subordinate clause.
+This would give a bad Vietnamese sentence (20).
+The correct one is (21).
+(18) I know [CP [AdvP where]i [C' [TP he [T' [VP sleeps [AdvP ei]]]]]].
+(19) Je sais [CP [AdvP où]i [C' [TP il [T' [VP dort [AdvP ei]]]]]].
+a31a80a79a4a81 a8 a82a49a35a28a15a16a40a27a83a24a4a27a2a21a29a30a0 [CP [AdvP a84a86a85a51a87a22a88a89a30a90 ]i [C' [TP a6a11a17a22a1a91a0a46a6 [T' [VP a17a11a19a28a78a76 [AdvP ei]]]]]]a92 a31a80a79a28a32 a8 a35a28a15a16a40a27a93a24a4a27a2a21a29a30a0 a34a36a35a4a37 a6a11a17a22a1a94a0a46a6 a34a36a35a51a50a36a34a53a52a54a37 a17a11a19a28a78a76 a34a86a42a44a95a22a96a36a37 a84a9a85a64a87a22a88a89a30a90 a47a57a47a40a47a57a47 a92 This example shows that AdvP location should be language-specific and lexicalized.
+The generic procedure is in fact just a specialized one valid for some class of languages.
+It is not difficult here to imitate it for a treatment of AdvP location specific to Vietnamese.
+3.3.2 Negative
+words Translating structures with negative words, such as "jamais" = "never" = "a13a53a1a11a15a16a18a17a11a19a97a24a26a6a22a15a98a19a28a27a46a75a7a64a99, "rien" = "nothing" = "a13a53a1a11a15a16a18a17a11a19a101a100a49a6a2a102a80a27a11a19a28a3a4a100a49a6 a76a49a99, etc.
+into Vietnamese is problematic.
+A straightforward application of the generic engine might yield exactly the opposite meaning, eg.: (22) Je / ne dors jamais.
+(I never sleep.) a31a80a79a11a103 a8 a82 a35a28a15a16a40a27 a104a105a13a53a1a11a15a16a18a17a11a19 a106 a107a48a108a110a109a89a67a111a4a112a59a113a22a88 a109 a112a54a114a86a84 a115 a17a11a19a28a78a76 a92 a31a80a116 a0a117a27 a118 a17a22a15a22a0a28a0a2a1a26a6a4a0 a116 a17a4a21a36a96a53a21a53a119a58a118a36a5a2a21a14a21a60a120 a92 a8 5 We recall that in Vietnamese the adverb " a61a57a62a64a63a65a67a66a53a68 " is inserted before the verb to form a negation.
+The right sentence should be a0a2a1a4a3a4a5 a6a8a7a9a11a10 a12a14a13a16a15a17a19a18a21a20a23a22a4a24a25a15a26a20a14a27a29a28a31a30 a32a4a33a8a34a35a37a36 The same problem was known in FrenchEnglish translation, and cured in GBGEN by realizing the English sentence not in negative but in affirmative form.
+This solution does not work for Vietnamese: (25) Je / n'écris rien.
+(I write nothing.) (26) *a6a8a7a9a11a10a39a38a16a40a41a10a43a42a44a46a45 a12a25a13a16a15a17a29a18a47a20a49a48a39a24a19a50a27a51a20a53a52a25a48a54a24a56a55.
+(27) Tu / ne dois jamais / courir trop vite.
+(You must never run too fast.) (28) *a57a58a32a47a59a60a38 a61a62a59a51a63 a35a29a10 a12a25a13a64a15a17a19a18a21a20a65a22a47a24a14a15a60a20a14a27a29a28a31a30 a38 a66a39a59a51a63a67a69a68a71a70a21a34a41a63a43a72 a32a47a59a51a63a4a32a47a59 a36 The right translations for (25) and (27) should be, respectively: a0a2a1a47a73a51a5 a6a8a7a9a11a10a74a38 a12a25a13a64a15a17a19a18a21a20 a40a41a10a43a42a44a46a45 a48a39a24a19a50a27a75a20a53a52a60a48a39a24a76a55.
+(I do not write anything.) a0a2a77a21a78a79a5 a57a58a32a47a59 a38 a12a25a13a64a15a17a19a18a21a20a80a22a47a24a14a15a71a20a14a27a19a28a31a30 a81a8a82a79a83a67a84a66 a38 a66a39a59a51a63a67a69a68a85a70a21a34a41a63a43a72 a32a47a59a51a63a4a32a47a59 a36 a0a39a86 a81a8a82a79a83a67a84a66 a86 a10 a87a85a34a41a87a54a42a54a88a89a10 a32a4a87a54a45a90a42a54a63a4a88a91a7a93a92 a86 a61a62a59a51a63 a35a29a10 a86 a36a95a94a21a42a84a42 a77 a36 a1 a36 a1 a96 Our solution here is to keep the verb in the negative form, and use the "indefinite" counterparts "a97 a63a47a7a98a33a8a10a31a83a99 a86 a100 "a66a54a63a43a72a2a10a101a33a8a102a58a66a54a63 a35 a86, etc.
+of the expressions "a103 a59a4a7a9a76a32a4a33 a97 a63a47a7a104a33a8a10a31a83a99 a86 a100 "a103 a59a4a7a9a76a32a4a33a105a66a54a63a43a72a2a10a47a33a8a102a8a66a54a63 a35 a86, etc6.
+The structure of eg.
+the translation (24) is thus a0a2a77a8a106a41a5 a107a39a6a21a108 a6a8a7a9a11a10 a107a39a6a101a109a56a107a111a110a14a108 a12a14a13a16a15a17a29a18a47a20 a107a111a110a14a108 a22a4a24a25a15a95a20a14a27a29a28a31a30 a107a111a110a112a109 a32a4a33a8a34a35a37a113a69a113a69a113a11a113a69a113a69a114 where "a103 a59a4a7a9a76a32a4a33 a86 and "a97 a63a47a7a23a33a8a10a31a83a99 a86 are two different constituents.
+Note however that this solution gives a less good but still acceptable translation of (27), that of a86 a57a58a32a47a59 a103 a59a4a7a9a76a32a4a33a23a81a8a82a79a83a67a84a66 a22a4a24a25a15a115a20a14a27a29a28a31a30 a66a39a59a51a63a67a69a68 a70a21a34a41a63a43a72a116a32a47a59a51a63a4a32a47a59 a86 . We could have done better, but at the cost of much more complicated programming.
+6 Just
+as "anything" to "nothing" in English.
+3.3.3 Wh-movements Vietnamese wh-questions do not need a whmovement as in English: (32) Whom have you seen ? (33) a57a58a32a47a59a117a81a4a63a118a116a45a43a59a51a63a44a119a68 a24a4a27 a120 ("whom"="ai") We therefore block the wh-movement procedure in GBGEN in constructing wh-questions.
+However, there is a case where a movement is preferred and realized, that of why7.
+(34) Pourquoi il ne dort pas ? (Why doesn't he sleep?) (35) a57a58a32a47a59a121a45a31a63 a103 a59a4a7a9a76a32a4a33 a32a4a33a8a34a35 a122a37a24a123a124a27a126a125a11a24a25a15 a120 (Acceptable) a0a2a77a21a127a79a5 a128a14a24a123a124a27a8a125a69a24a14a15 a63a4a32a47a59a60a45a31a63 a103 a59a4a7a9a76a32a4a33 a32a4a33a8a34a35a112a120 (Preferred) 3.3.4 Relative clauses To form a relative clause in Vietnamese, one can generally add an optional complementizer "a129 a63a99 " before the clause.
+We decide to put "a0 a129 a63a99 a5 " for subject relative clauses, and "a129 a63a99 " for object relative clauses, as it is more acceptable to drop "a129 a63a99 " in the former case than in the latter.
+(37) The student / who has seen the cat / is John.
+a0a2a77a21a130a79a5 a131a75a33a8a82a79a83a99a56a10a53a87a39a10 a32a47a59a71a40a41a10a43a42a9a76a32a60a38a95a107a84a132a116a108a91a107a84a132a117a109 a0 a129 a63a99 a5 a107a54a6a21a108a133a81a4a63a118 a45a43a59a51a63a44a119a68a117a66a39a7a51a32 a129 a42a99a93a7a51a113a69a113a69a113a62a38a101a134 a63a99a62a135a111a7a4a59a51a32a47a36a136 (39) The student / whom you see / is John.
+a0a2a3a21a78a79a5 a131a75a33a8a82a79a83a99a56a10a64a87a39a10 a32a47a59a49a40a41a10a43a42a9a76a32a105a38a137a107a84a132a116a108a80a107a84a132a117a109 a129 a63a99a137a107a54a6a21a108a80a63a4a32a47a59 a45a43a59a51a63a44a119a68a41a113a69a113a69a113a62a38a101a134 a63a99a62a135a111a7a4a59a51a32a47a36 The translation of adjunct relative clauses which begin with a preposition from French or English into Vietnamese is difficult.
+In general, we need to keep the preposition at the end of the relative clause, rather than move it to the beginning as GBGEN proposes: (41) La fille / avec qui John parle / est Mary.
+(42) The girl / with whom John talks / is Mary.
+7 This
+is done by the AdvP location procedure (see section 3.3.1). 8 If " a138a58a139a140 " is dropped, it is a sort of garden-path sentence.
+But this is common in Vietnamese, and may be an interesting subject to study.
+a0a2a1a4a3a4a5 a6a8a7a9a11a10a4a12a14a13a2a15a17a16a11a18a19a12a20a22a21a23a7a4a24a26a25a27a25a28a7a29a13a2a15a31a30a32a24a34a33a36a35a26a37a38a39a25 a40a39a41a43a42a44 a16a46a45 a12a20 a47 a12a49a48a50a35a52a51 a0a32a53 a12a28a54a23a37a36a30 a53a56a55a22a53a2a57 a15a14a58a14a24 a53a59a55a19a53 a54a36a60a29a13a2a15 a53a62a61 a53 a63 a12a49a48a39a45a14a37a23a48 a53a59a55a19a53 a58a29a12a49a45 a64 a53a59a55a22a53 a25a28a7a29a13a2a15a34a30a32a24a34a33a36a35a26a37a38a39a25 a53 a51 a5 At the moment, we cannot deal with cases where a paraphrase is needed for a correct translation.
+Knowing that "without"="a64a23a24a4a7a9a65a25a4a10a66a30a32a7a29a13 ", (44) The girl / without whom John cannot work / is Mary.
+a0a2a1a4a67a4a5 a68a32a6a8a7a9a69a10a4a12a14a13a2a15a49a16a70a18a19a12a20a71a21a23a7a4a24a26a25a72a64a23a24a4a7a9a65a25a4a10a73a58a14a24a28a37a74a22a45 a12a20a75a18a76a54a77a15a14a37a38a78a30 a79a81a80a83a82a84a62a85a34a86a88a87a77a82 a13a23a16a8a45 a12a20 a47 a12a34a48a50a35a52a51 a0a2a1a34a89a52a5 a6a8a7a9a90a10a4a12a14a13a2a15a52a16a91a18a19a12a20a8a25a34a37a92a93a33a94a64a23a24a4a7a9a65a25a4a10a95a30a32a7a29a13 a0 a30a32a7a9a90a12a92a75a35 a5 a21a23a7a4a24a26a25 a64a23a24a4a7a9a65a25a4a10a66a58a14a24a28a37a74a91a45 a12a20a75a18a96a54a77a15a14a37a38a78a30a97a16a8a45 a12a20 a47 a12a49a48a50a35a52a51 (The girl / that if she is not there, John cannot work / is Mary.) 4 Results The implemented generation module for Vietnamese can realize almost all structures that can be generated from the intermediate PSSs.
+Many of them are of course not yet perfect, but a French-Vietnamese translation test on a sample of French sentences of many different syntactic structures gave encouraging results.
+We did not consider tests on English-Vietnamese translation, because the English analysis module in ITS3 has not yet been well developed.
+We have not been able to do a large-scale test on real corpora yet, because our lexicons are still small (about 400 entries for each bilingual lexicon, among them many functional words (prepositions, adverbs, pronouns, conjunctions)).
+However, tests are not necessarily restricted by the size of the lexicons, because if a source language word is not found in the bilingual lexicon, it is still retained in the PSS during the lexical transfer phase.
+This word will then appear in the target language sentence exactly at the position of its supposed translation.
+As it is well known, lexicon building requires huge investments on human work and time.
+One can use methods of (semi-)automatic acquisition of dictionary resources (see eg., Doan-Nguyen, 1998) to obtain quickly a large draft of necessary lexicons, provided that such resources (eg.
+a French-Vietnamese dictionary text file) exist.
+In the worst case, a human will verify and complete this draft, but in general this is still much cheaper than developing a lexicon from scratch.
+We did not, unfortunately, have any of these resources.
+Nevertheless, we profited much from a French-English lexicon draft extracted from ITS3's lexicons: much lexical information in its entries can be reused in the corresponding Vietnamese entries (eg.
+the part-of-speech, the verb theta grid).
+Moreover, English translations of a French word, as well as French translations of an English word, help to choose correct corresponding Vietnamese translations.
+5 Discussion
+Although not totally perfect, ITS3, and in particular GBGEN, show to be good systems for multilingual MT.
+They have a solid linguistic theoretical base, a modular computational design, and a surprising performance.
+Besides the problems presented in this paper, we find convenient to use many available procedure templates, such as PP construction, movements and bindings.
+In particular, ITS3 is able to do robust, high-quality, and broad-coverage syntactic analysis for French.
+Our experience can be seen as a test on integrating an "exotic" language into the sytem.
+As we have shown above, many difficulties in implementing the generation module for Vietnamese stem from "mismatches" between Vietnamese grammatical notions and the model of the generic engine GBGEN.
+It is largely agreed that designing a generic, flexible, and efficient system for pratical applications of multilingual generation and MT is a very difficult problem.
+Our experience suggests that in a principle-based generation system such as GBGEN, the parameterized modules, which contain language-specific and lexicalized properties, should be of more importance.
+The flexibility of a generic system consists in designing good "slots" so that modules for a new language can be plugged in systematically and conveniently.
+As discussed in section 2, a declarative approach may be very beneficial for system development, including genericity and flexibility.
+The programming paradigm is also an important factor.
+The LATL has recently begun to reengineer ITS3 in an object-oriented language, which facilitates the development of the system while still guanratees its performance9.
+Apart from the generation phase, the quality of an MT system depends heavily on the analysis modules.
+The construction of the PSS from the syntactic analysis of the input sentence is of crucial importance.
+We find that this is a real bottleneck in ITS3: in many cases, despite a good syntactic analysis, the translation fails because of a bad PSS construction.
+PSS construction is obviously a very difficult task, as it is in fact a kind of translation, that goes from a syntactic structure into a logical formalism.
+See eg.
+Alshawi (1992) for a similar task, ie.
+translating English sentences into a logical representation.
+6 Conclusions
+With the Vietnamese generation module and the lexicons developed, we have implemented first prototypes of French-Vietnamese and EnglishVietnamese MT.
+As we know best, this is the first time a French-Vietnamese MT prototype is realized.
+Our future work is to develop the lexicons, improve the implemented module, and test it on real corpora for a more precise evaluation.
+We also envisage doing Vietnamese GB-based analysis in the framework of ITS3.
+Acknowledgements I am grateful to the Agence Universitaire de la Francophonie whose scholarship allowed me to carry out this project.
+This research has also been supported by the Social Sciences and Humanities Research Council of Canada (grant # 412-97-0016), for the "Asymmetry and Natural Language Processing Project", awarded to professor Anne-Marie Di Sciullo, in the Département de Linguistique at Université du Québec à Montréal (UQAM).
+Eric Wehrli, Thierry Etchegoyhen, Luka Nerima, Anne Vandeventer, and all members of LATL, reserved for me precious help and friendship during my work in Geneva.
+I would like also to thank Eric Wehrli, Nicolas Nicolov, Nikolay Vazov, and the EWNLG-01 reviewers for 9 Eric Wehrli, personal communication.
+helpful comments on earlier versions of this paper, and finally, Anne-Marie Di Sciullo for her support to this research.
+References Berwick R., Abney S., & Tenny C., editors (1991) Principle-Based Parsing: Computation and Psycholinguistics.
+Kluwer Academic Publishers.
+Alshawi, H.
+(1992) The Core Language Engine.
+MIT Press.
+Doan-Nguyen H.
+(1993) The English-Vietnamese Translation Machine-88.
+Proceedings of HoChiMinh City Mathematics Consortium -1993, HoChiMinh City, pp.
+217-222. Doan-Nguyen H.
+(1998) Accumulation of Lexical Sets: Acquisition of Dictionary Resources and Production of New Lexical Sets.
+Proceedings of the 17th International Conference on Computational Linguistics and 36th Annual Meeting of the Association for Computational Linguistics, COLING-ACL '98, Montreal, pp 330335.
+Dorr B.
+(1993) Interlingual Machine Translation: A Parameterized Approach.
+Artificial Intelligence, Vol.
+63, N.
+1-2, pp.
+429-492. Emele M., Heid U., Moma S.
+& Zajac R.
+(1992) Interactions between Linguistic Constraints: Procedural vs.
+Declarative Approaches.
+Machine Translation, Vol.
+7, N.
+1-2, pp.
+61-98. Etchegoyhen T.
+& Wehrli E.
+(1998) Traduction automatique et structures d'interface.
+Actes de la Conférence sur le Traitement Automatique du Langage Naturel, TALN '98, Paris.
+Etchegoyhen T.
+& Wehrle, T.
+(1998) Overview of GBGen.
+Proceedings of the 9th International Workshop on Natural Language Generation, Niagara-on-the-lake, Canada.
+Etchegoyhen T., Wehrle T., Mengon J.
+& Vandeventer A.
+(1999) Une approche efficace à la génération syntaxique.
+Le système GBGen.
+Actes du 2ème colloque francophone sur la Génération Automatique de Textes, GAT '99, Grenoble.
+Gdaniec C.
+(1998) Lexical Choice and Syntactic Generation in a Transfer System: Transformations in the New LMT English-German System.
+In Farwell D.
+& al (ed).
+Machine Translation and the Information Soup, Third Conference of the Association for Machine Translation in the Americas, AMTA '98, Langhorne, PA, USA, pp.
+408-420. Haegeman L.
+(1994) Introduction to Government & Binding Theory, 2nd Edition.
+Blackwell, Oxford (UK) and Cambridge (USA), 701 p.
+Hutchins J.
+& Sommers L.
+(1992) An Introduction to Machine Translation.
+Academic Press, London.
+L'haire S., Mengon J.
+& Laenzlinger C.
+(2000) Outils génériques et transfert hybride pour la traduction automatique sur Internet.
+Actes de la Conférence sur le Traitement Automatique du Langage Naturel, TALN '2000, Lausanne.
+Nicolov N.
+& Mellish C.
+(2000) PROTECTOR: Efficient Generation with Lexicalized Grammars.
+Recent Advances in Natural Language Processing, John Benjamins, pp.
+221-243. Wehrli, E.
+(1992) The IPS system.
+Proceedings of the 14th International Conference on Computational Linguistics, COLING '92, Nantes, pp. 870-874 .
+

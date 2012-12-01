@@ -1,0 +1,248 @@
+Fast Decoding and Optimal Decoding for Machine Translation Ulrich Germanna0, Michael Jahra1, Kevin Knighta0, Daniel Marcua0, and Kenji Yamadaa0 a0 Information Sciences Institute a1 Department of Computer Science University of Southern California Stanford University 4676 Admiralty Way, Suite 1001 Stanford, CA 94305 Marina del Rey, CA 90292 jahr@cs.stanford.edu a2 germann,knight,marcu,kyamada a3 @isi.edu Abstract A good decoding algorithm is critical to the success of any statistical machine translation system.
+The decoder’s job is to find the translation that is most likely according to set of previously learned parameters (and a formula for combining them).
+Since the space of possible translations is extremely large, typical decoding algorithms are only able to examine a portion of it, thus risking to miss good solutions.
+In this paper, we compare the speed and output quality of a traditional stack-based decoding algorithm with two new decoders: a fast greedy decoder and a slow but optimal decoder that treats decoding as an integer-programming optimization problem.
+1 Introduction
+A statistical MT system that translates (say) French sentences into English, is divided into three parts: (1) a language model (LM) that assigns a probability P(e) to any English string, (2) a translation model (TM) that assigns a probability P(fa4 e) to any pair of English and French strings, and (3) a decoder.
+The decoder takes a previously unseen sentence a5 and tries to find the a6 that maximizes P(ea4 f), or equivalently maximizes P(e) a7 P(fa4 e).
+Brown et al.(1993) introduced a series of TMs based on word-for-word substitution and reordering, but did not include a decoding algorithm.
+If the source and target languages are constrained to have the same word order (by choice or through suitable pre-processing), then the linear Viterbi algorithm can be applied (Tillmann et al., 1997).
+If re-ordering is limited to rotations around nodes in a binary tree, then optimal decoding can be carried out by a high-polynomial algorithm (Wu, 1996).
+For arbitrary word-reordering, the decoding problem is NP-complete (Knight, 1999).
+A sensible strategy (Brown et al., 1995; Wang and Waibel, 1997) is to examine a large subset of likely decodings and choose just from that.
+Of course, it is possible to miss a good translation this way.
+If the decoder returns ea8 but there exists some e for which P(ea4 f) a9 P(ea8 a4 f), this is called a search error.
+As Wang and Waibel (1997) remark, it is hard to know whether a search error has occurred—the only way to show that a decoding is sub-optimal is to actually produce a higherscoring one.
+Thus, while decoding is a clear-cut optimization task in which every problem instance has a right answer, it is hard to come up with good answers quickly.
+This paper reports on measurements of speed, search errors, and translation quality in the context of a traditional stack decoder (Jelinek, 1969; Brown et al., 1995) and two new decoders.
+The first is a fast greedy decoder, and the second is a slow optimal decoder based on generic mathematical programming techniques.
+2 IBM
+Model 4 In this paper, we work with IBM Model 4, which revolves around the notion of a word alignment over a pair of sentences (see Figure 1).
+A word alignment assigns a single home (English string position) to each French word.
+If two French words align to the same English word, then that it is not clear. | \ | \ \ | \ + \ \ | \/ \ \ \ | /\ \ \ \ CE NE EST PAS CLAIR . Figure 1: Sample word alignment.
+English word is said to have a fertility of two.
+Likewise, if an English word remains unalignedto, then it has fertility zero.
+The word alignment in Figure 1 is shorthand for a hypothetical stochastic process by which an English string gets converted into a French string.
+There are several sets of decisions to be made.
+First, every English word is assigned a fertility.
+These assignments are made stochastically according to a table n(a10a11a4 ea12 ).
+We delete from the string any word with fertility zero, we duplicate any word with fertility two, etc.
+If a word has fertility greater than zero, we call it fertile.
+If its fertility is greater than one, we call it very fertile.
+After each English word in the new string, we may increment the fertility of an invisible English NULL element with probability pa13 (typically about 0.02).
+The NULL element ultimately produces “spurious” French words.
+Next, we perform a word-for-word replacement of English words (including NULL) by French words, according to the table t(fa14a15a4 ea12 ).
+Finally, we permute the French words.
+In permuting, Model 4 distinguishes between French words that are heads (the leftmost French word generated from a particular English word), nonheads (non-leftmost, generated only by very fertile English words), and NULL-generated.
+Heads. The head of one English word is assigned a French string position based on the position assigned to the previous English word.
+If an English word ea12a17a16a18a13 translates into something at French position j, then the French head word of ea12 is stochastically placed in French position k with distortion probability da13 (k–j a4 class(ea12a17a16a18a13 ), class(fa19 )), where “class” refers to automatically determined word classes for French and English vocabulary items.
+This relative offset k–j encourages adjacent English words to translate into adjacent French words.
+If ea12a17a16a18a13 is infertile, then j is taken from ea12a17a16a21a20, etc.
+If ea12a17a16a18a13 is very fertile, then j is the average of the positions of its French translations.
+Non-heads. If the head of English word ea12 is placed in French position j, then its first nonhead is placed in French position k (a9 j) according to another table da22a18a13 (k–j a4 class(fa19 )).
+The next non-head is placed at position q with probability da22a18a13 (q–k a4 class(fa23 )), and so forth.
+NULL-generated. After heads and non-heads are placed, NULL-generated words are permuted into the remaining vacant slots randomly.
+If there are a10a25a24 NULL-generated words, then any placement scheme is chosen with probability 1/a10 a24a27a26 . These stochastic decisions, starting with e, result in different choices of f and an alignment of f with e.
+We map an e onto a particular a28 a,fa9 pair with probability: P(a, f a4 e) = a29 a30 a12a32a31a33a13 na34a35a10a36a12a37a4 ea12a35a38a40a39 a29 a30 a12a32a31a33a13 a41a43a42 a30 a19 a31a33a13 ta34a45a44 a12 a19a46a4 ea12a47a38a48a39 a29 a30 a12a49a31a33a13a51a50 a41a52a42 a22 a24 da13a52a34a45a53a54a12a17a13a56a55a58a57a60a59 a42 a4 a57a62a61a45a63a46a64a52a64a65a34 ea59 a42 a38a67a66a37a57a62a61a45a63a46a64a52a64a65a34a45a44a62a12a17a13a68a38a51a38a48a39 a29 a30 a12a32a31a33a13 a41a43a42 a30 a19 a31a69a20 da22a18a13 a34a45a53 a12 a19a70a55a71a53 a12a17a72 a19 a16a18a13a74a73 a4 a57a62a61a45a63a65a64a48a64a65a34a45a44 a12 a19a75a38a51a38a48a39 a76a78a77 a55a79a10 a24 a10 a24 a80a82a81 a13 a41a43a83 a34a85a84a86a55 a81 a13a68a38a74a87 a16a21a20 a41a43a83 a39 a41a43a83 a30 a19 a31a33a13a89a88 a34a45a44 a24 a19a46a4 NULLa38 where the factors separated by a39 symbols denote fertility, translation, head permutation, non-head permutation, null-fertility, and null-translation probabilities.1 3 Definition of the Problem If we observe a new sentence f, then an optimal decoder will search for an e that maximizes P(ea4 f) 1The symbols in this formula are: a90 (the length of e), a91 (the length of f), ea42 (the ia92a32a93 English word in e), ea83 (the NULL word), a94 a42 (the fertility of ea42 ), a94 a83 (the fertility of the NULL word), a95 a42a97a96 (the ka92a32a93 French word produced by ea42 in a), a98 a42a99a96 (the position of a95 a42a97a96 in f), a100 a42 (the position of the first fertile word to the left of ea42 in a), a101a85a102a104a103 (the ceiling of the average of all a98 a102a104a103 a96 for a100 a42, or 0 if a100 a42 is undefined).
+a105 P(e) a7 P(fa4 e).
+Here, P(fa4 e) is the sum of P(a,fa4 e) over all possible alignments a.
+Because this sum involves significant computation, we typically avoid it by instead searching for an a28 e,aa9 pair that maximizes P(e,aa4 f) a105 P(e) a7 P(a,fa4 e).
+We take the language model P(e) to be a smoothed n-gram model of English.
+4 Stack-Based Decoding The stack (also called A*) decoding algorithm is a kind of best-first search which was first introduced in the domain of speech recognition (Jelinek, 1969).
+By building solutions incrementally and storing partial solutions, or hypotheses, in a “stack” (in modern terminology, a priority queue), the decoder conducts an ordered search of the solution space.
+In the ideal case (unlimited stack size and exhaustive search time), a stack decoder is guaranteed to find an optimal solution; our hope is to do almost as well under real-world constraints of limited space and time.
+The generic stack decoding algorithm follows: a106 Initialize the stack with an empty hypothesis.
+a106 Pop h, the best hypothesis, off the stack.
+a106 If h is a complete sentence, output h and terminate.
+a106 For each possible next word w, extend h by adding w and push the resulting hypothesis onto the stack.
+a106 Return to the second step (pop).
+One crucial difference between the decoding process in speech recognition (SR) and machine translation (MT) is that speech is always produced in the same order as its transcription.
+Consequently, in SR decoding there is always a simple left-to-right correspondence between input and output sequences.
+By contrast, in MT the leftto-right relation rarely holds even for language pairs as similar as French and English.
+We address this problem by building the solution from left to right, but allowing the decoder to consume its input in any order.
+This change makes decoding significantly more complex in MT; instead of knowing the order of the input in advance, we must consider all a107 a26 permutations of an a107 -word input sentence.
+Another important difference between SR and MT decoding is the lack of reliable heuristics in MT.
+A heuristic is used in A* search to estimate the cost of completing a partial hypothesis.
+A good heuristic makes it possible to accurately compare the value of different partial hypotheses, and thus to focus the search in the most promising direction.
+The left-to-right restriction in SR makes it possible to use a simple yet reliable class of heuristics which estimate cost based on the amount of input left to decode.
+Partly because of the absence of left-to-right correspondence, MT heuristics are significantly more difficult to develop (Wang and Waibel, 1997).
+Without a heuristic, a classic stack decoder is ineffective because shorter hypotheses will almost always look more attractive than longer ones, since as we add words to a hypothesis, we end up multiplying more and more terms to find the probability.
+Because of this, longer hypotheses will be pushed off the end of the stack by shorter ones even if they are in reality better decodings.
+Fortunately, by using more than one stack, we can eliminate this effect.
+In a multistack decoder, we employ more than one stack to force hypotheses to compete fairly.
+More specifically, we have one stack for each subset of input words.
+This way, a hypothesis can only be pruned if there are other, better, hypotheses that represent the same portion of the input.
+With more than one stack, however, how does a multistack decoder choose which hypothesis to extend during each iteration?
+We address this issue by simply taking one hypothesis from each stack, but a better solution would be to somehow compare hypotheses from different stacks and extend only the best ones.
+The multistack decoder we describe is closely patterned on the Model 3 decoder described in the (Brown et al., 1995) patent.
+We build solutions incrementally by applying operations to hypotheses.
+There are four operations: a106 Add adds a new English word and aligns a single French word to it.
+a106 AddZfert adds two new English words.
+The first has fertility zero, while the second is aligned to a single French word.
+a106 Extend aligns an additional French word to the most recent English word, increasing its fertility.
+a106 AddNull aligns a French word to the English NULL element.
+AddZfert is by far the most expensive operation, as we must consider inserting a zero-fertility English word before each translation of each unaligned French word.
+With an English vocabulary size of 40,000, AddZfert is 400,000 times more expensive than AddNull!
+We can reduce the cost of AddZfert in two ways.
+First, we can consider only certain English words as candidates for zero-fertility, namely words which both occur frequently and have a high probability of being assigned frequency zero.
+Second, we can only insert a zero-fertility word if it will increase the probability of a hypothesis.
+According to the definition of the decoding problem, a zero-fertility English word can only make a decoding more likely by increasing P(e) more than it decreases P(a,fa4 e).2 By only considering helpful zero-fertility insertions, we save ourselves significant overhead in the AddZfert operation, in many cases eliminating all possibilities and reducing its cost to less than that of AddNull.
+5 Greedy
+Decoding Over the last decade, many instances of NPcomplete problems have been shown to be solvable in reasonable/polynomial time using greedy methods (Selman et al., 1992; Monasson et al., 1999).
+Instead of deeply probing the search space, such greedy methods typically start out with a random, approximate solution and then try to improve it incrementally until a satisfactory solution is reached.
+In many cases, greedy methods quickly yield surprisingly good solutions.
+We conjectured that such greedy methods may prove to be helpful in the context of MT decoding.
+The greedy decoder that we describe starts the translation process from an English gloss of the French sentence given as input.
+The gloss is constructed by aligning each French word fa14 with its most likely English translation ef a108 (ef a108a110a109 argmaxa111 t(e a4 fa14 )).
+For example, in translating the French sentence “Bien entendu, il parle de une belle victoire .”, the greedy decoder initially as2We know that adding a zero-fertility word will decrease P(a,fa112 e) because it adds a term n(0 a112 ea42 ) a113 1 to the calculation.
+sumes that a good translation of it is “Well heard, it talking a beautiful victory” because the best translation of “bien” is “well”, the best translation of “entendu” is “heard”, and so on.
+The alignment corresponding to this translation is shown at the top of Figure 2.
+Once the initial alignment is created, the greedy decoder tries to improve it, i.e., tries to find an alignment (and implicitly translation) of higher probability, by applying one of the following operations: a106 translateOneOrTwoWords( a114a27a13,ea13,a114a43a20,ea20 ) changes the translation of one or two French words, those located at positions a114a75a13 and a114a43a20, from ea115 a108a74a116 and ea115 a108a35a117 into ea13 and ea20 . If ea115 a108 is a word of fertility 1 and ea19 is NULL, then ea115 a108 is deleted from the translation.
+If ea115 a108 is the NULL word, the word ea19 is inserted into the translation at the position that yields the alignment of highest probability.
+If ea115 a108a74a116 a109e a13 or ea115 a108a35a117 a109 ea20, this operation amounts to changing the translation of a single word.
+a106 translateAndInsert( a114,ea13,ea20 ) changes the translation of the French word located at position a114 from ea115 a108 into a6a75a13 and simulataneously inserts word ea20 at the position that yields the alignment of highest probability.
+Word a6a118a20 is selected from an automatically derived list of 1024 words with high probability of having fertility 0.
+When ea115 a108 a109 ea13, this operation amounts to inserting a word of fertility 0 into the alignment.
+a106 removeWordOfFertility0( a119 ) deletes the word of fertility 0 at position a119 in the current alignment.
+a106 swapSegments( a119a51a13a118a66a51a119a104a20a27a66a104a114a27a13a118a66a104a114a118a20 ) creates a new alignment from the old one by swapping non-overlapping English word segments a120 a119a51a13a118a66a51a119a74a20a60a121 and a120 a114a75a13a118a66a104a114a118a20a60a121 . During the swap operation, all existing links between English and French words are preserved.
+The segments can be as small as a word or as long as a4a69a6a122a4a33a55a123a84 words, where a4a69a6a124a4 is the length of the English sentence.
+a106 joinWords( a119 a13 a66a51a119 a20 ) eliminates from the alignment the English word at position a119a51a13 (or a119a104a20 ) and links the French words generated by a6 a12 a116 (or a6a118a12 a117 ) to a6a125a12 a117 (or a6a125a12 a116 ).
+a126 a127a128 a129 a128 a129 a130a128 a129 a131 a132 a133 a127a134 a135 a136 a137a134a128 a131 a128 a132 a129 a128 a126 a128 a134a134a128 a138 a127a139 a130 a140 a127a137a128 a141 a138 a127a139 a130a140 a137a142a143 a137a128 a136 a130a136a136 a126 a140 a132 a130a130a136 a134a144 a145a133a132 a129 a131 a128 a137a145 a130a140 a140 a131a146 a147 a148 a148 a149 a128 a134a134 a141 a127a130 a150 a139 a130 a127a140 a129 a130 a137a136 a129 a145 a134a136 a130a128 a151 a149 a140 a152 a140 a137a131 a145 a153a154 a133a130a136 a134a144 a145 a133a155 a133a143 a137a128 a136 a130a156 a130 a137a136 a129 a145 a134a136 a130a128 a151 a149 a140 a152 a140 a137a131 a145 a153a157 a133a132 a129 a131 a128 a137a145 a130a140 a140 a131 a133a158 a133a136 a126 a140 a132 a130a156 a126 a127a128 a129 a128 a129 a130a128 a129 a131 a132 a133 a127a134 a135 a136 a137a134a128 a131 a128 a132 a129 a128 a126 a128 a134a134a128 a138 a127a139 a130 a140 a127a137a128 a141 a146 a147 a148 a148 a149 a128 a134a134 a159 a128 a136 a137a131 a138 a127a139 a130a140 a137a142a126 a128 a136 a132 a130 a127a160 a132 a134a136a130a136 a134a144 a127a129 a143a127a130a133 a126 a127a128 a129 a128 a129 a130a128 a129 a131 a132 a133 a127a134 a135 a136 a137 a134a128 a131 a128 a132 a129 a128 a126 a128 a134a134a128 a138 a127a139 a130a140 a127a137a128 a141 a146 a147 a148 a148 a149 a128 a134a134 a159 a128 a136 a137a131 a138 a127a139 a130a140 a137a142a136a127a130a133 a143 a137a128 a136 a130a130a136 a134a144 a145 a141 a141 a130 a137a136 a129 a145 a134a136 a130a128 a161 a129 a128 a152 a140 a137a131 a153a162 a133a159 a128 a156 a126 a127a128 a129 a128 a129 a130a128 a129 a131 a132 a133 a127a134 a135 a136 a137a134a128 a131 a128 a132 a129 a128 a126 a128 a134a134a128 a138 a127a139 a130 a140 a127a137a128 a141 a138 a127a139 a130a140 a137a142a143 a137a128 a136 a130a136a136 a126 a140 a132 a130a130a136 a134a144 a145a133a132 a129 a131 a128 a137a145 a130a140 a140 a131a146 a147 a148 a148 a149 a128 a134a134 a141 a159 a128 a126 a127a128 a129 a128 a129 a130a128 a129 a131 a132 a133 a127a134 a135 a136 a137a134a128 a131 a128 a132 a129 a128 a126 a128 a134a134a128 a138 a127a139 a130 a140 a127a137a128 a141 a138 a127a139 a130a140 a137a142a143 a137a128 a136 a130a136a136 a126 a140 a132 a130a130a136 a134a144 a145a133a146 a147 a148 a148 a163 a132 a127a130a128 a141 a159 a128a129 a136 a130 a132 a137a136 a134a134a142 a130 a137a136 a129 a145 a134a136 a130a128 a151 a149 a140 a152 a140 a137a131 a145 a153a164 a133a163 a132 a127a130a128 a133a157 a133a129 a136 a130 a132 a137a136 a134a134a142 a156 Figure 2: Example of how the greedy decoder produces the translation of French sentence “Bien entendu, il parle de une belle victoire.” In a stepwise fashion, starting from the initial gloss, the greedy decoder iterates exhaustively over all alignments that are one operation away from the alignment under consideration.
+At every step, the decoder chooses the alignment of highest probability, until the probability of the current alignment can no longer be improved.
+When it starts from the gloss of the French sentence “Bien entendu, il parle de une belle victoire.”, for example, the greedy decoder alters the initial alignment incrementally as shown in Figure 2, eventually producing the translation “Quite naturally, he talks about a great victory.”.
+In the process, the decoder explores a total of 77421 distinct alignments/translations, of which “Quite naturally, he talks about a great victory.” has the highest probability.
+We chose the operation types enumerated above for two reasons: (i) they are general enough to enable the decoder escape local maxima and modify in a non-trivial manner a given alignment in order to produce good translations; (ii) they are relatively inexpensive (timewise).
+The most time consuming operations in the decoder are swapSegments, translateOneOrTwoWords, and translateAndInsert.
+SwapSegments iterates over all possible non-overlapping span pairs that can be built on a sequence of length a4a70a6a165a4 . TranslateOneOrTwoWords iterates over a4a166a5a167a4 a20 a39a11a4 a88 a4 a20 alignments, where a4a46a5a168a4 is the size of the French sentence and a4 a88 a4 is the number of translations we associate with each word (in our implementation, we limit this number to the top 10 translations).
+TranslateAndInsert iterates over a4a169a5a79a4a33a39a78a4 a88 a4a170a39a171a4a89a172a82a4 alignments, where a4a173a172a82a4 is the size of the list of words with high probability of having fertility 0 (1024 words in our implementation).
+6 Integer
+Programming Decoding Knight (1999) likens MT decoding to finding optimal tours in the Traveling Salesman Problem (Garey and Johnson, 1979)—choosing a good word order for decoder output is similar to choosing a good TSP tour.
+Because any TSP problem instance can be transformed into a decoding problem instance, Model 4 decoding is provably NP-complete in the length of f.
+It is interesting to consider the reverse direction—is it possible to transform a decoding problem instance into a TSP instance?
+If so, we may take great advantage of previous research into efficient TSP algorithms.
+We may also take advantage of existing software packages, obtaining a sophisticated decoder with little programming effort.
+It is difficult to convert decoding into straight TSP, but a wide range of combinatorial optimization problems (including TSP) can be expressed in the more general framework of linear integer programming.
+A sample integer program (IP) looks like this: minimize objective function: 3.2 * x1 + 4.7 * x2 2.1 * x3 subject to constraints: x1 2.6 * x3 > 5 7.3 * x2 > 7 A solution to an IP is an assignment of integer values to variables.
+Solutions are constrained by inequalities involving linear combinations of variables.
+An optimal solution is one that respects the constraints and minimizes the value of the objective function, which is also a linear combination of variables.
+We can solve IP instances with generic problem-solving software such as lp solve or CPLEX.3 In this section we explain 3Available at ftp://ftp.ics.ele.tue.nl/pub/lp solve and http://www.cplex.com.
+Figure 3: A salesman graph for the input sentence f = “CE NE EST PAS CLAIR .” There is one city for each word in f.
+City boundaries are marked with bold lines, and hotels are illustrated with rectangles.
+A tour of cities is a sequence of hotels (starting at the sentence boundary hotel) that visits each city exactly once before returning to the start.
+how to express MT decoding (Model 4 plus English bigrams) in IP format.
+We first create a salesman graph like the one in Figure 3.
+To do this, we set up a city for each word in the observed sentence f.
+City boundaries are shown with bold lines.
+We populate each city with ten hotels corresponding to ten likely English word translations.
+Hotels are shown as small rectangles.
+The owner of a hotel is the English word inside the rectangle.
+If two cities have hotels with the same owner x, then we build a third xowned hotel on the border of the two cities.
+More generally, if a107 cities all have hotels owned by x, we build a174a48a175a122a55a78a107a168a55a176a84 new hotels (one for each non-empty, non-singleton subset of the cities) on various city borders and intersections.
+Finally, we add an extra city representing the sentence boundary.
+We define a tour of cities as a sequence and hotels (starting at the sentence boundary hotel) that visits each city exactly once before returning to the start.
+If a hotel sits on the border between two cities, then staying at that hotel counts as visiting both cities.
+We can view each tour of cities as corresponding to a potential decoding a28 e,aa9 . The owners of the hotels on the tour give us e, while the hotel locations yield a.
+The next task is to establish real-valued (asymmetric) distances between pairs of hotels, such that the length of any tour is exactly the negative of log(P(e) a7 P(a,fa4 e)).
+Because log is monotonic, the shortest tour will correspond to the likeliest decoding.
+The distance we assign to each pair of hotels consists of some small piece of the Model 4 formula.
+The usual case is typified by the large black arrow in Figure 3.
+Because the destination hotel “not” sits on the border between cities NE and PAS, it corresponds to a partial alignment in which the word “not” has fertility two: ...
+what not ...
+/ __/\_ / / \ CE NE EST PAS CLAIR . If we assume that we have already paid the price for visiting the “what” hotel, then our interhotel distance need only account for the partial alignment concerning “not”: distance = – log(bigram(not a4 what)) – log(n(2 a4 not)) – log(t(NE a4 not)) – log(t(PAS a4 not)) – log(da13 (+1 a4 class(what), class(NE))) – log(da22a18a13 (+2 a4 class(PAS))) NULL-owned hotels are treated specially.
+We require that all non-NULL hotels be visited before any NULL hotels, and we further require that at most one NULL hotel visited on a tour.
+Moreover, the NULL fertility sub-formula is easy to compute if we allow only one NULL hotel to be visited: a10 a24 is simply the number of cities that hotel straddles, and a77 is the number of cities minus one.
+This case is typified by the large gray arrow shown in Figure 3.
+Between hotels that are located (even partially) in the same city, we assign an infinite distance in both directions, as travel from one to the other can never be part of a tour.
+For 6-word French sentences, we normally come up with a graph that has about 80 hotels and 3500 finite-cost travel segments.
+The next step is to cast tour selection as an integer program.
+Here we adapt a subtour elimination strategy used in standard TSP.
+We create a binary (0/1) integer variable a177a21a12 a14 for each pair of hotels a119 and a114 . a177a36a12 a14 a109 a84 if and only if travel from hotel a119 to hotel a114 is on the itinerary.
+The objective function is straightforward: minimize: a178 a72a97a12a17a50a14 a73 a177a21a12 a14 a7 distancea34a17a119a37a66a104a114a65a38 This minimization is subject to three classes of constraints.
+First, every city must be visited exactly once.
+That means exactly one tour segment must exit each city: a179a69a180a85a181a48a180 a12a183a182a32a12 a111a85a184a186a185 a178 a119 located at least partially in a57 a178 a14 a177a36a12 a14 a109 a84 Second, the segments must be linked to one another, i.e., every hotel has either (a) one tour segment coming in and one going out, or (b) no segments in and none out.
+To put it another way, every hotel must have an equal number of tour segments going in and out: a179 a12 a185 a178 a14 a177a36a12 a14 a109 a178 a14 a177 a14 a12 Third, it is necessary to prevent multiple independent sub-tours.
+To do this, we require that every proper subset of cities have at least one tour segment leaving it: a179 a184a37a187 a180 a12a183a182a32a12 a111a85a184a186a185 a178 a119 located entirely within a64 a178 a114 located at least partially outside a64 a177a21a12 a14 a9 a109 a84 There are an exponential number of constraints in this third class.
+Finally, we invoke our IP solver.
+If we assign mnemonic names to the variables, we can easily extract a28 e,aa9 from the list of variables and their binary values.
+The shortest tour for the graph in Figure 3 corresponds to this optimal decoding: it is not clear . We can obtain the second-best decoding by adding a new constraint to the IP to stop it from choosing the same solution again.4 4If we simply replace “minimize” with “maximize,” we can obtain the longest tour, which corresponds to the worst decoding! 7 Experiments and Discussion In our experiments we used a test collection of 505 sentences, uniformly distributed across the lengths 6, 8, 10, 15, and 20.
+We evaluated all decoders with respect to (1) speed, (2) search optimality, and (3) translation accuracy.
+The last two factors may not always coincide, as Model 4 is an imperfect model of the translation process—i.e., there is no guarantee that a numerically optimal decoding is actually a good translation.
+Suppose a decoder outputs a6 a8, while the optimal decoding turns out to be a6 . Then we consider six possible outcomes: a106 no error (NE): a6a125a8 a109 a6, and a6a125a8 is a perfect translation.
+a106 pure model error (PME): a6a118a8 a109 a6, but a6a125a8 is not a perfect translation.
+a106 deadly search error (DSE): a6 a8a186a188 a109 a6, and while a6 is a perfect translation, while a6a125a8 is not.
+a106 fortuitous search error (FSE): a6a118a8 a188 a109 a6, and a6 a8 is a perfect translation, while a6 is not.
+a106 harmless search error (HSE): a6a125a8 a188 a109 a6, but a6 a8 and a6 are both perfectly good translations.
+a106 compound error (CE): a6 a8a86a188 a109 a6, and neither is a perfect translation.
+Here, “perfect” refers to a human-judged translation that transmits all of the meaning of the source sentence using flawless target-language syntax.
+We have found it very useful to have several decoders on hand.
+It is only through IP decoder output, for example, that we can know the stack decoder is returning optimal solutions for so many sentences (see Table 1).
+The IP and stack decoders enabled us to quickly locate bugs in the greedy decoder, and to implement extensions to the basic greedy search that can find better solutions.
+(We came up with the greedy operations discussed in Section 5 by carefully analyzing error logs of the kind shown in Table 1).
+The results in Table 1 also enable us to prioritize the items on our research agenda.
+Since the majority of the translation errors can be attributed to the language and translation models we use (see column PME in Table 1), it is clear that significant improvement in translation quality will come from better sent decoder time search translation length type (sec/sent) errors errors (semantic NE PME DSE FSE HSE CE and/or syntactic) 6 IP 47.50 0 57 44 57 0 0 0 0 6 stack 0.79 5 58 43 53 1 0 0 4 6 greedy 0.07 18 60 38 45 5 2 1 10 8 IP 499.00 0 76 27 74 0 0 0 0 8 stack 5.67 20 75 24 57 1 2 2 15 8 greedy 2.66 43 75 20 38 4 5 1 33 Table 1: Comparison of decoders on sets of 101 test sentences.
+All experiments in this table use a bigram language model.
+sent decoder time translation length type (sec/sent) errors (semantic and/or syntactic) 6 stack 13.72 42 6 greedy 1.58 46 6 greedya189 0.07 46 8 stack 45.45 59 8 greedy 2.75 68 8 greedya189 0.15 69 10 stack 105.15 57 10 greedy 3.83 63 10 greedya189 0.20 68 15 stack a190 2000 74 15 greedy 12.06 75 15 greedya189 1.11 75 15 greedya116 0.63 76 20 greedy 49.23 86 20 greedya189 11.34 93 20 greedya116 0.94 93 Table 2: Comparison between decoders using a trigram language model.
+Greedya191 and greedya13 are greedy decoders optimized for speed.
+models. The results in Table 2, obtained with decoders that use a trigram language model, show that our greedy decoding algorithm is a viable alternative to the traditional stack decoding algorithm.
+Even when the greedy decoder uses an optimized-forspeed set of operations in which at most one word is translated, moved, or inserted at a time and at most 3-word-long segments are swapped—which is labeled “greedya191 ” in Table 2—the translation accuracy is affected only slightly.
+In contrast, the translation speed increases with at least one order of magnitude.
+Depending on the application of interest, one may choose to use a slow decoder that provides optimal results or a fast, greedy decoder that provides non-optimal, but acceptable results.
+One may also run the greedy decoder using a time threshold, as any instance of anytime algorithm.
+When the threshold is set to one second per sentence (the greedya13 label in Table 1), the performance is affected only slightly.
+Acknowledgments. This work was supported by DARPA-ITO grant N66001-00-1-9814.
+References P.
+Brown, S.
+Della Pietra, V.
+Della Pietra, and R.
+Mercer.
+1993. The mathematics of statistical machine translation: Parameter estimation.
+Computational Linguistics, 19(2).
+P. Brown, J.
+Cocke, S.
+Della Pietra, V.
+Della Pietra, F.
+Jelinek, J.
+Lai, and R.
+Mercer. 1995.
+Method and system for natural language translation.
+U.S. Patent 5,477,451.
+M. Garey and D.
+Johnson. 1979.
+Computers and Intractability.
+A Guide to the Theory of NPCompleteness.
+W.H. Freeman and Co., New York.
+F. Jelinek.
+1969. A fast sequential decoding algorithm using a stack.
+IBM Research Journal of Research and Development, 13.
+K. Knight.
+1999. Decoding complexity in wordreplacement translation models.
+Computational Linguistics, 25(4).
+R. Monasson, R.
+Zecchina, S.
+Kirkpatrick, B.
+Selman, and L.
+Troyansky. 1999.
+Determining computational complexity from characteristic ‘phase transitions’.
+Nature, 800(8).
+B. Selman, H.
+Levesque, and D.
+Mitchell. 1992.
+A new method for solving hard satisfiability problems.
+In Proc.
+AAAI. C.
+Tillmann, S.
+Vogel, H.
+Ney, and A.
+Zubiaga. 1997.
+A DP-based search using monotone alignments in statistical translation.
+In Proc.
+ACL. Y.
+Wang and A.
+Waibel. 1997.
+Decoding algorithm in statistical machine translation.
+In Proc.
+ACL. D.
+Wu. 1996.
+A polynomial-time algorithm for statistical machine translation.
+In Proc. ACL .
+

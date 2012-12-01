@@ -1,0 +1,8 @@
+In CLG(2) this facility has been extended in a fashion akin to UD (Johnson & Rosner, 1989) to include reeursive user defined relations.
+E89-1025
+Except for the more simple, although not unproblematic, extensions to PATR-II like the ones proposed by Karttunen (1984), most of these efforts have their root in the work by Rounds, Kasper and Moshier (Rounds & Kasper, 1986; Moshier & Rounds 1987), who give the proof of the existence of a sound, although non classical, logical interPretation for disjunctive and negative feature specifications.
+P84-1008 P87-1033
+The following is a detail of the syntactic feature hierarchy used for one type of linguistic sign in one of the grammars implemented in CLG(2): Sign = ( phon, syn, sem,dtrs); phon = word list; syn = ( local, bind); local = ( head, compls, funhead, select, lex ); head = ( vform, inv, agr, tense); vform = {fin, bse, psp, prp, pas, inf, ger }; inv= {-,+ }; agr = ( num, prs ); num= { sg, pl }; prs = { fst, snd, thrd }; tense = { past, pre}; compls = Sign list; lex = (+,-}; bind = (slash, subj, wh); slash = Sign list; subj = Sign list; wh = {rei, que}; dtrs = (head._dtr,compl_dtrs) head._dtr = Sign ; compl..dtrs = Sign list; Other systems require typing information, including HPSG (Pollard & Sag 1987) and UCG (Moens et al.1989). Type information is used in CLG(2) both to structure the grammatical information and to achieve a more efficient implementation.
+E89-1024
+Although Kasper (1987) has proposed an algorithm for handling grammars with disjunctive feature specifications, the computational tractability of complex constraints in unification based formalism remains an open problem (Pereira 1987).
+P87-1033

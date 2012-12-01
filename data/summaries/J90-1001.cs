@@ -1,0 +1,10 @@
+The resulting system is related to the earlier system of conditional interpretation rules developed by Pollack and Pereira (1988), but avoids that system's use of formal conditions on the order of assumption discharge.
+P88-1010
+Example (1) above is then "explained" by noting that its logical form would be something like 3 w.woman(w) /k (Vm.man(m) ~ saw(w, m)) /~ disliked(w, m) but this is "ill-formed" because variable m occurs as an argument of disliked outside the scope of its binder Vm.2 As for Examples (2) and (3), the argument is similar: wide scope for the logical form of the a... noun phrase would leave an occurrence of the variable that the logical form of every.., binds outside the scope of this quantifier• For lack of an official name in the literature for this constraint, I will call it here the free-variable constraint• In accounts of scoping possibilities based on quantifier raising or storage (Cooper 1983; van Eijck 1985; May 1985; Hobbs and Shieber 1987) the free-variable constraint is enforced either by keeping track of the set of free variables free (q) in each raisable (storable) term q and when x ~ free (q) blocking the raising of q from any context Bx.t in which x is bound by some binder B, or by checking after all applications of raising (unstoring) that no variable occurs outside the scope of its binder.
+J87-1005
+This paper is a revised and expanded version of "A Calculus for Semantic Composition and Scoping" presented at the 1989 meeting of the Association for Computational Linguistics (Pereira 1989).
+P89-1019
+The investigation reported in this paper was motivated by the use of the free-variable constraint in an earlier system of semantic-interpretation rules (Pollack and Pereira 1988; Pereira and Pollack in press).
+P88-1010
+of quantifier scope in Montague grammar (Montague 1973; Dowty et al.1981; Cooper 1983), transformational grammar (Reinhart 1983; May 1985; Heim 1982; Roberts 1987), and computational linguistics (Hobbs and Shieber 1987; Moran 1988; Alshawi et al.1989) have depended implicitly or explicitly on a constraint on possible logical forms to explain why examples 1 such as 1.
+J87-1005 P88-1005

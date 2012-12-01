@@ -1,0 +1,4 @@
+Figures 1 and 2 present best results in the learning experiments for the complete set of patterns used in the collocation approach, over two of our evaluation corpora.11 Type Positions Tags/Words Features Accuracy Precision Recall GIS 1 W 1254 0.97 0.96 0.98 IIS 1 T 136 0.95 0.96 0.94 NB 1 T 136 0.88 0.97 0.84 9 see Rish, 2001, Ratnaparkhi, 1997 and Berger et al, 1996 for a formal description of these algorithms.
+J96-1002
+The kind of sortal information implicit in many definitions can also help improve anaphora resolution, semantic typing, acronym identification or bootstrapping of ontologies and taxonomies (Hearst, 1992; Condamines & Rebeyrolle, 2001; Pustejovsky et al., 2002; Malaisé et al.2004). Although our approach might miss some of the important conceptual relations between terms, many of the MIDs we have obtained using language-centred contexts are rich sources of information.
+C92-2082

@@ -1,0 +1,6 @@
+As frequently noted in the literature (e.g., Shaw and Hatzivassiloglou, 1999), the linear order of modifiers can signify their logical scope (though other factors are involved, too), as in the English examples (1) and (2) (bracketing indicates logical scope): (1) my [favorite [new movie]] (2) my [new [favorite movie]] In (1) favorite modifies the phrase new movie; hence the NP refers to my favorite among the new movies (there may be an old movie I like better); in (2) new modifies favorite movie; hence the NP refers to my favorite movie, which has just become my favorite.
+P99-1018
+The generation component of the MT application could then make use of scope information, perhaps in addition to scope-independent ordering conventions (Malouf, 2000), to generate the modifiers in the correct order.
+P00-1012
+syntactically complex postnominal modifiers that are not relative clauses have 1 The special status of such adjectives has been noted in other contexts: For example, Hawkins (1978) groups same together with superlatives into a class of ‘unexplanatory’ modifiers; Vieira and Poesio (2000), extending this class to include only and a few others, make use of them in identifying discourse-new definite descriptions.
+J00-4003

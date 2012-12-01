@@ -1,0 +1,10 @@
+They model the probability distribution of the label sequences given the observation sequences: a41 a10 a27a43a42 a7 a25 . The best performing models of label sequence learning are MEMMs or PMMs (also known as Maximum Entropy models) whose features are carefully designed for the specific tasks (Ratnaparkhi, 1999; Toutanova and Manning, 2000).
+W00-1308
+a22 a14 is the sufficient statistic of a16 a14 . Then, we can rewrite a2a24a3 a10a27 a42a7 a25 as: a5a7a6a9a8a11a10 a23 a3 a10 a7 a15 a27 a25a18a17a26a25 a12a28a27 a5a7a6a29a8a30a10 a23 a3 a10 a7 a15 a27 a25a18a17 . 3 Loss Functions for Label Sequences Given the theoretical advantages of discriminative models over generative models and the empirical support by (Klein and Manning, 2002), and that CRFs are the state-of-the-art among discriminative models for label sequences, we chose CRFs as our model, and trained by optimizing various objective functions a31 a3 a10a36 a25 with respect to the corpus a36 . The application of these models to the label sequence problems vary widely.
+W02-1002
+Discriminative models do not only have theoretical advantages over generative models, as we discuss in Section 2, but they are also shown to be empirically favorable over generative models when features and objective functions are fixed (Klein and Manning, 2002).
+W02-1002
+The following online perceptron algorithm (Algorithm 1), presented in (Collins, 2002), uses these two approximations: Algorithm 1 Label sequence Perceptron algorithm . 1: initialize a0a2a1 a15 a16 a14 a8a4a3 2: repeat 3: for all training patterns a7 a34 do 4: compute a5a27 a8a7a6a9a8 a9a11a10 a6 a6 a27 a23 a3 a10a7 a34 a15 a27 a25 5: if a27 a34 a32a8a12a5a27 then 6: a16 a14a14a13 a16 a14 a56 a22 a14 a10 a7 a34 a15 a27 a34 a25 a51 a22 a14 a10 a7 a34 a15 a5 a27 a25 7: end if 8: end for 9: until stopping criteria At each iteration, the perceptron algorithm calculates an approximation of the gradient of the sequential log-loss function (Eq.
+P02-1062
+The results we report are with the Gaussian prior regularization term described in (Johnson et al., 1999).
+P99-1069

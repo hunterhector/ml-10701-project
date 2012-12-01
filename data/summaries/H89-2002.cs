@@ -1,0 +1,2 @@
+The next steps in this research will include I) further investigation of the relationship between prosody and syntax, including the different roles of phrase breaks and prominences in marking syntactic structure; 2) improvement of the prosodic labeling algorithm by incorporating intonation and syntactic/semantic information; and 3) incorporating the automatically labeled information in the parser of the SRI Spoken Language System (Moore, Pereira and Murveit 1989).
+H89-1043

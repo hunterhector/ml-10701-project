@@ -1,0 +1,4 @@
+There are number of examples in the ATIS test set of this kind, including several in which information about tickets that "fly" f~0m place A to place B is req _u,~___e~l~ Building an inference facility into the system has been a goal of our project even before the present test exercise, and we feel that the structure of our knowledge representation mechanisms (see particularly the description in Bobrow, Ingria & Stallard, 1990) will enable us to undertake this effort in the near feting.
+H90-1047
+Parlance has the advantage of an extensive knowledge acquisition system called the Learner TM, so our previously reported approach (Ingria and Ramshaw 1989) has been to use the Learner to create a lexicon with morphological and syntactic information, a domain model with semantic information, and mapping rules from the domain model to the database.
+H89-2031

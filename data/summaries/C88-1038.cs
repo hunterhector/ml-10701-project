@@ -1,0 +1,2 @@
+7o Related Work While not adhering strictly to any familiar theoretical framework, tbe present model has aspects in common with the Phlusal Lexicon approach, (e.g., Jacobs 1985, Zemik & Dyer forthcoming), with plu'ase-oriented work in linguistics and psycholinguistics (e.g., Filhnore, Kay, & O'Connor 1986, Pawley & Syder 1983, PeteJs 1983), with other localized eonnectionist models (e.g., Cottrell & Small 1983, Waltz & Pollack 1985), ram with psychological models making use of spreading activation (e.g., Dell 1986, MacKay 1987).
+J85-4002

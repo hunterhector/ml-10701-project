@@ -1,0 +1,2 @@
+The one computational approach that at least claims to consider archaeological decipherment (Knight and Yamada, 1999), curiously enough, assumes an alphabetic and purely phonographic mapping of graphemes at the outset, and applies an EM-style algorithm to what is probably better described as an interesting variation on learning the “letter-to-sound” mappings that one normally finds in text analysis for text-to-speech synthesizers.
+W99-0906

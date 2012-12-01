@@ -1,0 +1,4 @@
+J.~\[.Mey (1969), On the Preservation of Context-Free Languages in a Level-Based System, International Conference on Computational Linguistics, Sweden A.~ha (1966), On the Recognition Procedure for Pushdown Store Transduoers, The Prague Bulletin of Mathematical Linguistics 5, Pp.3-15 ~ ' P.S~ell (1967), Generativn~ popis jazyk~ a ~esk~ deklinace ( A Generative Description of Language and the Czech Declension), Praha P.Sgall et al.(1969), A Functional Approach to Syntax in a Generative Description of Language, New York
+C69-2001
+Some Remarks on J.L.Mey's Paper for the International Conference on Computational Linguistics, Sweden 1969 P.Sgall, E.Haji~ovi Mey's criticism of the functional approac~ to generative description concerns (1) the formal properties of the system proposed by Sgall et el.
+C69-2001

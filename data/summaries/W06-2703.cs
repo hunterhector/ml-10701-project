@@ -1,0 +1,6 @@
+Examples of annotation methods which are not primarily based on XML are GATE (Cunningham et al., 2002) and the annotation graph model of Bird and Liberman (2001).
+P02-1022
+We trained the C&C maximum entropy tagger (Curran and Clark, 2003) using default settings to obtain 24 Orig Tok1 Tok2 training # sentences 18,546 eval # sentences 3,856 training # tokens 492,465 540,046 578,661 eval # tokens 101,028 110, 352 117, 950 Precision 65.14% 62.36% 61.39% Recall 67.35% 64.24% 63.24% F1 66.23% 63.27% 62.32% Table 1: NER Results for Different Tokenisations of the BioNLP corpus NER models for the original tokenisation (Orig), a retokenisation using the rst TXM tokeniser (Tok1) and a retokenisation using the ner-grained second TXM tokeniser (Tok2) (see Section 4).
+W03-0424
+XML-based Standoff Annotation Tool In a number of recent projects we have explored the use of machine learning techniques for Named Entity Recognition (NER) and have worked with data from a number of different domains, including data from biomedicine (Finkel et al., in press; Dingare et al., 2004), law reports (Grover et al., 2004), social science (Nissim et al., 2004), and astronomy and astrophysics (Becker et al., 2005; Hachey et al., 2005).
+W05-0619

@@ -1,0 +1,4 @@
+It was argued in \[Granville 1990\] that the structural organization of a text is as important to the message to be conveyed as its factual content.
+W90-0114
+The resulting RST looks like the following: TEXT J I PARAGRAPH I SEQUENCE I.................. i EXPLAIN EXPLAIN --OUT-OF-TREE EXPECTED-BITE-TEST I W2 All { SEQUENCE { MENTION EXPLAIN OUT-OF-TREE SKIPPING W8 PIRJ3 References \[Granville 1990\] Granville, Robert A., "The Role of Underlying Structure ill 'l~×t Generation," ill Proceedings of the Fifth International Workshop on Natural Language Generation, 1990 \[Kurland et al 1989\] Kurland, Laura C., Robert Granville, and Dawn MacLaughlin, "HAWK MACHIll Explanations of the Receiver "lh'oubleshootiag Tree," Techuical Report, BBN Systcms and Techuologies, Cambridge, Massachusetts, 1989 \[Kurland et al 1992\] Kurland, Laura C., Robert Alan Granville, and Dawn M.
+W90-0114

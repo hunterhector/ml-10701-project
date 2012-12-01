@@ -1,0 +1,6 @@
+Automatic text summarization has been studied for decades (Edmundson 1969) and is still a very active area (Salton et al.1994; Kupiec et al.1995; Brandow et al.1995; Lin 1999; Aone et al.1999; Sekine and Nobata 2001; Mani 2001; McKeown et al.2001; Radev et al.2003). Only a few have tried using machine learning to accomplish this difficult task (Lin 1999; Aone et al.1999; Neto et al.2002). Most research falls into combining statistical methods with linguistic analysis.
+P03-1048
+However, due to the unavailability of other summarization systems to perform the same task, we designed three baseline methods, namely lead-based, randomly-selected, and random-lead-based, to generate summaries for performance comparison, which were also adopted by (Brandow et al.1995; Zechner 1996; Radev et al.2003). The baseline methods are detailed as 2 CMPLG corpus is composed of 183 documents from the Computation and Language (cmp-lg) collection, which has been marked up in XML.
+C96-2166 P03-1048
+Architecture In addition to the traditional way of extracting the highest ranked sentences in a document to compose a summary as in (Edmundson 1969; Lin 1999; Kupiec et al.1995; Brandow 1995; Zechner 1996), we embedded a machine learning mechanism in our system.
+C96-2166

@@ -1,0 +1,4 @@
+<context>al alternative to using the web for researchers in linguistics and computational linguistics. Alternative tools for searching for grammatical relations and structure in corpora are the sketch engine (Kilgarriff, 2007) and the linguist’s search engine (Resnik and Elkiss, 2003). The sketch engine supports searching corpora for the grammatical behavior of words. It is possible to list a word’s objects together with </context>
+J03-3001
+<context>inguistics and computational linguistics. Alternative tools for searching for grammatical relations and structure in corpora are the sketch engine (Kilgarriff, 2007) and the linguist’s search engine (Resnik and Elkiss, 2003). The sketch engine supports searching corpora for the grammatical behavior of words. It is possible to list a word’s objects together with frequencies, to search for words that behave similarly, and</context>
+J03-3001

@@ -1,0 +1,2 @@
+The methodologies applied to this fundamental problem include rule-based and/or pattern matching methods (Fukuda et al., 1998) (Thomas et al., 2000) (Yoshida et al., 2000) (Jenssen et al., 2001) (Ono et al., 2001) (Yu at al, 2002) (Bunescu et al., 2002), a modified BLAST algorithm (Krauthammer et al., 2000), Hidden Markov Models (HMMs) (Collier et al., 2000) (Proux et al., 1998), Naive Bayes and decision trees (Nobata et al., 1999), under specified parsing with knowledge sources (Rindflesch et al, 2000), and context-free grammars (Gaizauskas, 2000).
+C00-1030

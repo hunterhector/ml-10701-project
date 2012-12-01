@@ -1,0 +1,2 @@
+for Encryption Inspired by the most obvious connection between encryption and NL, the largely apocryphal World War II episode, when instead of an elaborate code, the American and British General Headquarters in Europe used the native speakers of Navajo (Shawnee, in another version, involving the Pacific theater) to communicate in open, uncoded language and were never “decoded,” the idea was to use a family of existing or rapidly deployable MT systems (see Nirenburg and Raskin 1998) to add a level of encryption in an “exotic” language.
+P98-2160

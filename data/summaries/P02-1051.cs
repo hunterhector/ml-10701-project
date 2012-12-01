@@ -1,0 +1,6 @@
+The spelling-based model we propose (described in detail in (Al-Onaizan and Knight, 2002)) directly maps English letter sequences into Arabic letter sequences with probability a2a4a3a6a14a15a10a12a5a13a7, which are trained on a small English/Arabic name list without the need for English pronunciations.
+W02-0505
+While the identification of named entities in text has received significant attention (e.g., Mikheev et al.(1999) and Bikel et al.(1999)), translation of named entities has not.
+E99-1001
+The score for a given candidate a9 is given by a modified IBM Model 1 probability (Brown et al., 1993) as follows: a2a4a3a6a9a21a10a13a12a15a7a14a2 a15 a24a26a17a16 a2a4a3a6a9a19a18 a14a15a10a12 a7 (4) a2 a15 a20 a24a16a22a21a24a23a26a25a1a27a28a27a28a27 a20 a24a16a30a29a1a23a26a25 a31 a32 a33 a23a35a34a37a36 a3a38a12 a33 a10a12a9 a16a8a39 a7 (5) where a40 is the length of a9, a41 is the length of a12, a15 is a scaling factor based on the number of matches of a9 found, and a14 a33 is the index of the English word aligned with a12 a33 according to alignment a14 . The probability a36 a3a6a9 a16a8a39 a10a12 a33 a7 is a linear combination of the transliteration and translation score, where the translation score is a uniform probability over all dictionary entries for a12 a33 . The scored matches form the list of translation candidates.
+J93-2003

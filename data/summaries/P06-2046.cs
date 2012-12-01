@@ -1,0 +1,4 @@
+356 Input yaku-ni-wa part-DAT-TOP mattaku totally tat-anai stand-NEG Morphology & Dependency Analysis Dependency Matching yaku part /ni DAT /wa TOP mattaku totally tatu stand / nai NEG Output yaku part / ni DAT /wa TOP mattaku totally tatu stand / nai NEG Idiom Recognizer Idiom Dictionary ··· yaku part /ni DAT tatu stand ··· Dependency Pattern Figure 4: Internal Working of the Idiom Recognizer Input Output Idiom Recognizer ChaSen Morphology Analysis CaboCha Dependency Analysis TGrep2 Dependency Matching Dependency Pattern Generator Pattern DB Idiom Dictionary Figure 5: Organization of the System As in Figure 5, we use ChaSen as a morphology analyzer and CaboCha (Kudo and Matsumoto, 2002) as a dependency analyzer.
+W02-2016
+In fact, most of them only create catalogs of Japanese idiom: collecting idioms as many as possible and classifying them based on some general linguistic properties (Tanaka, 1997; Shudo et al., 2004).
+W04-0405

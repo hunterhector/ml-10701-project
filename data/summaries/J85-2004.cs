@@ -1,0 +1,2 @@
+The strategy applied resembles that of cascaded ATNs (Woods 1980) and was chosen for the following reason: the complexity and length of the sentences to be analyzed require for reasons of efficiency parsing strategies appropriate to the different problems, that is, context-free grammars for PHASE II, which works exclusively with syntactic information, and formalisms similar to ATN for PHASE III, where syntactic and semantic information is combined.
+J80-1001

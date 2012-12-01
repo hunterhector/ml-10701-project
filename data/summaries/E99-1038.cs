@@ -1,0 +1,4 @@
+2. Defining focus: a eognito-pragmatie category The term focus has been used in various senses, at least six of which can be identified, i.e., phonological (Pierrehumbert, 1980; Ladd, 1996), semantic (Jackendoff, 1972; Prince, 1985), syntactic (Rochemont, 1986), cognitive (Sanford & Garrod, 1981; Musseler et al., 1995), pragmatic (Halliday, 1967), and AI-focus (Grosz & Sidner, 1986) ~.
+J86-3001
+5. Integration of a focus module into speech synthesis systems FDA, presented here on the basis of an operable definition of focus, enables the integration of a focus module into speech synthesis system; specifically, the output of FDA, i.e., the focus pattern of the message conveyed by the utterance, may be fed into a subsequent accent assignment module, one in the spirit of the Focus-Accent Theory of Dirksen (1992) and Dirksen & Quene (1993).
+C92-3128

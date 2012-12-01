@@ -1,0 +1,2 @@
+178-184 KM: Kathleen McKeown \[McKeown 85\] LP: Livia Polanyi \[Polanyi 88\] MH: Michael Halliday \[Halliday 85\], chapter 7 MM: Mark Maybttry \[Maybury 89\] MP: Johanna Moore and Cdcile Paris \[personal communication, 1989\], \[Moore & Swartout 88, Paris 88, Moore & Paris 89\] MT: Bill Mann and Sand_ra Thompson \[Mann & Thompson 86, Mann & Thompson 88\] NS: Nathalie Simonin \[Simonin 88\] QG: Quirk and Greenbaum, pp.
+E89-1023 P89-1025

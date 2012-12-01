@@ -1,0 +1,2 @@
+Such an integration algorithm might also need to make the kind 202 4 ol! metaphoric inferences studied by Martin (1988), ok: the abductive inferences of Charniak & Goldman (11988) or Hobbs et al.(1988). But rather than making these inferences in the pipelined fashion that these other mechanisms use, augmenting the integi:ation algorithm allows these inferences to be made ir~ an on-line manner.
+P88-1011

@@ -1,0 +1,4 @@
+We semi-automatically extracted from corpora 365 abstract nouns used as this kind of head noun, according to the procedures described in Kanzaki et al.(2000). We collected abstract nouns from two year's worth of articles from the Mainichi Shinbun newspaper, and extracted adjectives co-occurring with abstract nouns in the manner of (a) above from 100 novels, 100 essays and 42 year's worth of newspaper articles, including 11 year's worth of Mainichi Shinbun articles, 10 year's worth of Nihon Keizai Shinbun (Japanese economic newspaper) articles, 7 year's worth of Sangyoukinyuuryuutsu Shinbun (an economic newspaper) articles, and 14 year's worth of Yomiuri Shinbun articles.
+W00-0110
+Hindle (1990) used noun-verb syntactic relations, and Hatzivassiloglou and McKeown (1993) used coordinated adjective-adjective modifier pairs.
+P90-1034 P93-1023

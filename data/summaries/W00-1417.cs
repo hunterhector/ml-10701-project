@@ -1,0 +1,6 @@
+This separation is now fairly standard and most implementations encapsulate each task in a separate module (Robin 1995), (Reiter 1994).
+W94-0319
+work in content aggregation The main previous works on content aggregation are due to: o (Dalianis 1995, 1996), whose ASTROGEN system generates natural language paraphrases of formal software specification for validation purposes; (Huang and Fiedler 1997), whose PROVERB system generates natural language mathematical proofs from a theorem prover reasoning trace; (Robin and McKeown, 1996), whose STREAK system generates basketball game summaries from a semantic network 130 representing the key game statistics and their historical context; (Shaw 1998), whose CASPER discourse and sentence planner has been used both in the PLANDoc system that generates telecommunication equipment installation plan documentation from an expert system trace and the MAGIC system that generates extracted from a dimensional data warehouse hypercube.
+P98-2199
+architecture of MA TRIKS Generators that summarize large amount of quantitative data by a short natural language text (such as ANA (Kukich 1988), GOSSIP (Carcagno and Iordanskaja 1993), PLANDoc (McKeown, Kukich and Shaw 1994) among others) generally perform content determination by relying on a fixed set of domain-dependent heuristic rules.
+A94-1002

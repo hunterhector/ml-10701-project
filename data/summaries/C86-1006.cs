@@ -1,0 +1,4 @@
+Individual Retirement Account Dialogue ~t query may require so sharp an unsignaled shift in focus as to cause IP to be suspicious; the strongest expectations are for speakers to address aspects of the task closely related to the current focus of attention \[Sidner 1981, McKeown 1985, Carberry 1983\].
+J81-4001
+A number of researchers have modeled the plan inference process \[Allen 1980\], \[Cacberry 1983\], \[Grosz 1977\], \[Litman 1984\], \[Perrault 19801, \[Robinson 1981\], \[Sidner 1983\], and these models have been used to understand indirect speech acts \[Perranlt 1980\], provide helpful responses \[Allen 1980\], interpret pragmatically ill-formed queries \[Carberry 1986\], understand intersentential ellipsis \[Allen 1980, Carberry 1985\], and identify the kind of response intended by a speaker \[Sidner 1983\].
+J80-3003 J81-1001 P84-1063

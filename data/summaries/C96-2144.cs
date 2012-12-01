@@ -1,0 +1,2 @@
+5. Semantic Constraints that indicate semantic selectional restriction constraints that may resolved using a companion ontological database (again implemented in TFS) in which we model the world by defining semantic categories, such as human, thing, nonliving object, living object, etc., along the lines described by Nagao et al.(1985). Figure 2 illustrates the simplified form of the constraint-sense mapping of the verb yc (eal).
+J85-2001

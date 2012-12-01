@@ -1,0 +1,2 @@
+REFERENCES Akkennan, Erik, Pieter Masereeuw, and Willem Meijs 1985 Designing a computerized lexicon for linguistic purposes Rudopi, Amsterdam Alshawi, Hiyan, Branimir Boguraev, and Ted Briscoe 1985, "Towards a lexicon support environment for real time parsing" in Proceedings of the Second Conference of the European Chapter of the Association for Computational Linguistics, Geneva Atwell, Eric Steven 1981 LOB Corpus Tagging Project: Manual Pre-edit Handbook.
+E85-1025

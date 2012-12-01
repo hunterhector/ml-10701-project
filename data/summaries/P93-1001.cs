@@ -1,0 +1,4 @@
+This paper describes a new program, charalign, that aligns texts at the character level rather than at the sentence/paragraph level, based on the cognate approach proposed by Simard et al.1. Introduction Parallel texts have recently received considerable attention in machine translation (e.g., Brown et al, 1990), bilingual lexicography (e.g., Klavans and Tzoukermann, 1990), and terminology research for human translators (e.g., Isabelle, 1992).
+J90-2002
+Char_align: A Program for Aligning Parallel Texts at the Character Level Kenneth Ward Church AT&T Bell Laboratories 600 Mountain Avenue Murray Hill NJ, 07974-0636 kwc @research.att.com Abstract There have been a number of recent papers on aligning parallel texts at the sentence level, e.g., Brown et al (1991), Gale and Church (to appear), Isabelle (1992), Kay and R/Ssenschein (to appear), Simard et al (1992), WarwickArmstrong and Russell (1990).
+P91-1022

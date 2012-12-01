@@ -1,0 +1,2 @@
+Our hypothesisis that what is commonto instancesof differentwebgenresis the existenceof an implicitlogicaldocumentstructure (LDS)– in analogyto textual units whoseLDS is described in termsof section,paragraphand sentencecategories(Poweretal.,2003).Inthecaseofwebdocumentswe hypothesizethat theirLDScomprises fourlevels: • Document networks consist of documents whichserve possiblyheterogenousfunctions if necessaryindependentlyof each other.
+J03-2003

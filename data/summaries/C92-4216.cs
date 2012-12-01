@@ -1,0 +1,8 @@
+Finally, we tried to follow some indications, provided in works such as those of Pustejovsky (1989) or Boguraev & Pustejovsky (1990), relative to the kinds of lexical data which should be sought within MRDs and other computerized sources in order to be able to deal with problems facing the computational lingnist aiming at building components for NLP.
+C90-2007
+Dictionary definitions are generally structured so that it is possible to identify two fundamental parts within them: the "genus term", which is connected with the entry-word by means of an IS-A (or taxonomical) relation, and the "differentia" part, in which what differenliates the entry from its hypernym is indicated 3 Within Acquilcx we are improving and developing techniques aimed at exploiting both the taxonomical organization of information in dictionaries and the fact that recurrent structures and patterns are found in the differentia; such patterns are being individuated through a pattern-matching procedure (which operates on the output of the syntactic analysis of definitions) in order to associate them with corresponding relations or semantic / conceptual categories (for descriptions of methodologies for extracting taxonomies fiom MRDs, see Calzolari (1984) aud Chodorow, Byrd & fleidorn (1985).
+P84-1036 P85-1037
+For discussion of this way of analysing the differentia, see Calzolari (1991)).
+W91-0217
+According to Boguraev & Pustejovsky (1990: 39), i.e., tile following information should be individuated within sources of lexical data such as MRDs: argument structure; event structure (Aktionsart); qualia structure (Pnstejovsky (1989)); lexical inheritauce structure.
+C90-2007

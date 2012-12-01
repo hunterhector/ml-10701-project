@@ -1,0 +1,4 @@
+This menu of context sensitive queries is crucial to the interaction because a pointing gesture without an accompanying description is ambiguous (Schmauks, 1987) and it is through this menu selection that the player expresses intent and restricts the scope of the dialog.
+E87-1030
+In the specific case of combining natural language and graphics, there have been two main areas of study: interacting with graphical elements to resolve ambiguous references on the natural language side (Bolt, 1980; Kobsa et al., 1986); and generating coordinated text and graphic presentations using information from a knowledgebase (André and Rist (1994); Towns et al.(1998)). In addition to these two main areas, early work by Tennant (1983) experimented with using a predictive left-corner parser to populate dynamic menus that the user would navigate to construct queries that were guaranteed to be correct and task-relevant.
+C86-1085 P83-1023

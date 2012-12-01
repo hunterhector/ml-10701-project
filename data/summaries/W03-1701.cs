@@ -1,0 +1,2 @@
+For example, contextual information is necessary to segment the OAS “ g11487g2500 g990”(kan4-tai2-shang4, on the stand) correctly in both following sentences: g1332 | g11487 | g2500g990 | g18039g1022 | g9448g2604 (Look at the performer in the stage) g12461 | g3324 | g7380g20652 | g980 | g4630 | g11487g2500 | g990 (Stand in the highest stand) Both Peterson (2000) and Brill (1998) found that the ultimate success of an ensemble depends on the assumption that classifiers to be combined make complementary errors.
+P98-1029

@@ -1,0 +1,2 @@
+Schapire, Yoram Singer, Reducing multiclass to binary: a unifying approach for margin classifiers, The Journal of Machine Learning Research, 1, p.113-141, 9/1/2001 2 Xavier Carreras, Llus Mrquez, Boosting trees for clause splitting, Proceedings of the 2001 workshop on Computational Natural Language Learning, p.1-3, July 06-07, 2001, Toulouse, France 3 Xavier Carreras, Llus Mrquez, Vasin Punyakanok, Dan Roth, Learning and Inference for Clause Identification, Proceedings of the 13th European Conference on Machine Learning, p.35-47, August 19-23, 2002 4 Robert E.
+W01-0726

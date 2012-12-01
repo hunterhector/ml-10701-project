@@ -1,0 +1,22 @@
+Lin’sapproachtothisproblem(Lin,1998)is tobuilda‘similaritytree’(usingwhatisineffectahierarchicalclusteringmethod)ofwords relatedtoatargetword(inthiscasetheword duty).Di erentsensesofdutycanbediscerned asdi erentsub-treesofthissimilaritytree.We presentanewmethodforword-sensediscriminationinSection6.
+P98-2127
+Someofthedi erenceinaccuracycanbeattributedtothecorporaused.Theexperiments in(Rilo andShepherd,1997)wereperformed onthe500,000wordMUC-4corpus,andthose of(RoarkandCharniak,1998)wereperformed usingMUC-4andtheWallStreetJournalcorpus(some30millionwords).
+P98-2182
+RoarkandCharniakdescribea\genericalgorithm"forextractingsuch listsofsimilarwordsusingthenotionofsemanticsimilarity,asfollows(RoarkandCharniak, 1998,x1).
+P98-2182
+Usea gureofmeritbasedupon thesecountstoselectnewseedwords 4.Returntostep2anditeratentimes 5.Usea gureofmerittorankwords forcategorymembershipandoutputa rankedlist Algorithms of this type were used by Rilo andShepherd(1997)andRoarkandCharniak (1998), reporting accuracies of 17% and35% respectively.
+P98-2182
+Inparticular,ouralgorithmisdesignedtoreduceso-called‘infections’ (RoarkandCharniak,1998,x3)wheretheinclusionofanout-of-categorywordwhichhappens toco-occurwithoneofthecategorywordscan signi cantlydistortthe nallist.
+P98-2182
+Anotherwaytoobtainword-sensesdirectly from corpora is to use clustering algorithms onfeature-vectors(Lin,1998; Sch utze, 1998).
+P98-2127
+Theclasseswerechosenbefore theexperimentwascarriedoutsothattheresultscouldnotbemassagedtoonlyusethose classeswhichgavegoodresults.(The rst4categoriesarealsousedby(Rilo andShepherd, 1997)and(RoarkandCharniak,1998)andso wereincludedforcomparison).
+P98-2182
+Since listsareusuallycomprisedofobjectswhichare similar in some way, these relationships have beenusedtoextractlistsofnounswithsimilar properties(Rilo andShepherd,1997)(Roark andCharniak,1998).
+P98-2182
+Themainresultstodateinthe eldofautomaticlexicalacquisitionareconcernedwith extractinglistsofwordsreckonedtobelongtogetherinaparticularcategory,suchasvehicles orweapons(Rilo andShepherd,1997)(Roark andCharniak,1998).
+P98-2182
+Ourresultsareanorderofmagnitudebetter than those reported by Rilo and Shepherd (1997) and Roark andCharniak (1998), who reportaverageaccuraciesof17%and35%respectively.
+P98-2182
+Ontheotherhand,ourmodel wasbuiltusingonlyapart-of-speechtaggedcorpus.Thehighaccuracyachievedthusquestions theconclusiondrawnbyRoarkandCharniak (1998)that‘parsingisinvaluable’.
+P98-2182

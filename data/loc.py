@@ -1,14 +1,17 @@
 import os
 import sys
 from collections import defaultdict
-dic=defaultdict(lambda: [0,0,0])
 #op=open('loc_feature','r+')
+
+print 'Citing,Cited,F3,S3,L3'
 for f in os.listdir("summaries"):
+
+	dic=defaultdict(lambda: [0,0,0])
 	g= open('cleaned/'+str(f).replace('.cs','.txt')).read()
 	l = len(g)
 	lines= open('summaries/'+f,'r+').readlines()
-	if (len(lines)==0):
-		continue:
+	if (len(lines)<2):
+		continue
 	i=0
 	while(i < len(lines)):
 		f3=0
@@ -28,7 +31,7 @@ for f in os.listdir("summaries"):
 			dic[str(f).strip('.cs')+','+cited][1] += s3
 			dic[str(f).strip('.cs')+','+cited][2] += l3
 		i=i+2
-print 'Citing,Cited,F3,S3,L3'
-for key, value in dic:
-	print "%s,%d,%d,%d" % (key[0], value[0], value[1], value[2])
+
+	for key, value in dic:
+		print "%s,%d,%d,%d" % (key[0], value[0], value[1], value[2])
  

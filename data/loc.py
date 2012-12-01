@@ -1,12 +1,14 @@
 import os
 import sys
 from collections import defaultdict
-dic=defaultdict(lambda x: (0,0,0))
+dic=defaultdict(lambda: [0,0,0])
 #op=open('loc_feature','r+')
 for f in os.listdir("summaries"):
 	g= open('cleaned/'+str(f).replace('.cs','.txt')).read()
 	l = len(g)
-	lines= open(f,'r+').readlines()
+	lines= open('summaries/'+f,'r+').readlines()
+	if (len(lines)==0):
+		continue:
 	i=0
 	while(i < len(lines)):
 		f3=0

@@ -1,0 +1,6 @@
+The Wu and Palmer (Wu and Palmer, 1994) similarity metric measures the depth of the two concepts in the WordNet taxonomy, and the depth of the least common subsumer (LCS), and combines these figures into a similarity score: Simwup = 2 ∗ depth(LCS)depth(concept 1) + depth(concept2) (2) The measure introduced by Resnik (Resnik, 1995) returns the information content (IC) of the LCS of two concepts: Simres = IC(LCS) (3) where IC is defined as: IC(c) = −log P(c) (4) and P(c) is the probability of encountering an instance of concept c in a large corpus.
+P94-1019
+We use the Microsoft paraphrase corpus (Dolan et al., 2004), consisting of 4,076 training pairs and 1,725 test pairs, and determine the number of correctly identified paraphrase pairs in the corpus using the text semantic similarity measure as the only indicator of paraphrasing.
+C04-1051
+Text similarity has been also used for relevance feedback and text classification (Rocchio, 1971), word sense disambiguation (Lesk, 1986), and more recently for extractive summarization (Salton et al., 1997b), and methods for automatic evaluation of machine translation (Papineni et al., 2002) or text summarization (Lin and Hovy, 2003).
+N03-1020 P02-1040

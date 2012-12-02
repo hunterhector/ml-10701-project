@@ -1,0 +1,235 @@
+1:235	Induction of Greedy Controllers for Deterministic Treebank Parsers Tom Kalt Department of Computer Science University of Massachusetts Amherst, MA 01003-9264 kalt@cs.umass.edu Abstract Most statistical parsers have used the grammar induction approach, in which a stochastic grammar is induced from a treebank.
+2:235	An alternative approach is to induce a controller for a given parsing automaton.
+3:235	Such controllers may be stochastic; here, we focus on greedy controllers, which result in deterministic parsers.
+4:235	We use decision trees to learn the controllers.
+5:235	The resulting parsers are surprisingly accurate and robust, considering their speed and simplicity.
+6:235	They are almost as fast as current part-ofspeech taggers, and considerably more accurate than a basic unlexicalized PCFG parser.
+7:235	We also describe Markov parsing models, a general framework for parser modeling and control, of which the parsers reported here are a special case.
+8:235	1 Introduction A fundamental result of formal language theory is that the languages de ned by context-free grammars are the same as those accepted by push-down automata.
+9:235	This result was recently extended to the stochastic case (Abney, et al. , 1999).
+10:235	There are thus two main approaches to training a statistical parser: inducing stochastic grammars and inducing stochastic automata.
+11:235	Most recent work has employed grammar induction (Collins, 1999; Charniak, 2000).
+12:235	Examples of the automaton-induction approach are Hermjakob (1997), which described a deterministic parser, and Ratnaparkhi (1998), which described a stochastic parser.
+13:235	The deterministic parsers reported in this paper are greedy versions of stochastic parsers based on Markov parsing models, described in section 3.3.
+14:235	A greedy parser takes the single most probable action at every choice point.
+15:235	It thus does the minimum amount of search possible.
+16:235	There will always be a tradeo between speed on the one hand and accuracy and robustness on the other.
+17:235	Our aim, in studying greedy parsers, is to nd out what levels of coverage and accuracy can be attained at the high-speed extreme of this tradeo.
+18:235	There is no guarantee that a greedy parser will nd the best parse, or indeed any complete parse.
+19:235	So the accuracy and coverage of greedy parsers are both interesting empirical questions.
+20:235	We nd that they are almost as fast as current part-of-speech taggers, and they outperform basic unlexicalized PCFG parsers.
+21:235	While coverage is a concern, it is quite high (over 99%) for some of our parsers.
+22:235	2 Previous work Markov parsing models are an example of the history-based parsing approach (Black, et al. , 1992).
+23:235	History-based parsing, broadly interpreted, includes most statistical parsers.
+24:235	Markov parsing models take a more automatonoriented (or control-oriented) view of what history means, compared to the more grammaroriented view of the original paper and most subsequent work.
+25:235	Hermjakob (1997) described a deterministic shift-reduce parser.
+26:235	The control is learned by a hybrid of decision trees and decision lists.
+27:235	This work also used a rich hand-crafted semantic ontology.
+28:235	The state representation contained over 200 features, although it still worked rather well when this was reduced to 12.
+29:235	A notable feature was that good performance was achieved with very little training data (256 sentences).
+30:235	His results are not directly comparable with most other experiments, for several reasons, including the use of a subset of the Wall St. Journal corpus that used a closed lexicon of 3000 words.
+31:235	Ratnaparkhi (1999) used a maximum entropy model to compute action probabilities for a bottom-up parser.
+32:235	His score function is an instance of a Markov parsing model, as de ned in this paper (although he did not interpret his score as a probability).
+33:235	His parser performed at a level very close to state-of-the-art.
+34:235	His approach was similar to ours in a number of ways.
+35:235	He used a beam search to nd multiple parses.
+36:235	Wong and Wu (1999) implemented a deterministic shift-reduce parser, using a novel variation on shift-reduce which employed a separate chunker-like phase as well as a base NP recognizer.
+37:235	They used decision trees to learn control.
+38:235	Their state representation was restricted to unlexicalized syntactic information.
+39:235	The approach described here combines many elements which have previously been found useful.
+40:235	Left-corner parsing is discussed in Manning and Carpenter (1997) and Roark (2001).
+41:235	For search, Roark used beam search with nonbacktracking top down automata, rather than the more usual chart-based search.
+42:235	Magerman (1994) used a parsing model based on decision tree techniques.
+43:235	Numerous papers (Manning and Carpenter, 1997; Johnson, 1998; Charniak et al. , 1998; Roark, 2001) report that treebank binarization is advantageous.
+44:235	3 Automaton Induction 3.1 General Concepts Our approach to automaton induction is to view parsing as a control problem.
+45:235	The parsing automaton is a discrete dynamical system which we want to learn to control.
+46:235	At any given time, a parser is in some state.
+47:235	We use the term state as in control theory, and not as in automata theory.
+48:235	The state consists of the contents of the parsers data structures: a bu er holding the input sentence, a push-down stack, and a set of parse tree fragments, consisting of current or previous stack items connected by arcs.
+49:235	A parser has a nite set of actions, which perform simple operations on its data structures (pushing and popping the stack, dequeuing from the input bu er, and creating arcs between stack items).
+50:235	Performing an action changes the state.
+51:235	Most important, the parser has a controller, which chooses an action at each time step based on the current state.
+52:235	A map from states to actions is called a policy.
+53:235	If this map is a function, then the policy is deterministic, and results in a deterministic parser.
+54:235	If the map is a state-conditional distribution over actions, then the policy is stochastic, resulting in a stochastic parser.
+55:235	A deterministic parser returns a single parse for a given input, while a stochastic parser may return more than one.
+56:235	Thus the problem of inducing a stochastic parsing automaton consists in specifying the automatons data structures, its dynamics (what the actions do), and then learning a stochastic policy.
+57:235	In this paper, we assume that the parsing automaton always halts and outputs a tree.
+58:235	We can easily modify any parser so that this is the case.
+59:235	A parser fails when it is asked to perform an action that is impossible (e.g. shifting when there is no more input).
+60:235	When this happens, the parser terminates by creating a root node labeled fail, whose children are all complete constituents constructed so far, along with any unused input.
+61:235	Parsers can also fail by going into a cycle.
+62:235	This must be detected, which can be done by limiting the number of actions to some multiple of the input length.
+63:235	In practice, we have found that cycles are rare, and not di cult to handle.
+64:235	We also assume that the parsing automaton is reversible; that is, for a given input string, there is a one-to-one correspondence between parse trees and the sequence of actions that produces that tree.
+65:235	Because of reversibility, given a parser and a tree, we can easily determine the unique sequence of actions that the parser would use to produce that tree; we call this unparsing.
+66:235	3.2 Deterministic Control The parsers reported in this paper used deterministic controllers created as described below.
+67:235	Induction of deterministic control for a given parser, using a treebank, is a straightforward classi cation problem.
+68:235	We use the parser and the treebank to create a training set of (state, action) pairs, and we induce a function from states to actions, which is the deterministic controller.
+69:235	To create training instances from a treebank, we rst unparse each tree to get an action sequence.
+70:235	We then use these actions to control the parser as it processes the corresponding input.
+71:235	At each time step, we create a training instance, consisting of the parsers current state and the action it takes from that state.
+72:235	State: We said above that the parsers state consists of the contents of its data structures; we will call this the complete state.
+73:235	The state space of the complete state is in nite, as states include the contents of unbounded stacks and input bu ers.
+74:235	We need to map this into a manageable number of equivalence classes.
+75:235	This is done in two stages.
+76:235	First, we restrict attention to a nite part of the complete state.
+77:235	That is, we map particular elements of the parsers data structures onto a feature vector.
+78:235	We refer to this as the state representation, and the choice of representation is a critical element of parser design.
+79:235	All the work reported here uses twelve features, which will be detailed in section 4.1.
+80:235	With twelve features and around 75 categorical feature values, the state space is still huge.
+81:235	The second state-space reduction is to use a decision tree to learn a mapping from state representations to actions.
+82:235	Each leaf of the tree is an equivalence class over feature vectors and therefore also over complete states.
+83:235	The action assigned to the leaf is the highest-frequency action found in the training instances that map to the leaf.
+84:235	Thus we have three di erent notions of state: the complete state, the state representation, and the state equivalence classes at the leaves of the decision tree.
+85:235	We use a CART-style decision tree algorithm (Brieman, et al. , 1984) as our main machine learning tool.
+86:235	The training sets used here contained over two million instances.
+87:235	The CART algorithm was modi ed to handle large training sets by using samples, rather than all instances, to choose tests at each node of the tree.
+88:235	All features used were categorical, and all tests were binary.
+89:235	Our decision trees had roughly 20k leaves.
+90:235	Tree induction took around twenty minutes.
+91:235	3.3 Markov Parsing Models We de ne a class of conditional distributions over parse trees which we call Markov parsing models (MPMs).
+92:235	Consider a reversible parsing automaton which takes a sequence of n actions (a1;a2;:::an) on an input string to produce a parse t. At each step, the automaton is in some state si, and in every state the automaton chooses actions according to a stochastic policy P(aijsi).
+93:235	Because of reversibility, for a given input, there is an isomorphism between parse trees and action sequences: t, (a1;a2;:::an) Taking probabilities, P(tj ) = P(a1;a2;:::anj ) (1) = nY i=1 P(aijai 1:::a1; ) (2) = nY i=1 P(aijsi) (3) The second step merely rewrites equation 1 using a probailistic identity.
+94:235	In the third step, replacing the history at the ith time step (ai 1;:::a1; ) with the state si is an expression of the Markov property.
+95:235	This is justi ed since for a reversible automaton, the action sequence de nes a unique state, and that state could only be reached by that action sequence.
+96:235	Equation 3 de nes a Markov parsing model.
+97:235	Generative models, such as PCFGs, de ne a joint distribution P(t; ) over trees and strings.
+98:235	By contrast, a parsing model de nes P(tj ), conditioned on the input string.
+99:235	Assuming that the input string is given, a potential advantage of a conditional model over a generative one is that it makes better use of limited training data, as it doesnt need to model the string probability.
+100:235	The string probability is useful in some applications, such as speech recognition, but it requires extra parameters and training data to model it.
+101:235	An MPM plays two roles.
+102:235	First, as in most statistical parsers, it facilitates syntactic disambiguation by specifying the relative likelihood of the various structures which might be assigned to a sentence.
+103:235	Second, it is directly useful for control; it tells us how to parse and search efciently.
+104:235	By contrast, in some recent models (Collins, 1999; Charniak et al. 1998), some events used in the model are not available until after decisions are made; therefore a separate " gure of merit" must be engineered to guide search.
+105:235	3.4 ML Estimation of MPM parameters The parameters of an MPM can be estimated using a treebank.
+106:235	Consider the decision-tree induction procedure described in section 3.2.
+107:235	Each leaf of the tree corresponds to a state s in the model, and contains a set of training instances.
+108:235	For each action a, the ML estimate of P(ajs) is simply the relative frequency of that action in the training instances at that leaf.
+109:235	A similar distribution can be de ned for any node in the tree, not just for leaves.
+110:235	If necessary, the ML estimates can be smoothed by "backing o " to the distribution at the next-higher level in the tree.
+111:235	Other smoothing methods are possible as well.
+112:235	4 Description of parsers We now describe the parsers we implemented.
+113:235	Three parsing strategies (top-down, left-corner, and shift-reduce) have been discussed extensively in the literature.
+114:235	As there is no consensus on which is best for parsing natural language, we tried all three.
+115:235	Our goal was not to directly compare the strategies, but simply to nd the one that worked best in our system.
+116:235	Direct comparison would be di cult, in particular because the choice of state representation has a big inuence on performance; and there is no obvious way of choosing the best state representation for a particular parsing strategy.
+117:235	The input sentences were pre-tagged using the MAXPOST tagger (Ratnaparkhi, 1996).
+118:235	All parsers here are unlexicalized, so they use preterminals (part-of-speech tags) as their input symbols.
+119:235	Each parser has an input (or lookahead) bu er, organized as a FIFO queue.
+120:235	Each parser also has a stack.
+121:235	Stack items are labeled with either a preterminal symbol or a nonterminal (a syntactic category).
+122:235	The "completeness" of a stack item is di erent in the three parsing strategies (a node is considered complete if it is connected to its yield).
+123:235	Below, for conciseness, we describe some actions as having arguments; this is shorthand for the set of actions containing each distinct combination of arguments.
+124:235	All three parsers handle failure as described in section 3.1, that is, by returning a fail node whose children are the constituents completed so far, plus any remaining input.
+125:235	Even within a parsing strategy, we have considerable latitude in designing the dynamics of a parser.
+126:235	For example, Roark (2001) describes how a top-down parser can be aggressive or lazy.
+127:235	It is advantageous to be lazy, since delayed predictions are made when there is better evidence for the correct prediction.
+128:235	For this and other reasons, the parsers described below depart somewhat from the usual textbook de nitions.
+129:235	Shift-Reduce: The SR parsers shift action dequeues an input item and pushes it on the stack.
+130:235	The reduce(n, cat) action pops n stack symbols (n 1), makes them children of a new symbol labeled cat, and pushes that symbol on the stack.
+131:235	The SR parser terminates when the input is consumed and the stack contains the special symbol top.
+132:235	In the SR parser, all stack items are always complete; the tree under a stack node is not modi ed further.
+133:235	Top-Down: The TD parser has a predict(list) action, where the elements of list are either terminals or nonterminals.
+134:235	The predict action pops the stack, makes a new item for each list element, pushes each of these on the stack in reverse order, and makes each new item a child of the popped item.
+135:235	The other action is match.
+136:235	This action is performed if and only if the top-of-stack item is a preterminal.
+137:235	The stack is popped, one input symbol is dequeued, and the popped stack item is replaced in the tree by the input item.
+138:235	(Our match coerces the prediction to use the input label, rather than requiring a match, which causes too many failures).
+139:235	In the TD parser, all stack items are predictions, and are incomplete in the sense that their yield has not been matched yet.
+140:235	Left-Corner: Unlike the other two strategies, the LC parsers stack may contain both complete and incomplete items.
+141:235	Every incomplete item is marked as such.
+142:235	Also, every incomplete item has a complete left-corner (that is, left-most child).
+143:235	The LC parser has three actions.
+144:235	Shift is the same as for SR. The project(cat) action pops a completed item from the stack, and makes it the left corner of a new incomplete node labeled cat, which is pushed onto the stack.
+145:235	Finally, the attach action nds the rst incomplete item on the stack, pops all items above it, makes them its children, and marks the stack node, which is now at the top of the stack, as complete.
+146:235	4.1 Representation Treebank Representation: Following many previous researchers, we binarize the treebank, as illustrated in Fig.
+147:235	4.1.
+148:235	There are several reasons for doing this.
+149:235	The Penn Treebank employs a very at tree style, particularly for noun phrases.
+150:235	Some nodes have eight or more children.
+151:235	For the SR and LC parsers, this means that many words must be shifted onto the stack before a reduce or attach action.
+152:235	Binarization breaks a single decision into a sequence of smaller ones.
+153:235	Also, the parsers data structures are used in a more uniform way, allowing for improvements in state representation.
+154:235	For example, in binarized SR parsing, the top two stack nodes are the only candidates for reduction, and the previous stack node always represents the phrase preceding the one being built.
+155:235	For TD, binarization has the e ect of delaying predictions.
+156:235	Roark (2001) showed that this is a big advantage for top-down parsing, particularly right binarization to nullary.
+157:235	We tried several binarization transformations.
+158:235	Unlike previous work, we labeled all nodes introduced by binarization as e.g. NP*, simply noting that this is a "synthetic" child of an NP.
+159:235	These binarizations are reversible, and we convert back to Penn Treebank style before evaluation.
+160:235	State representation: The state representation for each parser consisted of twelve cateoldthe DT JJ NN dog NP the DT old JJ NN dog NP * NP old JJ NN dog the DT NP * NP old JJthe DT NN dog NP * NP NP * the DT old JJ NN dog NP * NP NP * NP *  (a) (b) (c) (d) (e) Figure 1: Tree binarizations: (a) original; (b) left binarized (L); (c) right binarized to binary (R2); (d) right binarized to unary (R1); (e) right binarized to nullary (R0) gorical features.
+161:235	Each feature is a node label, either a non-terminal (POS tag) or a terminal symbol (syntactic category).
+162:235	There are 49 distinct POS tags and 28 distinct category labels.
+163:235	We attempted to choose the items that would be the most relevant to the parsing decisions.
+164:235	The choices represented here are based on intuition along with trial and error; no systematic attempt has been made so far to determine the best set of features for the state representations.
+165:235	This is an area for future work.
+166:235	We used the same number (twelve) for each of the three parsers to make them roughly comparable.
+167:235	Each parsers state representation contained features for the rst four input symbols and the top two stack items.
+168:235	The remaining features are as follows: SR: the third and fourth stack items, and the left and right children of the rst two stack items.
+169:235	LC: the third and fourth stack items, the left and right children of the rst stack item, and the left children of the second and third stack items.
+170:235	TD: the rst four ancestors of the rst stack item, and the rst two completed phrases preceding the rst stack item (found by going to the parent, then to its left child, returning it if the child is complete, otherwise recursing on the parent).
+171:235	The choice of items to include in the state representation corresponds to choosing events for the probabilistic models used in other statistical parsers.
+172:235	The di erent parsing strategies provide di erent opportunities for conditioning on context.
+173:235	This is a very rich topic which unfortunately we cant explore further here.
+174:235	5 Results All experiments were done on the standard Penn Treebank Wall St. Journal task (Marcus et al. , 1993), for comparison with other work.
+175:235	We used sections 2-21 for training, section 0 for development testing, and section 23 for nal testing.
+176:235	All preliminary experiments used the development set for testing.
+177:235	We evaluated performance of each parser with several treebank transforms.
+178:235	Results are in Table 1.
+179:235	We report recall and precision for all sentences with length 100 and for all sentences with length 40 tokens.
+180:235	For a treebank parse T and a parse t to be evaluated, these measures are de ned as recall = # correct constituents in t# constituents in T precision = # correct constituents in t# constituents in t We followed the standard practice of ignoring punctuation and con ating ADVP and PRN for purposes of evaluation.
+181:235	The results reported are for all results, not just complete parses.
+182:235	For fail nodes, the evaluation measures give partial credit for whatever has been completed correctly.
+183:235	Including incomplete parses in the results tends to lower recall and precision, compared to the results for the complete parses only.
+184:235	Coverage: Coverage is the fraction of the test set for which the parser found a complete parse.
+185:235	The parsers here always return a parse tree, but some of those trees represent parse failure, as noted earlier.
+186:235	The SR-L and LCR2 parsers have almost complete coverage, with length 100 length 40 Words per Parser Transform Coverage Recall Precision Recall Precision second SR L 99.8 76.7 75.8 77.8 77.0 33,740 SR R2 94.9 75.9 77.2 77.1 78.2 33,560 SR R1 90.8 75.6 77.3 76.9 78.3 28,398 LC L 95.6 71.9 71.9 72.9 72.8 25,812 LC R2 99.9 73.9 74.0 74.9 75.0 24,948 LC R1 96.2 74.4 74.3 75.6 75.4 21,610 TD L 31.0 38.7 57.1 41.3 58.3 41,740 TD R2 42.3 47.6 61.6 50.2 62.6 45,274 TD R1 72.0 61.5 66.8 62.9 68.2 30,739 TD R0 98.4 69.3 72.1 70.6 73.2 21,341 Table 1: Parser performance on section 23 of the Penn Treebank.
+187:235	Coverage, recall, and precision are given as percentages.
+188:235	TD-R0 lagging slightly behind.
+189:235	As in Roark (2001), increasingly aggressive binarization is bene cial for top-down parsing, because decisions are delayed.
+190:235	For greedy parsers with coverage in the high nineties, complete coverage could be attained at minimal additional cost by using search only for sentences where the greedy parse produced a parse failure.
+191:235	Accuracy: The best recall and precision reported here are better than a basic treebank PCFG, for which Johnson (1998) gives 69.7% and 73.5% respectively (for length 100), under identical conditions.
+192:235	Our results are considerably below the state of the art for this task, currently around 90%, which is achieved with much more sophisticated probabilistic models.
+193:235	Considering their speed and the simplicity of their representations, it is remarkable that our parsers achieve the levels of accuracy and coverage reported here.
+194:235	Even at these speeds, improvements in accuracy may be possible by improving the representation.
+195:235	And of course, accuracy could be improved at the expense of speed by adding search (see section 6).
+196:235	The TD parser lags substantially behind SR in accuracy.
+197:235	The accuracy problem for TD and its slightly worse coverage are probably due to the same cause.
+198:235	We suspect that predictive parsing is inherently riskier than bottom-up parsing.
+199:235	Unlike the other two strategies, predictions must sometimes be made when there is no immediately adjacent complete node in the tree.
+200:235	However, these comparisons are not conclusive, because the choice of features for the state representation may also have an important role in the di erences.
+201:235	Speed: Parsing speeds are reported in words per second.
+202:235	This is exclusive of tagging time (recall that we pre-tagged our input), and also exclusive of IO.
+203:235	Experiments were done on a 1.2 GHz Athlon CPU with 1.25 GB of memory running Linux.
+204:235	The parsers were implemented in Java, including the decision tree module.
+205:235	The JVM version was 1.4.2, and the JVM was warmed up before testing for speed.
+206:235	No additional e ort was spent on speed optimization.
+207:235	Clearly, these speeds are quite fast.
+208:235	A fast contemporary tagger, TnT (Brants, 2000), which is implemented in C, tags between 30,000 and 60,000 words per second running on a Pentium 500 MHz CPU.
+209:235	Our LC parser is slightly slower than our SR and TD parsers because LC inherently makes more decisions per sentence than the others do.
+210:235	Speeds for the low-accuracy TD runs are high due to the fact that the parser stops early when it encounters a failure.
+211:235	Comparing these speeds with other statistical parsers is somewhat problematic.
+212:235	Di erences in CPU speeds and implementation languages obscure the comparison.
+213:235	Moreover, many authors simply report accuracy measures, and dont report timing results.
+214:235	Any deterministic parser will have running time that is linear in the size of the input, and the amount of work per input word that needs to be done is small, dominated by the decision tree module, which is not expensive.
+215:235	By contrast, most current statistical parsers lean towards the other end of the speed-accuracy tradeo spectrum.
+216:235	One paper that focuses on e ciency of statistical parsing is Charniak et al.217:235	(1998).
+218:235	They used a chart parser, and measured speed in units of popped edges per sentence.
+219:235	This corresponds closely to the number of actions per sentence taken by a parsing automaton.
+220:235	They report that on average the minimum number of popped edges to create a correct parse would be 47.5.
+221:235	By this measure, our greedy parsers would take on average very close to 47 actions.
+222:235	They report 95% coverage and 75% average recall and precision on sentences of length 40 with 490 popped edges; this is ten times the minimum number of steps.
+223:235	However, to get complete coverage, they required 1760 popped edges, which is a factor of 37 greater than the minimum.
+224:235	Wong and Wu (1999) report recall and precision of 78.9% and 77.7% respectively for their deterministic shift-reduce parser on sentences of length 40, which is very similar to the accuracy of our SR-L run.
+225:235	They reported a rate of 528 words per second, but did not specify the hardware con guration.
+226:235	6 Future work The approach described here can be extended in a number of ways.
+227:235	As noted, a Markov parsing model can be used to guide search.
+228:235	We plan to add a beam search to explore the speed-accuracy tradeo . Improvements in the state representation are possible, particularly along the lines of linguistically-motivated treebank transformations, as in Klein and Manning (2003).
+229:235	Adding a lexical component to the model is another extension we intend to investigate.
+230:235	7 Conclusions Deterministic unlexicalized statistical parsers have surprisingly good accuracy and coverage, considering their speed and simplicity.
+231:235	The best parsers reported here have almost complete coverage, outperform basic PCFGs, and are roughly as fast as taggers.
+232:235	We described an approach to statistical parsing based on induction of stochastic automata.
+233:235	We de ned Markov parsing models, described how to estimate parameters for them, and showed how the deterministic parsers we implemented are greedy versions of MPM parsers.
+234:235	We found that for greedy parsing, bottom-up parsing strategies seem to have a small advantage over top-down.
+235:235	Acknowledgements Thanks to Brian Roark for helpful comments on this paper.
+

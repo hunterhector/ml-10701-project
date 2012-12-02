@@ -1,0 +1,2244 @@
+ATwin-CandidateModelforLearning-Based
+AnaphoraResolution
+XiaofengYang
+∗
+InstituteforInfocommResearch
+JianSu
+∗∗
+InstituteforInfocommResearch
+ChewLimTan
+†
+SchoolofComputing,
+NationalUniversityofSingapore
+Thetraditionalsingle-candidatelearningmodelforanaphoraresolutionconsiderstheantecedent
+candidatesofananaphorinisolation,andthuscannoteffectivelycapturethepreferencerelation-
+shipsbetweencompetingcandidatesforitslearningandresolution.Todealwiththisproblem,
+we propose a twin-candidate model for anaphora resolution. The main idea behind the model
+is to recast anaphora resolution as a preference classiﬁcation problem. Speciﬁcally, the model
+learns a classiﬁer that determines the preference between competing candidates, and, during
+resolution,choosestheantecedentofagivenanaphorbasedontherankingofthecandidates.We
+presentindetailtheframeworkofthetwin-candidatemodelforanaphoraresolution.Further,
+we explore how to deploy the model in the more complicated coreference resolution task. We
+evaluatethetwin-candidatemodelindifferentdomainsusingtheAutomaticContentExtraction
+data sets. The experimental results indicate that our twin-candidate model is superior to the
+single-candidatemodelforthetaskofpronominalanaphoraresolution.Forthetaskofcoreference
+resolution,italsoperformsequallywell,orbetter.
+1. Introduction
+Anaphora is reference to an entity that has been previously introduced into the dis-
+course(JurafskyandMartin2000).Thereferringexpressionusediscalledthe anaphor
+and the expression being referred to is its antecedent. The anaphor is usually used
+to refer to the same entity as the antecedent; hence, they are coreferential with each
+other. The process of determining the antecedent of an anaphor is called anaphora
+resolution. As a key problem in discourse and language understanding, anaphora
+resolutioniscrucialinmanynaturallanguageapplications,suchasmachinetranslation,
+text summarization, question answering, information extraction, and so on. In recent
+∗ 21HengMuiKengTerrace,Singapore,119613.E-mail:xiaofengy@i2r.a-star.edu.sg.
+∗∗ 21HengMuiKengTerrace,Singapore,119613.E-mail:sujian@i2r.a-star.edu.sg.
+† 3ScienceDrive2,Singapore117543.E-mail:tancl@comp.nus.edu.sg.
+Submissionreceived:25October2005;revisedsubmissionreceived:2February2007;acceptedforpublication:
+5May2007.
+©2008AssociationforComputationalLinguistics
+ComputationalLinguistics Volume34,Number3
+years, supervised learning approaches have been widely applied to anaphora resolu-
+tion, and they have achieved considerable success (Aone and Bennett 1995; McCarthy
+andLehnert1995;Connolly,Burger,andDay1997;Kehler1997;Ge,Hale,andCharniak
+1998;Soon,Ng,andLim2001;NgandCardie2002b;StrubeandMueller2003;Luoetal.
+2004;Ngetal.2005).
+The strength of learning-based anaphora resolution is that resolution regularities
+can be automatically learned from annotated data. Traditionally, learning-based ap-
+proaches to anaphora resolution adopt the single-candidate model, in which the po-
+tential antecedents (i.e., antecedent candidates) are considered in isolation for both
+learningandresolution.Insuchamodel,thepurposeofclassiﬁcationistodetermineif
+acandidateistheantecedentofagivenanaphor.Atrainingortestinginstanceisformed
+byananaphorandeachofitscandidates,withfeaturesdescribingthepropertiesofthe
+anaphorandtheindividualcandidate.Duringresolution,theantecedentofananaphor
+isselectedbasedontheclassiﬁcationresultsforeachcandidate.
+One assumption behind the single-candidate model is that whether a candidate
+is the antecedent of an anaphor is completely independent of the other competing
+candidates. However, anaphora resolution can be more accurately represented as a
+rankingprobleminwhichcandidatesareorderedbasedontheirpreferenceandthebest
+one is the antecedent of the anaphor (Jurafsky and Martin 2000). The single-candidate
+model, which only considers the candidates of an anaphor in isolation, is incapable
+of effectively capturing the preference relationship between candidates for its training.
+Consequently,thelearnedclassiﬁercannotproducereliableresultsforpreferencedeter-
+minationduringresolution.
+To deal with this problem, we propose a twin-candidate learning model for
+anaphoraresolution.Themainideabehindthemodelistorecastanaphoraresolutionas
+apreferenceclassiﬁcationproblem.Thepurposeoftheclassiﬁcationistodeterminethe
+preferencebetweentwocompetingcandidatesfortheantecedentofagivenanaphor.In
+the model, an instance is formed by an anaphor and two of its antecedent candidates,
+with features used to describe their properties and relationships. The antecedent is
+selectedbasedonthejudgedpreferenceamongthecandidates.
+In the article we focus on two issues about the twin-candidate model. In the ﬁrst
+part, wewill introduce theframework of the twin-candidate model foranaphora reso-
+lution, including detailed training procedures and resolution schemes. In the second
+part, we will further explore how to deploy the twin-candidate model in the more
+complicated task of coreference resolution. We will present an empirical evaluation of
+thetwin-candidatemodelindifferentdomains,usingtheAutomaticContentExtraction
+(ACE) data sets. The experimental results indicate that the twin-candidate model is
+superiortothesingle-candidatemodelforthetaskofpronominalanaphoraresolution.
+Forthecoreferenceresolutiontask,italsoperformsequallywell,orbetter.
+2. Related Work
+Toourknowledge,theﬁrstworkonthetwin-candidatemodelforanaphoraresolution
+wasproposedbyConnolly,Burger,andDay(1997).Theirworkreliedonasetoffeatures
+that included lexical type, grammatical role, recency, and number/gender/semantic
+agreement, and employed a simple linear search scheme to choose the most preferred
+candidate. Their system produced a relatively low accuracy rate for pronoun reso-
+lution (55.3%) and deﬁnite NP resolution (37.4%) on a set of selected news articles.
+Iida et al. (2003) used the twin-candidate model (called the tournament model in their
+work) to perform Japanese zero-anaphora resolution. They utilized the same linear
+328
+Yang,Su,andTan ATwin-CandidateModelforAR
+scheme to search for antecedents. Compared with Connolly, Burger, and Day (1997),
+they adopted richer features in which centering information was incorporated to cap-
+ture contextual knowledge. Their system achieved an accuracy of around 70% on a
+datasetdrawnfromacorpusofnewspaperarticles.Bothofthesestudieswerecarried
+out on uncommon data sets, which makes it difﬁcult to compare their results with
+other baseline systems. In contrast to the previous work, we will explore the twin-
+candidatemodelcomprehensivelybydescribingthemodelinmoredetail,tryingmore
+effectiveresolutionschemes,deployingthemodelinthemorecomplicatedcoreference
+resolution task, performing more extensive experiments, and evaluating the model in
+moredepth.
+Denis and Baldridge (2007) proposed a pronoun resolution system that directly
+used a ranking learning algorithm (based on Maximal Entropy) to train a preference
+classiﬁer for antecedent selection. They reported an accuracy of around 72–76% for
+the different domains in the ACE data set. In our study, we will also investigate the
+solution of using a general ranking learner (e.g., Ranking-SVM). By comparison, the
+twin-candidatemodelisapplicabletoanydiscriminativelearningalgorithm,nomatter
+whetherit iscapable of ranking learning ornot. Moreover, asthemodel istrained and
+tested on pairwise candidates, it can effectively capture various relationships between
+candidatesforbetterpreferencelearninganddetermination.
+Ng(2005)presentedarankingmodelforcoreferenceresolution.Themodelfocused
+on the preference between the potential partitions of NPs, instead of the potential
+antecedents of an NP as in our work. Given an input document, the model ﬁrst em-
+ployednpre-selectedcoreferenceresolutionsystemstogeneratencandidatepartitions
+of NPs. The model learned a preference classiﬁer (trained using Ranking-SVM) that
+coulddistinguishgoodandbadpartitionsduringtesting.Thebestrankpartitionwould
+beselectedastheresolutionoutputofthecurrenttext.Theauthorevaluatedthemodel
+on the ACE data set and reported an F-measure of 55–69% for the different domains.
+Although ranking-based, Ng’s model is quite different from ours as it operates at the
+cluster-level whereas ours operates atthemention-level. Infact, theresult ofour twin-
+candidatesystemcanbeusedasaninputtohismodel.
+3. TheTwin-Candidate Model for Anaphora Resolution
+3.1The Single-Candidate Model
+Learning-based anaphora resolution uses a machine learning method to obtain p(ante
+(C
+k
+)|ana,C
+1,C
+2,...,C
+n
+), the probability that a candidate C
+k
+is the antecedent of the
+anaphor ana in the context of its antecedent candidates, C
+1,C
+2,...,C
+n
+. The single-
+candidate model assumes that the probability that C
+k
+is the antecedent is only de-
+pendent on the anaphor ana and C
+k, and independent of all the other candidates.
+Thatis:
+p(ante(C
+k
+)|ana,C
+1,C
+2,...,C
+n
+) =p(ante(C
+k
+)|ana,C
+k
+)(1)
+Thus,theprobabilityofacandidateC
+k
+beingtheantecedentcanbeapproximatedusing
+theclassiﬁcationresultontheinstancedescribingtheanaphorandC
+k
+alone.
+The single-candidate model is widely used in most anaphora resolution sys-
+tems (Aone and Bennett 1995; Ge, Hale, and Charniak 1998; Preiss 2001; Strube and
+Mueller 2003; Kehler et al. 2004; Ng et al. 2005). In our study, we also build as the
+329
+ComputationalLinguistics Volume34,Number3
+Table1
+Asampletextforanaphoraresolution.
+[
+1
+Those ﬁgures] are almost exactly what [
+2
+the government]
+proposedto[
+3
+legislators]in[
+4
+September].If[
+5
+thegovernment]can
+stickwith[
+6
+them],[
+7
+it]willbeabletohalvethisyear’s120billion
+ruble(US$193billion)deﬁcit.
+Table2
+Traininginstancesgeneratedunderthesingle-candidatemodelforanaphoraresolution.
+Anaphor TrainingInstance Label
+i{[
+6
+them],[
+1
+Thoseﬁgures]} 1
+[
+6
+them] i{[
+6
+them],[
+2
+thegovernment]} 0
+i{[
+6
+them],[
+3
+legislators]} 0
+i{[
+6
+them],[
+4
+September]} 0
+i{[
+6
+them],[
+5
+thegovernment]} 0
+i{[
+7
+it],[
+1
+Thoseﬁgures]} 0
+i{[
+7
+it],[
+3
+legislators]} 0
+[
+7
+it] i{[
+7
+it],[
+4
+September]} 0
+i{[
+7
+it],[
+5
+thegovernment]} 1
+i{[
+7
+it],[
+6
+them]} 0
+baseline a system for pronominal anaphora resolution based on the single-candidate
+model.
+In the single-candidate model, an instance has the form of i{ana,candi}, whereana
+isananaphorandcandiisanantecedentcandidate.
+1
+Fortraining,instancesarecreated
+foreachanaphoroccurringinanannotatedtext.Speciﬁcally,givenananaphoranaand
+itsantecedentcandidates,asetofnegativeinstances(labeled“0”)isformedbypairing
+ana and each of the candidates that is not coreferential with ana. In addition, a single
+positiveinstance(labeled“1”)isformedbypairinganaandtheclosestantecedent,that
+is, the closest candidate that is coreferential with ana.
+2
+Note that it is possible that an
+anaphor has two or more antecedents, but we only create one positive instance for the
+closest antecedent as its reference relationship with the anaphor is usually the most
+directandthusthemostconﬁdent.
+Asanexample,considerthetextinTable1.
+Here,[
+6
+them]and[
+7
+it]aretwoanaphors.[
+1
+Thoseﬁgures]and[
+5
+thegovernment]are
+their closest antecedents, respectively. Supposing that the antecedent candidates of the
+twoanaphors are just all theirpreceding NPsinthecurrent text,thetraining instances
+tobecreatedforthetextsegmentarelistedinTable2.
+1 Inourstudy,weonlyconsideranaphorswhoseantecedentsarenounphrases.Typically,alltheNPs
+precedingananaphorcanbetakenastheinitialantecedentcandidates.Forbetterlearningand
+resolution,however,candidatescanbeﬁlteredsothatonlythose“conﬁdent”NPs,whichoccurinthe
+speciﬁedsearchscopeandmeetconstraintssuchasnumber/genderagreement,areconsidered.The
+detailsofcandidateselectioninoursystemwillbediscussedlaterinthesectiononexperiments.
+2 Weassumethatatleastoneantecedentexistsinthecandidatesetofananaphor.However,forreal
+resolution,ifnoneoftheantecedentsofananaphoroccurinthecandidateset,wesimplydiscardthe
+anaphoranddonotcreateanytraininginstanceforit.
+330
+Yang,Su,andTan ATwin-CandidateModelforAR
+Table3
+Featuresetforpronominalanaphoraresolution.
+ana Reﬂexive whethertheanaphorisareﬂexivepronoun
+ana PronType typeoftheanaphorifitisapronoun(he,she,itorthey?)
+candi Def whetherthecandidateisadeﬁnitedescription
+candi Indef whetherthecandidateisanindeﬁniteNP
+candi Name whetherthecandidateisanamedentity
+candi Pron whetherthecandidateisapronoun
+candi FirstNP whetherthecandidateistheﬁrstmentionedNPinthesentence
+candi Subject whetherthecandidateisthesubjectofasentence,thesubjectofaclause,ornot.
+candi Oject whetherthecandidateistheobjectofaverb,theobjectofapreposition,
+ornot
+candi ParallelStruct whetherthecandidatehasanidenticalcollocationpatternwiththeanaphor
+candi SentDist thesentencedistancebetweenthecandidateandtheanaphor
+candi NearestNP whetherthecandidateisthecandidateclosesttotheanaphorinposition
+Note that for [
+7
+it], we do not use [
+2
+the government] to create a positive training
+instanceasitisnottheclosestcandidatethatiscoreferentialwiththeanaphor.
+Avectoroffeaturesisspeciﬁedforeachtraininginstance.Thefeaturesmaydescribe
+thecharacteristicsoftheanaphorandthecandidate,aswellastheirrelationshipsfrom
+lexical,syntactic,semantic,andpositionalaspects.Table3liststhefeaturesusedinour
+study. All these features can be computed with high reliability, and have been proven
+effectiveforpronounresolutioninpreviouswork.
+Basedonthegeneratedfeaturevectors,aclassiﬁeristrainedusingacertainlearning
+algorithm. During resolution, given a newly encountered anaphor, a test instance is
+formed for each of the antecedent candidates. The instance is passed to the classiﬁer,
+whichthenreturnsaconﬁdencevalueindicatingthelikelihoodthatthecandidateisthe
+antecedentoftheanaphor.Thecandidatewiththehighestconﬁdenceisselectedasthe
+antecedent. For example, suppose [
+7
+it] is an anaphor to be resolved. Six test instances
+willbecreatedforitssixantecedentcandidates,aslistedinTable4.Thelearnedclassiﬁer
+issupposedtogivethehighestconﬁdenceto i{[
+7
+it],[
+5
+thegovernment]},indicatingthe
+candidate[
+5
+thegovernment]istheantecedentof[
+7
+it].
+3.2AProblem withtheSingle-Candidate Model
+Asdescribed,theassumptionbehindthesingle-candidatemodelisthattheprobability
+of a candidate being the antecedent of a given anaphor is completely independent of
+Table4
+Testinstancesgeneratedunderthesingle-candidatemodelforanaphoraresolution.
+Anaphor TestInstance
+i{[
+7
+it],[
+1
+Thoseﬁgures]}
+i{[
+7
+it],[
+2
+thegovernment]}
+i{[
+7
+it],[
+3
+legislators]}
+[
+7
+it] i{[
+7
+it],[
+4
+September]}
+i{[
+7
+it],[
+5
+thegovernment]}
+i{[
+7
+it],[
+6
+them]}
+331
+ComputationalLinguistics Volume34,Number3
+the other competing candidates. However, for an anaphor, the determination of the
+antecedent is often subject to preference among the candidates (Jurafsky and Martin
+2000).Whetheracandidateistheantecedentdependsonwhetheritisthe“best”among
+thecandidateset,thatis,whetherthereexistsnoothercandidatethatispreferredover
+it. Hence, simply considering one candidate individually is an indirect and unreliable
+waytoselectthecorrectantecedent.
+The idea of preference is common in linguistic theories on anaphora. Garnham
+(2001) summarizes different factors that inﬂuence the interpretation of anaphoric
+expressions. Some factors such as morphology (gender, number, animacy, and case)
+or syntax (e.g., the role of binding and commanding relations [Chomsky 1981]) are
+“eliminating,” forbidding certain NPs from being antecedents. However, many others
+are “preferential,” giving more preference to certain candidates over others; examples
+include:
+a114
+Sentence-basedfactors:Pronounsinoneclauseprefertorefertothe
+NPthatisthesubjectofthepreviousclause(Crawley,Stevenson,and
+Kleinman1990).Also,theNPthatistheﬁrst-mentionedexpressionis
+preferredregardlessofthesyntacticandsemanticroleplayedbythe
+referringexpression(GernsbacherandHargreaves1988).
+a114
+Stylisticfactors:Pronounspreferentiallytakeparallelantecedentsthatplay
+thesameroleastheanaphorintheirrespectiveclauses(Grober,Beardsley,
+andCaramazza1978;Stevenson,Nelson,andStenning1995).
+a114
+Discourse-basedfactors:Itemscurrentlyinfocusaretheprimecandidates
+forprovidingantecedentsforanaphoricexpressions.Accordingto
+centeringtheory(Grosz,Joshi,andWeinstein1995),eachutterancehasa
+setofforward-lookingcentersthathavehigherpreferencetobereferredto
+inlaterutterances.Theforward-lookingcenterscanberankedbased
+ongrammaticalrolesorotherfactors.
+a114
+Distance-basedfactors:Pronounsprefercandidatesintheprevious
+sentencecomparedwiththosetwoormoresentencesback(Clark
+andSengul1979).
+As a matter of fact, “eliminating” factors could also be considered “preferential” if
+wethinkoftheactofeliminatingcandidatesasgivingthemlowpreference.
+Preference-based strategies are also widely seen in earlier manual approaches to
+pronominalanaphoraresolution.Forexample,theSHRDLUsystembyWinograd(1972)
+prefers antecedent candidates in the subject position over those in the object position.
+The system by Wilks (1973) prefers candidates that satisfy selectional restrictions with
+the anaphor. Hobbs’s algorithm (Hobbs 1978) prefers candidates that are closer to the
+anaphor in the syntax tree, and the RAP algorithm (Lappin and Leass 1994) prefers
+candidates that have a high salience value computed by aggregating the weights of
+differentfactors.
+During resolution, the single-candidate model does select an antecedent based on
+preference by using classiﬁcation conﬁdence for candidates; that is, the higher con-
+ﬁdence value the classiﬁer returns, the more likely the candidate is preferred as the
+antecedent. Nevertheless, as the model considers only one candidate at a time during
+training, it cannot effectively capture the preference between candidates for classiﬁer
+learning.Forexample,considerananaphorandacandidateC
+i
+.Ifthereareno“better”
+332
+Yang,Su,andTan ATwin-CandidateModelforAR
+candidates in the candidate set, C
+i
+is the antecedent and forms a positive instance.
+Otherwise, C
+i
+is not selected as the antecedent and thus forms a negative instance.
+Simply looking at a candidate alone cannot explain this, and may possibly result in
+inconsistent training instances (i.e., the same feature vector but different class labels).
+Consequently, the conﬁdence values returned by the learned classiﬁer cannot reliably
+reﬂectthepreferencerelationshipbetweencandidates.
+3.3 The
+Twin-Candidate Model
+Toaddresstheproblemwiththesingle-candidatemodel,weproposeatwin-candidate
+model to handle anaphora resolution. As opposed to the single-candidate model, the
+model explicitly learns a preference classiﬁer to determine the preference relationship
+between candidates. Formally, the model considers the probability that a candidate
+is the antecedent as the probability that the candidate is preferred over all the other
+competingcandidates.Thatis:
+p(ante(C
+k
+)|ana,C
+1,C
+2,...,C
+n
+)
+=p(C
+k
+follows{C
+1,...,C
+k−1,C
+k+1,...C
+n
+}|ana,C
+1,C
+2,...,C
+n
+)(2)
+=p(C
+k
+followsC
+1,...,C
+k
+followsC
+k−1,C
+k
+followsC
+k+1,...,C
+k
+followsC
+n
+|ana,C
+1,C
+2,...,C
+n
+)
+Assuming that the preference between C
+k
+and C
+i
+is independent of the preference
+betweenC
+k
+andthecandidatesotherthanC
+i,wehave:
+p(C
+k
+followsC
+1,...,C
+k
+followsC
+k−1,C
+k
+followsC
+k+1,...,C
+k
+followsC
+n
+|ana,C
+1,C
+2,...,C
+n
+)
+=
+productdisplay
+1<i<n,inegationslash=k
+p(C
+k
+followsC
+i
+|ana,C
+k,C
+i
+)(3
+Thus:
+lnp(ante(C
+k
+)|ana,C
+1,C
+2,...,C
+n
+)
+=
+summationdisplay
+1<i<n,inegationslash=k
+lnp(C
+k
+followsC
+i
+|ana,C
+k,C
+i
+)(4)
+This suggests that the probability that a candidateC
+k
+is the antecedent can be esti-
+mated using the classiﬁcation results on the set of instances describingC
+k
+and each of
+theothercompetingcandidates.Todothis,welearnaclassiﬁerthat,givenanytwocan-
+didates of a given anaphor, can determine which one is preferred to be the antecedent
+of the anaphor. The ﬁnal antecedent is identiﬁed based on the classiﬁed preference
+relationshipsamongthecandidates.Thisisthemainideaofthetwin-candidatemodel.
+In such a model, each instance consists of three elements: i{ana,C
+i,C
+j
+}, whereana
+is an anaphor, and C
+i
+and C
+j
+are two of its antecedent candidates. The class label of
+an instance represents the preference between the two candidates for the antecedent,
+forexample,“01”indicatingC
+j
+ispreferredoverC
+i
+and“10”indicatingC
+i
+ispreferred.
+Beingtrainedwithinstancesbuiltbasedonthisprinciple,theclassiﬁeriscapableofde-
+terminingthepreferencebetweenanytwocandidates ofagivenanaphorbyreturning
+333
+ComputationalLinguistics Volume34,Number3
+Table5
+Asampletextforanaphoraresolution.
+[
+1
+Thoseﬁgures] are almost exactly what [
+2
+thegovernment]
+proposedto[
+3
+legislators]in[
+4
+September].If[
+5
+thegovernment]
+can stick with [
+6
+them], [
+7
+it] will be able to halve this year’s
+120billionruble(US$193billion)deﬁcit.
+a class label, either “01” or “10”, accordingly. In the next section, we will introduce in
+detailasystembasedonthetwin-candidatemodelforanaphoraresolution.
+3.4 Framework
+of theTwin-Candidate Model
+3.4.1 Instance
+Representation. In the twin-candidate model, an instance takes the form
+i{ana,C
+i,C
+j
+},whereanaisananaphorandC
+i
+andC
+j
+aretwoofitsantecedentcandidates.
+We stipulate that C
+j
+shouldbeclosertoanathanC
+i
+inposition(i.e.,i<j).Aninstanceis
+labeled“10”ifC
+i
+ispreferredoverC
+j
+astheantecedent,or“01”ifotherwise.
+Afeaturevectorisassociatedwithaninstance,anditdescribesdifferentproperties
+and relationships between ana and each of the candidates, C
+i
+or C
+j
+. In our study, the
+system with the twin-candidate model adopts the same feature set as the baseline
+system with the single-candidate model (shown in Table 3). The difference is that a
+feature for the single candidate, candi X, has to be replaced by a pair of features for
+the twin candidates, candi1 X and candi2 X. For example, feature candi Pron, which
+describeswhetheracandidateisapronoun,willbereplacedbytwofeaturescandi1 Pron
+andcandi2 Pron,whichdescribewhetherC
+i
+andC
+j
+arepronouns,respectively.
+3.4.2TrainingInstancesCreation.Tolearnapreferenceclassiﬁer,atraininginstanceforan
+anaphorshouldbecomposedoftwocandidateswithanexplicitpreferencerelationship,
+for example, one being an antecedent and the other being a non-antecedent. A pair
+of candidates that are both antecedents or both non-antecedents are not suitable for
+instancecreationbecausetheirpreferencecannotbeexplicitlyrepresentedfortraining,
+althoughitdoesexist.
+Based on this idea, during training, for an encountered anaphor ana, we take the
+closest antecedent, C
+ante, as the anchor candidate.
+3
+C
+ante
+is paired with each of the
+candidates C
+nc
+that is not coreferential with ana.IfC
+ante
+is closer to ana than C
+nc,an
+instance i{ana, C
+nc, C
+ante
+} is created and labeled “01”. Otherwise, if C
+nc
+is closer, an
+instance i{ana,C
+ante,C
+nc
+}iscreatedandlabeled“10”instead.
+ConsideragainthesampletextgiveninTable1,whichisrepeatedinTable5.Forthe
+anaphor [
+7
+it], the closest antecedent, [
+5
+thegovernment] (denoted asNP
+5
+), is chosen as
+the anchor candidate. It is paired with the four non-coreferential candidates (i.e.,NP
+1,
+NP
+3,NP
+4,andNP
+6
+)tocreatefourtraininginstances.Amongthem,theinstancesformed
+withNP
+1,NP
+3
+orNP
+4
+arelabeled“01”andtheonewithNP
+6
+islabeled“10”.Table6lists
+allthetraininginstancestobegeneratedforthetext.
+3.4.3 Classiﬁer Generation. Based on the feature vectors for the generated training in-
+stances, a classiﬁer can be trained using a discriminative learning algorithm. Given a
+testinstance i{ana,C
+i,C
+j
+}(i<j),theclassiﬁerissupposedtoreturnaclasslabelof“10”,
+3 Ifnoantecedentisfoundinthecandidateset,wedonotgenerateanytraininginstancefortheanaphor.
+334
+Yang,Su,andTan ATwin-CandidateModelforAR
+Table6
+Traininginstancesgeneratedunderthetwin-candidatemodelforanaphoraresolution.
+Anaphor TrainingInstance Label
+i{[
+6
+them],[
+1
+Thoseﬁgures],[
+2
+thegovernment]} 10
+[
+6
+them] i{[
+6
+them],[
+1
+Thoseﬁgures],[
+3
+legislators]} 10
+i{[
+6
+them],[
+1
+Thoseﬁgures],[
+4
+September]} 10
+i{[
+6
+them],[
+1
+Thoseﬁgures],[
+5
+thegovernment]} 10
+i{[
+7
+it],[
+1
+Thoseﬁgures],[
+5
+thegovernment]} 01
+i{[
+7
+it],[
+3
+legislators],[
+5
+thegovernment]} 01
+[
+7
+it] i{[
+7
+it],[
+4
+September],[
+5
+thegovernment]} 01
+i{[
+7
+it],[
+5
+thegovernment],[
+6
+them]} 10
+indicatingthatC
+i
+ispreferredoverC
+j
+fortheantecedentofana,or“01”,indicatingthat
+C
+j
+ispreferred.
+3.4.4 Antecedent
+Identiﬁcation. After training, the preference classiﬁer can be used to
+resolveanaphors.Theprocessofdeterminingtheantecedentofagivenanaphor,called
+antecedentidentiﬁcation,couldbethoughtofasatournament,acompetitioninwhich
+manyparticipantsplayagainsteachotherinindividualmatches.Thecandidatesarelike
+players in a tournament. A series of matches between candidates is held to determine
+thechampionofthetournament,thatis,theﬁnalantecedentoftheanaphorundercon-
+sideration.Here,thepreferenceclassiﬁerisliketherefereewhojudgeswhichcandidate
+winsorlosesinamatch.
+If an anaphor has only one antecedent candidate, it is resolved to the candidate
+directly.Foranaphorsthathavemorethanonecandidate,twopossibleschemescanbe
+employedtoﬁndtheantecedent.
+Tournament Elimination Tournament Elimination is a type of tournament where
+the loser in a match is immediately eliminated. Such a scheme is also applicable to
+antecedent identiﬁcation. In the scheme, candidates are compared linearly from the
+beginning totheend. Speciﬁcally, theﬁrstcandidate iscompared withthesecond one,
+forming a test instance, which is then passed to the classiﬁer to determine the prefer-
+ence.The“losing”candidatethatisjudgedlesspreferredbytheclassiﬁeriseliminated
+and never considered. The winner, that is, the preferred candidate, is compared with
+the third candidate. The process continues until all the candidates are compared, and
+thecandidatethatwinsinthelastcomparisonisselectedastheantecedent.
+Fordemonstration,weusethetextinTable5asatestexample.Supposewehavea
+“perfect”classiﬁerthatcancorrectlydeterminethepreferencebetweencandidates.That
+is, the candidates that are coreferential with the anaphor will be classiﬁed as preferred
+over those that are not. (If the two candidates are both coreferential or both non-
+coreferential with the anaphor, the one closer to the anaphor in position is preferred.)
+Toresolvetheanaphor[
+7
+it],thecandidateNP
+1
+isﬁrstcomparedwithNP
+2
+.Theformed
+instance is classiﬁed as “01”, indicatingNP
+2
+is preferred. Thus,NP
+1
+is eliminated and
+NP
+2
+continues to compete withNP
+3
+andNP
+4
+until it fails in the comparison withNP
+5
+.
+Finally, NP
+5
+beats NP
+6
+in the last match and is selected as the antecedent. All the test
+instancestobegeneratedinsequencefortheresolutionof[
+6
+them]and[
+7
+it]arelistedin
+Table7.
+The Tournament Elimination scheme has a computational complexity of O(N),
+where N is the number of the candidates. Thus, it enables a relatively large number
+335
+ComputationalLinguistics Volume34,Number3
+Table7
+Testinstancesgeneratedunderthetwin-candidatemodelwiththeTournamentElimination
+scheme.
+Anaphor TestInstance Result
+i{[
+6
+them],[
+1
+Thoseﬁgures],[
+2
+thegovernment]} 10
+[
+6
+them] i{[
+6
+them],[
+1
+Thoseﬁgures],[
+3
+legislators]} 10
+i{[
+6
+them],[
+1
+Thoseﬁgures],[
+4
+September]} 10
+i{[
+6
+them],[
+1
+Thoseﬁgures],[
+5
+thegovernment]} 10
+i{[
+7
+it],[
+1
+Thoseﬁgures],[
+2
+thegovernment]} 01
+i{[
+7
+it],[
+2
+thegovernment],[
+3
+legislators]} 10
+[
+7
+it] i{[
+7
+it],[
+2
+thegovernment],[
+4
+September]} 10
+i{[
+7
+it],[
+2
+thegovernment],[
+5
+thegovernment]} 01
+i{[
+7
+it],[
+5
+thegovernment],[
+6
+them]} 10
+of candidates to be processed. However, as our twin-candidate model imposes no
+constraints that enforce transitivity of the preference relation, the preference classiﬁer
+wouldlikelyoutputC
+1
+followsC
+2,C
+2
+followsC
+3,andC
+3
+followsC
+1
+.Hence,itisunreliabletoeliminate
+a candidate once it happens to lose in one comparison, without considering all of its
+winning/losingresultsagainsttheothercandidates.
+RoundRobinInSection3.3,wehaveshownthattheprobabilitythatacandidateis
+theantecedentcanbecalculatedusingthepreferenceclassiﬁcationresultsbetweenthe
+candidate and its opponents. The candidate with the highest preference is selected as
+theantecedent,thatis:
+Antecedent(ana) = arg
+i
+maxp(ante(C
+i
+)|ana,C
+1,C
+2,...,C
+n
+)
+∝ arg
+i
+max
+summationdisplay
+jnegationslash=i
+CF(i{ana,C
+i,C
+j
+},C
+i
+)(5)
+whereCF(i{ana,C
+i,C
+j
+},C
+i
+)istheconﬁdencewithwhichtheclassiﬁerdeterminesC
+i
+to
+bepreferredoverC
+j
+astheantecedentofana.IfwedeﬁnethescoreofC
+i
+as:
+Score(C
+i
+)=
+summationdisplay
+jnegationslash=i
+CF(i{ana,C
+i,C
+j
+},C
+i
+)(6)
+Then,themostpreferredcandidateisthecandidatethathasthemaximumscore.Ifwe
+simplyuse1todenotetheresultthatC
+i
+isclassiﬁedaspreferredoverC
+j,and−1ifC
+j
+is
+preferredotherwise,then:
+Score(C
+i
+)= |{C
+j
+|C
+i
+followsC
+j
+}|−|{C
+j
+|C
+j
+followsC
+i
+}| (7)
+Thatis,thescoreofacandidateisthenumberoftheopponentstowhichitispreferred,
+less thenumber of the opponents to which it is less preferred. To obtain the scores, the
+antecedentcandidatesarecomparedwitheachother.Foreachcandidate,itscomparison
+336
+Yang,Su,andTan ATwin-CandidateModelforAR
+Table8
+Testinstancesgeneratedunderthetwin-candidatemodelwiththeRoundRobinscheme.
+Anaphor TestInstance Result
+i{[
+7
+it],[
+1
+Thoseﬁgures],[
+2
+thegovernment]} 01
+i{[
+7
+it],[
+1
+Thoseﬁgures],[
+3
+legislators]} 01
+i{[
+7
+it],[
+1
+Thoseﬁgures],[
+4
+September]} 01
+i{[
+7
+it],[
+1
+Thoseﬁgures],[
+5
+thegovernment]} 01
+i{[
+7
+it],[
+1
+Thoseﬁgures],[
+6
+them]} 01
+i{[
+7
+it],[
+2
+thegovernment],[
+3
+legislators]} 10
+i{[
+7
+it],[
+2
+thegovernment],[
+4
+September]} 10
+[
+7
+it] i{[
+7
+it],[
+2
+thegovernment],[
+5
+thegovernment]} 01
+i{[
+7
+it],[
+2
+thegovernment],[
+6
+them]} 10
+i{[
+7
+it],[
+3
+legislators],[
+4
+September]} 01
+i{[
+7
+it],[
+3
+legislators],[
+5
+thegovernment]} 01
+i{[
+7
+it],[
+3
+legislators],[
+6
+them]} 01
+i{[
+7
+it],[
+4
+September],[
+5
+thegovernment]} 01
+i{[
+7
+it],[
+4
+September],[
+6
+them]} 01
+i{[
+7
+it],[
+5
+thegovernment],[
+6
+them]} 10
+result against every other candidate is recorded. Its score increases by one if it wins a
+match,ordecreasesbyoneifitloses.Thecandidatewiththehighestscoreisselectedas
+theantecedent.
+Antecedentidentiﬁcationcarriedoutinsuchawaycorrespondstoatypeoftourna-
+mentcalledRoundRobininwhicheachparticipantplayseveryotherparticipantonce,
+and the ﬁnal champion is selected based on the winning–losing records of the players.
+In contrast to the Elimination scheme, the Round Robin scheme is more reliable in
+thatthepreferenceofacandidateisdeterminedbyoverallcomparisonswiththeother
+competingcandidates.ThecomputationalcomplexityoftheschemeisO(N
+2
+),whereN
+isthenumberofthecandidates.
+To illustrate this, consider the example in Table 5 again. The test instances to be
+generated for resolving the anaphor [
+7
+it] are listed in Table 8. As shown, each of
+the candidates is compared with every other competing candidate. The scores of the
+candidatesaresummarizedinTable9.Here,thecandidateNP
+5
+beatsalltheopponents
+in the comparisons and obtains the maximum score of ﬁve. Thus it will be selected as
+theantecedent.
+An extension of the above Round Robin scheme is called the Weighted Round
+Robinscheme.Intheweightedversion,theconﬁdencevaluesreturnedbytheclassiﬁer,
+Table9
+ScoresforthecandidatesundertheRoundRobinscheme.
+NP
+1
+NP
+2
+NP
+3
+NP
+4
+NP
+5
+NP
+6
+Score
+NP
+1
+−1 −1 −1 −1 −1 −5
+NP
+2
++1 +1 +1 −1 +1 +3
+NP
+3
++1 −1 −1 −1 −1 −3
+NP
+4
++1 −1 +1 −1 −1 −1
+NP
+5
++1 +1 +1 +1 +1 +5
+NP
+6
++1 −1 +1 +1 −1 +1
+337
+ComputationalLinguistics Volume34,Number3
+Table10
+Statisticsforthetrainingandtestingdatasets.
+NWire NPaper BNews
+#Tokens 85k 72k 67k
+Train
+#Files 130 76 216
+#Tokens 20k 18k 18k
+Test
+#Files 29 17 51
+instead of the simple 0 and 1, are employed to calculate the score of a candidate based
+ontheformula
+Score(C
+i
+)=
+summationdisplay
+C
+i
+followsC
+j
+CF(C
+i
+followsC
+j
+)−
+summationdisplay
+C
+k
+followsC
+i
+CF(C
+k
+followsC
+i
+)(8)
+Here, CF is the conﬁdence value that the classiﬁer returns for the corresponding
+instance.
+3.5 Evaluation
+3.5.1ExperimentalSetup.WeusedtheACE(AutomaticContentExtraction)
+4
+coreference
+data set for evaluation. All the experiments were done on the ACE-2 V1.0 corpus. It
+contains two data sets, training and devtest, which were used for training and testing,
+respectively.Eachofthesesetsisfurtherdividedintothreedomains:newswire(NWire),
+newspaper(NPaper),andbroadcastnews(BNews).Statisticsforthedatasetsaresum-
+marizedinTable10.
+For both training and resolution, a raw input document was processed by a
+pipeline of NLP modules including a Tokenizer, Part-of-Speech tagger, NP chunker,
+Named-Entity(NE)Recognizer,andsoon.Thesepreprocessingmodulesweremeantto
+determinetheboundaryofeachNPinatext,andtoprovidethenecessaryinformation
+aboutanNPforsubsequentprocessing.TrainedandtestedontheUPENWSJTreeBank,
+the POS tagger (Zhou and Su 2000) could obtain an accuracy of 97% and the NP
+chunker (Zhou and Su 2000) could produce an F-measure above 94%. Evaluated for
+theMUC-6andMUC-7Named-Entitytask,theNERmodule(ZhouandSu2002)could
+provideanF-measureof96.6%(MUC-6)and94.1%(MUC-7).
+Inourexperiments,wefocusedontheresolutionofthethird-personalpronominal
+anaphors,includingshe,he,it,theyaswellastheirmorphologicvariants(suchasher,his,
+him,its,itself,them, etc.). For both training and testing, we considered all the pronouns
+thathadatleastoneprecedingNPintheirrespectiveannotatedcoreferentialchains.We
+usedtheaccuracyrateastheevaluationmetric,anddeﬁneditasfollows:
+Accuracy=
+numberofanaphorsbeingcorrectlyresolved
+totalnumberofanaphorstoberesolved
+(9)
+Here, an anaphor is deemed “correctly resolved” if the found antecedent is in the co-
+referentialchainoftheanaphor.
+4Seehttp://www.itl.nist.gov/iad/894.01/tests/aceforadetaileddescriptionoftheACEprogram.
+338
+Yang,Su,andTan ATwin-CandidateModelforAR
+Table11
+Statisticsofthetraininginstancesgeneratedforthepronominalanaphoraresolutiontask.
+NWire NPaper BNews
+0instances 8,200 11,648 6,037
+Single-Candidate
+1instances 1,241 1,466 1,291
+01instances 6,899 9,861 5,004
+Twin-Candidate
+10instances 1,301 1,787 1,033
+For pronoun resolution, the distance between the closest antecedent and the
+anaphor is usually short, predominantly (98% for the current data set) limited to only
+one or two sentences (McEnery, Tanaka, and Botley 1997). For this reason, given an
+anaphor,weonlytooktheNPsoccurringwithinthecurrentandprevioustwosentences
+as initial antecedent candidates. The candidates with mismatched number and gender
+agreement were ﬁltered automatically from the candidate set. Also, pronouns or NEs
+thatdisagreedinpersonwiththeanaphorwereremovedinadvance.Fortraining,there
+were 1,241 (NWire), 1,466 (NPaper), and 1,291 (BNews) anaphors found with at least
+one antecedent in the candidate set. For testing, the numbers were 313 (NWire), 399
+(NPaper),and271(BNews).Onaverage,ananaphorhadnineantecedentcandidates.
+Table 11 summarizes the statistics of the training instances as well as the class
+distribution. Note that for the single-candidate model, the number of “1” instances
+was identical to the number of anaphors in the training data, because we only used
+the closest antecedents of anaphors to create the positive instances. Thenumber of “0”
+instanceswasequaltothetotalnumberof“01”and“10”traininginstancesforthetwin-
+candidatemodel.
+We examined three different learning algorithms: C5 (Quinlan 1993), Maximum
+Entropy (Berger, Della Pietra, and Della Pietra 1996), and SVM (linear kernel) (Vapnik
+1995),
+5
+using the software See5,
+6
+OpenNlp.MaxEnt,
+7
+and SVM-light,
+8
+respectively. All
+the classiﬁers were learned with the default learning parameters set in the respective
+learningsoftware.
+3.5.2 Results
+and Discussions. Table 12 lists the performance of the different anaphora
+resolutionsystemswiththesingle-candidate(SC)andthetwin-candidate(TC)models.
+FortheTCmodel,twoantecedentidentiﬁcationschemes,TournamentEliminationand
+RoundRobin,werecompared.
+Fromthetable,wecanseethatourbaselinesystemwiththesingle-candidatemodel
+can obtain accuracy of up to 72.9% (NWire), 77.1% (NPaper), and 74.9% (BNews).
+5 AsMaxEntlearnsaprobabilitymodel,weusedthereturnedprobabilityastheconﬁdenceofacandidate
+beingtheantecedent.ForC5,theconﬁdencevalueofacandidatewasestimatedbasedonthefollowing
+smoothedratio:
+CF=
+p+1
+t+2
+wherecwasthenumberofpositiveinstancesandtwasthetotalnumberofinstancesstoredinthe
+correspondingleafnode.ForSVM,thereturnedvaluewasusedastheconﬁdencevalue:thelower
+(maybenegative)thelessconﬁdent.
+6 http://www.rulequest.com/see5-info.html
+7 http://MaxEnt.sourceforge.net/
+8 http://svmlight.joachims.org/
+339
+ComputationalLinguistics Volume34,Number3
+Table12
+Accuracyinpercentforthepronominalanaphoraresolution.
+NWire NPaper BNews Average
+C5 SC 71.6 75.6 69.5 72.7
+TC
+-Elimination 71.6 81.3 74.5 76.4
+-RoundRobin 72.9 81.3 74.9 76.9
+-WeightedRoundRobin 72.9 80.5 75.6 76.7
+MaxEnt SC 72.9 77.1 74.9 75.2
+TC
+-Elimination 75.1 79.1 77.5 77.4
+-RoundRobin 75.1 79.1 77.5 77.4
+-WeightedRoundRobin 75.7 78.6 77.1 77.3
+SVM SC 72.9 77.3 74.2 75.1
+TC
+-Elimination 73.5 82.0 78.9 78.5
+-RoundRobin 74.4 82.0 78.9 78.7
+-WeightedRoundRobin 74.6 79.3 78.2 77.5
+Rank SVM 73.5 79.3 76.4 76.7
+The average accuracy is comparable to that reported by Kehler et al. (2004) (around
+75%),whoalsousedthesingle-candidatemodeltodopronounresolutionwithsimilar
+features (using MaxEnt) on the ACE data sets. By contrast, the systems with the twin-
+candidate model are able to achieve accuracy of up to 75.7% (NWire), 82.0% (NPaper),
+and78.9%(BNews).Theaverageaccuracyis76.9%forC5,77.4%forMaxEnt,and78.7%
+forSVM,whichisstatisticallysigniﬁcantly
+9
+betterthantheresultsofthebaselines(4.2%,
+2.2%, and 3.6% in accuracy). These results conﬁrm our claim that the twin-candidate
+model is more effective than the single-candidate model for the task of pronominal
+anaphoraresolution.
+Weseenosigniﬁcantdifferencebetweentheaccuracyrates(lessthan1.0%accuracy)
+produced by the two antecedent identiﬁcation schemes, Tournament Elimination and
+Round Robin. This is in contrast to our belief that the Round Robin scheme, which is
+morereliablethantheTournamentElimination,shouldleadtomuchbetterresults.One
+possiblereasoncouldbethattheclassiﬁerinoursystemscanmakeacorrectpreference
+judgement(withaccuracyabove92%asinourtest)inthecaseswhereonecandidateis
+theantecedentandtheotherisnot.Asaconsequence,thesimplelinearsearchcanﬁnd
+theﬁnal antecedent aswell astheRound Robinmethod. Theseresults suggest thatwe
+canusetheEliminationschemeinapracticalsystemtomakeantecedentidentiﬁcation
+moreefﬁcient.(RecallthattheEliminationschemerequirescomplexityofO(N),instead
+ofO(N
+2
+)asinRoundRobin.)
+Ranking-SVM In our experiments, we were particularly interested in comparing
+theresultsusingthetwin-candidatemodelandthosedirectlyusingapreferencelearn-
+ing algorithm. For this purpose, we built a system based on Ranking-SVM (Joachims
+2002),anextensionofSVMcapableofpreferencelearning.
+9 Throughoutourexperiments,thesigniﬁcancewasexaminedbyusingthepairedt-test,withp< 0.05.
+340
+Yang,Su,andTan ATwin-CandidateModelforAR
+The system uses a similar framework to the single-candidate-based system. For
+training,givenananaphor,asetofinstancesiscreatedforeachoftheantecedentcandi-
+dates.Tolearnthepreferencebetweencompetingcandidates,a“query-ID”isspeciﬁed
+foreachtraininginstanceinsuchawaythattheinstancesformedbythecandidatesof
+thesameanaphorbearthesamequery-ID.Thelabelofaninstancerepresentstherankof
+thecandidateinthecandidateset;here,“1”fortheinstancesformedbythecandidates
+that are the antecedents, and “0” for the instances formed by the others. The training
+instances are associated with features as deﬁned in Table 3, to which the Ranking-
+SVMalgorithmisthenappliedtogenerateapreferenceclassiﬁer.Duringresolution,for
+each candidate of a given anaphor, a test instance is formed and passed to the learned
+classiﬁer,whichinturnreturnsavaluetorepresenttherankofthecandidateamongall
+thecandidates.Theanaphorisresolvedtotheonewiththehighestvalue.
+In fact, if we look into the learning mechanism of Ranking-SVM, we can ﬁnd
+that the algorithm will, in the background, pair any two instances that have the same
+query-ID but different rank labels. This is quite similar to the twin-candidate model,
+whichcreatesaninstancebyputtingtogethertwocandidateswithdifferentpreferences.
+However, one advantage of the twin-candidate model is that it can explicitly record
+various relationships between two competing candidates, for example, “which one
+of the two candidates is closer to the anaphor in position/syntax/semantics?”
+10
+Such
+inter-candidate information can make the preference between candidates clearer, and
+thus facilitate both preference learning and determination. In contrast, Ranking-SVM,
+whichconstructsinstancesinthesingle-candidateform,cannoteffectivelycapturethis
+kindofinformation.
+The last line of Table 12 shows the results from such a system based on Ranking-
+SVM. We can see that the system achieves an average accuracy of 76.7%, statistically
+signiﬁcantly better than the baseline system with the single-candidate model by 1.6%
+(0.4%forNWire,2.0%forNPaper,and2.2%forBNews).Theresultslendsupporttoour
+claim that the preference relationships between candidates, if taken into consideration
+for classiﬁer training, can lead to better resolution performance. Still, we observe that
+our twin-candidate model beats Ranking-SVM in average accuracy by 1.8% (Elimina-
+tionscheme)and2.0%(RoundRobin).
+Decision Tree One advantage of the C5 learning algorithm is that the generated
+classiﬁer can be easily interpreted by humans, and the importance of the features
+can be visually illustrated. In Figures 1 and 2, we show the decision trees (top four
+levels) output by C5 for the NWire domain, based on the single-candidate and the
+twin-candidate models, respectively. As the twin-candidate model uses a larger pool
+offeatures,thetreeforthetwin-candidatemodelismorecomplicated(180nodes)than
+theoneforthesingle-candidatemodel(36nodes).
+Fromthetwotrees,wecanseethatbothmodelsrelyonsimilarfeaturessuchaslexi-
+cal,positional,andgrammaticalpropertiesforpronounresolution.However,wecansee
+thatthepreferentialfactors(e.g.,subjectpreference,parallelismpreference,anddistance
+preferenceasdiscussedinSection3.2)aremoreclearlypresentedinthetwin-candidate-
+basedtree.Forexample,iftwocandidatesarebothpronouns,thetwin-candidate-based
+tree will suggest that the one closer to the anaphor has a higher preference to be the
+antecedent. Bycontrast, suchapreferencerelationship hastobeimplicitlyrepresented
+10 Inthecurrentwork,weonlyconsiderthepositionalrelationshipbetweencandidatesbystipulating
+thati<jforaninstance i{ana,C
+i,C
+j
+}.Inourfuturework,wewillexploremoreinter-candidate
+relationshipsthatarehelpfulforpreferencedetermination.
+341
+ComputationalLinguistics Volume34,Number3
+Figure1
+Decisiontreegeneratedforpronounresolutionunderthesingle-candidatemodel.Forfeature
+anaType,thevaluesPRON SHE,PRON SHE,PRON SHE,andPRON THEYrepresentwhether
+theanaphorisapronounsuchasshe,he,it,andthey,respectively.Forcandi Subject,thevalues
+SUBJ MAIN,SUBJ CLAUSEandNOrepresentwhetherthecandidateisthesubjectofamain
+sentence,orthesubjectofaclause,ornot.ForcandiObject,thevaluesOBJ VERB,OBJ PREP,and
+NOrepresentwhetherthecandidateistheobjectofaverb,apreposition,ornot,respectively.
+Forotherfeatures,0and1representyes/no.
+in the single-candidate-based tree, with different conﬁdence values being assigned to
+thecandidatesindifferentsentences.
+Learning Curve In our experiments, we were also concerned about how training
+data size might inﬂuence anaphora resolution performance. For this purpose, we di-
+vided the anaphors in the training documents into 10 batches, and then performed
+resolutionusingtheclassiﬁerstrainedwith1,2,...,10batchesofanaphors.Figure3
+plotsthelearningcurvesofthesystemswiththesingle-candidatemodelandthetwin-
+candidate model (Round Robin scheme) for the NPaper domain. Each accuracy rate
+shown in the ﬁgure is the average of the results from three trials trained on different
+anaphors.
+From the ﬁgure we can see that both the single-candidate model and the twin-
+candidate model reach their peak performance with around six batches (around
+880 anaphors). As shown, the twin-candidate model is not apparently superior to
+the single-candidate model when the size of the training data is small (below two
+batches, 290 anaphors). This is due to the fact that the number of features in the twin-
+candidate model is nearly double that in the single-candidate model. As a result, the
+twin-candidate model requires more training data than the single-candidate model to
+avoid the data sparseness problem. Nevertheless, it does not need too much training
+data to beat the latter; it can produce the accuracy rates consistently higher than the
+342
+Yang,Su,andTan ATwin-CandidateModelforAR
+Figure2
+Decisiontreegeneratedforpronounresolutionunderthetwin-candidatemodel.
+Figure3
+LearningcurvesofdifferentmodelsforpronominalanaphoraresolutionintheNPaperDomain
+(120anaphorsperbatch).
+343
+ComputationalLinguistics Volume34,Number3
+Table13
+Asampletextforcoreferenceresolution.
+[
+1
+Globalstar] still needs to raise [
+2
+$600 million], and
+[
+3
+Schwartz]said[
+4
+thatcompany] would try to raise [
+5
+the
+money]in[
+6
+thedebtmarket].
+single-candidate model when trained with more than two batches of anaphors. This
+ﬁgure further demonstrates that the twin-candidate model is reliable and effective for
+thepronominalanaphoraresolutiontask.
+4. Deploying theTwin-Candidate Model toCoreference Resolution
+One task that is closely related to anaphora resolution is coreference resolution,the
+processofidentifyingallthecoreferentialexpressionsintexts.
+11
+Coreferenceresolution
+isdifferentfromanaphor resolution. Thelatterfocuses onhowananaphorcanbesuc-
+cessfullyresolved,andtheresolutionisdoneongivenanaphors.Theformer,incontrast,
+focuses on how the NPs that are coreferential with each other can be found correctly
+and completely, and the resolution is done on all possible NPs. In a text, many NPs,
+especially the non-pronouns, are non-anaphors that have no antecedent to be found
+in the previous text. Hence, the task of coreference resolution is a more complicated
+challenge than anaphora resolution, as a solution should not only be able to resolve
+an anaphor to the correct antecedent, but should also refrain from resolving a non-
+anaphor.Inthissection,wewillexplorehowtodeploythelearningmodelsforanaphor
+resolutioninthecoreferenceresolutiontask.Aspronounsareusuallyanaphors,wewill
+focusmainlyontheresolutionofnon-pronouns.
+4.1 Coreference
+Resolution Based onthe Single-Candidate Model
+Inpractice,thesingle-candidatemodelcanbeappliedtocoreferenceresolutiondirectly,
+using the similar training and testing procedures to those used in anaphora resolution
+(describedinSection2).
+Fortraining,wecreate“0”and“1”traininginstancesforeachencounteredanaphor,
+thatis,theNPthatiscoreferentialwithatleastoneprecedingNP.Speciﬁcally,givenan
+anaphor and its antecedent candidates, a positive instance is generated for the closest
+antecedentandasetofnegativeinstancesisgeneratedforeachofthecandidatesthatis
+notcoreferentialwiththeanaphor.
+12
+Consider the text in Table 13 as an example. In the text, [
+4
+thatcompany]and[
+5
+the
+money]aretwoanaphors,with[
+1
+Globalstar]and[
+2
+$600million]beingtheirantecedents,
+respectively.Table14liststhetraininginstancestobecreatedforthistext.
+11 Inourstudy,weonlyconsiderwithin-documentnounphrasecoreferenceresolution.
+12 Insomecoreferenceresolutionsystems(Soon,Ng,andLim2001;NgandCardie2002b),onlythe
+non-coreferentialcandidatesoccurringbetweentheclosestantecedentandtheanaphorareusedtocreate
+negativeinstances.Intheexperiments,wefoundthatthesesamplingstrategiesfornegativeinstances
+ledtoatrade-offbetweenrecallandprecision,butnosigniﬁcantdifferenceintheoverallF-measure.
+344
+Yang,Su,andTan ATwin-CandidateModelforAR
+Table14
+Traininginstancesgeneratedunderthesingle-candidatemodelforcoreferenceresolution.
+Anaphor TrainingInstance Label
+i{[
+4
+thatcompany],[
+1
+Globalstar]} 1
+[
+4
+thatcompany] i{[
+4
+thatcompany],[
+2
+$600million]} 0
+i{[
+4
+thatcompany],[
+3
+Schwartz]} 0
+i{[
+5
+themoney],[
+1
+Globalstar]} 0
+[
+5
+themoney] i{[
+5
+themoney],[
+2
+$600million]} 1
+i{[
+5
+themoney],[
+3
+Schwartz]} 0
+i{[
+5
+themoney],[
+4
+thatcompany]} 0
+Table15
+Featuresetforcoreferenceresolution.
+ana Def whetherthepossibleanaphorisadeﬁnitedescription
+ana Indef whetherthepossibleanaphorisanindeﬁniteNP
+ana Name whetherthepossibleanaphorisanamedentity
+candi Def whetherthecandidateisadeﬁnitedescription
+candi Indef whetherthecandidateisanindeﬁnitedescription
+candi Name whetherthecandidateisanamed-entity
+candi SentDist thesentencedistancebetweenthepossibleanaphorandthecandidate
+candi NameAlias whetherthecandidateandthecandidatearealiasesforeachother
+candi Appositive whetherthepossibleanaphorandthecandidateareinanappositive
+structure
+candi NumberAgree whetherthepossibleanaphorandthecandidateagreeinnumber
+candi GenderAgree whetherthepossibleanaphorandthecandidateagreeingender
+candi HeadStrMatch whetherthepossibleanaphorandthecandidatehavethesamehead
+string
+candi FullStrMatch whetherthepossibleanaphorandthecandidatecontainthesame
+strings(excludingthedeterminers)
+candi SemAgree whetherthepossibleanaphorandthecandidatebelongtothesame
+semanticcategoryinWordNet
+InTable15,welistthefeaturesusedinourstudyforcoreferenceresolution,which
+aresimilartothoseproposedinSoon,Ng,andLim’s(2001)system.
+13
+Allthesefeatures
+are domain independent and the values can be computed with low cost but high
+reliability.
+Aftertraining,thelearnedclassiﬁercanbedirectlyusedforcoreferenceresolution.
+Given an NP to be resolved, a test instance is generated for each of its antecedent
+candidates. The classiﬁer, being given the instance, will determine the likelihood that
+the candidate is the antecedent of the possible anaphor. If the conﬁdence is below
+a pre-speciﬁed threshold, the candidate is discarded. In the case where none of the
+candidates have a conﬁdence higher than the threshold, the current NP is deemed a
+13 Aswefocusoncoreferenceresolutionfornon-pronouns,wedonotusethefeaturethatdescribes
+whetherornottheNPtoberesolvedisapronoun.Also,wedonotusethefeaturethatdescribes
+whetherornotacandidateisapronoun,because,aswillbediscussedtogetherwiththeexperiments,
+apronounisnottakenasanantecedentcandidateforanon-pronountoberesolved.
+345
+ComputationalLinguistics Volume34,Number3
+non-anaphor and left unresolved. Otherwise, it is resolved to the candidate with the
+highestconﬁdence.
+14
+4.2 Coreference
+Resolution Based onthe Twin-Candidate Model
+The twin-candidate model presented in the previous section focuses on the preference
+betweencandidates.Themodelwillalwaysselecta“best”candidateastheantecedent,
+even if the current NP is a non-anaphor. To deal with this problem, we will teach the
+preference classiﬁer how to identify non-anaphors, by incorporating non-anaphors to
+createaspecialclassoftraininginstances.Forresolution,ifthenewlylearnedclassiﬁer
+returnsthespecialclasslabel,wewillknowthatthecurrentNPisanon-anaphor,andno
+preference relationship holds between the two candidates under consideration. In this
+way,thetwin-candidatemodeliscapableofcarryingoutbothantecedentidentiﬁcation
+and anaphoricity determination by itself, and thus can be deployed for coreference
+resolutiondirectly.Inthissection,wewilldescribethemodiﬁedtrainingandresolution
+proceduresofthetwin-candidatemodel.
+4.2.1 Training. As with anaphora resolution, an instance of the twin-candidate model
+forcoreferenceresolutiontakestheform i{ana,C
+i,C
+j
+},whereanaisapossibleanaphor,
+and C
+j
+and C
+j
+are two of its antecedent candidates (i<j). The feature set is similar to
+thatforthesingle-candidatemodelasdeﬁnedinTable15,exceptthatacandi Xfeature
+is replaced by a pair of features, cand1 x and candi2 x, for the two competing candi-
+dates,respectively.
+Duringtraining,ifanencounteredNPisananaphor,wecreate“01”or“10”training
+instances in the same way as in the original learning framework. If the NP is a non-
+anaphor,wedothefollowing:
+a114
+Fromtheantecedentcandidates,
+15
+randomlyselectoneastheanchor
+candidate.
+a114
+Createasetofinstancesbypairingtheanchorcandidateandeachofthe
+othernon-coreferentialcandidates.
+Theinstancesformedbythenon-anaphorsarelabeled“00.”
+Consider the sample text in Table 13. For the two anaphors [
+4
+that company]and
+[
+5
+the money], we create the “01” and “10” instances as usual. For the non-anaphors
+[
+3
+Schwartz]and[
+6
+thedebtmarket],wegeneratetwosetsof“00”instances.Table16lists
+allthetraininginstancesforthetext(supposing[
+1
+Globalstar]and[
+2
+$600million]arethe
+anchorcandidatesfor[
+3
+Schwartz]and[
+6
+thedebtmarket],respectively).
+The “00” training instances are used together with the “01” and “10” ones to train
+a classiﬁer. Given a test instance i{ana, C
+i, C
+j
+} (i<j), the newly learned classiﬁer is
+supposedtoreturn“01”(or“10”),indicatinganaisananaphorandC
+i
+(orC
+j
+)ispreferred
+as its antecedent, or return “00”, indicating ana is a non-anaphor and no preference
+existsbetweenC
+i
+andC
+j
+.
+14 Otherclusteringstrategiesarealsoavailable,forexample,“closest-ﬁrst”whereapossibleanaphoris
+resolvedtotheclosestcandidatewiththeconﬁdenceabovethespeciﬁedthreshold,ifany(Soon,Ng,
+andLim2001).
+15 Foranon-anaphor,wealsotaketheprecedingNPsasitsantecedentcandidates.Wewilldiscussthis
+issuelatertogetherwiththeexperimentalsetup.
+346
+Yang,Su,andTan ATwin-CandidateModelforAR
+Table16
+Traininginstancesgeneratedunderthetwin-candidatemodelforcoreferenceresolution.
+PossibleAnaphor TrainingInstance Label
+i{[
+4
+thatcompany],[
+1
+Globalstar],[
+2
+$600million]} 10
+[
+4
+thatcompany] i{[
+4
+thatcompany],[
+1
+Globalstar],[
+3
+Schwartz]} 10
+i{[
+5
+themoney],[
+1
+Globalstar],[
+2
+$600million]} 01
+[
+5
+themoney] i{[
+5
+themoney],[
+2
+$600million],[
+3
+Schwartz]} 10
+i{[
+5
+themoney],[
+2
+$600million],[
+4
+thatcompany]} 10
+[
+3
+Schwartz] i{[
+3
+Schwartz],[
+1
+Globalstar],[
+2
+$600million]} 00
+i{[
+6
+thedebtmarket],[
+1
+Globalstar],[
+2
+$600million]} 00
+i{[
+6
+thedebtmarket],[
+2
+$600million],[
+3
+Schwartz]} 00
+[
+6
+thedebtmarket] i{[
+6
+thedebtmarket],[
+2
+$600million],[
+4
+thatcompany]} 00
+i{[
+6
+thedebtmarket],[
+2
+$600million],[
+5
+themoney]} 00
+4.2.2AntecedentIdentiﬁcation.Accordingly,wemakeamodiﬁcationtotheoriginalTour-
+namentEliminationandtheRoundRobinschemes:
+Tournament Elimination Scheme Aswithanaphoraresolution,givenanNPtobe
+resolved,candidatesarecomparedlinearlyfromthebeginningtotheend.Ifaninstance
+fortwocompetingcandidatesisclassiﬁedas“01”or“10”,thepreferredcandidatewill
+be compared with subsequent competitors while the loser is eliminated immediately.
+If the instance is classiﬁed as “00”, both the two candidates are discarded and the
+comparison restarts with the next two candidates.
+16
+The process continues until all the
+candidateshavebeencompared.Ifbothofthecandidatesinthelastmatcharejudgedto
+be“00”,thecurrentNPisleftunresolved.Otherwise,theNPwillberesolvedtotheﬁnal
+winner, on the condition that the highest conﬁdence that thewinner has ever obtained
+isaboveapre-speciﬁedthreshold.
+Round Robin Scheme In the Round Robin scheme, each candidate is compared
+with every other candidate. If two candidates are labeled “00” in a match, both candi-
+dates receive a penalty of −1 in their respective scores. If no candidate has a positive
+ﬁnal score, then the NP is considered non-anaphoric and left unresolved. Otherwise,
+it is resolved to the candidate with the highest score as usual. Here, we can also use a
+threshold. That is, we will update the scores of the two candidates in a match if and
+onlyifthepreferenceconﬁdencereturnedbytheclassiﬁerishigherthanapre-speciﬁed
+threshold.
+In rare cases where an NP to be resolved has only one antecedent candidate, a
+pseudo-instanceiscreatedbypairingthecandidatewithitself.TheNPwillberesolved
+tothecandidateunlesstheinstanceislabeled“00”.
+4.3Evaluation
+4.3.1 Experimental
+Setup. We used the same ACE data sets for coreference resolution
+evaluation, as described in the previous section for anaphora resolution. A raw input
+document was processed in advance by the same pipeline of NLP modules including
+16 Ifonlyonecandidateremains,itwillbecomparedwiththecandidateeliminatedlast.
+347
+ComputationalLinguistics Volume34,Number3
+Table17
+Statisticsofthetraininginstancesgeneratedforcoreferenceresolution(non-pronoun).
+NWire NPaper BNews
+0instances 78,191 105,152 33,748
+Single-Candidate
+1instances 3,197 3,792 2,094
+00instances 296,000 331,957 159,752
+Twin-Candidate 01instances 50,499 70,433 21,170
+10instances 27,692 34,719 12,578
+POS-tagger, NP chunker, NE recognizer, and so on, to obtain all possible NPs and
+relatedinformation(seeSection3.5.1).
+For evaluation, we adopted Vilain et al.’s (1995) scoring algorithm in which recall
+andprecision
+17
+were computed by comparing the key chains (i.e., the annotated “stan-
+dard” coreferential chains) and the response chains (i.e., the chains generated by the
+coreferenceresolutionsystem).
+Asalreadymentioned,thetwin-candidatemodeldescribedinthissectionismainly
+meant for non-pronouns that are often not anaphoric. To better examine the utility
+of the model in our experiments, we ﬁrst focused on coreference resolution for non-
+pronominal NPs. The recall and precision to be reported were computed based on the
+response chains and the key chains from which all the pronouns are removed. We will
+latershowtheresultsofoverallcoreferenceresolutionforwholeNPsbycombiningthe
+resolutionofpronounsandnon-pronouns.
+Innon-pronounresolution,ananaphoranditsantecedentdonotoftenoccurashort
+distance apart as they do in pronoun resolution. For this reason, during training, we
+took as antecedent candidates all the preceding non-pronominal NPs
+18
+in the current
+and previous four sentences; while during testing, we used all the preceding non-
+pronouns,regardlessofdistance,ascandidates.
+19
+Thestatisticsofthetraininginstances
+foreachdatasetaresummarizedinTable17.
+Again, we examined the three learning algorithms: C5, MaxEnt, and SVM.
+20
+As
+boththesingle-candidateandthetwin-candidatemodelsusedathresholdtoblocklow-
+conﬁdencecoreferentialpairs,weperformedthree-foldcross-evaluationonthetraining
+datatodeterminethethresholdsforthecoreferenceresolutionsystems.
+4.3.2ResultsandDiscussions. Table 18 lists the results for the different systems on the
+non-pronominalNPcoreferenceresolution.Weusedasthebaselinethesystemwiththe
+single-candidatemodeldescribedinSection4.1.Asmentioned,thesystemwastrained
+17 TheoverallF-measurewasdeﬁnedas
+2∗Recall∗Precision
+Recall+Precision
+18 AssuggestedinNgandCardie(2002b),wedidnotincludepronounsinthecandidatesetofa
+non-pronoun,becauseapronounisusuallyanaphoricandcannotgivemuchinformationabout
+theentitytowhichitrefers.
+19 Unlikeinthecaseofpronounresolution,wedidnotﬁltercandidatesthathadmismatched
+number/genderagreementastheseconstraintsarenotreliablefornon-pronounresolution(e.g.,
+inourdataset,around15%ofcoreferentialpairsdonotagreeinnumber).Instead,wetookthese
+factorsasfeatures(seeTable15)andletthelearningalgorithmmakethepreferencedecision.
+20 ForSVM,weemployedtheone-against-allaggregationmethodforthe3-classlearningandtesting.
+348
+Yang,Su,andTan ATwin-CandidateModelforAR
+Table18
+Recall(R),Precision(P),andF-measure(F)inpercentforcoreferenceresolution(non-pronoun).
+NWire NPaper BNews
+RPFRPFRPF
+C5 SC
+-baseline 63.3 48.1 54.7 63.8 42.2 50.8 63.5 53.7 58.2
+-withnon-anaphors 40.9 81.5 54.4 39.8 81.4 53.4 35.1 76.8 48.2
+TC
+-Elimination 50.8 63.0 56.2 56.6 60.1 58.3 44.6 71.2 54.9
+-RoundRobin 58.7 57.9 58.3 56.5 60.5 58.4 49.0 70.1 57.7
+MaxEnt SC
+-baseline 62.1 52.3 56.8 56.4 58.8 57.6 61.8 54.1 57.7
+-withnon-anaphors 59.6 54.0 56.7 54.2 62.6 58.1 53.8 58.4 56.0
+TC
+-Elimination 59.1 55.4 57.2 52.2 69.0 59.5 53.5 61.9 57.4
+-RoundRobin 58.7 55.9 57.2 53.4 65.9 59.0 54.3 62.8 58.3
+SVM SC
+-baseline 64.1 49.0 55.5 65.5 42.1 51.3 63.5 53.7 58.2
+-withnon-anaphors 42.3 70.0 52.7 40.0 76.6 52.5 35.7 77.0 48.8
+TC
+-Elimination 57.8 53.2 55.4 51.7 56.5 54.0 63.3 53.8 58.2
+-RoundRobin 54.3 56.9 55.6 56.1 58.1 57.1 63.7 53.8 58.3
+on the instances formed by anaphors. For better comparison with the twin-candidate
+model,webuiltanothersingle-candidate-basedsysteminwhichthenon-anaphorswere
+also incorporated for training. Speciﬁcally, for each encountered non-anaphor during
+training, we created a set of “0” instances by pairing the non-anaphor with each of the
+candidates. These instances were added to the original instances formed by anaphors
+tolearnaclassiﬁer,
+21
+whichwasthenappliedfortheresolutionasusual.
+Theresultsforthetwosingle-candidatebasedsystemsarelistedinTable18.When
+trained with the instances formed only by anaphors, the system could achieve recall
+above 60% and precision of around 50% for the three domains. When trained with the
+instancesformedbybothanaphorsandnon-anaphors,thesystemyieldedasigniﬁcant
+improvement in precision. In the case of using C5 and SVM, the system is capable of
+producingprecisionratesofupto80%.Theincreaseinprecisionisreasonablesincethe
+classiﬁer tends to be stricter in blocking non-anaphors. Unfortunately, however, at the
+same time recall drops signiﬁcantly, and no apparent improvement can be observed in
+theresultingoverallF-measure.
+When trained with non-anaphors incorporated, the systems with the twin-
+candidate model, described in Section 4.2, are capable of yielding higher precision
+against the baseline. Although recall also drops at the same time, the increase in
+precision can compensate it well: We observe that in most cases, the system with the
+twin-candidate model can achieve a better F-measure than the baseline system with
+the single-candidate model. Also, the improvement is statistically signiﬁcant (t-test,
+p< 0.05) in the NWire domain when C5 is used (3.6%), and in the NPaper domain
+21 Thestatisticsofthe“0”instancesshowninTable17become392,646,455,167,and207,667forNWire,
+NPaper,andBNews,respectively.
+349
+ComputationalLinguistics Volume34,Number3
+whenanyofthethreelearningalgorithms,C5(5.0%),MaxEnt(1.4%),andSVM(4.6%),
+is used. These results suggest that our twin-candidate model can effectively identify
+non-anaphors and block their invalid resolution, without affecting the accuracy of
+determiningantecedentsforanaphors.
+Compared with the pronoun resolution described in the previous section, here
+we ﬁnd that for non-pronoun resolution the superiority of the twin-candidate model
+against the single-candidate model is not apparent. In some domains such as BNews,
+the difference between the two models is not statistically signiﬁcant. One possible
+explanationisthatfornon-pronounresolution,thefeaturesthatreallymatterarequite
+limited, that is, NameAlias, String-Matching, and Appositive (we will later show this
+in the decision trees). A candidate that has any one of these features is most likely the
+antecedent, regardless of the other competing candidates. In this situation, the single-
+candidate model, which considers candidates in isolation, does as well as the twin-
+candidatemodel.Still,theresultssuggestthatthetwin-candidatemodelissuitablefor
+both resolution tasks, no matter whether the features involved are strongly indicative
+(aswithnon-pronounresolution)ornot(aswithpronounresolution).
+As with anaphora resolution, we do not observe any apparent performance differ-
+ence between the two twin-candidate identiﬁcation schemes, Tournament Elimination
+and Round Robin. The Round Robin scheme performs better than Elimination when
+trainedusingC5andSVM,byupto2.8%and2.9%inF-measure,respectively.However,
+the Elimination scheme, when trained using MaxEnt, is capable of performing equally
+wellorslightlybetter(0.5%F-measure)thantheRoundRobinscheme.
+Recall vs. Precision As discussed, the results in Table 18 show different recall and
+precision patterns for different systems. The baseline system with the single-candidate
+model tends to yield higher recall while the system with the twin-candidate model
+tends to produce higher precision. Thus, a fairer comparison of the two systems is to
+examine the precision rates that these systems achieve under the same recall rates. For
+this purpose, in Figure 4, we plot the variant recall and precision rates that the two
+systems are capable of obtaining (tested using MaxEnt, Round Robin scheme, for the
+NPaper domain), focusing on precision rates above 50% and recall rates above 40%.
+Fromtheﬁgure,weﬁndthatthesystemwiththetwin-candidatemodelachieveshigher
+precisionforrecallratesrangingfrom40%and55%,andperformsequallywellforrecall
+rates above 55%, which further proves the reliability of our twin-candidate model for
+coreferenceresolution.
+DecisionTreesInFigures5and6,weshowthetwodecisiontrees(NWiredomain)
+generated by the systems with the single-candidate model and the twin-candidate
+model, respectively. The tree from the single-candidate model contains only 13 nodes,
+considerably smaller than that from the twin-candidate model, which contains around
+1.2k nodes. From the ﬁgure, we can see that both models heavily rely on string-
+matching, name-alias, and appositive features to perform non-pronoun resolution, in
+contrasttopronounresolutionwherelexicalandpositionalfeaturesseemmoreimpor-
+tant(asshowninFigures1and2).
+Learning Curves In our experiments, we were also interested in evaluating the
+resolution performance of the two learning models on different quantities of training
+data.Figure7plotsthelearningcurvesforthesystemsusingthesingle-candidatemodel
+and the system using the twin-candidate model (NPaper domain). The F-measure is
+averagedoverthreerandomtrialstrainedon5,10,15,...documents.Consistentwith
+the curves for the anaphora resolution task as depicted in Figure 3, the system with
+the twin-candidate model outperforms the one with the single-candidate model on a
+smallamountoftrainingdata(lessthanﬁvedocuments).Whenmoredataisavailable,
+350
+Yang,Su,andTan ATwin-CandidateModelforAR
+Figure4
+Variousrecall(%)andprecision(%)ofdifferentmodelsfornon-pronounresolution.
+Figure5
+Decisiontreegeneratedfornon-pronounresolutionunderthesingle-candidatemodel.
+the twin-candidate model also yields a consistently better F-measure than the single-
+candidatemodel.
+Overall Coreference Resolution Having demonstrated the performance of the
+twin-candidate model on coreference resolution for non-pronouns, we now further
+examine overall coreference resolution for whole NPs, combining both pronoun
+resolution and non-pronoun resolution. Speciﬁcally, given an input test document,
+we check each encountered NP from beginning to end. If it is a pronoun,
+22
+we use
+22 Weidentifythepleonasticuseofitinadvance(79.2%accuracy)usingasetofpredeﬁnedpatternrules
+basedonregularexpressions.Theﬁrst-personandsecond-personpronounsareheuristicallyresolved
+totheclosestpronounofthesametypeoraspeakernearby,ifany,withanaverage61.8%recalland
+79.5%precision.
+351
+ComputationalLinguistics Volume34,Number3
+Figure6
+Decisiontreegeneratedfornon-pronounresolutionunderthetwin-candidatemodel.
+Figure7
+Learningcurvesofdifferentmodelsfornon-pronounresolution.
+the pronominal anaphora resolution systems, as described in the previous section, to
+resolve it to an antecedent. Otherwise, we use the non-pronoun coreference resolution
+systemsdescribedinthissectiontoresolvetheNPtoanantecedent,ifanyisfound.All
+thecoreferentialpairsareputtogetherinacoreferentialchain.Therecallandprecision
+rates are computed by comparing the standard key chains and generated response
+chainsusingVilainetal.’s(1995)algorithm.
+352
+Yang,Su,andTan ATwin-CandidateModelforAR
+Table19
+Recall(R),Precision(P),andF-Measure(F)inpercentforcoreferenceresolution.
+NWire NPaper BNews
+RPFRPFRPF
+C5 SC 62.2 52.6 57.0 64.9 50.6 56.9 62.9 58.5 60.6
+TC
+-Elimination 53.8 65.9 59.2 61.2 64.4 62.8 53.1 70.9 60.7
+-RoundRobin 59.0 61.2 60.1 62.0 64.3 63.1 56.0 69.9 62.2
+MaxEnt SC 60.7 56.0 58.3 60.8 62.2 61.5 63.8 60.6 62.2
+TC
+-Elimination 59.5 59.2 59.3 58.6 67.8 62.9 59.3 66.4 62.7
+-RoundRobin 60.6 57.9 59.2 59.4 69.2 63.3 61.7 64.5 63.0
+SVM SC 62.3 53.3 57.5 66.2 50.5 57.3 64.7 60.1 62.3
+TC
+-Elimination 57.6 57.0 57.3 58.5 62.6 60.5 65.0 60.6 62.7
+-RoundRobin 56.0 60.6 58.2 60.4 63.6 62.0 65.4 60.7 63.0
+Table19liststhecoreferenceresolutionresultsofthesystemswithdifferentlearning
+models. We observe that the results for overall coreference resolution are better than
+those of non-pronoun coreference resolution as shown in Table 18, which is due to the
+comparativelyhighaccuracyoftheresolutionofpronouns.
+In line with the previous results for pronoun resolution and non-pronoun resolu-
+tion, the twin-candidate model outperforms the single-candidate model in coreference
+resolution for whole NPs. Consider the system trained with MaxEnt as an example.
+The single-candidate-based system obtains F-measures of 58.3%, 61.5%, and 62.2% for
+the NWire, NPaper, and BNews domains.
+23
+By comparison, the twin-candidate-based
+system (Round Robin scheme) can achieve F-measures of 59.2%, 63.3%, and 63.0% for
+the three domains. The improvement over the single-candidate model in F-measure
+(0.9%, 1.8%, and 0.8%) is larger than that for non-pronoun resolution (0.4%, 1.4%,
+and 0.6% as shown in Table 18), owing to the higher gains obtained from pronoun
+resolution.ForthesystemstrainedusingC5andSVM,similarpatternsofperformance
+improvementmaybeobserved.
+5. Conclusion
+Inthisarticle,wehavepresentedatwin-candidatemodelforlearning-basedanaphora
+resolution. The traditional single-candidate model considers candidates in isolation,
+and thus cannot accurately capture the preference relationships between competing
+candidatestoprovidereliableresolution.Todealwiththisproblem,ourproposedtwin-
+candidate model recasts anaphora resolution as a preference classiﬁcation problem.
+It learns a classiﬁer that can explicitly determine the preference between competing
+candidates, and then during resolution, choose the antecedent of an anaphor based on
+therankingofthecandidates.
+23 TheresultsarecomparabletothebaselinesystembyNg(2005),whichalsousesthesingle-candidate
+modelandiscapableofF-measuresof50.1%,62.1%,and57.5%forthethreedomains,respectively.
+353
+ComputationalLinguistics Volume34,Number3
+We have introduced in detail the framework of the twin-candidate model for
+anaphoraresolution,includinginstancerepresentation,trainingprocedure,andthean-
+tecedentidentiﬁcationscheme.Theefﬁcacyofthetwin-candidatemodelforpronominal
+anaphoraresolutionhasbeenevaluatedindifferentdomains,usingACEdatasets.The
+experimental results show that the model yields statistically signiﬁcantly higher accu-
+racy rates than the traditional single-candidate model (up to 4.2% in average accuracy
+rate),suggestingthatthetwin-candidatemodelissuperiortothelatterforpronominal
+anaphoraresolution.
+We have further investigated the deployment of the twin-candidate model in the
+more complicated coreference resolution task, where not all the encountered NPs are
+anaphoric. We have modiﬁed the model to make it directly applicable for coreference
+resolution.Theexperimentalresultsfornon-pronounresolutionindicatethatthetwin-
+candidate-based system performs equally well, and, in some domains, statistically
+signiﬁcantly better than the single-candidate based systems. When combined with
+the results for pronoun resolution, the twin-candidate based system achieves further
+improvementagainstthesingle-candidate-basedsystemsinallthedomains.
+A number of further contributions can be made by extending this work in new
+directions.Currently,weonlyadoptsimpledomain-independentfeaturesforlearning.
+Ourrecentwork(Yang,Su,andTan2005)suggeststhatmorecomplicatedfeatures,such
+as statistics-based semantic compatibility, can be effectively incorporated in the twin-
+candidate model for pronoun resolution. In future work, we intend to provide a more
+in-depthinvestigationintothevariouskindsofknowledgethataresuitableforthetwin-
+candidate model. Furthermore, in our current work for coreference resolution, all the
+NPsprecedingananaphorareusedasantecedentcandidates,andallencounterednon-
+anaphors intextsareincorporated without ﬁlteringintotraining instance creation. For
+more balanced training data and better classiﬁer learning, we intend to explore some
+instance-sampling techniques, such as those proposed by Ng and Cardie (2002a), to
+remove in advance low-conﬁdence candidates and the less informative non-anaphors.
+We hope that these efforts can further improve the performance of the twin-candidate
+modelinbothanaphoraresolutionandcoreferenceresolution.
+Acknowledgments
+WewouldliketothankGuodongZhou,
+AlexiaLeong,StanleyWaiKeongYong,
+andthreeanonymousreviewersfortheir
+helpfulcommentsandsuggestions.
+References
+Aone,GhinatsuandScottW.Bennett.
+1995.Evaluatingautomatedand
+manualacquisitionofanaphora
+resolutionstrategies.InProceedingsof
+the33rdAnnualMeetingoftheAssociation
+forComputationalLinguistics(ACL),
+pages122–129,Cambridge,Massachusetts.
+Berger,AdamL.,StephenA.DellaPietra,
+andVincentJ.DellaPietra.1996.A
+maximumentropyapproachtonatural
+languageprocessing.Computational
+Linguistics,22(1):39–71.
+Chomsky,Noam.1981.Lectureson
+GovernmentandBinding.Foris,
+Dordrecht,TheNetherlands.
+Clark,HerberH.andC.J.Sengul.1979.
+Insearchofreferentsfornounphrases
+andpronouns.MemoryandCognition,
+7:35–41.
+Connolly,Dennis,JohnD.Burger,and
+DavidS.Day,1997.Amachinelearning
+approachtoanaphoricreference.In
+NewMethodsinLanguageProcessing,
+pages133–144,TaylorandFrancis,
+Bristol,Pennsylvania.
+Crawley,RosalindA.,RosemaryJ.
+Stevenson,andDavidKleinman.1990.
+Theuseofheuristicstrategiesinthe
+interpretationofpronouns.Journalof
+PsycholinguisticResearch,19:245–264.
+Denis,PascalandJasonBaldridge.2007.A
+rankingapproachtopronounresolution.
+InProceedingsofthe20thInternationalJoint
+354
+Yang,Su,andTan ATwin-CandidateModelforAR
+ConferenceonArtiﬁcialIntelligence(IJCAI),
+pages1588–1593,Hyderabad,India.
+Garnham,Alan,2001.MentalModelsandthe
+InterpretationofAnaphora.Psychology
+PressLtd.,Hove,EastSussex,UK.
+Ge,Niyu,JohnHale,andEugeneCharniak.
+1998.Astatisticalapproachtoanaphora
+resolution.InProceedingsofthe6th
+WorkshoponVeryLargeCorpora,
+pages161–171,Montreal,Quebec,Canada.
+Gernsbacher,MortonA.andDavid
+Hargreaves.1988.Accessingsentence
+participants:Theadvantageofﬁrst
+mention.JournalofMemoryandLanguage,
+27:699–717.
+Grober,EllenH.,WilliamBeardsley,and
+AlfonsoCaramazza.1978.Parallel
+functioninpronounassignment.
+Cognition,6:117–133.
+Grosz,BarbaraJ.,AravindK.Joshi,andScott
+Weinstein.1995.Centering:Aframework
+formodelingthelocalcoherenceof
+discourse.ComputationalLinguistics,
+21(2):203–225.
+Hobbs,Jerry.1978.Resolvingpronoun
+references.Lingua,44:339–352.
+Iida,Ryu,KentaroInui,HiroyaTakamura,
+andYujiMatsumoto.2003.Incorporating
+contextualcuesintrainablemodelsfor
+coreferenceresolution.InProceedingsofthe
+10thConferenceofEACL,Workshop”The
+ComputationalTreatmentofAnaphora,”
+pages23–30,Budapest,Hungary.
+Joachims,Thorsten.2002.Optimizingsearch
+enginesusingclickthroughdata.In
+ProceedingsoftheACMConferenceon
+KnowledgeDiscoveryandDataMining
+(KDD),pages133–142,Edmonton,
+Alberta,Canada.
+Jurafsky,DanielandJamesH.Martin.
+2000.SpeechandLanguageProcessing:
+AnIntroductiontoNaturalLanguage
+Processing,ComputationalLinguistics,
+andSpeechRecognition.PrenticeHall,
+UpperSaddleRiver,NewJersey.
+Kehler,Andrew.1997.Probabilistic
+coreferenceininformationextraction.
+InProceedingsofthe2ndConferenceon
+EmpiricalMethodsinNaturalLanguage
+Processing(EMNLP),pages163–173,
+Providence,RhodeIsland.
+Kehler,Andrew,DouglasAppelt,
+LaraTaylor,andAleksandrSimma.2004.
+The(non)utilityofpredicate-argument
+frequenciesforpronouninterpretation.
+InProceedingsoftheNorthAmerican
+ChapteroftheAssociationforComputational
+Linguisticsannualmeeting(NAACL),
+pages289–296,Boston,MA.
+Lappin,ShalomandHerbertJ.Leass.1994.
+Analgorithmforpronominalanaphora
+resolution.ComputationalLinguistics,
+20(4):525–561.
+Luo,Xiaoqiang,AbeIttycheriah,Hongyan
+Jing,NandaKambhatla,andSalim
+Roukos.2004.Amention-synchronous
+coreferenceresolutionalgorithm
+basedonthebelltree.InProceedings
+ofthe42ndAnnualMeetingofthe
+AssociationforComputational
+Linguistics(ACL),pages135–142,
+Barcelona,Spain.
+McCarthy,JosephF.andWendyG.Lehnert.
+1995.Usingdecisiontreesforcoreference
+resolution.InProceedingsofthe14th
+InternationalConferenceonArtiﬁcial
+Intelligences(IJCAI),pages1050–1055,
+Montreal,Quebec,Canada.
+McEnery,A.,I.Tanaka,andS.Botley.
+1997.Corpusannotationandreference
+resolution.InProceedingsoftheACL
+WorkshoponOperationalFactorsin
+PracticalRobustAnaphoraResolution
+forUnrestrictedTexts,pages67–74,
+Madrid,Spain.
+Ng,HweeTou,YuZhou,RobertDale,
+andMaryGardiner.2005.Machine
+learningapproachtoidentiﬁcation
+andresolutionofone-anaphora.In
+ProceedingsoftheNineteenthInternational
+JointConferenceonArtiﬁcialIntelligence
+(IJCAI),pages1105–1110,Edinburgh,
+Scotland.
+Ng,Vincent.2005.Machinelearningfor
+coreferenceresolution:Fromlocal
+classiﬁcationtoglobalranking.In
+Proceedingsofthe43rdAnnualMeeting
+oftheAssociationforComputational
+Linguistics(ACL),pages157–164,
+AnnArbor,Michigan.
+Ng,VincentandClaireCardie.2002a.
+Combiningsampleselectionand
+error-drivenpruningformachine
+learningofcoreferencerules.In
+ProceedingsoftheConferenceon
+EmpiricalMethodsinNaturalLanguage
+Processing(EMNLP),pages55–62,
+Philadelphia,PA.
+Ng,VincentandClaireCardie.2002b.
+Improvingmachinelearningapproaches
+tocoreferenceresolution.InProceedingsof
+the40thAnnualMeetingoftheAssociation
+forComputationalLinguistics(ACL),
+pages104–111,Philadelphia,PA.
+Preiss,Judita.2001.Machinelearningfor
+anaphoraresolution.TechnicalReport
+CS-01-10,UniversityofShefﬁeld,
+Shefﬁeld,England.
+355
+ComputationalLinguistics Volume34,Number3
+Quinlan,J.Ross.1993.C4.5:Programsfor
+MachineLearning.MorganKaufmann
+Publishers,SanFrancisco,CA.
+Soon,WeeMeng,HweeTouNg,andDaniel
+ChungYongLim.2001.Amachine
+learningapproachtocoreference
+resolutionofnounphrases.Computational
+Linguistics,27(4):521–544.
+Stevenson,RosemaryJ.,AlexanderW.R.
+Nelson,andKeithStenning.1995.Therole
+ofparallelisminstrategiesofpronoun
+comprehension.LanguageandSpeech,
+29:393–418.
+Strube,MichaelandChristophMueller.
+2003.Amachinelearningapproachto
+pronounresolutioninspokendialogue.
+InProceedingsofthe41stAnnualMeeting
+oftheAssociationforComputational
+Linguistics(ACL),pages168–175,
+Sapporo,Japan.
+Vapnik,VladimirN.1995.TheNatureof
+StatisticalLearningTheory.Springer-Verlag,
+NewYork,NY.
+Vilain,Marc,JohnBurger,JohnAberdeen,
+DennisConnolly,andLynetteHirschman.
+1995.Amodel-theoreticcoreference
+scoringscheme.InProceedingsoftheSixth
+MessageUnderstandingConference(MUC-6),
+pages45–52,SanFrancisco,CA.
+Wilks,Yorick.1973.PreferenceSemantics.
+StanfordAILaboratoryMemoAIM-206.
+StanfordUniversity.
+Winograd,Terry.1972.UnderstandingNatural
+Language.AcademicPress,NewYork.
+Yang,Xiaofeng,JianSu,andChewLimTan.
+2005.Improvingpronounresolutionusing
+statistics-basedsemanticcompatibility
+information.InProceedingsofthe43rd
+AnnualMeetingoftheAssociationfor
+ComputationalLinguistics(ACL),
+pages165–172,AnnArbor,MI.
+Zhou,GuodongandJianSu.2000.
+Error-drivenHMM-basedchunktagger
+withcontext-dependentlexicon.In
+ProceedingsoftheJointConferenceon
+EmpiricalMethodsinNaturalLanguage
+ProcessingandVeryLargeCorpora,
+pages71–79,HongKong.
+Zhou,GuodongandJianSu.2002.Named
+EntityrecognitionusingaHMM-based
+chunktagger.InProceedingsofthe40th
+AnnualMeetingoftheAssociationfor
+ComputationalLinguistics(ACL),
+pages473–480,Philadelphia,PA.
+356
+

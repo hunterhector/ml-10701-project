@@ -1,0 +1,1827 @@
+LabelingChinesePredicateswith
+SemanticRoles
+NianwenXue
+∗
+UniversityofColoradoatBoulder
+InthisarticlewereportworkonChinesesemanticrolelabeling,takingadvantageoftworecently
+completedcorpora,theChinesePropBank,asemanticallyannotatedcorpusofChineseverbs,and
+the Chinese Nombank, a companion corpus that annotates the predicate–argument structure of
+nominalized predicates. Because the semantic role labels are assigned to the constituents in a
+parse tree, we ﬁrst report experiments in which semantic role labels are automatically assigned
+tohand-craftedparsesintheChineseTreebank.Thisgivesusameasureoftheextenttowhichse-
+manticrolelabelscanbebootstrappedfromthesyntacticannotationprovidedinthetreebank.We
+then report experiments using automatic parses with decreasing levels of human annotation in
+theinputtothesyntacticparser:parsesthatusegold-standardsegmentationandPOS-tagging,
+parsesthatuseonlygold-standardsegmentation,andfullyautomaticparses.Theseexperiments
+gaugehowsuccessfulsemanticrolelabelingforChinesecanbeinmorerealisticsituations.Our
+resultsshowthatwhenhand-craftedparsesareused,semanticrolelabelingaccuracyforChinese
+is comparable to what has been reported for the state-of-the-art English semantic role labeling
+systems trained and tested on the English PropBank, even though the Chinese PropBank is
+signiﬁcantly smaller in size. When an automatic parser is used, however, the accuracy of our
+systemissigniﬁcantlylowerthantheEnglishstateoftheart.Thisindicatesthatanimprovement
+inChineseparsingiscriticaltohigh-performancesemanticrolelabelingforChinese.
+1.Introduction
+Semantic role labeling (SRL) is the task of identifying arguments for a predicate and
+assigningsemanticallymeaningfullabelstothem.Asemanticrolerepresentsasemantic
+relation between a predicate and one of its arguments. Typical semantic roles include
+agent,patient,source,goal,andsoforth,thatarecoretoapredicate,aswellaslocation,
+time, manner, cause, and so on, that are peripheral. Such semantic information is im-
+portant in answering who, what, when, where,andwhy questions therefore is crucial to
+natural language processing (NLP) tasks such as question-answering (Narayanan and
+Harabagiu 2004), information extraction (Surdeanu et al. 2005), summarization (Melli
+etal.2005),andmachinetranslation(Boas2002).AnyNLPtaskthatrequiressomeform
+ofsemanticinterpretationcouldpotentiallybeneﬁtfromahighperformancesemantic
+rolelabelingsystem.
+Foranautomaticsystem,asemanticrolelabelingtaskinvolveslocatingthelinguis-
+tic units, typically words or phrases, in natural language text that serve as arguments
+∗ 1777ExpositionDrive,Boulder,CO80309.E-mail:Nianwen.Xue@colorado.edu.
+Submissionreceived:15July2006;revisedsubmissionreceived:4May2007;acceptedforpublication:
+19June2007.
+©2008AssociationforComputationalLinguistics
+ComputationalLinguistics Volume34,Number2
+toapredicateandassigningsemanticrolelabelstothembasedonthecontextinwhich
+theyoccur.SincetheseminalworkofGildeaandJurafsky(2002),statisticalandmachine
+learning approaches have been the predominant research paradigm in semantic role
+labeling, like most of the subﬁelds in natural language processing and computational
+linguistics. A prerequisite for statistical and machine learning approaches to semantic
+role labeling is the availability of a signiﬁcant amount of semantically interpreted
+corporafromwhichautomaticsystemscanlearn.Therecentactivitiesinsemanticrole
+labeling (Carreras and M`arquez 2004b, 2005; Litkowski 2004) have in large part been
+driven by the availability of semantically annotated corpora such as the FrameNet
+(Baker, Fillmore, and Lowe 1998), Proposition Bank (Palmer, Gildea, and Kingsbury
+2005),andNombank(Meyersetal.2004)projectsforEnglish;thetectogrammaticallayer
+annotation of the Prague Dependency Treebank (Sgall, Panevov´a, and Hajiˇcov´a 2004)
+forCzech;andtheSalsaProjectforGerman(Burchardtetal.2006).Thesesemantically
+annotatedcorporanotonlyprovidethetrainingandtestmaterialforthedevelopment
+ofmachinelearningsystems,butalsoeffectivelydeﬁnesemanticrolelabelingasatask.
+PropBank and FrameNet have been the two most widely used corpora in de-
+veloping automatic semantic role labeling systems. Although both corpora provide
+predicate–argument structure annotation, they use very different semantic role labels,
+especially for the core arguments of each predicate. In FrameNet, the semantic roles
+of a predicate (called a Lexical Unit (LU)) are organized by semantic frames, which
+are conceptual structures that describe a particular situation or event along with their
+participants,whicharecalledframeelements(FEs).AllLUsinthesamesemanticframe
+share one set of semantic roles. For example, the verbs buy and sell both belong to the
+semantic frame Commercial_transaction, which involves a Buyer and Seller exchanging
+MoneyandGoods.InadditiontothesefourcoreFEs,therearealsothreeNon-CoreFEs:
+Means,themannerinwhichthetransactiontakesplace;Rate,thepriceofpaymentper
+unitofGoods;andUnit,theunitofmeasurefortheGoods.Semanticrolelabelingbased
+on FrameNet annotation attempts to identify the syntactic constituents in a sentence
+andassignFEstothem(1a).Noticethatforanygivensentence,notallFEshavetobe
+realizedandtheydonothavetoberealizedinthesamesyntacticposition.
+(1) a. FrameNet
+[Buyer We] always [LU bought] [Goods a few dark-red carnations] [Seller
+fromher]
+During the later part of the nineteenth century, [Seller the landowners] [LU
+sold][Goodstheland][Buyertodevelopers]inverysmalllots.
+b. PropBank
+[Arg0 We] always [Rel bought] [Arg1 a few dark-red carnations] [Arg2 from
+her]
+During the later part of the nineteenth century, [Arg0 the landowners] [Rel
+sold][Arg1theland][Arg2todevelopers]inverysmalllots.
+LikeFrameNet,PropBankalsoassignssemanticrolelabelstosyntacticconstituents
+(rather than to the heads in a dependency structure) in a sentence. Unlike FrameNet,
+there is no reference ontology like the semantic frame that provides a general set of
+semantic roles. Instead, for the core arguments, the PropBank uses a set of predicate-
+speciﬁc semantic role labels represented by an integer preﬁxed by Arg: Arg0 through
+Arg5. Predicates vary on the number of core arguments they take, but generally the
+totalnumberofcoreargumentsdoesnotexceedsix.Thesecoreargumentsaredeﬁned
+in frame ﬁles, with one frame ﬁle for each predicate. Within a frame ﬁle, the core
+226
+Xue SemanticRoleLabelingofChinesePredicates
+argumentsareorganizedbyframesets,whicharethemajorsensesofapredicate.Anew
+framesetispostulatedonlywhenittakesadifferentsetofcoreargumentsfromexisting
+framesets.Inadditiontothecorearguments,thereisalsoaﬁnitesetofrolesreservedfor
+adjunct-likearguments.Eachadjunct-likeargumentisrepresentedasArgM,indicating
+that it is a modiﬁer argument, followed by a secondary tag indicating the type of
+modiﬁer. Secondary tags are for semantic information such as location, manner, and
+time that are not speciﬁc to a particular verb or even a particular class of verbs and
+they are deﬁned based on a general set of guidelines. There is thus a dichotomy in
+the representation of the semantic roles for the core and peripheral arguments in the
+PropBankannotation.
+The predicate-speciﬁc nature of the PropBank semantic roles is clear when com-
+paredwiththeFrameNetFE.In(1b),forexample,thesellerisalwayslabeledSellerand
+the buyer is always labeled Buyer in the FrameNet annotation whether the predicate
+is buy or sell. In contrast, in the PropBank annotation, the buyer is Arg0 when the
+predicateisbuyandArg2whenthepredicateissell.Conversely,thesellerisArg0when
+the predicate is sell and Arg2 when the predicate is buy. While FrameNet annotates
+the semantic roles of both verbal and nominal predicates, the annotation of PropBank
+is limited to verbs, with the nominal predicates annotated in a separate but related
+project, the Nombank Project (Meyers et al. 2004). The NomBank Project adopted the
+same predicate-speciﬁc approach in representing the core arguments of a predicate as
+PropBank,withspecialtreatmentfornoun-speciﬁcphenomenasuchassupportverbs.
+There is considerable work on English semantic role labeling with both anno-
+tation conventions. Gildea and Jurafsky (2002) did their seminal work using data
+from FrameNet. The Senseval-3 international competition on semantic role labeling
+(Litkowski 2004) also used the FrameNet annotation. There is an even larger body of
+work using PropBank because it has a larger amount of annotated data on a well-
+established data set, the Penn Treebank (Marcus, Santorini, and Marcinkiewicz 1993).
+Using the standard training and test sets in the Penn Treebank, there has been a
+rapidimprovementinperformanceduetotheuseofmoreadvancedmachine-learning
+techniquesandmoreinformativelinguisticfeatures.Theperformanceusingautomatic
+parsesonSection23ofthePennTreebankhasapproached0.81F-score(Pradhan,Ward
+et al. 2005). There have also been two consecutive CoNLL competitions (Carreras and
+M`arquez2004b,2005)onsemanticrolelabelingusingthePropBankdata.
+Research on Chinese semantic role labeling is still in its infancy. Work on Chinese
+semantic role labeling has been scant and sporadic, mostly due to the lack of a pub-
+licly available semantically annotated corpus of signiﬁcant size. Although most of the
+machine-learning techniques used in English semantic role labeling are readily trans-
+ferabletoChinese,suchtechnologicaltransferisonlypossiblewithsimilarlyannotated
+data. To our knowledge, there are only two such data sets, which all used a small
+corpusthattheauthorscreatedontheirown.SunandJurafsky(2004)didpreliminary
+work on Chinese semantic role labeling on 10 selected verbs using Support Vector
+Machinesandreportedpromisingearlyresults.
+1
+NotingthatChinesesyntacticparsing
+is an especially challenging task, Kwong and T’sou (2005) reformulated semantic role
+labeling as a task of detecting and classifying the heads of arguments to avoid the
+hard problem of getting the correct text spans for the arguments. In this article, we
+1 TheyrestatedtheirresultsinChen,Sun,andJurafsky(2005)duetoanerrorinretrainingtheCollins
+parser(Collins1999)onChinese,whichledtoinﬂatedChinesesyntacticparsingandtherefore
+semanticrolelabelingresults.
+227
+ComputationalLinguistics Volume34,Number2
+reportworkonthesemanticrolelabelingofChinesepredicatesforbothverbsandtheir
+nominalizations, exploiting two recently completed corpora, the Chinese PropBank
+(Xue and Palmer 2003), a corpus that annotates the predicate–argument structure of
+verbs,andtheChineseNomBank(Xue2006a),acompanioncorpusthatannotatesthe
+predicate-argument structure of nominalized predicates in Chinese. Both corpora are
+builtontopoftheChineseTreebank(Xueetal.2005),inthesensethatthesemanticrole
+labelsareassignedtoconstituentsintheparsetree.
+The Chinese PropBank and Nombank adopted the English PropBank predicate-
+speciﬁc approach in representing the semantic roles of the core arguments. In the
+absence of a Chinese linguistic ontology like the semantic frames developed for the
+EnglishFrameNetProject,usingthePropBank-styleofsemanticrolesallowsfasterde-
+velopment.Thepredicate-speciﬁc approach ofthePropBank annotationbuildsasolid
+foundation for making high-level generalizations in a bottom-upmanner, if broader
+generalizations are needed. The Chinese PropBank focuses on the context-sensitive
+component of the semantic role annotation, using frame ﬁles to guide its annotation.
+The semantic roles deﬁned in the frame ﬁles are for expected arguments, that is, all
+possible arguments for each frameset of a predicate. In a particular sentence, an ex-
+pected argument may not always be realized, and when it is, it may not always be
+realizedinthesamesyntacticpositionasaresultofsyntacticalternations(Levin1993)
+orothersyntacticprocesses.Inaddition,differentframesetsofaverbtakedifferentsets
+of arguments that demonstrate different syntactic patterns. Thus, predicate–argument
+structure analysis at the PropBank annotation level represents a crucial leap towards
+proper representation of semantic structure from the syntactic structure. Should the
+needformoregeneralsemanticrolesarise,thesepredicate-speciﬁcsemanticrolescanbe
+mapped(Yi,Loper,andPalmer2007)toFrameNet-styleorevenVerbNet-style(Kipper
+etal.2006)labels.
+UsingthesemanticannotationoftheChinesePropBankandNomBankastraining
+and test material, we were able for the ﬁrst time to developa Chinese semantic role
+labeling system that is trained and tested on semantically annotated Chinese corpora
+ofsigniﬁcantsizes.Usingparsesproduced withdifferentlevelsofautomation (afully
+automatic parser, a parser with correct segmentation, a parser with both correct seg-
+mentationandPOS-tagging,andtreebankgold-standardparses),wewereabletoquan-
+tify the impact of different Chinese language processing components on the semantic
+analysis of Chinese predicates. Using a Maximum Entropy–based (McCallum 2002)
+machinelearningsystem,ourexperimentalresultsshowthatjustbyusingthefeatures
+reported in the English semantic role labeling literature, our baseline system achieved
+a very high accuracy on Chinese verbs when the gold-standard treebank parses are
+used. This suggests that these features port very well between English and Chinese.
+Thereisagradualdegradationinsemanticrolelabelingperformancewithadecreasing
+level of human annotation (from gold-standard treebank parses to fully automatic
+parses). We were able to achieve a modest improvement with additional features tai-
+lored to the Chinese language, bringing the overall accuracy to F1-scores of 0.92 and
+0.67, respectively, when using treebank and fully automatic parses. We were able to
+achieve a larger improvement on the semantic role labeling of nominalized predicates
+by using noun-speciﬁc features (F-scores of 0.70 and 0.57, respectively, for treebank
+and fully automatic parses), but our results still show that the semantic role labeling
+of nominalized predicates is a much more challenging task than that of verbs. This is
+partly due to the smaller training set for nominalized predicates, with the number of
+nominalized predicates being less than one third of the number of verb instances in
+the same corpus. More importantly, the arguments of nominalized predicates have a
+228
+Xue SemanticRoleLabelingofChinesePredicates
+muchmoreunevendistribution:Argumentsofanominalizedpredicatecanoccureither
+inside the NP headed by the predicate or outside when a support verb is present (see
+Section2forexamples).Thismakesitparticularlychallengingtodeterminewhethera
+constituent in the parse tree is an argument or not. This observation is supported by
+thelargemargininperformancebetweenthesemanticrolelabelingresultsweachieved
+whentheconstituentsareknownandunknown.
+Thisarticleisstructuredasfollows.InSection2,wediscussthesemanticannotation
+oftheChinesePropBankandNomBankingreaterdetail.InSection3,wedescribethe
+generalarchitectureofoursystem,focusingonsharedcomponentsforbothverbsand
+their nominalizations. In Sections 4 and 5 we present our experiments on verbs and
+nouns,respectively.Section6discussesrelatedworkandSection7concludesthisarticle
+anddiscussesfuturework.
+2.TheChinesePropBankandNomBank
+TheChinesePropBankandtheChineseNomBankadoptthedescriptiveframeworkof
+theEnglishPropositionBankinwhichsemanticargumentsandadjunctsaretreateddif-
+ferently.Thesemanticargumentsofapredicatearelabeledwithacontiguoussequence
+ofintegers,intheformofArgN,whereNisanintegerbetween0and5.Theselabelscan
+onlybeinterpretedinthecontextofaspeciﬁcpredicate.Inotherwords,theseargument
+labels are not meaningful without knowing what the predicate is. In fact, as we will
+showlaterinthissection,thesenumberedlabelsaremeaningfulonlywithinaparticular
+sense of a predicate. In general, like English, a Chinese predicate takes fewer than 6
+arguments.TheassignmentofnumberedargumentlabelsisillustratedinExample(2),
+where the predicate is the verb_d_6329_d_3463 (”investigate”). Its subject_d_6234_d_3250 (”the police”) is
+labeled Arg0 and its object _d_1024_d_3209 (”accident”) _d_1553_d_1919(”cause”) Arg1. The semantic role
+labelsaddedtotheparsetreeareinbold.
+(2)
+IP
+Arg0 VP
+NP-SBJ ArgM-TMP ArgM-MNR VP
+_d_6234_d_3250
+police
+ADVP-TMP ADVP-MNR Rel Arg1
+_d_3681_d_1943
+now
+_d_6301_d_5175
+thoroughly
+VV NP-OBJ
+_d_6329_d_3463
+investigate
+NN NN
+_d_1024_d_3209
+accident
+_d_1553_d_1919
+cause
+”Thepolicearethoroughlyinvestigatingthecauseoftheaccident.”
+The semantic adjuncts, on the other hand, are annotated as such with the label
+ArgM followed by a secondary tag that represents the semantic classiﬁcation of the
+adjunct.Unlikethenumberedargumentlabelsforsemanticarguments,thesecondary
+229
+ComputationalLinguistics Volume34,Number2
+tags represent information that is not predicate-speciﬁc. For instance, the adverbial
+modiﬁers_d_3681_d_1943 (”rightnow”)and_d_6301_d_5175 (”thorough”)inExample(2)arelabeledArgM-
+TMP and ArgM-MNR respectively,wherethesecondarytag TMP indicatesatemporal
+modiﬁer and MNR indicates manner. The secondary tags are not predicate-speciﬁc in
+thesensethattheyarenotrequiredbythisparticularpredicateandtheyarenotselective
+withregardtothepredicatetheycanoccurwith.Thereisalimitedsetofsuchsecondary
+tagsthatareusedintheChinesePropBankandtheChineseNomBankandthecomplete
+listofsuchsecondarytagsispresentedinTable1.
+ThesameapproachistakentoannotatethenominalizedpredicatesintheChinese
+NomBank.ThisisillustratedinExample(3),acloseparaphraseofExample(2),where
+thenominalizedpredicate_d_6329_d_3463(”investigation”)takesthesameargumentsasitsverbal
+counterpart. _d_6234_d_3250 (”the police”) is again Arg0 and _d_2344 (”toward”) _d_1024_d_3209 (”accident”)
+_d_1553_d_1919(”cause”), despite its categorial change from a noun phrase to a prepositional
+phrase,remains Arg1.Therearealsotwosemanticadjuncts: ArgM-TMP_d_3681_d_1943 (”now”)
+and ArgM-MNR_d_6301_d_5175 (”thorough”).Itisworthnoting,however,thatinthisparticular
+case, the nominalized predicate needs a support verb _d_6662_d_6110 (”conduct”) to satisfy the
+grammaticalconstraintthattherebeaverbinthesentence,anditisexplicitlymarked
+asSup.Inaddition,despitethecategorialchangeof_d_6301_d_5175 fromadverbtoadjective,the
+semanticrolelabelremainsunchanged.Inthissense,thesemanticannotationabstracts
+awayfromtheunderlyingsyntacticannotation.
+(3)
+IP
+Arg0 VP
+NP-SBJArgM-TMP Arg1 VP
+_d_6234_d_3250
+police
+ADVP-TMP PP Sup NP-OBJ
+_d_3681_d_1943
+now
+P NP VV ArgM-MNR Rel
+_d_2344
+toward
+NN NN _d_6662_d_6110
+conduct
+ADJP NN
+_d_1024_d_3209
+accident
+_d_1553_d_1919
+cause
+_d_6301_d_5175
+thorough
+_d_6329_d_3463
+investigation
+”Thepoliceareconductingathoroughinvestigationofthecauseoftheaccident.”
+Table1
+ThecompletelistoffunctionaltagsdeﬁnedintheChinesePropbankandNomBank.
+ADV adverbial FRQ frequency
+BNF beneﬁciary LOC locative
+CND condition MNR manner
+DIR direction PRP purposeorreason
+DIS discoursemarker TMP temporal
+DGR degree TPC topic
+EXT extent
+230
+Xue SemanticRoleLabelingofChinesePredicates
+Notalloccurrencesofanominalizedpredicateneedtobeaccompaniedbyasupport
+verb. In fact, it is often the case that all arguments of a nominalized predicate occur
+in a noun phrase headed by the nominalized predicate. For example, in Example (4),
+bothArg0_d_6234_d_3250 (”police”)andArg1_d_2344 (”toward”)_d_1024_d_3209 (”accident”)_d_1553_d_1919 (”cause”)are
+syntacticmodiﬁersofthenominalizedpredicate_d_6329_d_3463 (”investigation”).
+(4)
+IP
+NP-SBJ VP
+Arg0 DNP NP ADVP VP
+NP Arg1 DEG Rel _d_2496_d_5184
+already
+_d_5188_d_3401
+end
+_d_6234_d_3250
+police
+PP _d_4615
+DE
+NN
+P NP _d_6329_d_3463
+investigation
+_d_2344
+toward
+NN NN
+_d_1024_d_3209
+accident
+_d_1553_d_1919
+cause
+”Thepoliceinvestigationofthecauseoftheaccidenthasended.”
+ThePropBank-styleannotationisdesignedtoaccountforsyntacticvariations,that
+is, the different ways in which the same predicate–argument structure is realized. In
+Examples(2)and(3),wehavealreadyseenwhereessentiallythesamepredicateisreal-
+izedasaverboranoun,anditsargumentsarerealizedasdifferentsyntacticcategories
+in different syntactic positions. Syntactic variations occur even without the categorial
+change of the predicate. Levin (1993) demonstrates extensively how the argument
+structure of English verbs can be realized differently through diathesis alternations.
+SimilaralternationscanalsobeobservedinChinese,andExample(5)showsthis:
+(5) a. [Arg1_d_980
+China
+_d_5308
+theU.S.
+_d_1041_d_2649
+contact
+_d_4615
+DE
+_d_2101_d_7104
+door
+][rel_d_2919_d_2597
+open
+]_d_1021
+ASP
+_d_714
+.
+”ThedoorofcontactbetweenChinaandtheU.S.hasopened.”
+b. [ArgM-TMP_d_432_d_425_d_2543_d_1082
+70s
+_d_1399
+beginning
+]_d_421,
+[Arg0_d_980
+China
+_d_5308
+theU.S.
+_d_973
+two
+_d_1931
+country
+_d_7316_d_2347_d_1054
+leader
+][ArgM-ADV_d_3428_d_3247
+decisively
+][rel _d_2919_d_2597
+open
+]_d_1021
+ASP
+[Arg1_d_980
+China
+_d_5308
+theU.S.
+_d_1041_d_2649
+contact
+_d_4615
+DE
+_d_2101_d_7104
+door
+]_d_714
+.
+”In the beginning of the 1970s, the leaders of China and the U.S. decisively
+openedthedoorofcontactbetweenChinaandtheU.S.”
+Notethateventhough_d_980 (”China”)_d_5308 (”theU.S.”)_d_1041_d_2649 (”contact”)_d_4615 (”DE”)_d_2101
+_d_7104 (”door”)occursindifferentsyntacticpositionsin(5a)and(5b),itislabeled Arg1 in
+bothcases.Thesemanticrolelabelanargumentreceivesisindependentofitssyntactic
+231
+ComputationalLinguistics Volume34,Number2
+realizations.Thesemanticrolesorexpectedargumentscanberealizedsyntacticallyin
+different ways. It should also be pointed out that the line drawn between arguments
+and adjuncts here is not based on the obligatory/optional dichotomy. In some cases,
+someconstituentsareclearlyargumentsbuttheyarealsoclearlyoptional.Forexample,
+intheunaccusative(orpseudo-passive)construction,theagentisclearlyoptionalsyn-
+tacticallyanditisequallyclearthatitisanargument.InExample(5a),forexample,the
+”door-opener”isoptionalbutisclearlyanargument.
+The Chinese PropBank also adds a coarse-grained sense tag to the predicate. The
+senses of a predicate are motivated by the argument structure of this predicate and
+arethusanintegralpartofthepredicate–argumentstructureannotation.Sensedisam-
+biguationisperformedonlywhendifferentsensesofapredicaterequiredifferentsetsof
+arguments.Forexample,the”evolve”senseoftheverb”_d_1572_d_2390”expectsﬁvearguments:
+Thecauseoftheevolution,whichisoftennotrealized,theentityevolving,thestarting
+point of the evolution, the end point of the evolution, and the range of the evolution.
+When it means ”recruit,” two arguments are expected: the recruiter and the entity
+recruited. Because each of these senses can be realized in different subcategorization
+frames related through syntactic alternations, in the PropBank annotation convention,
+these senses are formally called framesets, meaning sets of subcategorization frames
+that realize a particular sense. The examples in (6) illustrate two of the framesets
+of”_d_1572_d_2390”.
+(6) Frameset1:”evolve”
+Semanticroles:
+Arg0:causeofevolution
+Arg1:entityevolving
+Arg2:evolvingfrom
+Arg3:evolvingto
+Arg4:rangeofevolution
+a. [Arg1_d_1190_d_5290_d_3248
+Russia
+_d_1931_d_1324
+domestic
+_d_2344
+for
+_d_2487_d_967_d_1715
+industrialproduct
+_d_7239_d_3768
+demand
+][Arg3_d_1617
+in
+_d_980_d_7473_d_3519
+mid-andupperscale
+_d_3250_d_1617
+direction
+][Rel_d_1572_d_2390
+develop
+]_d_714
+.
+”Russia’sdomesticdemandforindustrialproductsisevolvinginthedirection
+ofmid-andupperscaleproducts.”
+Frameset2:”recruit”
+Arg0:recruiter
+Arg1:entityrecruited
+b. [Arg0_d_444_d_446_d_444
+CEC
+][ArgM-TMP_d_4649_d_1423
+presently
+][ArgM-LOC_d_1943
+in
+_d_964_d_4490
+theworld
+_d_948_d_4613_d_1307_d_1502
+160
+_d_977
+CL
+_d_1931_d_2319
+country
+_d_1684
+and
+_d_1950_d_1498
+region
+][Rel_d_1572_d_2390
+recruited
+]_d_1021
+ASP
+[Arg1_d_1305_d_1503_d_2096_d_951
+morethaneightthousand
+_d_977
+CL
+_d_4470_d_2903
+subscriber
+]_d_714
+.
+”CECpresentlyhaverecruitedovereightthousandsubscribersfrom160coun-
+triesandregionsintheworld.”
+The Chinese NomBank uses the same framesets as deﬁned for verbs because its
+annotation is guided by the same frame ﬁles. However, typically only a subset of the
+framesetsforverbshavecorrespondingnominalizedforms.Forexample,Frameset1in
+232
+Xue SemanticRoleLabelingofChinesePredicates
+Example (6) has a corresponding nominalized form as illustrated in Example (7), but
+Frameset2doesnot.
+(7) _d_3919_d_2437
+TaiwanStraits
+_d_973
+two
+_d_2429
+side
+_d_1066_d_1614
+fromnowon
+_d_1592
+can
+_d_1310_d_1612
+together
+_d_6200_d_1392
+plan
+[Arg1_d_973_d_2429
+cross-Strait
+_d_1311_d_5124
+relations
+]_d_4615
+DE
+[Rel_d_1572_d_2390
+development
+]_d_714
+.
+”ThetwosidesoftheTaiwanStraitscanplanthedevelopmentofthecross-Strait
+relationshereafter.”
+3.SystemOverview
+Assuming the availability of a parse tree (either hand-crafted parses in a treebank or
+parses generated by an automatic parser) as input, to assign the semantic role labels
+describedinSection2automaticallyinvolvesﬁrstofallidentifyingwhichconstituents
+intheparsetreearesemanticargumentstothepredicateinquestionandthenassigning
+appropriate semantic role labels to them. The predominant approach to the semantic
+role labeling task is to formulate it as a classiﬁcation problem (Pradhan, Ward et al.2004;XueandPalmer2004)thatcanbesolvedwithmachine-learningtechniques.One
+can imagine a classiﬁcation task in which each constituent in the parse tree is labeled
+either with one of the numbered argument labels (Arg0 through Arg5), or with one
+of the semantic adjunct labels ArgM-TMP, ArgM-MNR,andsoon,orwiththeNULL
+label, indicating the constituent is neither an argument nor adjunct to the predicate.
+Thissimpleformulationoftheclassiﬁcationproblemisrarelypracticedinthesemantic
+role labeling literature for the simple reason that the majority of the constituents in a
+parse tree are generally not related to the predicate in question. For machine-learning
+approaches, thismeansthatthenegative samples, constituents thatarelabeled NULL,
+would far outweigh the positive samples, constituents that are actual semantic argu-
+ments or adjuncts. Such an imbalance would lead to poor performance for machine-
+learning systems, so in practice, most semantic role labeling systems work in stages,
+whichminimallyconsistofanargumentdetectionstageandanargumentclassiﬁcation
+stage. Argument detection is generally formulated as a binary classiﬁcation task that
+separatesconstituentsthatareargumentsoradjunctstoapredicatefromthosethatare
+not related to the predicate in question. By lumping together argument and adjunct
+labels,thepositiveandnegativesampleimbalanceisalleviatedsomewhat.Inaddition,
+it has been shown that argument detection and argument classiﬁcation need different
+setsoffeatures(XueandPalmer2004).Asystemcannottakeadvantageofthisifboth
+are done in one fell swoop. With a powerful machine-learning algorithm, argument
+detection can be done with high accuracy (Hacioglu et al. 2004; Pradhan, Ward et al.2004),providedthattheappropriatefeaturesareused.
+The positive and negative sample imbalance can only be partially addressed by
+havingaseparateargumentdetectionstage.Evenwithabinaryclassiﬁcationtask,the
+number of negative samples is still overwhelmingly larger than the positive samples.
+Inaddition,itdoesnottakeadvantageofthefactthattheargumentsandadjunctsofa
+predicate,verbalornominalized,arerelatedtothepredicateitselfinlinguisticallywell-
+understoodstructuralconﬁgurations.Theoverwhelmingmajorityoftheargumentsand
+adjuncts are populated along the spine of the parse tree that the predicate projects. A
+substantial number of the constituents can be eliminated from further consideration
+as negative samples with a high degree of certainty. (See Sections 4.1 and 5.1 for an
+233
+ComputationalLinguistics Volume34,Number2
+evaluation ofhoweffectivelythepruning algorithm works forverbsand nouns.)This
+wasprovedtobeasuccessfulstrategybyXueandPalmer(2004)forthesemanticrole
+labelingofEnglishverbs;theyuseaheuristicalgorithmtoﬁrstpruneoutirrelevantcon-
+stituentsbeforetheremainingcandidatesarefedintoanargumentdetectionalgorithm.
+This strategy has also been effectively adopted by others (Cohn and Blunsom 2005;
+Punyakanok,Roth,andYih2005)andisusedhere.Aswewillshowinlatersections,the
+pruningalgorithmneedstobeslightlydifferentforverbalandnominalpredicatesand
+theydonotworkequallywellforallexperimentalconditions.Generally,theefﬁcacyof
+thepruning algorithm correlates withthequalityofsyntactic parsesthatthesemantic
+rolelabelingsystemtakesasinput.Thatis,itworksmuchbetterwithtreebankparses
+thanwithautomaticparses.Italsoworksmoreeffectivelyforverbsthanfornouns,the
+argumentsofwhichhaveamorediversedistribution.
+Argumentclassiﬁcation,whichclassiﬁestheconstituentsintoacategorythatcorre-
+spondstooneofthesemanticrolelabels,isanaturalmulti-categoryclassiﬁcationprob-
+lem.Ithasbeengenerallyshownintheliterature(Pradhanetal.2003)thatitisagood
+idea to bias the argument detection stage toward high recall so that reasonably good
+candidatescanbepassedalongtotheargumentclassiﬁcationstage,andthismeansthe
+tag set for argument classiﬁcation also includes the NULL label. Many classiﬁcation
+techniques—SVM (Pradhan, Ward et al. 2004), perceptrons (Carreras and M`arquez
+2004a),MaximumEntropy(XueandPalmer2004),andsoforth—havebeensuccessfully
+usedtosolvethesemanticrolelabelingproblem.Intheworkwereporthere,forboth
+argumentdetectionandclassiﬁcationtasks,weusedaMaximumEntropyclassiﬁerwith
+atunableGaussianpriorintheMalletToolkit(McCallum2002).TheMaximumEntropy
+classiﬁer does multi-category classiﬁcation and thus can be straightforwardly applied
+totheproblemhere.Theclassiﬁercanbetunedtominimizeoverﬁttingbyadjustingthe
+Gaussianprior.
+In summary, in our system, the semantic role labeling is done in three stages, as
+illustratedinFigure1:pruning,argumentdetection,andargumentclassiﬁcation.
+4.SemanticRoleLabelingofVerbs
+InthissectionwereportourexperimentsonthesemanticrolelabelingofChineseverbs,
+using the Chinese PropBank as training and test material. There are two variables in
+our experimental settings. The ﬁrst variable is the level of human annotation in the
+syntacticparsesthatserveasinputtooursemanticrolelabelingsystem.Weusedparses
+that are fully automatic, parses that assume correct segmentation, parses that assume
+correct segmentation as well as POS-tagging, and hand-crafted treebank parses. The
+second experimental variable is whether it is known which constituents in the parse
+Figure1
+Systemarchitecture.
+234
+Xue SemanticRoleLabelingofChinesePredicates
+treearearguments.Iftheconstituentsareknown,thesemanticrolelabelingreducesto
+a pure classiﬁcation problem where each class is one of the semantic role labels. The
+semantic role labeling system only needs to determine what the correct semantic role
+should be. If it is unknown which constituents are arguments or adjuncts and which
+ones are irrelevant to the predicate in question, the system then needs to ﬁrst ﬁgure
+out which constituents, out of all the constituents in the parse tree, are arguments to
+the predicate and then decide what the correct semantic role labels should be. We did
+notexperimentwithallcombinationsofthesetwovariablesandtheknownconstituent
+experimentisonlydonefortreebankparses.
+In this section, we start by describing our pruning procedure for verbs in Section
+4.1.WethenpresentthefeaturesforourexperimentsonverbsinSection4.2.InSection
+4.3 we brieﬂy describe the parsers we used for our experiments and we discuss our
+experimentalresultsinSection4.4.
+4.1PruningforVerbs
+Section 3 demonstrated the need for and the feasibility of using a heuristic algorithm
+toaddresstheimbalanceofpositiveandnegativesamplesandinthissectionweshow
+howthisalgorithmisimplementedforverbalpredicates.Thealgorithmstartsfromthe
+predicate that anchors the annotation, and ﬁrst collects all the syntactic complements
+of this predicate, which are represented as sisters to the predicate. It then iteratively
+movesoneleveluptotheparentofthecurrentnodetillitreachestherootofthetree.
+Ateachlevel,thesystemtriestodeterminewhetherornotthatlevelisacoordination
+structure. The system only considers a constituent to be a potential candidate if it is a
+modiﬁer or a complement to the current node. In the case of a coordination structure,
+the conjunct that the predicate does not occur in and all its children are eliminated as
+possible arguments to the predicate in question. Punctuation marks at all levels are
+ignored.Itisworthpointingoutthatthefunctionaltagsandtraces,whichwouldhave
+beenusefulforthispurpose,arenotusedtodeterminethecandidatestoallowforafair
+comparison between experiments on hand-crafted parses and parses generated by an
+automaticparser.Typically,currentparsersdonotpredictfunctionaltagsandtraces.
+2
+To
+useExample(8)asawalk-throughexample,assumingthepredicateweareinterested
+in is_d_6329_d_3463 (”investigate”), the algorithm starts from this predicate and adds the NP_d_1024
+_d_3209 (”accident”)_d_1553_d_1919(”cause”) to the candidate list because it is a complement to the
+predicate. Then it goes one level up to the VP and adds its two sisters, the ADVPs,_d_3681
+_d_1943 (”rightnow”)and_d_6301_d_5175 (”carefully”)tothecandidatelistbecausetheyaremodiﬁers.
+Then the algorithm goes another level upto another VP, and determines that the two
+VPs at this level are conjoined by the punctuation mark, and no candidate is added
+at this level because it is a coordination structure. The algorithm then goes upto the
+highestVPlevel,andaddsitssister,theNP_d_6234_d_3250 (”police”)tothelistofcandidates.The
+algorithmterminatesatthehighestIP
+3
+level.Thecandidatescollectedbythisalgorithm
+areincircles.Thenodestraversedarelinkedbydottedlines.
+Itisperhapsnotsurprisingthatthepruningalgorithmworksbetterwithtreebank
+parses than with automatic parses. When the treebank parses are used, our pruning
+2 Therearesomeongoingeffortstodevelopparsersthatproducefunctionaltagsandtraces(Gabbard,
+Kulick,andMarcus2006).
+3 IPintheChineseTreebankroughlycorrespondstoSinthePennTreebank.
+235
+ComputationalLinguistics Volume34,Number2
+algorithm can recall over 99% (8,052 out of 8,121 arguments in the test data) of the
+argumentswhilepruningoutover93%(258,959outof276,734)nodesintheparsetrees.
+Whenautomaticparses(Maxentsegmentation+Bikelparser)areusedasinputtoour
+semantic role labeling system, out of 87% of the arguments that have a corresponding
+constituent in the parse tree, our pruning algorithm can recall 74% of the arguments
+while pruning out over 92% (247,530 out of 267,381) of the nodes in the parses. Our
+experiments show that even when the automatic parses are used, the results are far
+better when the pruning algorithm is used than when it is not used. If the pruning
+algorithmisnotused,therecallimprovessomewhat,buttheprecisionplummets.The
+less-than-expecteddropinrecallwhenthepruningalgorithmisusedisperhapsdueto
+the fact that the arguments that are pruned out also happen to be the hardest for the
+semanticrolelabelingsystemtogetright.
+(8)
+IP
+NP VP
+_d_6234_d_3250
+police
+VP PU VP
+ADVP VP _d_421 ADVP ADVP VP
+_d_2496
+already
+VV NP _d_3681_d_1943
+now
+_d_6301_d_5175
+thoroughly
+VV NP
+_d_1407
+arrive
+_d_4373_d_1953
+scene
+_d_6329_d_3463
+investigate
+NN NN
+_d_1024_d_3209
+accident
+_d_1553_d_1919
+cause
+”Thepolicehavearrivedatthesceneandarethoroughlyinvestigatingthecause
+oftheaccident.”
+4.2Features
+One characteristic of feature-based semantic role modeling is that the feature space is
+generallylarge.Thisisincontrastwithalow-levelNLPtasksuchasPOStagging,which
+generally has a small feature space. A wide range of features have been shown to be
+usefulinpreviousworkonsemanticrolelabeling(GildeaandJurafsky2002;Pradhan,
+Wardetal.2004;XueandPalmer2004)andwesuspectthatmanymorewillbetested
+before the ﬁeld will settle down to a core set of features. In their preliminary work on
+Chinese semantic role labeling, Sun and Jurafsky (2004) successfully ported a number
+of the features used in Gildea and Jurafsky (2002) to Chinese. In our experiments we
+adapted more features that have been described in recent work on English semantic
+role labeling to Chinese. We used a combination of features from Gildea and Jurafsky
+(G&J) (2002), Pradhan, Ward et al. (P et al.) (2004), and Xue and Palmer (X&P) (2004),
+andtheseareusedasbaselinefeatures.Inaddition,weproposedasetofnewfeatures
+thatusedverbclassinformationinducedfromtheframeﬁlesoftheChinesePropBank,
+as well as features that were designed to exploit the grammatical constructions that
+236
+Xue SemanticRoleLabelingofChinesePredicates
+are unique to Chinese, speciﬁcally the BA (Bender 2000) and BEI (Huang 1999) con-
+structions.Webrieﬂydiscussthesefeaturesandwherenecessaryexplainatanintuitive
+level why they are useful for semantic role labeling. It has been well-established in
+thesemanticrolelabelingliteraturethatfeaturesarenotequallyeffectiveforargument
+detectionandargumentclassiﬁcation(XueandPalmer2004).Ourexperimentalresults
+on Chinese semantic role labeling generally support this observation. The features we
+usedforthesemanticrolelabelingofverbsarelistedbelow.Featuresthataremarkedas
+”C”areusedonlyintheargumentclassiﬁcationtask.Featuresthataremarkedas”D”
+areforargumentdetectiononly.Featuresthatareusedinbothargumentdetectionand
+argumentclassiﬁcationstagesaremarkedas”C,D”.
+I. BaselineFeatures:
+C Position:Thepositionisdeﬁnedinrelationtothepredicateverbandthe
+valuesarebeforeandafter.(G&J)
+C Subcatframe:Therulethatexpandstheparentoftheverb,forexample,
+VP→VV+NP.(G&J)
+C Phrasetype:Thesyntacticcategoryoftheconstituentinfocus,forexample,
+NP,PP.(G&J)
+C Firstandlastwordoftheconstituentinfocus.(Petal.)
+C Phrasetypeofthesiblingtotheleft.(Petal.)
+C Subcatframe+:ThesubcatframethatconsistsoftheNPsthatsurroundthe
+predicateverb.Thisfeatureisdeﬁnedbythepositionoftheconstituentin
+focusinrelationtothissyntacticframe.(X&P)
+C,D Predicate:Theverbitself.(G&J)
+C,D Path:Thepathbetweentheconstituentinfocusandthepredicate.(G&J)
+C,D Headwordanditspartofspeech:Theheadwordanditspartofspeechare
+oftengoodindicatorsofthesemanticroleofaconstituent.(G&J)
+C,D Combinationfeatures:Predicateheadwordcombination,predicatephrase
+typecombination.(X&P)
+II. Newfeatures
+C,D PathtoBAandBEI:BAandBEIarefunctionwordsthatimpacttheorder
+ofthearguments.BAwordsareaclosedsetandintheChineseTreebank
+theyhavethePOStagBA.Similarly,BEIwordsarealsoaclosedsetand
+theyarePOS-taggedSB(forshortBEI)andLB(forlongBEI).
+C,D Verbclass:Verbclassitself,verbclass+headwordcombination,verbclass
++phrasetypecombination.
+The position feature is useful because constituents receiving a particular semantic
+rolelabelmayoccurinsometypicalpositions.Forexample,themajorityoftheadjuncts,
+ARGMs,occurbeforetheverbinChinese.Thepathfeature,deﬁnedastheroutefromthe
+constituentinfocustothepredicate,representsamore”ﬁne-grained”position.Whereas
+the values for the simple position feature are just BEFORE or AFTER, the values for
+the path feature can represent syntactic notions like subject or object. For example, a
+237
+ComputationalLinguistics Volume34,Number2
+subject may be represented as ”NP↑IP↓VP↓VV” and an object may be represented as
+”VV↑VP↓NP.” Intuitively, path features are more informative than simple position
+features but they are also sparse because they are more speciﬁc. The path feature
+provestobeparticularlyeffectivefortheargumentdetectiontask,whichisperhapsnot
+unexpected.AswehaveshowninSection4.1,theargumentsandadjunctsofapredicate
+tendtobepopulatedalongthespineofaparsetreeanchoredbythepredicate,andthis
+informationiscapturedverynicelybythepathfromthepredicatetotheconstituentin
+question.
+The head word and its part of speech are clearly informative for semantic role
+labeling. For example, a noun phrase headed by_d_1066_d_2102(”today”) is very likely to be a
+temporalelement;soisaprepositionalphrasewiththeheadword_d_1943(”at”).However,
+for prepositional phrases, the preposition is not always the most informative element.
+Sometimes the head word of its NP complement is more predictive of the semantic
+category. For example, in the prepositional phrase _d_1943(”at”) _d_1487_d_1048(”Beijing”), the NP
+head _d_1487_d_1048(”Beijing”) is more telling of the fact that it indicates a location. So for
+prepositionalphrasesweuseboththeprepositionandtheheadnounasfeaturesinour
+system. As has been discussed by Sun and Jurafsky, the head word feature also tends
+to be sparse, especially given the smaller size of the Chinese Treebank. The chance of
+seeing a word in the test data that also occurs in the training data is small. The POS
+tag serves as one form of backoff: Constituents headed by words that have the same
+part-of-speecharelikelytoreceivethesamesemanticrolelabelsaswell.
+Thesubcatfeature,asimplementedinpreviouswork(GildeaandJurafsky2002),is
+deﬁnedastherulethatexpandstheVPdominatingtheverbalpredicate.Bydeﬁnition,it
+doesnotvarywiththeconstituentsinaparsetree.Inotherwords,allconstituentsinthe
+parsetreesharethesamesubcatfeature.Tomakeupfortheweaknessofthisfeature,we
+implementedanotherfeaturecalledsubcat+,whichisthesyntacticframefeatureinXue
+and Palmer (2004). The subcat+ feature heuristically identiﬁes the key NP arguments
+foragivenpredicate,andthefeaturevalueofagivenconstituentisdeterminedbyits
+positioninrelationtotheseNPsandthepredicate.Inthiswaythisfeaturevarieswith
+theconstituentbeingclassiﬁedanditalsopartiallyaddressestheissuethatthesemantic
+roleofoneconstituentisnotindependentofotherargumentsforthispredicate.
+As we pointed out in Section 2, the argument labels in the PropBank annotation
+are verb-speciﬁc. Given a head word or phrase type, the system will be more certain
+of the semantic role label when it also knows what the predicate is. The same head
+wordorphrasetypemaybeassociatedwithdifferentsemanticrolelabelsfordifferent
+predicates. The head word + predicate and the phase type + predicate features are
+designedtocapturethislinguisticintuition.Theothertypeofcombinationfeaturesare
+verb class+head word and verb class+phrase type. We will discuss the use of verb
+classesasfeaturesindetailinSection4.2.1.
+Theﬁrst-word-in-the-constituentandthephraselabeloftheleftsiblingfeaturesare
+fromPradhan,Wardetal.(2004)andtheinterestedreaderisreferredtotheirworkfor
+an explanation of why these are useful features. Because Chinese is a language with
+mixed headedness, namely, some phrases are left-headed and some phrases are right-
+headed,theﬁrstwordandlastwordareamorerobustbutsloppierwayofﬁndingthe
+headwhenthehead-ﬁndingheuristicsfail.
+Someofthelinguisticphenomenathatimpactthesyntacticrealizationofargument
+structures in Chinese are the BA and BEI constructions. In the Chinese Treebank, BA
+andBEIrepresentclosedsetsoflightverbsthattakeclausalcomplements.Thesubject
+oftheclausalcomplementofBAtendstobeArg1insteadofArg0inacanonicalclause
+structure.TheBEIconstructionistheChinesepassiveconstructioninwhichthesubject
+238
+Xue SemanticRoleLabelingofChinesePredicates
+of the clause headed by BEI is typically Arg1. In order to capture this information, we
+added as features the path from the BEI and BA words to the constituent in focus.
+BA and BEI are not predicates themselves, so these features are only invoked for the
+predicateinthecomplementclauseoftheBAandBEI.
+4.2.1 Using
+Verb Classes to Improve Semantic Role Labeling.Withthecurrentexperimental
+setup,asisalsothecaseinmostoftheworkonsemanticrolelabeling,trainingdataand
+test data are not divided by verb instances but by the number of articles. As a result,
+itisexpectedthattheverbinstancesarenotevenlydivided.Itisentirelypossiblethat
+someverbscanonlybefoundinthetrainingdataandotherscanonlybefoundinthe
+test data. By our count, there are 4,526 verb types in the training data and 1,038 verb
+typesinthetestdata.Onehundredseventy-sixverbtypesthatoccurinthetestdataare
+absentfromthetrainingdata.Becausethesemanticrolelabelsaredeﬁnedwithregard
+to the individual verbs, this can be a real problem because the model learned in the
+trainingprocessdoesnotoptimallyﬁtwiththetestdataifdifferentverbsareinvolved.
+Fortunately,manyverbshavesimilarargumentstructuresandthereforeareannotated
+with similar semantic role labels in the Chinese PropBank. For example, verbs like_d_1448
+_d_2101(”enlarge”),_d_1448_d_1432(”makemoredrastic”),_d_1448_d_2697(”accelerate”),_d_1448_d_2623(”strengthen”),_d_1448
+_d_3972(”deepen”),_d_1448_d_6705(”accelerate”),_d_1448_d_6869(”givemoreweight”),_d_1448_d_7473(”makehigher”)all
+take two arguments, a theme that undergoes a change of state and an external force
+or agent that brings about the change of state. These verbs are uniformly annotated
+and they all have two numbered arguments with Arg0 denoting the cause and Arg1
+denotingthetheme.Itwouldmakesensetogrouptheseverbstogetherintoaclassand
+use this information in the features as has been done for English using VerbNet (Yi,
+Loper, and Palmer 2007). Having a membership in a particular class says something
+aboutthepredicate–argumentstructureofaverb.Whenaverbisabsentinthetraining
+data,whichisafamiliarsparsedataproblem,theclassinformationmaytellthesystem
+howtolabelthesemanticrolesofthisverbbasedonitssemanticclass.
+AlthoughtoourknowledgenosuchclassiﬁcationexistsforChineseverbsbasedon
+the predicate–argument structure, a rough classiﬁcation can be automatically derived
+fromtheframeﬁles,whicharecreatedtoguidethePropBankannotation.Weclassiﬁed
+theverbsalongthreedimensions:thenumberofarguments,thenumberofframesets,
+andselectedsyntacticalternations.
+Number of arguments Verbs in the Chinese PropBank can have one to ﬁve argu-
+ments, with the majority of them having one, two, or three arguments. Verbs with
+zeroargumentsareauxiliaryverbs
+4
+like_d_2678(”will”),_d_2663_d_1084(”beableto”),_d_6300(”should”),
+_d_3221(”dare”), _d_1592(”may”), _d_5421(”be willing to”), _d_5468(”can”), _d_5468_d_2098(”can”), _d_7305(”must”), _d_2561
+_d_2628(”should”),andsomeotherlightverbs.Verbsthathaveﬁveargumentsarechangeof
+state verbs like_d_2592_d_7103(”lengthen”),_d_5267_d_4734(”shorten”),_d_7177_d_1133(”lower”),_d_3103_d_7473(”increase”),
+_d_2926_d_2101(”enlarge”), _d_5267_d_2354(”make smaller”). These verbs generally take as arguments a
+theme that undergoes the change of state, the original state, the new state, the range
+ofthechange,andthecauseoragentthatbringsaboutthechange.
+Number of framesets A frameset roughly corresponds to a major sense. This infor-
+mation is used because it is common that the different framesets of a verb can have
+differentnumbersofarguments.Forexample,verbslike_d_2542_d_6115(”balance”) canbeused
+either as a non-stative verb, in which case it means ”balance,” or a stative verb, in
+4 Onecouldsaythattheargumentoftheauxiliaryverbistheentireproposition,butinthisphaseofthe
+ChinesePropBank,auxiliaryverbsarenotannotated.
+239
+ComputationalLinguistics Volume34,Number2
+which case it means ”balanced.” When it is used as a non-stative verb, it takes two
+arguments, the thing or situation that is balanced and the balancer, the entity that
+maintainsthebalance.Whenitisusedasastativeverb,obviouslyitonlytakesasingle
+argument.
+Syntactic alternations We also represent certain types of syntactic alternations. One
+salient type of syntactic alternation is the well-known ”subject of intransitive / object
+oftransitive”alternationdescribedindetailinLevin(1993).Chineseverbsthatdemon-
+stratethisalternationpatterninclude_d_1376_d_4253(”publish”).Forexample,_d_6661(”this”)_d_3378(CL)
+_d_1015(”book”)playsthesamesemanticroleeventhoughitisthesubjectin”_d_6661/this_d_3378/CL
+_d_1015/book _d_1376_d_4253/publish _d_1021/AS” and the object in ”_d_6661/this _d_2319/CL _d_1376_d_4253/publishing
+_d_4840/house_d_1376_d_4253/publish_d_1021/ASP_d_6661/this_d_3378/CL_d_1015/book.”
+Thus each verb will belong to a class with a symbol representing each of the
+three dimensions. For example, a given verb may belong to the class ”C1C2a,” which
+means that this verb has two framesets, with the ﬁrst frameset having one argu-
+ment and the second having two arguments. The ”a” in the second frameset repre-
+sents a type of syntactic alternation. Forty classes were semi-automatically derived in
+thismanner.
+Suchaclassiﬁcationschemewillundoubtedlyprovetobelinguisticallyunsophis-
+ticated. Verbs that have the same number of arguments may have different types of
+arguments, and the current classiﬁcation system does not pick up these distinctions.
+However, our experiments show that even such a simple classiﬁcation can be used to
+providefeaturesthatimprovethesemanticrolelabelingperformance.
+4.3UsingAutomaticParses
+Previous work (Sun and Jurafsky 2004) on Chinese semantic role labeling uses a
+parser that assumes correct (hand-crafted) segmentation. As word segmentation is
+a very challenging problem that has attracted a large body of research by itself, it is
+still unclear how well semantic role tagging in Chinese can be performed in realistic
+situations. In our experiments, we implemented a Maximum Entropy–based parser
+similar to Luo (2003). The parser performs Chinese word segmentation, POS tagging,
+and parsing in one integrated system. The parser is trained on the Xinhua news and
+BroadcastnewsportionoftheChineseTreebank,whichhas498Kwords.Testedonthe
+held-out test data, the parser achieved an unlabeled precision and recall of 0.889 and
+0.868, respectively, for the combined word segmentation and parsing accuracy. When
+thewordsegmentationissingledoutforevaluation,theparserachievedanF-scoreof
+0.969. It is important to point out that these results cannot be directly compared with
+most of the results reported in the literature, where correct segmentation is assumed.
+Inaddition,inordertoaccountforthedifferencesinsegmentation,eachcharacterhas
+to be treated as a leaf of the parse tree. This is in contrast with word-based parsers
+where words are terminals. For comparison purposes, we also used the Bikel parser
+(Bikel 2004). Because the Bikel parser assumes segmented sentences as input, we
+extracted the segmentation from the output of our parser and fed it into the Bikel
+parser. We also experimented with using gold-standard segmentation and POS from
+theChineseTreebankasinputtotheBikelparsertomeasuretheeffectofsegmentation
+and POS tagging on the performance on the semantic role labeling. Because semantic
+role labeling is performed on the output of a syntactic parser, only constituents in the
+parsetreearecandidates.Ifthereisnoconstituentintheparsetreethatsharesthesame
+text span with an argument in the manual annotation, the system cannot possibly get
+240
+Xue SemanticRoleLabelingofChinesePredicates
+Table2
+Semanticrolelabelingresultsforverbalpredicates.
+parse constituents featureset precision recall F1measure
+treebank known baseline n/a n/a .931(acc)
+treebank known all n/a n/a .941(acc)
+treebank unknown baseline .920 .900 .910
+treebank unknown all .930 .910 .920
+maxentparser unknown baseline .689 .597 .639
+maxentparser unknown all .694 .602 .645
+Bikelparser(autoseg) unknown baseline .745 .596 .662
+Bikelparser(autoseg) unknown all .748 .603 .668
+Bikelparser(goldseg) unknown all .768 .625 .689
+Bikelparser(goldpos) unknown all .795 .656 .719
+acorrectannotation.Inotherwords,thebestthesystemcandoistocorrectlylabelall
+argumentsthathaveaconstituentwiththesametextspanasintheparsetree.
+4.4ResultsandDiscussion
+4.4.1Data.InallourexperimentsweusetheChinesePropositionBankVersion1.0.
+5
+This
+versionoftheChinesePropBank(XueandPalmer2003)consistsofstandoffannotation
+ontheﬁrst760articles(chtb_001.fid to chtb_931.fid)oftheChineseTreebank.This
+chunk of the data has 250K words and 10,364 sentences. The total number of verb
+types in this chunk of the data is 4,854.
+6
+Following the convention of the English
+semanticrolelabelingexperiments,wedividethetrainingandtestdatabythenumber
+ofarticles,notbytheverbinstances.Forallourexperimentsonsemanticrolelabeling
+ofverbs,72ﬁles(chtb_001.fid to chtb_040.fid and chtb_900.fid to chtb_931.fid)
+are held out as test data,
+7
+40 ﬁles (chtb_041.fid to chtb_080.fid) are used as devel-
+opment set, and the remaining 648 ﬁles (chtb_081.fidto chtb_899.fid) are used as
+training data. The training, development, and test sets have 30,280; 1,971; and 3,454
+propositions, respectively. Our parser is trained on the training and development set
+plus 275K words of broadcast news that have been recently annotated as part of the
+Chinese Treebank Project.
+8
+That is, in addition to the training data for the semantic
+rolelabelingexperiments,italsousesaportionofthetreebankwhichhasnotyetbeen
+propbanked.
+4.4.2 Results. The results of the semantic role labeling for both hand-crafted and au-
+tomatic parses are presented in Table 2. These results represent an improvement over
+whathasbeenreportedinXueandPalmer(2005)duetotheimprovedparsingresults
+and new features. To be used in real-world natural language applications, a semantic
+5 ThisdataispubliclyavailablethroughtheLinguisticDataConsortium.
+6 Theseincludetheso-calledstativeverbs,whichroughlycorrespondtoadjectivesinEnglish.
+7 Thischunkofdataischosenastestdatabecauseitisdoubleannotatedandadjudicated.
+8 WedidnotusetheSinoramaportionoftheChineseTreebankbecauseitisaverydifferentgenreand
+addingittothetrainingdatahurtsparserperformance(Bikel2004).
+241
+ComputationalLinguistics Volume34,Number2
+role tagger has to use automatically produced constituent boundaries either from a
+parserorbysomeothermeans,butexperimentswithhand-craftedparseswillhelpus
+evaluatehowmuchofachallengeitistomapasyntacticrepresentationtoasemantic
+representation, which may very well vary from language to language. When hand-
+crafted parses in the Chinese Treebank are used as input, our system achieved an
+F-score of 0.92 for combined argument detection and classiﬁcation. This accuracy is
+achieved when the new features are added. Without the new features, the accuracy
+drops about one percentage point. When the arguments are known, the accuracy is
+at 94.1% when the new features are used, up one percentage point from the baseline.
+This accuracy is fairly high considering the fact that the state-of-the-art for semantic
+rolelabelingsystemstrainedontheEnglishPropBank(Palmer,Gildea,andKingsbury
+2005) is about 93% percent (Pradhan, Ward et al. 2004; Xue and Palmer 2004) when
+the arguments are known and the English PropBank is a much larger corpus that has
+one million words. The high baseline accuracy also suggests that the features used
+for the English semantic role labeling port very well to Chinese. In addition, there are
+severalfacilitatingfactorsforChinesesemanticrolelabelingwhenhand-craftedparses
+areprovidedasinput.Firstofall,Chineseverbsappeartobelesspolysemous,atleast
+the ones that occur in the Chinese Treebank. Of the 4,854 verbs in this version of the
+ChinesePropositionbank,only62verbshavethreeormoreframesets.Incontrast,294
+verbsoutofthe3,300verbsinthePennEnglishPropBankhavethreeormoreframesets.
+Whenaverbislesspolysemous,theargumentsoftheverbtendtoberealizedinamore
+uniform manner in syntax. As a result, the argument labels are easier to predict from
+their structure. Chinese seems to compensate forthis factby using a larger number of
+verbs. This becomes obvious when we consider the fact that the 4,854 verbs are from
+just 250K words and the 3,300 verbs in the English PropBank are from one million
+words. A related fact is that adjectives in Chinese are traditionally counted as verbs
+andtheygenerallyhaveonlyoneargumentwithamuchsimplersyntacticrealization.
+For example,_d_1188_d_2303(”inexpensive”) and_d_5910(”thin”) are considered stative verbs in the
+ChineseTreebank.
+Wealsobelievethatamoresubtleexplanationforthehighersemanticrolelabeling
+accuracy given the annotation of the Chinese Treebank is the fact that the Chinese
+Treebankhasricherstructure(seeXueetal.[2005]foracomparisonofthePennEnglish
+TreebankandtheChineseTreebank).Byusinglessﬂatandmorehierarchicalstructures,
+theChineseTreebankresolvessomeoftheattachmentambiguitiesthatimpairsemantic
+rolelabeling.Forexample,thecomplementandadjunctinaVPintheChineseTreebank
+areattachedindifferentsyntacticconﬁgurationswithregardtotheverb.Becausecom-
+plements are generally numbered arguments and adjuncts are generally ARGMs, the
+semanticrolelabelercantakeadvantageofthisinformationwhenittriestodetermine
+whenaconstituentisanumberedargumentoranadjunct.
+ThisapparentadvantageinChinesesemanticrolelabelingisdiminishedwhenan
+automatic parser is used. First of all, the hierarchical structures in the hand-crafted
+parses that aid semantic role labeling are hard to recover with an automatic parser.
+Resolving the many attachment ambiguities caused by the hierarchical structures in
+languageisoneofthemostdifﬁcultproblemsintheparsingliterature.ParsingChinese
+in a realistic scenario is especially difﬁcult given that it has to build structures from
+charactersratherthanwords,andChinesealsohasfewmorphologicalcluestohelpin
+making parsing decisions. Our results show that the semantic role labeling accuracy
+improvesby2.1%inF-scorewhenthecorrectsegmentationisusedasinputtotheBikel
+parser. When the correct POS tags are used, the semantic role labeling accuracy im-
+provesanother3%.Atpresent,improvementinChineseparsingisalsohinderedbythe
+242
+Xue SemanticRoleLabelingofChinesePredicates
+smallertrainingset.AlthoughtheChineseTreebank5.1hasadecentsizeof500Kwords,
+itconsistsofdatafromverydifferentsources.Duetotheirverydifferentstyles,training
+ononeportionofthedatadoesnothelpormayevenhurttheparsingaccuracyonthe
+other portion (see Bikel [2004] for a discussion of this issue). The situation improves
+somewhat with the addition of the 275K words from broadcast news,
+9
+which leads to
+animprovementinparsingaccuracy.Webelievefurtherimprovementinsemanticrole
+labeling accuracy will be to a large extent contingent on the parsing accuracy, which
+requiresmoretrainingmaterialsthataresimilarinstyle.
+5.SemanticRoleLabelingofNominalizedPredicates
+In this section, we describe our experiments on nominalized predicates in Chinese,
+using the Chinese NomBank as training and test data. In Section 5.1 we show that
+the pruning algorithm for nominalized predicates needs to account for two disjoint
+cases. When a support verb is present, the pruning algorithm needs to go outside
+the NP headed by the predicate to search for potential arguments. When there is no
+support verb, the arguments can generally be found inside the NP headed by the
+predicate.InSection5.2,wedescribethefeaturesusedinthesemanticrolelabelingof
+nominalizedpredicates.Therearethreegroupsoffeatures:featuresusedinthesemantic
+role labeling of verbs minus a few features that do not carry over to nouns, features
+used for verbs that need to be substantially adapted, and new features we designed
+speciﬁcallyfornominalizedpredicates.Theexperimentsweconductedonnominalized
+predicates largely parallel those of verbs, for an easier comparison. Again there are
+twoexperimentalvariables,thelevelofhumanannotationintheinputtothesemantic
+role labeling system and whether the constituents for the arguments are known. The
+experimentalresultsarepresentedinSection5.3.
+5.1PruningforNominalizations
+Like verbal predicates, the arguments and adjuncts of a nominalized predicate are
+relatedtothepredicateitselfinlinguisticallywell-understoodstructuralconﬁgurations.
+As we pointed out in Section 2, most of the arguments for nominalized predicates are
+insidetheNPheadedbythepredicateunlesstheNPistheobjectofasupportverb,in
+whichcaseitsargumentscanoccuroutsidetheNP.Typicallythesubjectofthesupport
+verb is also an argument of the nominalized predicate, as illustrated in Example (3).
+Themajorityoftheconstituentsarenotrelatedtothepredicateinquestion,especially
+becausethesentencesinthetreebanktendtobeverylong.Therearetwodistinctcases
+thatneedtobehandleddifferently,dependingonthepresenceorabsenceofasupport
+verb for the nominalized predicate. When the nominalized predicate does not occur
+withasupportverb,generallyallofitsargumentsarerealizedwithintheNPofwhich
+it is the head. The pruning algorithm starts from the predicate, collects its sisters, and
+adds them to the candidate list. It then iteratively goes upone level and collects the
+sisters of that constituent until it reaches the top-level NP of which it is the head. An
+exception is made when the constituent is DNP, in which case the candidate added is
+the ﬁrst daughter of the DNP, not the DNP itself. This is illustrated in Example (9),
+9 ThisnewdatasetwillsoonbeavailableviatheLDCinanotherChineseTreebankrelease.
+243
+ComputationalLinguistics Volume34,Number2
+wherethealgorithmstartsfromthenominalizedpredicate_d_6329_d_3463(”investigation”),and,
+because it does not have any sisters, it does not add anything to the candidate list at
+this level. It then goes upto its parent NP, and collects its sisters NP ( _d_6234_d_3250”police”)
+andDNP(_d_2344”toward”_d_1024_d_3209”accident”_d_1553_d_1919”cause”_d_4615”DE”).InthecaseofDNP,the
+candidateaddedisactuallyitsﬁrstdaughter,thePP.
+(9)
+IP
+NP VP
+NP DNP NP ADVP VP
+_d_6234_d_3250
+police
+PP DEG NN _d_2496_d_5184
+already
+_d_5188_d_3401
+end
+P NP _d_4615
+DE
+_d_6329_d_3463
+investigation
+_d_2344
+toward
+NN NN
+_d_1024_d_3209
+accident
+_d_1553_d_1919
+cause
+”Thepoliceinvestigationofthecauseoftheaccidenthasended.”
+When a nominalized predicate occurs with a support verb, the NP headed by the
+nominalizedpredicateisgenerallytheobjectofthesupportverb.Argumentscanoften
+be found both inside and outside this object NP. The pruning algorithm starts from
+the nominalized predicate and collects its sisters. It then iteratively goes one level up
+until it reaches the top-level IP node. At each level, the sisters of the current node are
+added to the list of candidates. Note that the algorithm does not stopat the topNP
+level,sothatargumentsoutsidetheNPcanalsobecaptured.Inpractice,itisgenerally
+not known to the algorithm whether the governing verb, the verb that takes the NP
+headedbythenominalizedpredicateasobject,isasupportverbornot.Supportverbs
+areoftenlightverbsandtheyareonlyasubsetofallgoverningverbs.Thesystemsimply
+assumesthatallverbstakingtheNPheadedbyanominalizedpredicateasitsobjectare
+support verbs, adds constituents outside the NP as candidates, and lets the machine-
+learningalgorithmﬁgureoutwhethertheyareargumentsornot.Thispruningprocess
+isillustratedinExample(10),wherethealgorithmstartsfromthenominalizedpredicate
+_d_6329_d_3463(”investigation”).ItﬁrstcollectsitssisterADJP(_d_6301_d_5175”thorough”),andthenitwill
+gooneleveluptotheNP,andaddsthesupportverb(_d_6662_d_6110”conduct”)tothecandidate
+list. It will go another level upto the VP and adds its sisters ADVP (_d_3681_d_1943”now”) and
+PP (_d_2344”toward”_d_1024_d_3209”accident”_d_1553_d_1919”cause”) to the candidate list. It then goes one
+morelevelupanddecidesthisisacoordinationstructure;nocandidateisaddedatthis
+level.AtthenextVPlevelitadds_d_6234_d_3250(”police”)tothelistofcandidates.Thealgorithm
+terminatesattheIPnode.
+244
+Xue SemanticRoleLabelingofChinesePredicates
+(10)
+IP
+NP VP
+_d_6234_d_3250
+police
+VP PU VP
+ADVP VP _d_421 ADVP PP VP
+_d_2496
+already
+VV NP _d_3681_d_1943
+now
+P NP VV NP
+_d_1407
+arrive
+_d_4373_d_1953
+scene
+_d_2344
+toward
+NN NN _d_6662_d_6110
+conduct
+ADJP NN
+_d_1024_d_3209
+accident
+_d_1553_d_1919
+cause
+_d_6301_d_5175
+thorough
+_d_6329_d_3463
+investigation
+”Thepolicehasarrivedatthesceneandisthoroughlyinvestigatingthecauseof
+theaccident.”
+Overall, pruning works less effectively for nouns than for verbs. When treebank
+parses are used, our pruning algorithm can recall over 94% of the arguments while
+pruning out 93% (87,724 out of 93,916) of the nodes. When automatic parses (maxent
+segmentation + Bikel parser) are used, our pruning algorithm can recall 73% of the
+argumentsoutofthe88%ofargumentsthathaveaconstituentintheparsetree,while
+pruningout93%(85,160outof91,356)ofthenodes.However,althoughthereisasmall
+drop in recall (from 0.569 to 0.529) compared with when the pruning algorithm is not
+used,thereisahugegaininprecision(from0.146to0.623),asimilartrendtothatwhich
+wehaveobservedforthesemanticrolelabelingofverbs.
+5.2Features
+The features we use for the semantic role labeling of nominalized predicates fall into
+three groups. The baseline features we used are the same features we used for the
+semanticrolelabelingofverbs.Thesecondgroupoffeaturesareadaptedfromfeatures
+used in the semantic role labeling of verbs. In particular, the path feature is redeﬁned
+inthesemanticrolelabelingofnominalizedpredicates.AsigniﬁcantnumberofNPsin
+theChineseTreebankareﬂatandtheyconsistofasequenceofnouns.Whenthereare
+nouns on both sides of a predicate, which is a noun itself, the path from the predicate
+to the preceding or following noun has the same value. However, the preceding and
+followingnounsdonothavethesameprobabilityofbeinganargument.Wetherefore
+needtoclearlymarkthepositionofthepredicate(e.g,P=NN↑NP↓NNisnotthesame
+as NN↑NP↓NN=P). Such a problem does not exist for the semantic role labeling of
+verbs because their arguments are rarely a verb as well. The third groupof features
+are new features we added speciﬁcally for the semantic role labeling of nominalized
+predicates. Like the features for the semantic role labeling of verbal predicates, the
+featuresforargumentdetectiononlyaremarkedas”D”andthefeaturesforargument
+245
+ComputationalLinguistics Volume34,Number2
+classiﬁcation only are marked as ”C.” The features for both argument detection and
+argumentclassiﬁcationaremarkedas”C,D.”Thecompletelistoffeaturesislistedhere.
+I. BaselineFeatures:
+C Position:Thepositionisdeﬁnedinrelationtothepredicateandthevalues
+arebeforeandafter.Becausemostoftheargumentsfornominalized
+predicatesinChinesearebeforethepredicates,thisfeatureisnotas
+discriminativeaswhenitisusedforverbalpredicateswherearguments
+canbebothbeforeorafterthepredicate.(G&J)
+C Phrasetype:Thesyntacticcategoryoftheconstituentbeingclassiﬁed.(G&J)
+C Firstandlastwordoftheconstituentbeingclassiﬁed.(Petal.)
+C,D Predicate:Thenominalizedpredicateitself.(G&J)
+C,D Predicatecombinationfeatures:Predicate+headwordcombination,
+predicate+phrasetypecombination.(X&P)
+C,D Predicateclass:Theverbclassthepredicatebelongsto;samepredicateclass
+asthoseusedforverbs.
+C,D Predicateclasscombinationfeatures.Predicateclass+headcombination,
+predicateclass+phrasetypecombination.
+C,D Headwordanditspartofspeech:Theheadwordanditspartofspeech.(G&J)
+C,D Path:Thepathbetweentheconstituentbeingclassiﬁedandthepredicate.
+(G&J)
+II. Adaptedfeatures:
+C,D Path:Thepathbetweentheconstituentbeingclassiﬁedandthepredicate,
+withthepredicateclearlyidentiﬁed.
+III. NewFeatures:
+D TopicNP:Abinaryfeatureindicatingwhethertheconstituentisatopicif
+thepredicateisthesubject.
+D InsideNPheadedbythepredicate:Abinaryfeatureindicatingwhetherthe
+constituentinfocusisinsidetheNPheadedbythepredicate.
+D Positionoftheconstituentinrelationtothesupportverb:Thevaluecanbe
+beforeorafterthesupportverb,oristhesupportverbitself.
+C,D Sisterhoodwithpredicate:Abinaryfeaturethatindicateswhetherthe
+constituentisasistertothepredicate.
+C,D Path+governingverb.Thepathfeaturecombinedwiththegoverningverb.
+Severalfeaturesthatweusedforthesemanticrolelabelingofverbalpredicateswere
+dropped from our experiments with nominalized predicates. Speciﬁcally, the subcat
+feature and subcat+ features were not used because it is not clear how these features
+can be deﬁned for a nominalized predicate. A couple of new features were added
+to the feature set for semantic role labeling of nominalized predicates. As we have
+demonstrated in Section 5.1, a support verb to a large extent determines whether or
+246
+Xue SemanticRoleLabelingofChinesePredicates
+not the arguments of a nominalized predicate can occur outside the NP of which it
+is the head. Therefore it is effective information for discriminating arguments from
+non-arguments.Itisalsoindicativeofthespeciﬁcsemanticroleofanargumentinthe
+argumentclassiﬁcationtask.Tocapturethisobservation,weusedacombinedfeatureof
+path+governingverbthatwasonlyinvokedwhentherewasaninterveninggoverning
+verb between the constituent being classiﬁed and the predicate. The governing verb
+is used as an approximation of the support verb for this feature because the system
+doesnothavepriorknowledgeofwhetheraverbisasupportverbornotabsentsome
+externalresourcethatprovidesalistofpossiblesupportverbs.Thegoverningverb,on
+theotherhand,canbeapproximatedbylookingatthesyntacticconﬁgurationbetween
+thenominalizedpredicateandtheverb.Thisfeatureisusedforbothargumentdetection
+andargumentclassiﬁcation.Anotherfeaturewespeciﬁcallyusedforthesemanticrole
+labelingofnominalizedpredicatesisthesisterhoodfeature.Whenlookingatthedata,
+we found a substantial number of NPs headed by a nominalized predicate have a ﬂat
+structure with their sisters as their arguments. The sisterhood feature is designed to
+capturethisobservationanditisalsousedforbothargumentdetectionandargument
+classiﬁcation. The other three new features were used for argument detection only.
+When a nominalized predicate is in the subject position, the NP in the topic position
+tends to be its argument. A binary feature is invoked when the constituent in focus is
+anNPthatistheleftsisterofthesubjectNPheadedbythepredicate.WhetheranNPis
+asubjectisalsodeterminedheuristically:AnNPisconsideredtobesubjectifitsparent
+isanIPanditsrightsisterisaVP.Anotherbinaryfeatureusedforargumentdetection
+iswhethertheconstituentinfocusisinsidetheNPheadedbythepredicate.Finally,the
+position of the constituent in relation to the support verb is also used as a feature for
+argument detection. The value for this feature can be before or after the support verb,
+oritcanbethesupportverbitself.
+5.3Experiments
+5.3.1 Data. Our system is trained and tested on a pre-release version of the Chinese
+NomBank. This version of the Chinese NomBank consists of standoff annotation on
+the ﬁrst 760 articles (chtb_001.fid to chtb_931.fid) of the Chinese Treebank. This
+is the same chunk of treebank data as used in our experiments on verbs. It has 1,227
+nominalizedpredicatetypesand10,497nominalizedpredicateinstances,incomparison
+with the 4,854 verb predicate types and 37,183 verb predicate instances in the same
+chunk of data. By instance, the NomBank is between a quarter and one third of the
+size of the Chinese PropBank. Similarly to our experiments on verbs, we divide the
+training, development, and test data by the number of articles, not by the predicate
+instances.Forallourexperiments,weusedthesamedatasplitasthatoftheverbs:648
+ﬁles(chtb_081.fid to chtb_899.fid)areusedastrainingdata,40ﬁles(chtb_041.fid
+tochtb_080.fid)areusedasdevelopmentdata,andtheother72ﬁles(chtb_001.fidto
+chtb_040.fid and chtb_900.fid to chtb_931.fid)areheldoutastestdata.Thesame
+parsersareusedforthesemanticrolelabelingexperimentsforverbsandnouns.
+5.3.2 Results
+and Discussion. Parallel to our experiments on verbs, we also present
+experiments using hand-crafted and automatic parses. The experimental results are
+presented in Table 3, which represents an improvement from what has been reported
+inXue(2006b).Thebaselineresultsareobtainedusingthesubsetoffeaturesusedinthe
+semanticrolelabeling ofverbs,minusthesubcatandsubcat+features.Wealsoreport
+improvedresultsbyusingadditionalnewfeaturesandadaptingthepathfeature.The
+247
+ComputationalLinguistics Volume34,Number2
+Table3
+Semanticrolelabelingresultsfornominalizedpredicates.
+parse constituents featureset precision recall F1measure
+treebank known baseline n/a n/a .843(acc)
+treebank known all n/a n/a .849(acc)
+treebank unknown baseline .722 .608 .660
+treebank unknown all .734 .661 .696
+maxentparser unknown baseline .60 .471 .526
+maxentparser unknown all .60 .502 .547
+Bikelparser(autoseg) unknown baseline .611 .492 .545
+Bikelparser(autoseg) unknown all .623 .529 .573
+Bikelparser(goldseg) unknown all .629 .531 .576
+Bikelparser(goldpos) unknown all .657 .560 .604
+use of adapted and new features leads to signiﬁcant improvement in all experiment
+settingsexceptwhentheconstituentsarealreadyknownandtreebankparsesareused.
+Thisisnotsurprisinggiventhatmorenewfeatureswereaddedtotheargumentdetec-
+tiontaskthantheargumentclassiﬁcationtask.
+Compared with the 94.1% for verbal predicates on the same data, the 84.3% the
+systemachievedfornominalizedpredicatesontreebankparseswhentheconstituents
+aregivenisconsiderablylower,suggestingthatthesemanticrolelabelingfornominal-
+ized predicates is a much more challenging task. The difference between the semantic
+role labeling accuracy for verbal and nominalized predicates is even greater when the
+constituentsarenotgivenandthesystemhastoidentifytheargumentstobeclassiﬁed.
+Our system achieves an F-score of 0.696 when treebank parses are used, and this is
+in contrast with the F-score of 0.92 for verbal predicates under similar experimental
+conditions.
+For our experiments using automatic parses, we used the same parsers for nomi-
+nalizedandverbalpredicates.Theﬁrstparseristhecharacter-basedMaximumEntropy
+parser thatwedeveloped in-house;anditdoeswordsegmentation, POS-tagging,and
+syntactic parsing in one integrated system. The second parser is the Bikel parser that
+takesthreedifferentkindsofinput.Initsfullyautomaticmode,itusesthesegmentation
+extracted from the output of our Maxent parser. We also experimented with using
+correct segmentation and correct segmentation plus correct POS-tagging as input to
+the Bikel parser to measure the degradation in performance with decreasing levels of
+human annotation. Our results show that the Bikel parser outperforms our Maxent
+parser 0.028 (F-score) in semantic role labeling accuracy when using fully automatic
+parses.WhentheBikelparserisused,thesystemachievesanF-scoreof0.573,incom-
+parisonwiththe0.547achievedbytheMaxentparser.Thereisagradualdegradationin
+performancewithlesshumanannotation,consistentwithourexperimentsonverbs.Itis
+somewhatsurprisingthatthesegmentationdoesnotaffectthesemanticrolelabelingfor
+nominalizedpredicatesasitdoesforverbs.UsingcorrectPOStagsasinputtotheBikel
+parser,however,leadstoasigniﬁcantimprovementof0.028inF-scoreoverusingcorrect
+segmentation only, from 0.576 to 0.604. Overall, there is a smaller gapbetween when
+treebank parses are used and when automatic parses are used. There are two possible
+explanations. One is that the NP structures are more local and less prone to parsing
+errors, so there is less of a difference between treebank and automatic parses. This is
+248
+Xue SemanticRoleLabelingofChinesePredicates
+consistent with the fact that 88% of the arguments for nominalized predicates were
+recoveredbytheparser,incontrastwiththe87%oftheargumentsforverbalpredicates.
+Anotherpossibleexplanationisthatargumentdetectionischallengingevenwithgold-
+standardtreebankparses,whichmakesthegapbetweentreebankandautomaticparses
+smaller.
+5.3.3 Error
+Analysis. The much lower accuracy in the semantic role labeling of nomi-
+nalized predicates warrants a closer examination. One thing we looked at is the fact
+that arguments of nominalized predicates can occur either inside or outside the NP
+headed by the predicate. Of the 1,124 predicate instances in the test data, 331 of them
+haveargumentsthatoccuroutsidetheNPheadedbythepredicate.Theremaining793
+instances have all their arguments inside the NP. We found a signiﬁcant difference in
+the semantic role labeling accuracy for the two types of predicates in the experiment
+settingwheretheinputtothesemanticrolelabelingsystemistreebankparsesandthe
+constituentsareunknown.ForthepredicatesthathaveargumentsoutsidetheNP,the
+systemachievedaprecisionandrecallof0.868and0.633,respectively.Forthepredicates
+thathavealltheirargumentsinsidetheNP,theprecisionandrecallare0.661and0.695,
+respectively. We believe the large difference in precision is the result of the system
+erroneously identifying arguments outside the NP when the predicate heads an NP
+thatistheobjectofaverb,eveniftheverbisnotasupportverb.Withasmalldataset,
+thereisinsufﬁcienttrainingdataforthesystemtotellwhetherornotaverbisasupport
+verbthatlicensesargumentsoutsidetheNPheadedbythepredicate.Wealsoexamined
+caseswherethepredicateheadsanNPthatistheheadofarelativeclause.Becausethe
+NP headed by the predicate is semantically associated with a trace inside the relative
+clause,itsargumentscangenerallybefoundinsidetherelativeclause.Outofthe1,124
+predicate instances, 138 are the heads of relative clauses. The precision and recall for
+thesepredicatesare0.668and0.5,respectively,incomparisonwiththe0.749and0.696
+forpredicatesthatarenottheheadofarelativeclause.Themuchlowerrecallsuggests
+theargumentsfortheheadofarelativeclausearemuchhardertoidentify.
+6.RelatedWork
+Computational approaches to semantic interpretation have a long tradition, but the
+line of research that this work follows is relatively young. Gildea and Jurafsky (2002)
+provided the seminal work on the semantic role labeling, using the FrameNet corpus
+as training and test material. Since then, there has been rapid improvement in the se-
+manticrolelabelingaccuracyofEnglishverbs,fueledbythedevelopmentofPropBank
+(Palmer, Gildea, and Kingsbury 2005), which annotates the verbs in the one-million-
+wordPennTreebankwithsemanticrolelabels.Awiderangeofstatisticalandmachine
+learning techniques have been applied to the semantic role labeling of verbs, using
+PropBankastrainingandtestmaterial.Themachine-learningtechniquesusedinclude
+SupportVectorMachines(Pradhan,Wardetal.2004;Tsaietal.2005),MaximumEntropy
+(Xue and Palmer 2004; Haghighi, Toutanova, and Manning 2005; Liu et al. 2005; Yi
+and Palmer 2005), Conditional Random Fields (Cohn and Blunsom 2005), and many
+others. Because semantic role labeling is a complex task based on a wide range of
+lowerlevelnaturallanguagetechniques,manydifferentpreprocessing,integration,and
+combinationtechniqueshavebeenexplored.Therelativemeritsofusingafullsyntactic
+parserthatprovideshierarchicalstructures(XueandPalmer2004)vs.ashallowchunker
+(Pradhan, Hacioglu et al. 2005; Hacioglu et al. 2004) has been studied extensively.
+Noting that parsing errors are difﬁcult or even impossible to recover at the semantic
+249
+ComputationalLinguistics Volume34,Number2
+role labeling stage, Yi and Palmer (2005) experimented with integrating semantic role
+labelingwithaMaximumEntropy-basedparser,effectivelytreatingsemanticrolelabels
+asfunctiontagsontheconstituentsinaparsetree.Koomenetal.(2005),Pradhan,Ward
+etal.(2005),M`arquezetal.(2005),andTsaietal.(2005)pursuedalternativeapproaches
+to make their semantic role labeling systems more robust by combining the output of
+multiplesystems.Punyakanok,Roth,andYi(2005),inparticular,achievedthebestper-
+formance(F1=0.794)ontheWSJtestsetinthe2005CoNLLsharedtaskbycombining
+multiplesemanticrolelabelingsystemsusinganintegerlinearprogrammingtechnique
+(Punyakanoketal.2004).Pradhan,Haciogluetal.(2005)reportedthebestresult(F1=
+0.684) on the Brown test set using the WSJ data as the training set by combining the
+outputofdifferentsemanticrolelabelingclassiﬁersusingachunkingprocedure.They
+also reported the state-of-the-art result (F1 = 0.81) on the standard PropBank test set,
+using the same techniques. Most of the early systems consider each argument on its
+own when assigning the semantic role labels, allowing the theoretical possibility that
+more than one core argument may share the same semantic role label, violating the
+linguisticconstraintthatthesamesemanticrolelabelcannotbeassignedtomorethan
+onecoreargument.Toutanova,Haghighi,andManning(2005)addressthisbyusinga
+joint-learningstrategytoruleoutsuchconﬂictingargumentlabels.
+The semantic role labeling performance on the FrameNet data set has also
+improved signiﬁcantly from Gildea and Jurafsky’s (2002) early results, thanks mostly
+to the Senseval-3 semantic role labeling competition (Litkowski 2004). Participants of
+Senseval-3 have used a variety of machine learning algorithms to tackle the semantic
+role labeling problem: Maximum Entropy (Baldewein et al. 2004; Ngai et al. 2004;
+Kwon, Fleischman, and Hovy 2004); Boosting, SNOW, and Decision Lists (Ngai et al.2004); SVM (Bejan et al. 2004; Moldovan et al. 2004; Ngai et al. 2004); Memory-based
+learning(Baldeweinetal.2004),aswellasGenerativemodels(Thompson,Patwardhan,
+and Arnold 2004). Bejan et al. (2004) achieved the best result using an SVM classiﬁer
+combined with improved linguistic features. They achieved an F1 measure of 0.763 in
+theirinternalevaluation,and0.831usingthemorelenientofﬁcialSenseval-3scorer.
+Comparedwiththelargebodyofworkonthesemanticrolelabelingonverbs,the
+argument structure analysis of nominal predicates has so far received less attention.
+Jiang and Ng (2006) reports a semantic role labeling system on nominal predicates,
+also using the maximum entropy approach. Their system achieves F1 scores of 0.727
+and0.691,respectively,ongold-standardandautomaticparses,indicatingsemanticrole
+labeling of nominal predicates is a much more difﬁcult problem than that of verbs for
+Englishaswell.Outsidethenarrowdomainofsemanticrolelabeling,therehasbeena
+steady accumulation of work on semantic analysis of nouns and a gradual expansion
+ofthedomaininwhichthesemanticanalysisisperformed.Lapata(2002)developeda
+probabilisticmodelfortheinterpretationofnominalizations,focusingonthesemantic
+relation between the noun head and its prenominal modiﬁer in a nominalized com-
+pound(i.e.,whethertheprenominalmodiﬁerisanunderlyingsubjectordirectobjectof
+theverbfromwhichthenominalizedheadisderived).Theirmodelachievedaveryhigh
+accuracy of0.861whenevaluatedondataextractedfromtheBritishNationalCorpus.
+Girjuetal.(2004)andMoldovanandBadulescu(2005)extendedthedomainoflinguistic
+analysistothatofnounphrases.Inparticular,theyfocusedonthestudyoffournominal
+constructions: complex nominals in which a head noun is modiﬁed by other nouns
+oradjectivesderivedfromnouns,genitives,adjectivephrases,andadjectiveclauses.
+In general, previous work on nominals, perhaps with the exception of Nakov and
+Hearst(2006)allattempttospecifyaﬁnitesetofsemanticrelationsbetweenthenouns
+and their modiﬁers in the spirit of Levi (1979). The PropBank/NomBank approach to
+250
+Xue SemanticRoleLabelingofChinesePredicates
+semantic role labeling adopted here represents a departure from this tradition in that
+the semantic relations in PropBank and NomBank are predicate-speciﬁc. There is no
+serious attempt to induce cross-predicate semantic relations. In addition, the semantic
+relationsrepresentedbythePropBank/NomBanksemanticrolesarenotpairwiserela-
+tions between the predicate and one of its arguments as they are in previous work. A
+thirddifferenceisthattheargumentsofanominalizedpredicatecanbefoundoutside
+the noun phrase headed by the predicate (Meyers, Reeves, and Macleod 2004; Meyers
+etal.2004),makingargumentidentiﬁcationamuchmorechallengingtask.Whereasthe
+English NomBank annotates both relational nouns and nominalizations, the Chinese
+NomBankonlydealswithnominalization,makingitamorecoherenttask.
+WorkonChinesesemanticrolelabelingisstillinitsinfancy.LackingaChinesecor-
+pusannotatedwithsemanticroles,thefewpriorworksgenerallyreliedonannotating
+asmallcorpusfortheirexperiments.SunandJurasfky(2004)didpreliminaryworkon
+thesemanticrolelabelingofChineseverbsbyannotating10selectedverbsthathavea
+frequency ranging from 41 to 230, using the Chinese PropBank annotation guidelines.
+Pradhan,Sunetal.(2004)extendedthatworktoChinesenominalizations,andreported
+preliminary work for analyzing the predicate–argument structure of 630 propositions
+for 22 nominalizations taken from the Chinese Treebank. Noting the difﬁculty of
+Chinese parsing, Kwong and T’sou (2005) approached the semantic role labeling task
+as one of identifying and labeling the head word of the arguments. They annotated
+the semantic roles for 41 verbs in 980 sentences in a primary school textbook corpus
+andthesameverbsin2,122sentencesinanewscorpus.Perhapsnotsurprisingly,they
+reported F1 scores of 0.529 and 0.444, respectively, for the textbook and news corpora
+whentrainingandtestdataarefromthesamecorpus,and0.463and0.398,respectively,
+when the training and test data are from different corpora. As far as we know, the
+work reported here is the ﬁrst to use sizable Chinese semantically annotated corpora.
+Theapproachadoptedinthepresentworkemphasizestheintegrationoflinguistically
+informed heuristics and machine-learning approaches, and the exploration of the un-
+derlininglinguisticinsightsbehindthefeaturesusedinmachine-learningsystems.We
+believesemanticrolelabelingprovidesanidealstagewherelinguisticobservationscan
+beformalizedasfeaturesandfedintoageneralmachine-learningframeworkfortesting
+andveriﬁcationandnaturallanguagetechnologiescanbeadvancedintheprocess.
+7.ConclusionsandFutureWork
+WehavepresentedtheﬁrstexperimentalresultsonChinesesemanticrolelabelingusing
+the Chinese PropBank and the Chinese NomBank. We have shown that given gold-
+standard parses, Chinese semantic role labeling can be performed with considerable
+accuracyonChineseverbs.Infact,eventhoughtheChinesePropBankisasigniﬁcantly
+smaller corpus than the English PropBank, we achieved results that are comparable
+withthestate-of-the-artEnglishsemanticrolelabelingsystems.Wesuggestthreefactors
+that are particularly conducive to the semantic role labeling of Chinese verbs when
+the hand-crafted treebank parses are used as input. One is that Chinese verbs tend
+to be less polysemous compared with English, which contributes to a more uniform
+mapping between the predicate–argument structure and its syntactic realization. An-
+otherfacilitatingfactoristhatstativeverbs,whichgenerallytranslateintoadjectivesin
+English,accountforalargeproportionofalltheverbsintheChinesePropBankandthey
+tend to have simple argument structures. Finally, we suggest that the richer structure
+in the Chinese Treebank makes certain aspects of the semantic role labeling simpler.
+251
+ComputationalLinguistics Volume34,Number2
+One such example is that the clear structural distinction between syntactic arguments
+and adjuncts makes it easier for the semantic role labeling system to differentiate core
+argumentsandadjunctsforChineseverbs.Thesealltranslateintolowerconfusability
+along the lines of Erk and Pad´o (2005) in the mapping from the syntactic structure to
+thesemanticrolelabels.
+When the semantic role labeling takes raw text as input, it cannot take advantage
+of the rich syntactic structure of the treebank unless it can be reproduced with high
+accuracy by an automatic parser. Even though our experiments using fully automatic
+parsesyieldpromisinginitialresults,theaccuracyissigniﬁcantlylowerthantheEnglish
+stateoftheart.Ourparsingaccuracyishamperedbyasigniﬁcantlysmallertrainingset
+that is only half the size of the Penn Treebank. We also suggest that there are a few
+inherent linguistic properties of the Chinese language that make syntactic parsing a
+particularly challenging task. The ﬁrst has to do with the fact that Chinese text does
+notcomewithwordboundariesandourparserhastobuildstructuresfromcharacters
+rather than words. The second has to do with the fact that Chinese has very little
+inﬂectional morphology that the parser can exploit when deciding the part-of-speech
+tags of the words. Both word segmentation and POS-tagging difﬁculties will lead to
+parsingerrorswhenlargerphrasestructuresarebuilt.
+Ourexperimentalresultsalsoshowasubstantialgapbetweensystemperformance
+onverbsandnominalizedpredicates.Thisdifferencecanbepartiallyattributedtothe
+smaller corpus size of the Chinese Nombank, with fewer instances of nominalized
+predicates than verbs in the underlying Chinese Treebank, but we believe the main
+reasonisthatthesemanticrolelabelingismorechallengingfornominalizedpredicates
+than for verbs. This again can be explained in terms of confusability in the mapping
+fromsyntacticstructuretothepredicate–argumentstructure.Ingeneral,theNPsinthe
+ChineseTreebankhaveﬂatterstructurescomparedwithverbs.Forexample,thereisno
+clearstructuraldistinctionbetweenargumentsandadjunctsfornominalizedpredicates
+that are analogous to the argument/adjunct distinction for verbs. Another reason for
+theloweraccuracyfornominalizedpredicatesisthemorediversedistributionoftheir
+arguments. Arguments can be found either inside or outside the NP headed by the
+predicate,oreveninrelativeclausesthatmodifytheNPheadedbythepredicate.
+There are many directions we can go from here for future work. There are many
+proven techniques thatcanbeimplemented forChinese,themostimportantofwhich
+is to make Chinese parsers more robust. One thing we plan to experiment with is the
+combination of multiple parsers and multiple semantic role labeling systems. We also
+believethatwehavenotsettledonan”optimal”setoffeaturesforChinesesemanticrole
+labeling and more language-speciﬁc customization is necessary. We believe that joint-
+learningisalsoapromisingavenuetopursue,especiallyforverbswheregenerallymore
+coreargumentsarerealized.
+Acknowledgments
+WewouldliketothankMarthaPalmerfor
+hercommentsonthismanuscriptandearly
+versionsofthepaper,andmoreimportantly
+forhersteadfastsupportforthislineof
+research.WealsowouldliketothankScott
+CottonforprovidingaPropBanklibrarythat
+greatlysimpliﬁedourimplementation.
+Thanksalsototheanonymousreviewersfor
+theirinvaluablecomments.Thisworkis
+supportedbytheNSFITRviagrant
+130-1303-4-541984-XXXX-2000-1070.
+References
+Baker,CollinF.,CharlesJ.Fillmore,and
+JohnB.Lowe.1998.TheBerkeley
+FrameNetproject.InProceedingsof
+COLING/ACL,pages86–90,Montreal,
+Canada.
+252
+Xue SemanticRoleLabelingofChinesePredicates
+Baldewein,Ulrike,KatrinErk,Sebastian
+Pad´o,andDetlefPrescher.2004.Semantic
+rolelabellingwithsimilarity-based
+generalizationusingem-basedclustering.
+InRadaMihalceaandPhilEdmonds,
+editors,ProceedingsofSenseval-3,
+pages64–68,Barcelona,Spain.
+Bejan,CosminAdrian,AlessandroMoschitti,
+PaulMor˘arescu,GabrielNicolae,and
+SandaHarabagiu.2004.Semanticparsing
+basedonframenet.InRadaMihalceaand
+PhilEdmonds,editors,Proceedingsof
+Senseval-3,pages73–76,Barcelona,
+Spain.
+Bender,Emily.2000.ThesyntaxofMandarin
+-ba.JournalofEastAsianLinguistics,
+9(2):105–145.
+Bikel,DanielM.2004.OntheParameterSpace
+ofGenerativeLexicalizedStatisticalParsing
+Models.Ph.D.thesis,Universityof
+Pennsylvania.
+Boas,HansC.2002.BilingualFrameNet
+dictionariesformachinetranslation.In
+ProceedingsofLREC2002,pages1364–1371,
+LasPalmas,Spain.
+Burchardt,A.,K.Erk,A.Frank,A.Kowalski,
+S.Pado,andM.Pinkal.2006.TheSALSA
+Corpus:aGermancorpusresourcefor
+lexicalsemantics.InProceedingsofLREC
+2006,pages969–974,Genoa,Italy.
+Carreras,XavierandLlu´ısM`arquez.2004a.
+Hierarchicalrecognitionofpropositional
+argumentswithperceptrons.InProceedings
+oftheEighthConferenceonNaturalLanguage
+Learning,pages106–109,Boston,MA.
+Carreras,XavierandLlu´ısM`arquez.2004b.
+IntroductiontotheCoNLL-2004shared
+task:Semanticrolelabeling.InProceedings
+oftheEighthConferenceonNatural
+LanguageLearning,pages89–97,
+Boston,MA.
+Carreras,XavierandLlu´ısM`arquez.2005.
+IntroductiontotheCoNLL-2005shared
+task:Semanticrolelabeling.InProceedings
+oftheNinethConferenceonNaturalLanguage
+Learning,pages152–164,AnnArbor,MI.
+Chen,Ying,HonglingSun,andDanJurafsky.
+2005.AcorrigendumtoSunandJurafsky
+(2004)”ShallowSemanticParsingof
+Chinese.” TechnicalReport
+TR-CSLR-2005-01,UniversityofColorado
+atBoulderCSLRTechReport.
+Cohn,TrevorandPhilipBlunsom.2005.
+Semanticrolelabelingwithtreeconditional
+randomﬁelds.InProceedingsofCoNLL2005,
+pages169–172,AnnArbor,MI.
+Collins,Michael.1999.Head-drivenStatistical
+ModelsforNaturalLanguageParsing.Ph.D.
+thesis,UniversityofPennsylvania.
+Erk,K.andSPad´o.2005.Analyzing
+modelsforsemanticroleassignment
+usingconfusability.InProceedingsof
+HLT-EMNLP,pages891–898,Vancouver,
+BritishColumbia,Canada.
+Gabbard,Ryan,SethKulick,andMitchell
+Marcus.2006.FullyparsingthePenn
+treebank.InProceedingsofHLT-NAACL
+2006,pages184–191,NewYork,NY.
+Gildea,D.andD.Jurafsky.2002.Automatic
+labelingforsemanticroles.Computational
+Linguistics,28(3):245–288.
+Girju,Roxana,Ana-MariaGiuglea,Marian
+Olteanu,OvidiuFortu,OrestBolohan,
+andDanMoldovan.2004.Support
+vectormachinesappliedtothe
+classiﬁcationofsemanticrelations.
+InProceedingsoftheHLT/NAACL
+WorkshoponComputationalLexical
+Semantics,pages68–75,Boston,MA.
+Hacioglu,Kadri,SameerPradhan,Wayne
+Ward,JamesH.Martin,andDaniel
+Jurafsky.2004.Semanticrolelabeling
+bytaggingsyntacticchunks.In
+ProceedingsofCoNLL-2004,pages110–113,
+AnnArbor,MI.
+Haghighi,Aria,KristinaToutanova,and
+ChristopherManning.2005.Ajointmodel
+forsemanticrolelabeling.InProceedingsof
+CoNLL,pages173–176,AnnArbor,MI.
+Huang,JamesC.T.1999.Chinesepassivesin
+comparativeperspective.TsingHuaJournal
+ofChineseStudies,29:423–509.
+Jiang,ZhengPingandHweeTouNg.2006.
+SemanticrolelabelingofNomBank:
+Amaximumentropyapproach.In
+ProceedingsoftheEMNLP,pages138–145,
+Sydney,Australia.
+Kipper,K.,A.Korhonen,N.Bryant,and
+M.Palmer.2006.ExtendingverbNetwith
+novelverbclasses.InProceedingsofLREC,
+Genoa,Italy.
+Koomen,Peter,VasinPunyakanok,
+DanRoth,andWentauYih.2005.
+Generalizedinferencewithmultiple
+semanticrolelabelingsystems.In
+ProceedingsoftheNinethConferenceon
+NaturalLanguageLearning,pages181–184,
+AnnArbor,MI.
+Kwon,Namhee,MichaelFleischman,and
+EduardHovy.2004.Sensevalautomatic
+labelingofsemanticrolesusingMaximum
+Entropymodels.InRadaMihalceaand
+PhilEdmonds,editors,Proceedingsof
+Senseval-3,pages129–132,Barcelona,
+Spain.
+Kwong,OiYeeandBenjaminK.T’sou.2005.
+Datahomogeneityandsemanticrole
+tagginginChinese.InProceedingsofthe
+253
+ComputationalLinguistics Volume34,Number2
+ACL-SIGLEXWorkshoponDeepLexical
+Acquisition,pages1–9,AnnArbor,MI.
+Lapata,Maria.2002.Thedisambiguationof
+nominalizations.ComputationalLinguistics,
+28(3):357–388.
+Levi,Judith.1979.TheSyntaxandSemanticof
+ComplexNominals.NewYork:Academic
+Press.
+Levin,Beth.1993.EnglishVerbsand
+Alternations:APreliminaryInvestigation.
+Chicago:TheUnversityofChicagoPress.
+Litkowski,Ken.2004.Senseval-3task:
+Automaticlabelingofsemanticroles.In
+RadaMihalceaandPhilEdmonds,editors,
+ProceedingsofSenseval-3,pages9–12,
+Barcelona,Spain.
+Liu,T.,W.Che,S.Li,Y.Hu,andH.Liu.
+2005.Semanticrolelabelingwitha
+maximumentropyclassiﬁer.In
+ProceedingsofCoNLL-2005,pages189–192,
+AnnArbor,MI.
+Luo,Xiaoqiang.2003.Amaximumentropy
+Chinesecharacter-basedparser.In
+ProceedingsofEMNLP,Sapporo,Japan.
+Marcus,MitchellP.,BeatriceSantorini,and
+MaryAnnMarcinkiewicz.1993.Buildinga
+largeannotatedcorpusofEnglish:The
+PennTreebank.ComputationalLinguistics,
+19(2):313–330.
+M`arquez,Llu´ıs,MihaiSurdeanu,Pere
+Comas,andJordiTurmo.2005.Arobust
+combinationstrategyforsemanticrole
+labeling.InProceedingsofHLT/EMNLP
+2005,pages644–651,Vancouver,Canada.
+McCallum,AndrewKachites.2002.Mallet:A
+machinelearningforlanguagetoolkit.
+Availableathttp://mallet.cs.umass.edu.
+Melli,G.,Y.Wang,Y.Liu,M.M.Kashani,
+Z.Shi,B.Gu,A.Sarkar,andF.Popowich.
+2005.DescriptionofSQUASH,theSFU
+questionandsummaryhandlerforthe
+DUC-2005summarizationtask.In
+DocumentUnderstandingConference2005,
+Vancouver,Canada.
+Meyers,A.,R.Reeves,C.Macleod,
+R.Szekely,V.Zielinska,B.Young,and
+R.Grishman.2004.TheNomBankProject:
+Aninterimreport.InProceedingsofthe
+NAACL/HLTWorkshoponFrontiersin
+CorpusAnnotation,pages24–31,
+Boston,MA.
+Meyers,A.,R.Reeves,andCatherine
+Macleod.2004.NP-Externalarguments:A
+studyofargumentsharinginEnglish.In
+TheACL2004WorkshoponMultiword
+Expressions:IntegratingProcessing,
+pages96–103,Barcelona,Spain.
+Moldovan,DanandAdrianaBadulescu.
+2005.Asemanticscatteringmodelforthe
+automaticinterpretationofgenitives.In
+ProceedingsofHLT-EMNLP,pages891–898,
+Vancouver,Canada.
+Moldovan,Dan,RoxanaGirju,Marian
+Olteanu,andOvidiuFortu.2004.SVM
+classiﬁcationofFrameNetsemanticroles.
+InProceedingsofSenseval-3,pages167–170,
+Barcelona,Spain.
+Nakov,PreslavandMartiHearst.2006.
+Usingverbstocharacterizenoun-noun
+relations.InProceedingsofAIMSA,
+pages233–244,Varna,Bulgaria.
+Narayanan,SriniandSandaHarabagiu.
+2004.Questionansweringbasedon
+semanticstructures.InProceedings
+ofthe20thInternationalConferenceon
+ComputationalLinguistics,pages693–701,
+Geneva,Switzerland.
+Ngai,Grace,DekaiWu,MarineCarpuat,
+Chi-ShingWang,andChi-YungWang.
+2004.Semanticrolelabelingwith
+boosting,svms,maximumentropy,
+snow,anddecisionlists.InRada
+MihalceaandPhilEdmonds,editors,
+ProceedingsofSenseval-3,pages183–186,
+Barcelona,Spain.
+Palmer,Martha,DanielGildea,andPaul
+Kingsbury.2005.ThePropositionBank:
+Anannotatedcorpusofsemanticroles.
+ComputationalLinguistics,31(1):71–106.
+Pradhan,Sameer,KadriHacioglu,
+WayneWardandJamesH.Martin,and
+DanielJurafsky.2005.Semanticrole
+chunkingcombiningcomplementary
+syntacticviews.InProceedingsofCoNLL
+2005,pages217–220,AnnArbor,MI.
+Pradhan,Sameer,KadriHacioglu,
+WayneWard,JamesH.Martin,and
+DanielJurafsky.2003.Semanticrole
+parsing:Addingsemanticstructure
+tounstructuredtext.InProceedings
+oftheInternationalConferenceonData
+Mining(ICDM-2003),pages629–632,
+Melbourne,FL.
+Pradhan,Sameer,HonglinSun,Wayne
+Ward, JamesH.Martin,andDaniel
+Jurafsky.2004.Parsingargumentsof
+nominalizationsinEnglishandChinese.
+InProceedingsofNAACL-HLT2004,
+pages141–144,Boston,MA.
+Pradhan,Sameer,WayneWard,Kadri
+Hacioglu,JamesH.Martin,andDan
+Jurafsky.2005.Semanticrolelabelingusing
+differentsyntacticviews.InProceedingsof
+ACL2005,pages581–588,AnnArbor,MI.
+Pradhan,Sameer,WayneWard,Kadri
+Hacioglu,JamesH.Martin,andDaniel
+Jurafsky.2004.Shallowsemanticparsing
+usingsupportvectormachines.In
+254
+Xue SemanticRoleLabelingofChinesePredicates
+ProceedingsofNAACL-HLT2004,
+pages233–240,Boston,MA.
+Punyakanok,Vasin,DanRoth,andW.Yih.
+2005.Thenecessityofsyntacticparsingfor
+semanticrolelabeling.InProceedingsof
+IJCAI-2005,pages1124–1129,
+Edinburgh,UK.
+Punyakanok,Vasin,DanRoth,WenTau.Yih,
+andDavZimak.2004.Semanticrole
+labelingviaintegerprogramming
+inference.InProceedingsofCOLING-2004,
+pages1346–1352,Geneva,Switzerland.
+Sgall,Petr,JarmilaPanevov´a,andEva
+Hajiˇcov´a.2004.Deepsyntacticannotation:
+Tectogrammaticalrepresentationand
+beyond.InA.Meyers,editor,Proceedingsof
+theHLT-NAACL2004Workshop:Frontiersin
+CorpusAnnotation,pages32–38,Boston,
+MA.
+Sun,HonglinandDanielJurafsky.2004.
+ShallowsemanticparsingofChinese.In
+ProceedingsofNAACL2004,pages249–256,
+Boston,MA.
+Surdeanu,Mihai,SandaHarabagiu,John
+Williams,andPaulAarseth.2005.Using
+predicate-argumentstructuresfor
+informationextraction.InProceedingsof
+ACL2003,AnnArbor,MI.
+Thompson,Cynthia,SiddharthPatwardhan,
+andCarolinArnold.2004.Generative
+modelsforsemanticrolelabeling.InRada
+MihalceaandPhilEdmonds,editors,
+ProceedingsofSenseval-3,pages235–238,
+Barcelona,Spain.
+Toutanova,Kristina,AriaHaghighi,and
+ChristopherManning.2005.Jointlearning
+improvessemanticrolelabeling.In
+ProceedingsofACL-2005,pages589–596,
+AnnArbor,MI.
+Tsai,Tzong-Han,Chia-WeiWu,Yu-Chun
+Lin,andWenlianHsu.2005.Exploiting
+fullparsinginformationtolabelsemantic
+rolesusinganensembleofMEandSVM
+viaintegerlinearprogramming.In
+ProceedingsofCoNLL-2005,pages233–236,
+AnnArbor,MI.
+Xue,Nianwen.2006a.Annotatingthe
+predicate-argumentstructureof
+Chinesenominalizations.InProceedings
+oftheFifthInternationalConferenceon
+LanguageResourcesandEvaluation,
+pages1382–1387,Genoa,Italy.
+Xue,Nianwen.2006b.Semanticrolelabeling
+ofnominalizedpredicatesinChinese.
+InProceedingsofHLT-NAACL2006,
+pages431–438,NewYork,NY.
+Xue,NianwenandMarthaPalmer.2003.
+AnnotatingthepropositionsinthePenn
+ChineseTreebank.InTheProceedingsofthe
+2ndSIGHANWorkshoponChineseLanguage
+Processing,Sapporo,Japan.
+Xue,NianwenandMarthaPalmer.2004.
+Calibratingfeaturesforsemantic
+rolelabeling.InProceedingsof2004
+ConferenceonEmpiricalMethodsinNatural
+LanguageProcessing,pages88–94,
+Barcelona,Spain.
+Xue,NianwenandMarthaPalmer.2005.
+Automaticsemanticrolelabelingfor
+Chineseverbs.InProceedingsofthe
+NineteenthInternationalJointConferenceon
+ArtiﬁcialIntelligence,pages1160–1165,
+Edinburgh,Scotland.
+Xue,Nianwen,FeiXia,FudongChiou,and
+MarthaPalmer.2005.ThePennChinese
+TreeBank:Phrasestructureannotationofa
+largecorpus.NaturalLanguageEngineering,
+11(2):207–238.
+Yi,Szuting,EdwardLoper,andMartha
+Palmer.2007.Cansemanticroles
+generalizeacrossgenres?InProceedings
+ofNAACL-2007,pages548–555,
+Rochester,NY.
+Yi,SzutingandMarthaPalmer.2005.The
+integrationofsyntacticparsingand
+semanticrolelabeling.InProceedings
+ofCoNLL-2005,pages237–240,
+AnnArbor,MI.
+255
+
+

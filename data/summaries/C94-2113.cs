@@ -1,0 +1,4 @@
+A variety of types (ff inRnmation about a sense's meaning are exploited by this comparison step, including: • LDOCE Syntactic Subcategorization Codes,, LI)OCE Boxcodes The program uses a taxonomic classification of these codes based on Bruce and Guthrie (1992) to allow partial matches between senses with nonidentical but related Boxcodes.
+C92-4189
+The program consults a lexical database which contains approximately 150,000 semantic associations between word senses, the result of autonmtically parsing the definition text of each noun and verb sense in LDOCE and then applying a set of heuristic rules which antomatically attempt to identify any systematic semantic relationships holding between a headword and the (base forms of) words used to define it (Jensen & Binot, 1987; Montemagni and Vanderwende, 1992).
+C92-2083 J87-3005

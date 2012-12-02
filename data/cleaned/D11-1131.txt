@@ -1,0 +1,842 @@
+Proceedings of the 2011 Conference on Empirical Methods in Natural Language Processing, pages 1416–1425,
+Edinburgh, Scotland, UK, July 27–31, 2011. c 2011 Association for Computational Linguistics
+ReducingGroundedLearningTaskstoGrammaticalInference
+BenjaminBörschinger
+Departmentof Computing
+MacquarieUniversity
+Sydney, Australia
+benjamin.borschinger@mq.edu.au
+BevanK.Jones
+Schoolof Informatics
+University of Edinburgh
+Edinburgh, UK
+b.k.jones@sms.ed.ac.uk
+MarkJohnson
+Departmentof Computing
+MacquarieUniversity
+Sydney, Australia
+mark.johnson@mq.edu.au
+Abstract
+It is often assumed that ‘grounded’ learning
+tasks are beyond the scope of grammaticalin-
+ference techniques. In this paper, we show
+that the grounded task of learning a seman-
+tic parserfromambiguoustrainingdata as dis-
+cussed in Kim and Mooney (2010) can be re-
+duced to a ProbabilisticContext-Free Gram-
+mar learning task in a way that gives state
+of the art results. We further show that ad-
+ditionally letting our model learn the lan-
+guage’s canonical word order improves its
+performanceand leads to the highest seman-
+tic parsing f-scores previously reportedin the
+literature.1
+1 Introduction
+One of the most fundamentalideas about language
+is that we use it to express our thoughts. Learninga
+naturallanguage,then,amountsto (at least) learning
+a mappingbetweenthe thingswe utterandthe things
+we think, and can therefore be seen as the task of
+learninga semanticparser, i.e. somethingthat maps
+natural languageexpressionssuch as sentencesinto
+meaningrepresentationssuch as logical forms. Ob-
+viously, this learningcan neithertake placein a fully
+supervisednor in a fully unsupervisedfashion: the
+learnerdoesnot ‘hear’the meaningsof the sentences
+she observes, but she is also not treating them as
+merely meaninglessstrings. Rather, it seems plau-
+sible to assumethat she uses extra-linguisticcontext
+1The source code used for our experimentsand the evalua-
+tion is availableas supplementarymaterialfor this article.
+to assigncertain meaningsto the linguisticinputshe
+is confrontedwith.
+In this sense, learning a semantic parser seems
+to go beyond the well-studiedtask of unsupervised
+grammar induction. It involves not only learning
+a grammar for the form-side of language, i.e. lan-
+guage expressions such as sentences, but also the
+‘grounding’ of this structure in meaning represen-
+tations. It requiresgoing beyond the mere linguistic
+input to incorporate,for example, perceptualinfor-
+mationthat providesa clue to the meaningof the ob-
+served forms. Essentially, it seems as if ‘grounded’
+learning tasks like this require dealing with two
+different kinds of information, the purely formal
+(phonemic) and meaningful (semantic) aspects of
+language. Grammaticalinference seems to be lim-
+ited to dealingwith one level of formal information
+(Chang and Maia, 2001). For this reason, probably,
+approachesto the task of learninga semanticparser
+employ a variety of sophisticatedand task-specific
+techniquesthat go beyond (but often elaborate on)
+the techniques used for grammaticalinference (Lu
+et al., 2008; Chen and Mooney, 2008; Liang et al.,
+2009; Kim and Mooney, 2010; Chen et al., 2010).
+In this paper, we show that one can reduce the
+task of learninga semanticparser to a Probabilistic
+Context Free Grammar (PCFG) learning task, and
+more generally, that groundedlearningtasks are not
+in principlebeyond the scope of grammaticalinfer-
+ence techniques. In particular, we show how to for-
+mulatethe task of learninga semanticparser as dis-
+cussed by Chen, Kim and Mooney (2008, 2010) as
+the task of learninga PCFGfromstrings. Our model
+does not only constitutea proof of conceptthat this
+1416
+reductionis possiblefor certain cases, it also yields
+highlycompetitive results.2
+By reducing the problem to the well understood
+PCFG formalism,it also becomes easy to consider
+extensions,leading to our second contribution. We
+demonstratethat a slight modificationto our model
+so that it also learns the language’s canonicalword
+orderimproves its performanceeven beyondthe best
+results previously reported in the literature. This
+language-independentand linguistically well moti-
+vated elaborationallows the model to learn a global
+fact about the language’s syntax, its canonicalword
+order.
+Our contributionis two-fold. We provide an illus-
+tration of how to reduce groundedlearningtasks to
+grammaticalinference. Secondly, we show that ex-
+tending the model so that it can learn linguistically
+well motivated generalizationssuch as the canonical
+word order can lead to better results.
+The structureof the paper is as follows. First we
+give a short overview of the previouswork by Chen,
+Kim and Mooney and describe their dataset. Then,
+we show how to reduce the parsing task addressed
+by them to a PCFG-learningtask. Finally, we ex-
+plainhow to let our modeladditionallylearnthe lan-
+guage’s canonicalword order.
+2 PreviousWorkbyChen,Kimand
+Mooney
+In a seriesof recentpapers,Chen,Kim and Mooney
+approachthe task of learninga semanticparserfrom
+ambiguoustraining data (Chen and Mooney, 2008;
+Kim and Mooney, 2010; Chen et al., 2010). This
+goes beyond previous work on semantic parsing
+such as Lu et al. (2008) or Zettlemoyer and Collins
+(2005) which rely on unambiguous training data
+where every sentence is paired only with its mean-
+ing. In contrast, Chen, Kim and Mooney allow
+their trainingexamplesto exhibit the kind of uncer-
+tainty about sentence meaningshuman learners are
+likely to have to deal with by allowing for sentences
+to be associated with a set of candidate-meanings,
+2It has been pointed out to us by one reviewer that the task
+we address falls short of what is often called ‘groundedlearn-
+ing’. We acknowledge that semanticparsing constitutesa very
+limitedkind of groundedlearningbut want to point out that the
+task has been introducedas an instanceof groundedlearningin
+the previous literaturesuch as Chen and Mooney (2008).
+and the correct meaning might not even be in this
+set. They create the training data by first collect-
+ing humanly generatedwritten languagecomments
+on four different RoboCup games. The comments
+are recordedwith a time-stampand then associated
+with all game events automaticallyextracted from
+the games which occured up to five seconds before
+the comment was made. This leads to an ambigu-
+ous pairing of comments with candidate meanings
+that can be consideredsimilar to the "linguisticin-
+put in the context of a rich, relevant, perceptualen-
+vironment" to which real language learners prob-
+ably have access (Chen and Mooney, 2008). For
+evaluation purposes, they manually create a gold-
+standard which contains unambiguousnatural lan-
+guage comment / event pairs. Due to the fact
+that some comments refer to events not detected
+by their extraction-algorithm,not every natural lan-
+guage sentencehas a gold matchingmeaningrepre-
+sentation. In addition to the inherent ambiguity of
+the training examples, the learner therefore has to
+somehow deal with thoseexampleswhichonly have
+‘wrong’meaningsassociatedwith them.
+Datasetsexist for both Korean and English, each
+comprisingtraining and gold data for four games.3
+Some details about this data are given in Table 1,
+such as the number of examples, their average am-
+biguityand the numberof misleadingexamples.
+For the following short discussionof previousap-
+proaches, we mainly focus on Kim and Mooney
+(2010). This is the most recent publicationand re-
+ports the highestscores.
+2.1 Theparsingtask
+Learninga semanticparserfromthe ambiguousdata
+is, in fact, just one of three tasks discussedby Kim
+and Mooney (2010), henceforthKM. In additionto
+parsing,they discussmatchingand naturallanguage
+generation. We are ignoring the generationtask as
+we are currentlyonly interested in the parsingprob-
+lem, and we treat the matchingtask, pickingthe cor-
+rect meaning from the set of candidates,merely as
+a byproductof parsing, rather than as a completely
+separatetask: parsing implicitlyrequiresthe model
+to disambiguatethe data it is learningfrom.
+3The datasets are freely available at http://www.cs.
+utexas.edu/~ml/clamp/sportscasting/. We re-
+trieved the data used here on March29th, 2011.
+1417
+Numberof comments Ambiguity
+# Training # Training with
+Gold Match
+# Training with
+correctMR
+# Gold Noise Avg. # of MRs
+Englishdataset
+total 1872 1492 1360 1539 0.2735 2.20
+Korean dataset
+total 1914 1763 1733 1763 0.0946 2.39
+Table 1: Statistics for the Korean and the English datasets. The numbersare basicallyidenticalto those reported in
+Chen et al. (2010) except for minimal differences in the number of training examples (we give one more for every
+English training set, and one more for the 2004 Korean training set). In addition, our calculation of the average
+sentential ambiguity (Avg. # of MRs) differs because we assume that mutiple occurences of the same event in a
+context do not add to the overall ambiguity, and our calculationof the noise (fraction of training examples without
+the correct meaningin their context) takes into accountthat there are trainingexampleswhich do not have their gold
+meaningassociatedwith them in the trainingdata and is thereforeslightlyhigher than the one reportedin Chen et al.(2010).
+KM’s model builds on previous work by Lu et al.(2008) and is a generative model which defines a
+joint probability distribution over natural language
+sentences (NLs), meaning representations (MRs)
+and hybrid trees. The NLs are the natural language
+comments to the games, the MRs are simple log-
+ical formulae describing game events and playing
+the role of sentence meanings, and a hybrid tree is
+a tree structure that represents the correspondence
+between a sentence and its meaning. More specif-
+ically, if some NL W has as its meaning an MR
+m, and m has been generated by a meaning gram-
+mar (MG) G, the hybrid tree correspondingto the
+pair〈W,m〉 has as its internal nodes those rules of
+G used in the derivation of m, and as its leaves the
+words making up W.4 An example hybrid tree for
+the pair〈THE PINK GOALIE PASSES THE BALL TO
+PINK11,pass(pink1,pink11)〉 is given in Figure 1.
+Their model is trained by a variant of the Inside-
+Outside algorithmwhich deals with the hybrid tree
+structureand takes into accountthe ambiguityof the
+trainingexamples.
+In additionto learningdirectly from the ambigu-
+ous training data, they also train a semantic parser
+in a supervised fashion on data that has been pre-
+viously disambiguated by their matching model.
+This slightly improves their system’s performance.
+Consequently, there are two scores for each of the
+4We use SMALL CAPS for words, sans serif for MRs and
+MR constituents(concepts),anditalicsfor non-terminalsand
+Grammars.
+S
+S→passPLAYERPLAYER
+PLAYER
+PLAYER→pink11
+PINK11
+PASSES THE BALL TO
+PLAYER
+PLAYER→pink1
+THE PINK GOALIE
+Figure 1: A hybrid tree for the sentence-meaning
+pair 〈THE PINK GOALIE PASSES THE BALL TO
+PINK11,pass(pink1,pink11)〉. The internal nodes cor-
+respond to the rules used to derive pass(pink1,pink11)
+from a given Meaning Grammar, and the leaves corre-
+spond to the words or substrings that make up the sen-
+tence.
+two languages (English and Korean) with which
+we compare our own model: those of the parsers
+trained directlyfrom the ambiguousdata, and those
+of the ‘supervised’parserswhich constitutethe cur-
+rent state of the art. The details of their evaluation
+methodare disccusedin Section3.3, and theirscores
+are given in Table 2, togetherwith our own scores.
+3 Learninga
+SemanticParserasa
+PCFG-learningproblem
+Given that one can effectively representboth a sen-
+tence’s formand its meaningin a hybridtree, it is in-
+terestingto ask whetherone can do with a structure
+that can be learned by grammaticalinference tech-
+1418
+niquesfromstringswhichincorporatethe contextual
+information.In this section,we show how to reduce
+hybrid trees to such ‘standard’ trees. In effect, we
+show via constructionthat ‘grounded’learningtasks
+suchas learninga semantic parserfromsemantically
+enrichedand ambiguousdata can be reducedto ‘un-
+grounded’tasks such as grammaticalinference.
+Instead of taking the internal nodes of the trees
+generated by our model as corresponding to MG
+productionrules, we take themto correspondto MR
+constituents. TheMRpass(pink1,pink11), for exam-
+ple, has 4 constituents:the wholeMR, the predicate
+pass, and the two arguments pink1and pink11. Fig-
+ure 2 gives the tree we assumeinstead of Figure 1
+for the sentence-meaningpair〈THE PINK GOALIE
+PASSES THE BALL TO PINK11,pass(pink1,pink11)〉.
+Its root is assumed to correspond to the whole
+MR and is labeled Spass(pink1,pink11). The remain-
+ing three MR constituentscorrespondto the root’s
+daughters which we label Phrasepink1, Phrasepass
+and Phrasepink11. Generallyspeaking,we assume a
+special non-terminalSm for every MR m generated
+by the MG,and a specialnon-terminalPhrasecon for
+each of the terminalsof the MG (whichlooselycor-
+respondto concepts).This is only possiblefor MGs
+whichcreatea finiteset of MRs,but the MG usedby
+Kim and Mooney (2010)obeys this restriction.5
+The tree’s terminals are the words that make up
+the sentence,and we assume them to be dominated
+by concept-specific pre-terminals Wordcon which
+correspondto concept-specificprobabilitydistribu-
+tions over the language’s vocabulary. Since each
+Phrasecon may span multiple words, we give trees
+rooted in Phrasecon a left-recursive structure that
+corresponds to a unigram Markov-process. This
+process generates an arbitrary sequence of words
+semanticallyrelated to con, dominated by the cor-
+respondingpre-terminalWordcon in our model, and
+words not directlysemanticallyrelatedto con, dom-
+inated by a special word pre-terminalWord∅. The
+sole further restrictionis that every Phrasecon must
+containat least one Wordcon.
+Trees like the one in Figure 2 can be generatedby
+a Context-FreeGrammar(CFG) which, in turn, can
+be trainedon stringsto yield a PCFGwhichembod-
+5This grammar is given in the Appendix to Chen et al.(2010)and generatesa total of 2048 MRs.
+ies a semanticparser as will be discussedin Section
+3.3. We now describehow to set up such a CFG in a
+systematicway and how to train it on the data used
+by KM.
+3.1 SettingupthePCFG
+The training data expresses informationof two dif-
+ferentkinds– form and meaning.Every trainingex-
+ample consistsof a natural languagestring (the for-
+mal information)and a set of candidate meanings
+for the string (the semanticinformation,its context),
+allowing for the possibility that none of the mean-
+ings in the context is the correct one. In order to
+learn from data like this within a grammatical in-
+ferenceframework, we have to encodethe semantic
+informationas part of the string. Assigninga spe-
+cific MR m to a string corresponds, in our frame-
+work, to analyzing it as a tree with Sm as its root.
+A sentence’s context constrainswhich of the many
+possiblemeaningsmightbe expressedby the string.
+Thus the role played by the context is adequately
+modelledif we ensurethat if a string W is associated
+with a context {m1,...,mn}, the modelonly considers
+the possibilitiesthat this stringmightbe analyzedas
+Sm1,...,Smn.
+There are 959 different contexts, i.e. 959 dif-
+ferent sets of MRs, in the English data set (984
+for the Korean data), and we therefore introduce
+959 new terminal symbols which play the role of
+context-identifiers, for example C1 to C959.6 For-
+mally speaking, a context-identifier is a terminal
+like any other word of the language and we can
+thereforeprefix every commentin the training data
+with the context-identifier standing for the set of
+MRs associated with this comment, an idea taken
+from previous work such as Johnson et al. (2010).
+Thus having incorporated the contextual informa-
+tion into the string,we go on to show how our model
+makes use of this information,consideringthe MR
+pass(pink1,pink11)as an example. A formal de-
+scriptionof the modelis given Figure 3.
+Assume that pass(pink1,pink11) is associated
+with only one trainingexampleand thereforeoccurs
+only in one specificcontext. If the context-identifier
+introduced for this context is C1, we require the
+6If we were to consider every possible context, we would
+have to consider22048 contexts becausethe MG generates2048
+MRs.
+1419
+Root
+Spass(pink1,pink11)
+Phrasepink11
+PINK11
+Phrasepass
+Wordpass
+TO
+PhXpass
+Word∅
+BALL
+PhXpass
+Word∅
+THE
+PhXpass
+Wordpass
+PASSES
+Phrasepink1
+THE PINK GOALIE
+C76
+Figure 2: The tree-structurewe proposeinstead of the Hybrid Tree structureused by (Kim and Mooney, 2010). The
+non-terminalnodes do not correspond to MG productions, but to MR constituents. The internal structure of the
+Phrasecon constituents,shown in full detail for Phrasepass, correspondsto a Markov processthat generatesthe words
+that make up the sentence. The terminal C76 is a context-identifier that restricts the range of Sm non-terminalsthat
+mightdominatethe sentenceand is onlyusedduringtraining,as describedin Section 3.1. The grammarthat generates
+this trees is describedin Figure 3.
+right-handside of all rules with Spass(pink1,pink11)on
+their left-hand side to begin with C1. More gener-
+ally, if an MR m occurs in the contexts associated
+with the context-identifiersCK,...,CL, we require the
+right-handside of all ruleswithSm on theirleft-hand
+side to begin with exactlyone of CK,...,CL.
+In this sense, the context-identifiers can be seen
+as providing the model with a top-down constraint
+– if it encounters a context-identifier, it can only
+try analyses leading to MRs which are licensed by
+this context-identifier. On the other hand, the words
+have to be generated by concept-specific word-
+distributions, and the concepts that are present re-
+strict the range of possible Sm non-terminalswhich
+might dominatethe whole string. In this sense, the
+words the model observes provide it with a bottom-
+up constraint – if it sees words which are semanti-
+cally related to certain conceptscon1,...,conn, it has
+to arrive at an MR whichlicensesthe presenceof the
+correspondingPhraseconx non-terminals.Of course,
+the model has to also learn which words are seman-
+tically related to which concepts. To enable it to do
+this, our grammarallows every Wordx non-terminal
+to be rewrittenas every word of the language.
+Sincethere are sentencesin the trainingdatawith-
+out the correct meaning in their context, we want
+to give our model the possibilityof not assigningto
+a sentence any of the MRs licensed by its context-
+identifier. To do this, we employ another trick of
+previous work by Johnson et. al and assume a spe-
+cial null meaning∅ to be present in every context.
+S∅ may only span words generated by Word∅, the
+language-specificdistribution for words not directly
+relatedto any concept;this also has to be learnedby
+the model.
+As a last complication,we deal with the fact that
+syntactic constituentsare linearized with respect to
+each other. For example,if an MR has 3 propercon-
+stituents(i.e. excludingthe MR itself),our grammar
+allows the corresponding3 syntactic constituents–
+which we might label Phrasepredicate, Phrasearg1
+and Phrasearg2 – to occur in any of the 6 possible
+orders. Therefore,we have an Sm rule for every con-
+text in whichm occurs and for every possibleorder
+of the properconstituentsof m.
+A formally explicit description of the rule
+1420
+schemataused to generatethe CFG is given in Fig-
+ure 3.7 Instantiatingall those schemata leads to a
+grammarwith 33,101 rules for the Englishdata and
+30,731 rules for the Korean data. The difference in
+size is due to differences in the size of the vocabu-
+lary and the different numberof contexts in the data
+sets.
+These CFGs can now be trained on the training
+data using the Inside-Outsidealgorithm (Lari and
+Young, 1990). After training, the resulting PCFG
+embodies a semantic parser in the sense that, with
+a slight modificationwe describe in section 3.3, it
+can be used to parse a string into its meaning rep-
+resentationby determiningthe most likely syntactic
+analysisandreadingoff the meaningassignedby our
+modelat the Sm-node.
+3.2 Possibleobjectionstoourreduction
+Before we go on to discuss the details of training
+and evaluationof our model, we want to addressan
+objectionthat mightseemtempting.Isn’t our reduc-
+tion impracticaland unrealisticas even a highly ab-
+stract model of languagelearning– after all, setting
+up the huge CFG requiresknowledge about the vo-
+cabulary, the MG and all the complicatedrules dis-
+cussed which, presumably, is more knowledge than
+we want to provide a languagelearner with, lest we
+trivialize the task. To this we reply firstly, that it is
+truethatourreductiononlyworksfor offlineor batch
+grounded learningtasks where all the data is avail-
+able to the model before the actual learning begins
+so that it ‘knows’ the words, the meanings and the
+contexts present in the data. This offline constraint
+is, however, true of all models which are trained by
+iterating multiple times over training data such as
+KM’s model. Secondly, the intimidatingCFGcan in
+principlebe reducedto a hand-fullof intuitive prin-
+ciples and is easy to generateautomatically.
+First of all, the many specificSm-rewrite rules re-
+duce to the heuristicthat every semanticconstituent
+shouldcorrespondto a syntacticconstituent,and the
+fact thatnaturallanguageexpressionsare linearlyor-
+dered. Note that our model does not containknowl-
+edge about the specific word order of the language.
+7In our description, we use context-identifierssuch as C1
+with a systematic ambiguity, lettingthem stand for the terminal
+symbol representinga context and, in contexts such as m∈C1,
+for the representedcontext itself.
+It simplyallows for the constituentsof an MR to oc-
+cur in every possibleorder which is a very unbiased
+and empiricistassumption. Of course, this leads to
+some limitedkind of ‘implicit learning’of word or-
+der in the sense that for every meaning and for every
+context, our modelmight(andin mostcaseswill)as-
+sign different probabilitiesto the different rules for
+every word order;so it can learnthat certainspecific
+MRs such as pass(pink1,pink11)are more often lin-
+earizedin one way than in any other. It cannot,how-
+ever, generalizethis to other (or even unseen)MRs,
+i.e. it doesnot learna globalfact aboutthe language.
+In a way, it lacks the knowledgethat there is such a
+thing as word order, a point whichwe will elaborate
+on in Section4.
+The many re-write rules for the pre-terminal
+Wordxs are nothing but an explicit version of the
+assumption that every word the model encounters
+might, in principle,be semanticallyrelated to every
+concept it knows. Again, this seems to us to be a
+reasonableassumption.
+Finally, the complicatedlooking set of rules for
+the internal structure of Phrasexs corresponds to
+a simple unigram Markov-process for generating
+strings. All in all, we do not see that we make any
+more assumptions than other approaches; our for-
+mulationmay make explicithow rich those assump-
+tionsare but we have notqualitatively changedthem.
+3.3 TrainingandEvaluation
+The CFGdescribedin the previoussectionis trained
+on the same training data used by KM, except that
+we reduce it to strings (withoutchangingthe infor-
+mationpresentin the original data) by prefixingev-
+ery sentence with a context-identifier. For training
+we run the Inside-Outsidealgorithm8 with uniform
+initialization weights until convergence. For En-
+glish, this results in an average number of 76 itera-
+tionsfor eachfold,for Koreanthe averagenumberof
+iterationsis 50. To deal with the fact that the model
+might not observe certainmeaningsduringtraining,
+we apply a simple smoothing techniqueby using a
+Dirichletprior ofα=0.1 on the rule probabilities.In
+effect, this providesour systemwith a smallnumber
+of pseudo-observationsfor each rule whichprevents
+8We use Mark Johnson’s freely available implementa-
+tion, available at http://web.science.mq.edu.au/
+~mjohnson/Software.htm.
+1421
+Root→Sm m∈M∪{∅}
+Sm→cPhrasep(m) c∈C,m∈c,m∈Pred0(M)
+Sm→c{Phrasep(m),Phrasea1(m)} c∈C,m∈c,m∈Pred1(M)
+Sm→c{Phrasep(m),Phrasea1(m),Phrasea2(m)} c∈C,m∈c,m∈Pred2(M)
+S∅→cPhrase∅ c∈C
+Phrase∅→Word∅
+Phrase∅→Phrase∅Word∅
+Phrasex→Wordx x∈T
+Phrasex→PhXxWordx x∈T
+Phrasex→PhxWord∅ x∈T
+PhXx→Wordr x∈T,r∈{x,∅}
+PhXx→PhXxWordr x∈T,r∈{x,∅}
+Phx→PhXxWordx x∈T
+Phx→PhxWord∅ x∈T
+Phx→Wordx x∈T
+Wordx→v x∈T∪{∅},v∈V
+Figure 3: The rule-schemataused to generatethe NoWo-PCFG.Root is the unique start-symbol,M is the set of all
+MRs present in the corpus,C is set the of all context-identifierspresentin the corpus,T is the set of terminalsof the
+MG,V is the vocabulary of the corpus.Pred0(M) is the subset of all MRs in M of the formpredicate, Pred1(M)
+is the subset of all MRs in M of the formpredicate(arg1)andPred2(M) is the subset of all MRs in M of the form
+predicate(arg1,arg2). p(m) is the predicateof the MR m, a1(m) is the first argument of the MR m, a2(m) is the
+second argumentof the MR m. The rules expandingPhrasex ensure that it containsat least one Wordx. A set on the
+right-handside of a rule is shorthandfor all possibleorderingsof the elementsof the set.
+the automaticassignmentof zeroprobabilityto rules
+not used duringtraining.9
+For parsing, the resulting PCFG is slightly mod-
+ified by removing the context-identifiers. This is
+done because the task of a semanticparser is to es-
+tablish a mappingbetweenNLs and MRs, irrespec-
+tive of contexts which were only used for learning
+the parser and should not play a role in its final per-
+formance. To do this, we add up the probabilityof
+all rules which differ only in the context-identifier
+whichcan be thoughtof as marginalizingout the dif-
+ferentcontexts, giving our first modelwhichwe call
+NoWo-PCFG.10
+Note that the context-deletion (and the simple
+smoothing)enablesNoWo-PCFGto parsesentences
+into meaningsnot present in the data it was trained
+on which, in fact, happens. For example, there are
+81 meaningsin the trainingdata for the first English
+9We experimentedwithα=0.1,α=0.5 andα=1.0 and found
+that overall, 0.1 yields the best results. We also tried jittering
+the initial rule weights during training and found that our re-
+sults are very robust and seem to be independentof a specific
+initialization.
+10NoWo becausethis model,unlike the one describedin Sec-
+tion 4, does not make explicit use of word order generalisa-
+tions.
+matchthat are not presentin any of the othergames’
+trainingdata. The PCFGtrainedon games2, 3 and 4
+is still able to correctlyassign 12 of those 81 mean-
+ings which it has not seen during the trainingphase
+whichshows the effectivenessof the bottom-upcon-
+straint.
+For evaluation,we employ 4-foldcross validation
+as described in detail in Chen and Mooney (2008)
+and usedby KM:the modelis trainedon all possible
+combinationsof 3 of the 4 games and is then used
+to produce an MR for all sentencesof the held-out
+game for which there is a matching gold-standard
+meaning. For an NL W, our model producesan MR
+m by finding the most probable parse of W with the
+CKY algorithmand readingoff m at the Sm-node.11
+An MRis consideredcorrectif andonlyif it matches
+the gold-standardMR exactly; the final evaluation
+result is averaged over all 4 folds. Our evaluation
+results for NoWo-PCFG are given in Table 2. All
+scores are reported in F-measure which is the har-
+monicmean of Precisionand Recall. In this specific
+case, precision is the fraction of correct parses out
+11For parsing, we use Mark Johnson’s freely available CKY
+implementationwhich can be downloaded at http://web.
+science.mq.edu.au/~mjohnson/Software.htm.
+1422
+English Korean
+KM 0.742 0.764
+KM ‘supervised’ 0.810 0.808
+Chen et al. (2010) 0.801 0.812
+NoWo-PCFG 0.742 0.718
+WO-PCFG 0.860 0.829
+Table 2: A summaryof results for the parsingtask, in F-
+measure. We also show the results of Chen et al. (2010),
+as given in Kimand Mooney (2010),whichto our knowl-
+edge are the highest previously reported scores for Ko-
+rean. WO-PCFG,describedin Section 4 performsbetter
+than all previously reported models, but only slightly so
+for Korean.
+of the total numberof parses the modelreturns. Re-
+call is the fraction of correct parses out of the total
+numberof test sentences.12
+NoWo-PCFG performs a little worse than KM’s
+model. Its scores are virtuallyidenticalfor English
+(0.742) and worse for Korean (0.718 vs 0.764). We
+are not sure as to why our modelperformsworse on
+the Koreandata, but it mighthave to do with the fact
+that the Koreanaverage ambiguityis higherthan for
+the Englishdata.
+This shows that it is not only possible to re-
+duce the task of learning a semanticparser to stan-
+dard grammaticalinference,but that this way of ap-
+proachingthe problemyieldscomparableresults.
+The remainder of the paperfocuseson our second
+main point: that letting the model learn additional
+kindsof information,such as the language’s canoni-
+cal word order, can furtherimprove its performance.
+In order to do this we propose a model that learns
+the word order as well as the mapping from NLs
+to MRs, and compareits performanceto that of the
+other models.
+4 ExtendingNoWo-PCFGtoWO-PCFG
+We alreadypointedout that our modelconsidersev-
+ery possible linear order of syntactic constituents.
+Our NoWo-PCFGmodel considerseach of the pos-
+sible word orders for every meaningand context in
+isolation:it is unableto infer from the fact that most
+meanings it has observed are most likely to be ex-
+pressedwitha certainword orderthat new meanings
+12Becauseour modelparsesevery sentence,for it Recalland
+Precisionare identicaland F-measureis identicalto Accuracy.
+it will encounterare also morelikely to be expressed
+with this word order. It seems, however, to be at
+least a soft fact about languages that they do have
+a canonicalword order that is more likely to be re-
+alized in its sentencesthan any other possibleword
+order. In order to test whether trying to learn this
+order helps our model,we modifythe CFG used for
+NoWo-PCFGso it can learn word order generaliza-
+tions, and train it in the same way to yield another
+semanticparser, WO-PCFG.
+4.1 SettingupWO-PCFG
+For every possible ordering of the constituents cor-
+respondingto an MR, our grammarcontainsa rule.
+In NoWo-PCFG, these different rules all share the
+same parent which prevents the model from learn-
+ing the probability of the different word orders cor-
+responding to the many rules. A straight-forward
+way to overcome this is to annotate every Sm node
+with the word order of its daughter. We split every
+Sm non-terminal in multiple Swo_m non-terminals,
+wherewo∈{v,sv,vs,svo,sov,osv,ovs,vso,vos} indi-
+cates the linear order of the constituents the non-
+terminalrewritesas.13
+This in itself does not yet allow our model to use
+word order as a means of generalization. To model
+that whenever it encounters a specific example that
+is indicative of a certain word order, this word or-
+der becomesslightly more probablefor every other
+example as well, we have to make a further slight
+change to the CFG which we now describe. A for-
+mally explicit descriptionof the necessarychanges
+whichwe go on to describeis given in Figure 4.
+We introducesix new non-terminals,correspond-
+ing to the six possibleword ordersSVO, SOV, VSO,
+VOS, OSV and OVS and require every Swo_m non-
+terminalto be dominatedby the non-terminalcom-
+patible with its daughterslinear order. As an exam-
+ple, consider the two syntactic non-terminalscor-
+responding to the MR kick(pink1), Svs_kick(pink11)
+and Ssv_kick(pink11). Whenever an example is suc-
+cessfully analyzed as Svs_kick(pink11), this should
+strengthenour model’s expectationof encountering
+13We assume, somewhat simplifying,that an MR’s predicate
+correspondsto a V(erb), its first argument correspondsto the
+S(ubject)and its second argument correspondsto the O(bject).
+These are purely formal categories that are not constrainedto
+correspondto specificlinguisticcategories.
+1423
+Root→wo wo∈WO
+wo→Sx_m wo∈WO,x∈WOS,x⊂wo,m∈M
+Sv_m→cPhrasep(m) c∈C,m∈c,m∈Pred0(M)
+Sx_m→c{Phrasep(m),Phrasea1(m)} c∈C,m∈c,m∈Pred1(M),x∈{sv,vs}
+Sx_m→c{Phrasep(m),Phrasea1(m),Phrasea2(m)} c∈C,m∈c,m∈Pred2(M),x∈WOS
+Sv_∅→cPhrase∅ c∈C
+Figure 4: In order to turn NoWo-PCFG described in Figure 3 into the WO-PCFG described in the
+text, substitute the first five rule-schemata with the schemata given here. WO is the set of word
+order non-terminals {SVO,SOV,OSV,OVS,VSO,VOS}, WOS is the set of word order annotations
+{v,sv,vs,svo,svo,ovs,osv,vso,vos}. We take x ⊂wo to mean that x is compatiblewith wo, wherev is com-
+patible with all word orders,sv is compatiblewith SVO,SOV and OSV, and so on. For rule-schemata4 and 5, the
+choice of x determinesthe order of the elementsof the set on the right-handside. All other symbols have the same
+meaningas explainedin Figure 3.
+more examples where the verb precedes the sub-
+ject, i.e. of the languagebeingpre-dominantlyVSO,
+VOS or OVS. Therefore, we allow VSO, VOS and
+OVS to be rewritten as Svs_kick(pink11). More gener-
+ally, every word order non-terminalcan rewrite as
+any of the Swo_m non-terminalsthat are compatible
+with it. Adding this additionallayer of word order
+abstractionleads to a grammarwith 36,019rules for
+English and a grammar with 33,715 rules for Ko-
+rean.
+4.2 EvaluationofWO-PCFG
+Training and evaluating WO-PCFG in exactly the
+same way as the previous grammar gives an F-
+measure of 0.860 for English and an F-measureof
+0.829 for Korean. Those scores are, to our knowl-
+edge, the highestscores previouslyreportedfor this
+parsing task and establish our second main point:
+letting the model learn the language’s word order in
+addition to learning the mapping from sentences to
+MR increasessemanticparsingaccuracy.14
+An intuitive explanationfor the increasein perfor-
+mance is that by allowing the model to learn word
+order, we are providing it with a new dimension
+along whichit can generalize.
+In this sense, we can look at our refinement as
+providing the model with abstract linguisticknowl-
+edge, namely that languagestend to have a canon-
+14Lianget al. (2009)’s modelcan be seen as capturingsome-
+thing similar to our word order generalizationwith the help of
+a Field Choice Model which primarily captures discourse co-
+herence and salience properties. It differs, however, in that it
+can only learn one generalizationfor each predicate type and
+no languagewide generalization.
+ical word order. The usefulnessof this kind of in-
+formation is impressive – for English, it improves
+the accuracy of semantic parsing by almost 12% in
+F-measure and for Korean by 11.1%. In addition,
+our model correctly learns that English’s predomi-
+nant word orderis SVO and that Koreanis predomi-
+nantly SOV, assigningby far the highestprobability
+to the correspondingRoot rewrite rule (0.91 for En-
+glishand 0.98 for Korean). This kind of information
+is useful in its own right and could, for example,be
+exploitedby couplingword orderwith otherlinguis-
+tic properties,perhapsfollowingGreenberg (1966)’s
+implicationaluniversals.
+In this sense, the reductionof groundedlearning
+problems to grammatical inference does not only
+make possible the application of a wide variety of
+tools and insightsdeveloped over years of research,
+it mightalso make it easier to bringabstract(and not
+so abstract) linguistic knowledge to bear on those
+tasks.
+The overall slightly worse performance of our
+systemon Koreandata mightstem from the fact that
+Korean, unlike English, has a rich morphology, and
+that our model does not learn anything about mor-
+phology at all. We plan on further investigating ef-
+fects like this in the future,as well as applyingmore
+advanced grammaticalinferencealgorithms.
+5 ConclusionandFuture
+Work
+We have shown that certaingroundedlearningtasks
+suchas learninga semanticparserfromsemantically
+enriched training data can be reduced to a gram-
+maticalinferenceproblemover strings. This allows
+1424
+for the applicationof techniquesand insightsdevel-
+oped for grammaticalinference to grounded learn-
+ing tasks. In addition, we have shown that letting
+the model learn the language’s canonical word or-
+der improves parsing performance,beyond the top
+scores previouslyreported,thus illustratingthe use-
+fullnesof linguisticknowledgefor tasks like this.
+In future research, we plan to address the limi-
+tation of our model to a finite set of meaning rep-
+resentations, in particular through the use of non-
+parametric Bayesian models such as the Infinite
+PCFG model of Liang et al. (2007) and the Infi-
+nite Tree model of Finkel et al. (2007); both allow
+for a potentiallyinfinite set of non-terminals,hence
+directly addressing this problem. In addition, we
+are thinking about using an extension of the PCFG
+formalism that allows for some kind of ‘feature-
+passing’whichcouldleadto muchsmallerand more
+generalgrammars.
+References
+N. C. Chang and T. V. Maia. 2001. Groundedlearning
+of grammaticalconstructions. In 2001 AAAI Spring
+Symposiumon LearningGroundedRepresentations.
+David L. Chenand RaymondJ. Mooney. 2008. Learning
+to sportscast:A test of groundedlanguageacquisition.
+In Proceedings of the 25th InternationalConference
+on Machine Learning(ICML).
+David L. Chen, Joohyun Kim, and RaymondJ. Mooney.
+2010. Traininga multilingualsportscaster:Using per-
+ceptualcontext to learn language. Journalof Artificial
+Intelligence Research, 37:397–435.
+Jenny R. Finkel, Trond Grenager, and Christopher D.
+Manning. 2007. The infinite tree. In Proceedings
+of the 45th AnnualMeetingof the Associationof Com-
+putationalLinguistics, pages 272–279.
+Joseph H. Greenberg. 1966. Some universals of gram-
+mar with particularreferenceto the order of meaning-
+ful elements. In Joseph H. Greenberg, editor, Univer-
+sals of Language, chapter 5, pages 73–113. The MIT
+Press, Cambridge,Massachusetts.
+Mark Johnson, Katherine Demuth, Michael Frank, and
+Bevan Jones. 2010. Synergies in learning words
+and their referents. In J. Lafferty, C. K. I. Williams,
+J. Shawe-Taylor, R.S. Zemel, and A. Culotta, editors,
+Advances in Neural Information Processing Systems
+23, pages 1018–1026.
+Joohyun Kim and RaymondJ. Mooney. 2010. Genera-
+tive alignmentand semanticparsingfor learningfrom
+ambiguoussupervision.In Proceedingsof the 23rd In-
+ternationalConference on ComputationalLinguistics
+(COLING2010).
+K. LariandS.J.Young. 1990. Theestimationof Stochas-
+tic Context-Free Grammars using the Inside-Outside
+algorithm. ComputerSpeech and Language, 4(35-56).
+Percy Liang,Slav Petrov, MichaelJordan,andDanKlein.
+2007. The infinite PCFG using hierarchicalDirichlet
+processes. In Proceedings of the 2007 Joint Confer-
+ence on EmpiricalMethodsin Natural Language Pro-
+cessing and ComputationalNatural Language Learn-
+ing (EMNLP-CoNLL), pages 688–697.
+Percy Liang, Michael I. Jordan, and Dan Klein. 2009.
+Learningsemanticcorrespondenceswith less supervi-
+sion. In Proceedingsof the 47thAnnualMeetingof the
+ACL and the 4th IJCNLPof the AFNLP.
+Wei Lu, HweeTou Ng, Wee Sun Lee, and Luke S. Zettle-
+moyer. 2008. A generative model for parsing natu-
+ral languageto meaningrepresentations.In Empirical
+Methods in Natural Language Processing (EMNLP),
+pages 783–792.
+Luke S. Zettlemoyer and MichaelCollins. 2005. Learn-
+ing to map sentencesto logical form: Structuredclas-
+sification with probabilistic categorial grammars. In
+Proceedingsof UAI 2005.
+1425
+

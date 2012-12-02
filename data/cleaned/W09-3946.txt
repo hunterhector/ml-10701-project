@@ -1,0 +1,756 @@
+Proceedings of SIGDIAL 2009: the 10th Annual Meeting of the Special Interest Group in Discourse and Dialogue, pages 314–321,
+Queen Mary University of London, September 2009. c©2009 Association for Computational Linguistics
+Ranking Help Message Candidates Based on Robust Grammar
+Verification Results and Utterance History in Spoken Dialogue Systems
+Kazunori Komatani Satoshi Ikeda Yuichiro Fukubayashi
+Tetsuya Ogata Hiroshi G. Okuno
+GraduateSchoolofInformatics
+KyotoUniversity
+Yoshida-Hommachi,Sakyo,Kyoto606-8501,Japan
+{komatani,sikeda,fukubaya,ogata,okuno}@kuis.kyoto-u.ac.jp
+Abstract
+We address an issue of out-of-grammar
+(OOG)utterances inspoken dialogue sys-
+tems by generating help messages for
+novice users. Help generation for OOG
+utterances is a challenging problem be-
+cause language understanding (LU) re-
+sults based on automatic speech recogni-
+tion (ASR) results for such utterances are
+always erroneous as important words are
+often misrecognized or missed from such
+utterances. Wefirstdevelop grammarver-
+ification for OOG utterances on the ba-
+sis of a Weighted Finite-State Transducer
+(WFST). It robustly identifies a grammar
+rulethatauserintends toutter,evenwhen
+someimportantwordsaremissedfromthe
+ASRresult. Wethenadoptarankingalgo-
+rithm, RankBoost, whose features include
+the grammar verification results and the
+utterance history representing the user’s
+experience.
+1 Introduction
+Studiesonspoken dialogue systemshaverecently
+proceeded from in-laboratory systems to ones de-
+ployed to the open public (Raux et al., 2006; Ko-
+matani et al., 2007; Nisimura et al., 2005). Ac-
+cordingly, opportunities are increasing as general
+citizens use the systems. This situation means
+that novice users directly access the systems with
+no instruction, which is quite different from in-
+laboratory experiments where some instructions
+can be given. In such cases, users often experi-
+ence situations where their utterances are not cor-
+rectly recognized. This is because of a gap be-
+tweentheactualsystemandauser’smentalmodel,
+that is, a user’s expectation of the system. Ac-
+tually, a user’s utterance often cannot be inter-
+preted bythe system because ofthe system’s lim-
+ited grammar for language understanding (LU).
+We call such an unacceptable utterance an “out-
+of-grammar (OOG) utterance.” When users’ ut-
+terances are OOG, they cannot change their ut-
+terances into acceptable ones unless they are in-
+formed what expressions are acceptable by the
+system.
+We aim to manage the problem of OOG utter-
+ancesbyproviding help messages showing anex-
+ample ofacceptable language expressions when a
+user utterance is not acceptable. We prepare help
+messagescorresponding toeachgrammarrulethe
+system has. We therefore assume that appropri-
+ate help messages can be provided if a user’s in-
+tention, i.e., a grammar rule the user originally
+intends to use by his utterance, is correctly esti-
+mated.
+Issues for generating such help messages in-
+clude:
+1. Estimating a grammar rule corresponding to
+user intention even from OOG utterances,
+and
+2. Complementingmissinginformationinasin-
+gleutterance.
+The first issue focuses on the fact that automatic
+speechrecognition(ASR)results,usedasmainin-
+put data, are erroneous for OOG utterances. Es-
+timating a grammar rule that the user intends to
+usebecomesaccordinglydifficultespeciallywhen
+content words, which correspond to database en-
+tries such as place names and their attributes, are
+notcorrectlyrecognized. Thatis,anytypeofASR
+error in any position should be taken into consid-
+eration inASRresults ofOOGutterances. Onthe
+314
+other hand, the second issue focuses on the fact
+thatanASRresult foranOOGutterance does not
+necessarily contain sufficient information to esti-
+mate the user intention. This is because of ASR
+errors orthatusers mayomitsomeelements from
+theirutterances becausetheyareincontext.
+We develop a grammar verification method
+based on Weighted Finite-State Transducer
+(WFST) as a solution to the first issue. The
+grammar verification method robustly estimates
+which a grammar rule is intended to use by a
+user’s utterance. The WFST is automatically
+generatedtorepresentanASRresultinwhichany
+possibility oferroristakenintoconsideration. We
+furthermore adopt a boosting algorithm, Rank-
+Boost (Freund et al., 2003), to put help messages
+inorderofprobabilitytoaddressthesecondissue.
+Because it is difficult even for human annotators
+touniquely determinewhichhelpmessageshould
+be provided for each case, we adopt an algorithm
+that can be used for training on several data
+examples that have a certain order of priority.
+We also incorporate features representing the
+user’s utterance history for preventing message
+repetition.
+2 Related
+Work
+Variousstudieshavebeendoneongeneratinghelp
+messages in spoken dialogue systems. Gorrell et
+al.(2002)trainedadecisiontreetoclassifycauses
+oferrorsforOOGutterances. Hockeyetal.(2003)
+alsoclassifiedOOGutterances intothethreecate-
+goriesofendpointingerrors,unknownvocabulary,
+andsubcategorizationmistakes,bycomparingtwo
+kinds of ASR results. This was called Targeted
+Helpandprovidedauserwithimmediatefeedback
+tailoredtowhattheusersaid. Leeetal.(2007)also
+addressed error recovery by generating help mes-
+sagesinanexample-baseddialogmodelingframe-
+work. These studies, however, determined what
+help messages should be provided mainly on the
+basis of literal ASRresults. Therefore, help mes-
+sageswouldbedegradedbyASRresultsinwhich
+a lot of information was missing, especially for
+OOG utterances. The same help messages would
+be repeated when the same ASR results were ob-
+tained.
+An example dialogue enabled by our method,
+especiallythepartofthemethoddescribedinSec-
+tion 4, is shown in Figure 1. Here, user utter-
+ances are transcriptions, and utterance numbers
+U1: Tell me your recommending sites.
+Underlined parts are not in-vocabulary and no
+valid LU result is obtained. The estimated gram-
+mar is [Obtaining info on a site] although the most
+appropriate help message is that corresponding to
+[Searching tourist sites].
+S1: I did not understand. You can say “Tell me
+the address of Kiyomizu Temple” for example,
+if getting information on a site.
+Thehelpmessage corresponding to[Obtaininginfo
+on a site] is provided.
+U2: Tell me your recommending sites.
+The user repeats the same utterance probably be-
+cause the help message (S1) was not helpful. The
+estimated grammar is [Obtaining info on a site]
+again.
+S2: I did not understand. You can say “Search
+shrines or museums” for example, if searching
+tourist sites.
+Another help message corresponding to [Searching
+tourist sites] is provided after ranking candidates
+by also using the user’s utterance history.
+[]denotesgrammarrules.
+Figure 1: Example dialogue enabled by our
+method
+start with “S” and “U” denote system and user
+utterances, respectively. In this example, ASR
+results for the user utterances (U1 and U2) do
+not contain sufficient information because the ut-
+terances are short and contain out-of-vocabulary
+words. These two results are similar, and ac-
+cordingly, the help message after U2 provided by
+methods like Targeted Help (Gorrell et al., 2002;
+Hockey et al., 2003) is the same as Utterance S1
+because they are only based on ASR results. Our
+methodcanprovidedifferenthelpmessagesasUt-
+terance S2 after ranking candidates by consider-
+ingtheutterance historyandgrammarverification
+results. Because the candidates are arranged in
+theorder ofprobability, themostappropriate help
+messagecanbeprovidedinfewerattempts.
+This ranking method for help message candi-
+dates is also useful in multimodal interfaces with
+speech input. Help messages are necessary when
+ASR is used as its input modality, and such mes-
+sages were actually implemented inCity Browser
+(Gruenstein and Seneff, 2007), for example. This
+system lists template-based help messages on the
+screen byusing ASRresults and internal states of
+the system. The order of help messages is impor-
+tant, especially in portable devices with a small
+screen,onwhichthenumberofhelpmessagesdis-
+315
+played at one time is limited, as Hartmann and
+Schreiber(2008)pointedout. Evenincaseswhere
+sufficiently large screens are available, too many
+help messages without any order will distract the
+user’sattention andthusspoilitsusability.
+3 Grammar
+Verification based on WFST
+Weestimateauser’sintentionevenfromOOGut-
+terances as a grammar rule that the user intends
+to use by his utterance. We call this estimation
+grammar verification. This process is applied to
+ASRoutputsbasedonastatisticallanguagemodel
+(LM) in this paper. We use two transducers: a
+finite-state transducer (FST) representing the task
+grammar,andweightedFST(WFST)representing
+anASRresultanditsconfidencescore. Hereafter,
+wedenotethesetwoas“grammarFST”and“input
+WFST”anddepictexamplesinFigure2.
+A strong point of our method is that it takes
+all three types of ASR error into consideration.
+TheinputWFSTisdesigned torepresentallcases
+whereanywordinanASRresultisaninserted or
+substitutederror,oranywordisdeleted. Itsweight
+isdesignedtoreflectconfidencescoresofASRre-
+sults. By composing this WFST and the gram-
+mar FST, we can obtain all possible sequences
+and their accumulated weights when arbitrary se-
+quences represented by the input WFSTare input
+intothegrammarFST.Theoptimal resultshaving
+the maximum accumulated weight consist of the
+LUresult andthe grammarrule thatisthenearest
+totheASRresult. Theresultcanbeobtainedeven
+whenanyelementinitismisrecognized orabsent
+fromtheASRresult.
+An LU result is a set of concepts that consist
+ofslotsandtheirvaluescorrespondingtodatabase
+entries the system handles. For example, an LU
+result “month=2, day=22” consists of two con-
+cepts,suchasthevalueofslot monthis2,andthe
+valueofslot day is22.
+3.1 Design
+of input WFSTand grammar FST
+IninputWFSTsandgrammarFSTs,eacharcrep-
+resentingstatetransitionshasalabelintheformof
+“a:b/c”denoting itsinputsymbol,outputsymbol,
+and weight, inthis order. Input symbol ε means a
+state transition without any input symbol, that is,
+an epsilon transition. Output symbol ε means no
+output in the state transition. Forexample, astate
+transition “please:ε/1.0”isexecuted whenanin-
+put symbol is“please,”nooutput symbol isgen-
+erated,and1.0isaddedtotheaccumulatedweight.
+Weights are omitted in the grammar FSTbecause
+noweightisgiveninit.
+An input WFST is automatically constructed
+from an ASR result. Sequential state transitions
+are assigned to each word in the ASR result, and
+each of them is paralleled by filler transitions, as
+showninFigure2wheretheASRresultwas“Ev-
+eryMondayplease”forexample. Fillertransitions
+such as INS, DEL,and SUB are assigned to each
+state for representing every kind of error such as
+insertion, deletion, and substitution errors. Allin-
+putsymbolsintheinputWFSTareε,bywhichthe
+WFST represents all possible sequences contain-
+ingarbitraryerrors. Forexample,theinputWFST
+inFigure 2represents all possible sequences such
+as“EveryMondayplease,”“EveryMondayF,”“F
+Monday F,” and so on. Here, every word can be
+replaced bythesymbol F that represents aninser-
+tionorsubstitutionerror. Moreover,theerrorsym-
+bolDELcanbeinsertedintoitsoutputsymbolse-
+quenceatanyposition,whichcorrespondstodele-
+tion errors in ASR results. Each weight per state
+transition is summed up and then the optimal re-
+sult is determined. The weights will be explained
+inSection3.2.
+AgrammarFSTisgenerated fromataskgram-
+mar, which is written by a system developer for
+each task. It determines whether an input se-
+quence conforms to the task grammar. We also
+assign filler transitions to each state for handling
+each type of error of ASR results considered in
+the input WFST.Afiller transition, either of INS,
+DEL, or SUB, is added to each state in the FST
+except forstates within keyphrases, which areex-
+plicitly indicated by a system developer. In the
+example shown in Figure 2, “SUB $ Monday
+date-repeat=Mon please”isoutput foraninput
+sequence “SUB Monday please”. Here, date-
+repeat=MondenotesanLUresult,and$isasym-
+bolformarkingwordscorrespondingtoaconcept.
+3.2 Weights
+assigned to input WFST
+Wedefinedtwokindsofweights:
+1. Rewardsforaccepted words(wacc),and
+2. Penalties for each kind of error (wsub, wdel,
+wins).
+An accumulated weight for a single utterance is
+defined as the sum of these weights as shown be-
+316
+Input WFST
+Every:
+Every
+Monday:
+Monday
+please:
+please
+Grammar FST
+input:output/weight
+ASR result: “Every Monday please”
+g71g72g79g90g39g40g47g18g738: g71g72g79g90g39g40g47g18g738: g71g72g79g90g39g40g47g18g738: g71g72g79g90g39g40g47g18g738:
+g44g49g54g90g44g49g54g18g738 :
+g37g54g56g90g54g56g37g18g738:
+g68g70g70g90g40g89g72g85g92g18g738: g68g70g70g90g83g79g72g68g86g72g18g738:g68g70g70g90g48g82g81g71g68g92g18g738:
+g44g49g54g29g44g49g54
+g39g40g47g29g39g40g47
+g54g56g37g29g54g56g37
+$:ε
+repeat-date:ε
+Mon=
+g37g54g56g90g54g56g37g18g738:g37g54g56g90g54g56g37g18g738:
+g44g49g54g90g44g49g54g18g738 :g44g49g54g90g44g49g54g18g738 :
+g44g49g54g29g44g49g54 g44g49g54g29g44g49g54 g44g49g54g29g44g49g54
+g54g56g37g29g54g56g37
+g39g40g47g29g39g40g47
+Figure2: ExampleofinputWFSTandgrammarFST
+low.
+w = summationdisplay
+Eaccepted
+wacc + summationdisplay
+Eerror
+(wsub + wdel + wins)
+Here, Eaccepted denotes a set of accepted words
+corresponding to elements of each grammar rule,
+and Eerror denotes a set of words that are not ac-
+ceptedandthathaveeithererrorsymbol. Notethat
+the weights are not given beforehand but are cal-
+culated and given to the input WFST in runtime
+according toeachASRresult.
+A weight for an accepted word easr is defined
+by using its confidence score CM(easr) (Lee et
+al., 2004) and its word length. A word length in
+mora is denoted as l(·), which is normalized by
+thatofthelongest wordinthevocabulary.
+wacc = CM(easr)l(easr)
+This weight wacc gives preference to sequences
+containing longer words with higher confidence
+scores.
+Weightsforeachtypeoferrorhavenegativeval-
+uesbecausetheyarepenalties:
+wsub = −{CM(easr)l(easr) + l(egram)}/2
+wdel = −{l(e) + l(egram)}/2
+wins = −{CM(easr)l(easr) +l(e)}/2
+wherel(e)istheaveragewordlengthinthevocab-
+ularyandegram isagrammarelementi.e.,eithera
+word or a class. Adeletion error is a case when a
+grammarelementdoesnotcorrespondtoanyword
+in the ASR result. A substitution error is a case
+when an element is replaced by another word in
+the ASRresult. An insertion error is a case when
+no grammar element corresponds to the ASR re-
+sult. Every weight is defined as an average of a
+word length of a grammar element and the corre-
+sponding one in the ASR result multiplied by its
+confidence score. When correspondences cannot
+be defined in insertion and deletion errors, l(e) is
+used instead. In the case when egram is aclass in
+thegrammar,theaveragewordlengthinthatclass
+isusedas l(egram).
+3.3 Example
+of calculating the weights
+We show how a weight is calculated by using the
+example in Figure 3. In this example, the user ut-
+terancewas“TellmealiaisonofKoetsu-ji(atem-
+plename).” Theword“liaison”wasnotinthesys-
+temvocabulary. TheASRresult accordingly con-
+tained errors for that part; the result was “Tellme
+allSakyo-wardKoetsu-ji.”
+Weights are calculated for each grammar rule
+the system has. This example shows calcula-
+tions for two grammar rules: [get info] accept-
+ing “Tell me 〈item name〉 of 〈temple name〉,” and
+[search ward] accepting “Tell me 〈facility name〉
+of 〈ward name〉.” Here, [] and 〈〉 denote a gram-
+marrule and aclass in grammars. Twoalignment
+results are also shown for grammar [get info] in
+thisexample. Weightsarecalculatedforanyalign-
+mentasshownhere,andthealignmentresultwith
+the largest weight is selected. In this example,
+weight +0.16 for the grammar [get info] was the
+largest.
+Weconsequently obtained the result that gram-
+mar rule [get info] had the highest score for this
+OOG utterance and its accumulated weight was
+317
+Userutterance: “TellmealiaisonofKoetsu-ji”. (UnderlinedpartsdenoteOOG.)
+ASRresult tell me all Sakyo-ward Koetsu-ji(ward) (temple)
+grammar[get info] tell me 〈itemname〉 of 〈templename〉
+WFSToutput tell me INS SUB DEL Koetsu-ji
+weights +0.09 +0.06 −0.04 −0.11 −0.02 +0.18 +0.16
+grammar[get info] tell me 〈itemname 〉 of 〈templename〉
+WFSToutput tell me SUB SUB Koetsu-ji
+weights +0.09 +0.06 −0.21 −0.10 +0.18 +0.02
+grammar[search ward] tell me 〈facilitytype〉 in 〈wardname〉
+WFSToutput tell me INS SUB DEL SUB
+weights +0.09 +0.06 −0.04 −0.12 −0.02 −0.21 −0.24
+Figure3: Exampleofcalculating weightsinourgrammarverification
++0.16. The result also indicated each type of er-
+ror as a result of the alignment: 〈item name〉 was
+substitutedby“Sakyo-ward”,“of”inthegrammar
+[get info]wasdeleted,and“all”intheASRresult
+wasinserted.
+4 Ranking
+Help Message Candidates by
+Integrating Dialogue Context
+We furthermore develop a method to rank help
+message candidates pergrammarrulebyintegrat-
+ing the grammar verification result and the user’s
+utterance history. This complements information
+that is often absent from utterances or misrecog-
+nizedinASRandpreventsthatthesamehelpmes-
+sages are repeated. An outline of the method is
+depicted inFigure4.
+4.1 Features
+used in Ranking
+Features used in our methods are listed in Table
+1. These features are calculated for each help
+message candidate corresponding to each gram-
+mar rule. Features H1 to H5 represent how reli-
+ableagrammarverificationresultis. FeatureH1is
+agrammar verification score, that is, the resulting
+accumulated weight described in Section 3. Fea-
+ture H2 is calculated by normalizing H1 by the
+total score of all grammar rules. This represents
+howreliablethegrammarverificationresultisrel-
+atively compared to others. Features H3 to H5
+represent howpartially theuserutterance matches
+withthegrammarrule.
+Features H6 and H7 correspond to a dialogue
+context. Feature H6 reflects the case in which
+users tend to repeat similar utterances when their
+utterances were not understood by the system.
+Feature H7 represents whether and how the user
+knowsaboutthelanguageexpressionofthegram-
+mar rule. This feature corresponds to the known
+degree we previously proposed (Fukubayashi et
+Table 1: Features of each instance (help message
+candidate)
+H1: accumulatedweightofGV(GVscore)
+H2: GVscorenormalizedbythetotalGVscoreofother
+instances
+H3: ratioof#ofaccepted wordsinGVresultto#ofall
+words
+H4: maximum number of successively accepted words
+inGVresult
+H5: numberofacceptedslotsinGVresult
+H6: how before the grammar rule was selected as GV
+result(in#ofutterances)
+H7: maximumGVscoreforthegrammarruleuntilthen
+H8: whetheritbelongstothe“command” class
+H9: whetheritbelongstothe“query”class
+H10: whetheritbelongstothe“request-info” class
+H11-H17: productsofH8andeachofH1toH7
+H18-H24: productsofH9andeachofH1toH7
+H25-H31: productsofH10andeachofH1toH7
+GV:grammarverification
+al., 2006), and prevents a help message the user
+alreadyknowsfrombeingprovidedrepeatedly.
+Features H8 to H10 represent properties of
+utterances corresponding to the grammar rules,
+which are categorized into three classes such as
+“command,” “query,” and “request-info.” In the
+sightseeingtask,thenumbersofgrammarrulesfor
+the three classes were 8, 4, and 11, respectively.
+More specifically, utterances in either “query” or
+“request-info” class tend to appear successively
+because they are used when users try and com-
+pare several query conditions; on the other hand,
+utterances in “command” class tend to appear in-
+dependently of the context. Features H11 to H31
+are the products of features H8, H9, and H10 and
+eachfeaturefromH1toH7. Theseweredefinedto
+consider combinations of properties of utterances
+representedbyH8,H9,andH10andtheirreliabil-
+ity represented by H1 to H7, because RankBoost
+318
+Help candidate 
+Help candidate
+Ranking
+(RankBoost)
+∑= T
+t
+tt xhxH )()( α
+1x
+LL )()( 111 xfxf i
+LL )()(1 nin xfxf
+nx
+User
+utterance
+Context
+deft qi,,,θα
+Parameters
+Training 
+data
+px
+qx
+Grammar
+verification
+Calculating features Sorted by H(x)
+Statistical LM-based
+ASR outputs
+Figure4: Outlineofourrankingmethodforhelpmessagecandidates
+doesnotconsider them.
+4.2 Ranking
+Algorithm
+We adopt RankBoost (Freund et al., 2003), a
+boosting algorithm based on machine learning, to
+rankhelpmessagecandidates. Thisalgorithm can
+beusedfortrainingonseveraldataexampleshav-
+ing a certain order of priority. This attribute fits
+for the problem in this paper; it is difficult even
+for human annotators to determine the unique ap-
+propriate help message to be provided. Target in-
+stances x of the algorithm are help message can-
+didatescorresponding togrammarrulesinthispa-
+per.
+RankBoosttrainsascorefunction H(x)andar-
+ranges instances x in the order. Here, H(x′) <
+H(x′′) means x′′ is ranked higher than x′. This
+score function is defined as a linear combination
+ofweakrankersgivingpartialinformationregard-
+ingtheorder:
+H(x) =
+Tsummationdisplay
+t
+αtht(x)
+whereT,ht(),andαt denotethenumberofboost-
+ing iterations, a weak ranker, and its associated
+weight, respectively. The weak ranker ht is de-
+fined by comparing the value ofa feature fi of an
+instance xwithathreshold θ. Thatis,
+ht(x) =
+
+
+
+1 iffi(x) > θ
+0 iffi(x) ≤ θ
+qdef if fi(x) = ⊥
+(1)
+where qdef ∈ {0,1}. Here, fi(x) denotes the
+value of the i-th feature of instance x, and ⊥ de-
+notesthatnovalueisgivenin fi(x).
+5 Experimental
+Evaluation
+5.1 Target
+Data
+Data were collected by 30 subjects in total by us-
+ing a multi-domain spoken dialogue system that
+handles five domains such as restaurant, hotel,
+sightseeing, bus, and weather (Komatani et al.,
+2008). The data consisted of 180 dialogues and
+11,733 utterances. Data from five subjects were
+used to determine the number of boosting iter-
+ations and to improve LMs for ASR. We used
+utterances in the restaurant, hotel, and sightsee-
+ing domains because the remaining two, bus and
+weather, did not have many grammar rules. We
+thenextracted OOGutterances onthebasis ofthe
+grammar verification results to evaluate the per-
+formance of our method for such utterances. We
+regarded an utterance whose accumulated weight
+wasnegativeasOOG.Asaresult,1,349OOGut-
+terances by 25 subjects were used for evaluation,
+hereafter. Theseconsisted of363utterances inthe
+restaurant domain, 563 in the hotel domain, and
+423 in the sightseeing domain. These data were
+collected under thefollowing conditions: subjects
+were given no instructions on concrete language
+expressions thesystemaccepts. Systemresponses
+weremade only by speech, and no screen for dis-
+playingoutputswasused. Subjectsweregivensix
+scenarios describing taskstobecompleted.
+We used Julius1 that is a statistical-LM-based
+ASR engine. We constructed class 3-gram LMs
+for ASR by using 10,000 sentences generated
+from the task grammars and the 600 utterances
+collected by the five subjects. The vocabulary
+sizes for the restaurant, hotel, and sightseeing do-
+mainswere3,456, 2,625, and3,593,and ASRac-
+curaciesforthemwere45.8%,57.1%,and43.5%,
+respectively. TheseASRaccuracies werenotvery
+high because the target utterances were all OOG.
+A set of possible thresholds in the weak rankers
+described in Section 4.2 consisted of all feature
+valuesthatappearedinthetrainingdata. Thenum-
+bersofboostingiterations weredeterminedonthe
+basis of accuracies for the data by the five sub-
+1http://julius.sourceforge.jp/
+319
+g14986g14983g14972
+g14987g14983g14972
+g14988g14983g14972
+g14989g14983g14972
+g14990g14983g14972
+g14991g14983g14972
+g14992g14983g14972
+g14984g14983g14983g14972
+g14984g14980g15033g15036g15050g15051 g14985g14980g15033g15036g15050g15051 g14986g14980g15033g15036g15050g15051 g14987g14980g15033g15036g15050g15051 g14988g14980g15033g15036g15050g15051
+g15013g14980g15033g15036g15050g15051
+g15000g15034
+g15034g15052
+g15049g15032g15034
+g15056
+g15033g15032g15050g15036g15043g15040g15045g15036 g15046g15052g15049g14967g15044g15036g15051g15039g15046g15035
+Figure5: Accuracywhen N candidates werepro-
+videdinsightseeing domain(1 ≤ N ≤ 5)
+jects. Thenumberswere400,100,and500forthe
+restaurant, hotel,andsightseeing domains.
+5.2 Evaluation
+Criterion
+Wemanuallygavefivehelpmessagescorrespond-
+ing to grammar rules as reference labels per ut-
+terance in the order of having a strong relation to
+theutterance. Thenumbersofcandidatehelpmes-
+sages were28,27,and23fortherestaurant, hotel
+andsightseeing domains,respectively.
+We evaluated our ranking method as the accu-
+racywhereatleastoneofthereferencelabelswas
+contained in its top N candidates. This corre-
+sponds to a probability where at least one appro-
+priate help message was contained in a list of N
+candidates. Theaccuracywascalculatedby5-fold
+cross validation. In the baseline method we set,
+help messages were provided only by using the
+grammarverificationscores.
+5.3 Results
+Results in the sightseeing domain are plotted in
+Figure 5. We can see that our method outper-
+formed the baseline in the accuracies for all N
+values. Allthesedifferenceswerestatistically sig-
+nificant (p < 0.05) bytheMcNemartest. Theac-
+curacieswerealsobetterintheothertwodomains
+for all N values, and the average differences for
+the three domains were 11.7 points for N=1, 9.7
+points for N=2, and 6.7 points for N=3. The dif-
+ferenceswerelargeespecially forsmall N values.
+This result indicates that we can successfully re-
+ducethenumberofhelpmessageswhenproviding
+several ones for users. The improvements were
+derived fromthefeatures weincorporated suchas
+theestimateduserknowledgeinadditiontogram-
+marverification results. Thebaseline methodwas
+onlybasedongrammarverificationresultsforsin-
+gle utterances, which contained insufficient infor-
+mation because OOG utterances were often mis-
+recognized ormisunderstood.
+Table 2: Sum of absolute values of weight α for
+eachfeature
+H7 H17 H19 H2 H6
+(H7*H8) (H2*H9)
+9.58 6.91 6.61 6.02 6.01
+We also investigated dominant features by cal-
+culatingthesumofabsolutevaluesoffinalweight
+α for each feature in RankBoost. Five dominant
+features based on the sums are shown in Table
+2. These five features include a feature obtained
+from grammar verification result (H2), a feature
+about the user’s utterance history (H6), a feature
+representing estimated user knowledge (H7), and
+features representing properties of the utterances.
+The most dominant feature was H7, which ap-
+peared twice in this table. This was because user
+utterances were not likely to be OOG utterances
+again after the user had already known anexpres-
+sioncorrespondingtothegrammarrule,whichcan
+be detected when user utterances for it were cor-
+rectly accepted, that is, its grammar verification
+scorewashigh. Thesecond dominant feature was
+H2, which showed that grammar verification re-
+sultsworkedeffectively.
+6 Conclusion
+Weaddressed an issue of OOGutterances in spo-
+ken dialogue systems by generating help mes-
+sages. To manage situations when a user utter-
+ancecouldnotbeaccepted,werobustly estimated
+a user’s intention as a grammar rule that the user
+intends to use. Wefurthermore integrated various
+information as well as the grammar verification
+results for complementing missing information in
+single utterances, and then ranked help message
+candidatescorrespondingtothegrammarrulesfor
+efficientlyproviding them.
+Our future work includes the following. The
+evaluation in this paper was taken place only on
+the basis of utterances collected beforehand. Pro-
+vidinghelpmessagesitselfshouldbeevaluatedby
+another experiment through dialogues. Further-
+more, we assumed that language expressions of
+help messages to show an example language ex-
+pression were fixed. We also need to investigate
+whatkind of expression is more helpful to novice
+users.
+320
+References
+Yoav Freund, Raj D. Iyer, Robert E. Schapire, and
+Yoram Singer. 2003. An efficient boosting algo-
+rithm for combining preferences. Journal of Ma-
+chine Learning Research,4:933–969.
+Yuichiro Fukubayashi, Kazunori Komatani, Tetsuya
+Ogata, and Hiroshi G. Okuno. 2006. Dynamic
+helpgenerationbyestimatinguser’smentalmodelin
+spoken dialogue systems. In Proc. Int’l Conf. Spo-
+ken Language Processing (INTERSPEECH), pages
+1946–1949.
+Genevieve Gorrell, Ian Lewin, and Manny Rayner.
+2002. Adding intelligent help to mixed-initiative
+spoken dialogue systems. In Proc. Int’l Conf. Spo-
+ken Language Processing (ICSLP), pages 2065–
+2068.
+Alexander Gruenstein and Stephanie Seneff. 2007.
+Releasing a multimodal dialogue system into the
+wild: User supportmechanisms. In Proc. 8th SIG-
+dial Workshop on Discourse and Dialogue, pages
+111–119.
+MelanieHartmannandDanielSchreiber. 2008. Proac-
+tivelyadaptinginterfacestoindividualusersformo-
+bile devices. In Adaptive Hypermedia and Adap-
+tive Web-Based Systems, 5th International Confer-
+ence (AH 2008), volume 5149 of Lecture Notes in
+Computer Science,pages300–303.Springer.
+BethA.Hockey,OliverLemon,EllenCampana,Laura
+Hiatt, GregoryAist, James Hieronymus,Alexander
+Gruenstein, and John Dowding. 2003. Targeted
+help for spoken dialogue systems: intelligent feed-
+back improves naive users’ performance. In Proc.
+10th Conf. of the European Chapter of the ACL
+(EACL2003),pages147–154.
+KazunoriKomatani,TatsuyaKawahara,andHiroshiG.
+Okuno. 2007. Analyzingtemporaltransitionofreal
+user’s behaviors in a spoken dialogue system. In
+Proc. INTERSPEECH,pages142–145.
+Kazunori Komatani, Satoshi Ikeda, Tetsuya Ogata,
+and Hiroshi G. Okuno. 2008. Managing out-of-
+grammarutterancesbytopicestimationwithdomain
+extensibility in multi-domain spoken dialogue sys-
+tems. Speech Communication,50(10):863–870.
+Akinobu Lee, Kiyohiro Shikano, and Tatsuya Kawa-
+hara. 2004. Real-timewordconfidencescoringus-
+inglocalposteriorprobabilitiesontreetrellissearch.
+In IEEE Int’l Conf. Acoust., Speech & Signal Pro-
+cessing (ICASSP),volume1,pages793–796.
+Cheongjae Lee, Sangkeun Jung, DonghyeonLee, and
+GaryGuenbaeLee. 2007. Example-basederrorre-
+covery strategy for spoken dialog system. In Proc.
+of IEEE Automatic Speech Recognition and Under-
+standing Workshop (ASRU),pages538–543.
+RyuichiNisimura,AkinobuLee,MasashiYamada,and
+Kiyohiro Shikano. 2005. Operating a public spo-
+ken guidance system in real environment. In Proc.
+European Conf. Speech Commun. & Tech. (EU-
+ROSPEECH),pages845–848.
+Antoine Raux, Dan Bohus, Brian Langner, Alan W.
+Black,andMaxineEskenazi. 2006. Doingresearch
+onadeployedspokendialoguesystem: Oneyearof
+Let’s Go! experience. In Proc. INTERSPEECH.
+321
+

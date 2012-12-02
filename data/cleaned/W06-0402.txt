@@ -1,0 +1,229 @@
+Proceedings of the 3rd Workshop on Constraints and Language Processing (CSLP-06), pages 9–16, Sydney, July 2006.
+c©2006 Association for Computational Linguistics Control Strategies for Parsing with Freer Word-Order Languages Gerald Penn Dept.
+of Computer Science University of Toronto Toronto M5S 3G4, Canada Stefan Banjevic Dept.
+of Mathematics University of Toronto Toronto M5S 2E4, Canada CUgpenn,banjevic,mpademkoCV@cs.toronto.edu Michael Demko Dept.
+of Computer Science University of Toronto Toronto M5S 3G4, Canada Abstract We provide two different methods for bounding search when parsing with freer word-order languages.
+Both of these can be thought of as exploiting alternative sources of constraints not commonly used in CFGs, in order to make up for the lack of more rigid word-order and the standard algorithms that use the assumption of rigid word-order implicitly.
+This work is preliminary in that it has not yet been evaluated on a large-scale grammar/corpus for a freer word-order language.
+1 Introduction
+This paper describes two contributions to the area of parsing over freer word-order (FWO) languages, i.e., languages that do not readily admit a semantically transparent context-free analysis, because of a looser connection between grammatical function assignment and linear constituent order than one finds in English.
+This is a particularly ripe area for constraint-based methods because such a large number of linguistic partial knowledge sources must be brought to bear on FWO parsing in order to restrict its search space to a size comparable to that of standard CFG-based parsing.
+The first addresses the indexation of tabled substrings in generalized chart parsers for FWO languages.
+While chart parsing can famously be cast as deduction (Pereira and Warren, 1983), what chart parsing really is is an algebraic closure over the rules of a phrase structure grammar, which is most naturally expressed inside a constraint solver such as CHR (Morawietz, 2000).
+Ideally, we would like to use standard chart parsers for FWO languages, but because of the constituent ordering constraints that are implicit in the right-hand-sides (RHSs) of CFG rules, this is not possible without effectively converting a FWO grammar into a CFG by expanding its rule system exponentially into all possible RHS orders (Barton et al., 1987).
+FWO grammar rules generally cannot be used as they stand in a chart parser because tabled substrings record a non-terminal category BV derived over a contiguous subspan of the input string from word CX to word CY.
+FWO languages have many phrasal categories that are not contiguous substrings.
+Johnson (1985), Reape (1991) and others have suggested using bit vectors to index chart edges as an alternative to substring spans in the case of parsing over FWO languages, but that is really only half of the story.
+We still need a control strategy to tell us where we should be searching for some constituent at any point in a derivation.
+This paper provides such a control strategy, using this data structure, for doing search more effectively with a FWO grammar.
+The second contribution addresses another source of constraints on the search space: the length of the input.
+While this number is not a constant across parses, it is constant within a single parse, and there are functions that can be precomputed for a fixed grammar which relate tight upper and lower bounds on the length of the input to both the height of a parse tree and other variables (defined below) whose values bound the recursion of the fixed phrase structure rule system.
+Iteratively computing and caching the values of these functions as needed allows us to invert them efficiently, and bound the depth of the search.
+This can be thought of as a partial substitute for the resource-bounded control that bottomup parsing generally provides, Goal-directedness 9 is maintained, because — with the use of constraint programming – it can still be used inside a top-down strategy.
+In principle, this could be worthwhile to compute for some CFGs as well, although the much larger search space covered by a na¨ıve bottom-up parser in the case of FWO grammars (all possible subsequences, rather than all possible contiguous subsequences), makes it considerably more valuable in the present setting.
+In the worst case, a binary-branching immediate dominance grammar (i.e., no linear precedence) could specify that every word belongs to the same category, CF, and that phrases can be formed from every pair of words or phrases.
+A complete parsing chart in this case would have exponentially many edges, so nothing in this paper (or in the aforementioned work on bit vectors) actually improves the asymptotic complexity of the recognition task.
+Natural languages do not behave like this, however.
+In practice, one can expect more polymorphy in the part-of-speech/category system, more restrictions in the allowable combinations of words and phrases (specified in the immediate dominance components of a phrase structure rule system), and more restrictions in the allowable orders and discontinuities with which those argument categories can occur (specified in the linear precedence components of a phrase structure rule system).
+These restrictions engender a system of constraints that, when considered as a whole, admit certain very useful, language-dependent strategies for resolving the (respectively, don’t-care) nondeterministic choice points that a (resp., all-paths) parser must face, specifically: (1) which lexical categories to use (or, resp., in which order), given the input words, (2) which phrase structure rules to apply (resp., in which order), and (3) given a particular choice of phrase structure rule, in which order to search for the argument categories on its right-hand side (this one is don’t-care nondeterministic even if the parser is looking for only the best/first parse).
+These heuristics are generally obtained either through the use of a parameter estimation method over a large amount of annotated data, or, in the case of a manually constructed grammar, simply through some implicit convention, such as the textual order in which the lexicon, rule system, or RHS categories are stated.
+1 1 In the case of the lexicon and rule system, there is a very long-standing tradition in logic programming of using this This paper does not address how to find these heuristics.
+We assume that they exist, and instead address the problem of adapting a chart parser to their efficient use.
+To ignore this would involve conducting an enormous number of derivations, only to look in the chart at the end and discover that we have already derived the current bit-vector/category pair.
+In the case of standard CFG-based parsing, one generally avoids this by tabling so-called active edges, which record the subspaces on which a search has already been initiated.
+This works well because the only existentially quantified variables in the tabled entry are the interior nodes in the span which demarcate where one right-hand-side category ends and another adjacent one begins.
+To indicate that one is attempting to complete the rule, CB AX C6C8 CEC8, for example, one must only table the search from CX to CY for some CZ, such that C6C8 is derivable from CX to CZ and CEC8 is derivable from CZ to CY.Ourfirst contribution can be thought of as a generalization of these active edges to the case of bit vectors.
+2 FWO
+Parsing as Search within a Powerset Lattice A standard chart-parser views constituents as extending over spans, contiguous intervals of a linear string.
+In FWO parsing, constituents partition the input into not necessarily contiguous subsequences, which can be thought of as bit vectors whose AND is 0 and whose OR is BE D2 A0BD, given an initial D2-length input string.
+For readability, and to avoid making an arbitrary choice as to whether the leftmost word should correspond to the most significant or least significant bit, we will refer to these constituents as subsets of CUBDBMBMBMD2CV rather than as D2-length bit vectors.
+For simplicity and because of our heightened awareness of the importance of goal-directedness to FWO parsing (see the discussion in the previous section), we will only outline the strictly top-down variant of our strategy, although natural analogues do exist for the other orientations.
+2.1 State
+State is: CWC6BNBVCPD2BUCEBNCACTD5BUCECX.
+The returned result is: UsedBV or failure.
+convention. To our knowledge, the first to apply it to the order of RHS categories, which only makes sense once one drops the implicit linear ordering implied by the RHSs of contextfree grammar rules, was Daniels and Meurers (2002).
+10 Following
+Penn and Haji-Abdolhosseini (2003), we can characterize a search state under these assumptions using one non-terminal, C6,and two subsets/bit vectors, the CanBV and ReqBV.
+2 CanBV
+is the set of all words that can be used to build an C6, and ReqBV is the set of all words that must be used while building the C6.CanBV always contains ReqBV, and what it additionally contains are optional words that may or may not be used.
+If search from this state is successful, i.e., C6 is found using ReqBV and nothing that is not in CanBV, then it returns a UsedBV,the subset of words that were actually used.
+We will assume here that our FWO grammars are not so free that one word can be used in the derivation of two or more sibling constituents, although there is clearly a generalization to this case.
+2.2 Process
+Search(CWC6BNBVBNCACX) can then be defined in the constraint solver as follows: 2.2.1 Initialization A top-down parse of an D2-length string begins with the state consisting of the distinguished category, CB, of the grammar, and BVCPD2BUCE BP CACTD5BUCE BP CUBDBMBMBMD2CV.
+2.2.2 Active
+Edge Subsumption The first step is to check the current state against states that have already been considered.
+For expository reasons, this will be presented below.
+Let us assume for now that this step always fails to produce a matching edge.
+We must then predict using the rules of the FWO grammar.
+2.2.3 Initial
+Prediction CWC6BNBVBNCACX BPB5CWC6 BD BNBVBNAUCX, where: 1.
+C6 BC AX C6 BD BMBMBMC6 CZ, 2.
+CZBQBD, and 3.
+C6 D8C6 BC AZ.
+As outlined in Penn and Haji-Abdolhosseini (2003), the predictive step from a state consisting of CWC6BNBVBNCACX using an immediate dominance rule, C6 BC AX C6 BD BMBMBMC6 CZ, with CZBQBD and no linear precedence constraints transits to a state CWC6 BD BNBVBNAUCX provided that C6 is compatible with C6 BC. In the case of a classical set of atomic non-terminals, compatibility should be interpreted as equality.
+In the 2 Actually, Penn and Haji-Abdolhosseini (2003) use CanBV and OptBV, which can be defined as BVCPD2BUCE CK CACTD5BUCE.
+case of Prolog terms, as in definite clause grammars, or typed feature structures, as in head-driven phrase structure grammar, compatibility can be interpreted as either unifiability or the asymmetric subsumption of C6 by C6 BC . Without loss of generality, we will assume unifiability here.
+This initial predictive step says that there are, in general, no restrictions on which word must be consumed (CACTD5BUCE BP AU).
+Depending on the language chosen for expressing linear precedence restrictions, this set may be non-empty, and in fact, the definition of state used here may need to be generalized to something more complicated than a single set to express the required consumption constraints.
+2.2.4 Subsequent
+Prediction CWC6BNBVBNCACX BPB5CWC6 CYB7BD BNBV CY BNAUCX, where: 1.
+C6 BC AX C6 BD BMBMBMC6 CZ, 2.
+C6 D8C6 BC AZ, 3.
+CWC6 BD BNBVBNAUCX succeeded with CD BD, . . . CWC6 CY BNBV CYA0BD BNAUCX succeeded with CD CY, 4.
+CZBQBD and BD AK CYBOCZA0BD, and 5.
+BV CY BP BV CKCD BD CKBMBMBMCKCD CY . Regardless of these generalizations, however, each subsequent predictive step, having recognized C6 BD BMBMBMC6 CY,forBD AK CYBOCZA0BD, computes the next CanBV BV CY by removing the consumed words CD CY from the previous CanBV BV CYA0BD, and then transits to state CWC6 CYB7BD BNBV CY BNAUCX.
+Removing the UsedBVs is the result of our assumption that no word can be used by two or more sibling constituents.
+2.2.5 Completion
+CWC6BNBVBNCACX BPB5CWC6 CZ BNBV CZA0BD BNCA CZA0BD CX, where: 1.
+C6 BC AX C6 BD BMBMBMC6 CZ, 2.
+C6 D8C6 BC AZ, 3.
+CWC6 BD BNBVBNAUCX succeeded with CD BD, . . . CWC6 CZA0BD BNBV CZA0BE BNAUCX succeeded with CD CZA0BD, 4.
+BV CZA0BD BP BV CKCD BD CKBMBMBMCKCD CZA0BD, and 5.
+CA CZA0BD BP CACKCD BD CKBMBMBMCKCD CZA0BD . The completion step then involves recognizing the last RHS category (although this is no longer rightmost in terms of linear precedence).
+Here, the major difference from subsequent prediction is that there is now a potentially non-empty ReqBV.
+Only with the last RHS category are we actually in a position to enforce CA from the source state.
+If CWC6 CZ BNBV CZA0BD BNCA CZA0BD CX succeeds with CD CZ,then CWC6BNBVBNCACX succeeds with CD BD CJBMBMBMCJCD CZ . 11 2.3 Active Edge Subsumption Revisited So far, this is very similar to the strategy outlined in Penn and Haji-Abdolhosseini (2003).
+If we were to add active edges in a manner similar to standard chart parsing, we would tabulate states like CWC6 CP BNBV CP BNCA CP CX and then compare them in step 2.2.2 to current states CWC6BNBVBNCACX by determining whether (classically) C6 BP C6 CP, BV BP BV CP, and CA BP CA CP . This might catch some redundant search, but just as we can do better in the case of non-atomic categories by checking for subsumption (C6 CP DA C6) or unifiability (C6 D8C6 CP AZ), we can do better on BV and CA as well because these are sets that come with a natural notion of containment.
+Figure 1 shows an example of how this containment can be used.
+Rather than comparing edges annotated with linear subspans, as in the case of CFG chart parsing, here we are comparing edges annotated with sublattices of the powerset lattice on D2 elements, each of which has a top element (its CanBV) and a bottom element (its ReqBV).
+Everything in between this top and bottom is a subset of words that has been (or will be) tried if that combination has been tabled as an active edge.
+Figure 1 assumes that D2 BPBI, and that we have tabled an active edge (dashed lines) with BV CP BP CUBDBNBEBNBGBNBHBNBICV,andCA CP BP CUBDBNBECV.
+Now suppose later that we decide to search for the same category in BV BP CUBDBNBEBNBFBNBGBNBHBNBICV, CA BP CUBDBNBECV (dotted lines).
+Here, BV BIBP BV CP, so an equality-based comparison would fail, but a better strategy would be to reallocate the one extra bit in BV (3) to CA,and then search BV BC BP CUBDBNBEBNBFBNBGBNBHBNBICV, CA BC BP CUBDBNBEBNBFCV (solid lines).
+As shown in Figure 1, this solid region fills in all and only the region left unsearched by the active edge.
+This is actually just one of five possible cases that can arise during the comparison.
+The complete algorithm is given in Figure 2.
+This algorithm works as a filter, which either blocks the current state from further exploration, allows it to be further explored, or breaks it into several other states that can be concurrently explored.
+Step 1(a) deals with category unifiability.
+If the current category, C6, is unifiable with the tabled active category, C6 CP, then 1(a) breaks C6 into more specific pieces that are either incompatible with C6 CP or subsumed by C6 CP . By the time we get to 1(b), we know we are dealing with a piece that is subsumed by C6 CP . C7 stands for “optional,” CanBV bits that are not required.
+Check(CWC6BNBVBNCACX): AF For each active edge, CP, with CWC6 CP BNBV CP BNCA CP CX, 1.
+If C6 D8C6 CP AZ, then: (a) For each minimal category C6 BC such that C6 DA C6 BC and C6 BC D8C6 CP AY, concurrently: – Let C6 BMBP C6 BC, and continue [to next active edge].
+(b) Let C6 BMBP C6 D8C6 CP, C7 BMBP BV CKCA and C7 CP BMBP BV CP CKCA CP . (c) If BV CP CKC7 CP CKBV BIBP AU, then continue [to next active edge].
+(d) If BVCKC7CKBV CP BIBP AU, then continue [to next active edge].
+(e) If B4CI BMBPB5C7 CKBV CP BIBP AU, then: i.
+Let C7 BMBP C7 CKCI, ii.
+Concurrently: A.
+continue [to next active edge], and B.
+(1) Let BV BMBP BV CKCI, (2) goto (1) [to reconsider this active edge].
+(f) If B4CI BMBPB5BV CP CKC7 CP CKC7 BIBP AU, then: i.
+Let C7 BMBP C7 CKCI, BV BMBP BV CKCI, ii.
+continue [to next active edge].
+(g) Fail — this state is subsumed by an active edge.
+2. else continue [to next active edge].
+Figure 2: Active edge checking algorithm.
+Only one of 1(g) or the bodies of 1(c), 1(d), 1(e) or 1(f) is ever executed in a single pass through the loop.
+These are the five cases that can arise during subset/bit vector comparison, and they must be tried in the order given.
+Viewing the current state’s CanBV and ReqBV as a modification of the active edge’s, the first four cases correspond to: the removal of required words (1(c)), the addition of required words (1(d)), the addition of optional (non-required) words (1(e)), and the reallocation of required words to optional words (1(f)).
+Unless one of these four cases has happened, the current sublattice has already been searched in its entirety (1(g)).
+2.4 Linear
+Precedence Constraints The elaboration above has assumed the absence of any linear precedence constraints.
+This is the 12 CU1,2,3,4,5,6CV CU1,2,3,4,5CV CU1,2,3,5,6CV CU1,2,3,4,6CV CU1,2,4,5,6CV CU1,2,3,4CV CU1,2,3,5CV CU1,2,3,6CV CU1,2,4,5CV CU1,2,4,6CV CU1,2,5,6CV CU1,2,3CV CU1,2,4CV CU1,2,5CV CU1,2,6CV CU1,2CV Figure 1: A powerset lattice representation of active edge checking with CanBV and ReqBV.
+worst case, from a complexity perspective.
+The propagation rules of section 2.2 can remain unchanged in a concurrent constraint-based framework in which other linear precedence constraints observe the resulting algebraic closure and fail when violated, but it is possible to integrate these into the propagators for efficiency.
+In either case, the active edge subsumption procedure remains unchanged.
+For lack of space, we do not consider the characterization of linear precedence constraints in terms of CanBV and ReqBV further here.
+3 Category
+Graphs and Iteratively Computed Yields Whereas in the last section we trivialized linear precedence, the constraints of this section simply do not use them.
+Given a FWO grammar, BZ, with immediate dominance rules, CA, over a set of non-terminals, C6,wedefinethecategory graph of BZ to be the smallest directed bipartite graph, BVB4BZB5BPCWCEBNBXCX, such that: AF CE BP C6 CJCACJCUC4CTDCBNBXD1D4D8DDCV, AF B4CGBND6B5 BE BX if non-terminal CG appears on the RHS of rule D6, AF B4D6BNCGB5 BE BX if the LHS non-terminal of D6 is CG, AF B4C4CTDCBND6B5 BE BX if there is a terminal on the RHS of rule D6,and AF B4BXD1D4D8DDBND6B5 BE BX if D6 is an empty production rule.
+We will call the vertices of BVB4BZB5 either category nodes or rule nodes.
+Lex and Empty are considered category nodes.
+The category graph of the grammar in Figure 3, for example, is shown in S AX VP NP VP BD AX VNP NP BD AX N’ S VP BE AX V NP BE AX N’ N AXCUboy, girlCV N’ BD AX NDet DetAXCUa, the, thisCV N’ BE AX NVAXCUsees, callsCV Figure 3: A sample CFG-like grammar.
+Figure 4.
+By convention, we draw category nodes with circles, and rule nodes with boxes, and we label rule nodes by the LHS categories of the rules they correspond to plus an index.
+For brevity, we will assume a normal form for our grammars here, in which the RHS of every rule is either a string of non-terminals or a single terminal.
+Category graphs are a minor variation of the “grammar graphs” of Moencke and Wilhelm (1982), but we will use them for a very different purpose.
+For brevity, we will consider only atomic non-terminals in the remainder of this section.
+Category graphs can be constructed for partially ordered sets of non-terminals, but in this case, they can only be used to approximate the values of the functions that they exactly compute in the atomic case.
+13 S
+S NP VP NP BD NP BE VP BD VP BE N’ N’ BE N’ BD N Det V N Det V Lex Empty Figure 4: The category graph for the grammar in Figure 3.
+Restricting search to unexplored sublattices helps us with recursion in a grammar in that it stops redundant search, but in some cases, recursion can be additionally bounded (above and below) not because it is redundant but because it cannot possibly yield a string as short or long as the current input string.
+Inputs are unbounded in size across parses, but within a single parse, the input is fixed to a constant size.
+Category graphs can be used to calculate bounds as a function of this size.
+We will refer below to the length of an input string below a particular non-terminal in a parse tree as the yield of that non-terminal instance.
+The height of a non-terminal instance in a parse tree is 1 if it is pre-terminal, and 1 plus the maximum height of any of its daughter non-terminals otherwise.
+Nonterminal categories can have a range of possible yields and heights.
+3.1 Parse
+Tree Height Given a non-terminal, CG,letCG D1CPDC B4CWB5 be the maximum yield that a non-terminal instance of CG at height CW in any parse tree can produce, given the fixed grammar BZ.
+Likewise, let CG D1CXD2 B4CWB5 be the minimum yield that such an instance must produce.
+Also, as an abuse of functional notation, let: CG D1CPDC B4AK CWB5 BP D1CPDC BCAKCYAKCW CG D1CPDC B4CYB5 CG D1CXD2 B4AK CWB5 BP D1CXD2 BCAKCYAKCW CG D1CXD2 B4CYB5 Now, using these, we can come back and define CG D1CPDC B4CWB5 and CG D1CXD2 B4CWB5: C4CTDC D1CPDC B4CWB5BP C4CTDC D1CXD2 B4CWB5BP B4 BD CW BPBC undefined D3D8CWCTD6DBCXD7CT BXD1D4D8DD D1CPDC B4CWB5BP BXD1D4D8DD D1CXD2 B4CWB5BP B4 BC CW BPBC undefined D3D8CWCTD6DBCXD7CT and for all other category nodes, CG: CG D1CPDC B4BDB5 BP CG D1CXD2 B4BDB5 BP BK BQ BO BQ BM BC CG AX AF BE CA BD CG AX D8 BE CA undefined D3D8CWCTD6DBCXD7CT and for CWBQBD: CG D1CPDC B4CWB5BP D1CPDC CGAXCG BD BMBMBMCG CZ BECA AI D1CPDC BDAKCXAKCZ CG D1CPDC CX B4CWA0BDB5 B7 CZ C8 CYBPBDBNCYBIBPCX CG D1CPDC CY B4AK CWA0BDB5 AX CG D1CXD2 B4CWB5BP D1CXD2 CGAXCG BD BMBMBMCG CZ BECA AI D1CXD2 BDAKCXAKCZ CG D1CXD2 CX B4CWA0BDB5 B7 CZ C8 CYBPBDBNCYBIBPCX CG D1CXD2 CY B4AK CWA0BDB5 AX BM For example, in Figure 3, there is only one rule with CB as a LHS category, so: S D1CPDC B4CWB5 BP D1CPDC AQ NP D1CPDC B4CWA0BDB5B7 VP D1CPDC B4AK CWA0BDB5 NP D1CPDC B4AK CWA0BDB5B7 VP D1CPDC B4CWA0BDB5 S D1CXD2 B4CWB5 BP D1CXD2 AQ NP D1CXD2 B4CWA0BDB5B7 VP D1CXD2 B4AK CWA0BDB5 NP D1CXD2 B4AK CWA0BDB5B7 VP D1CXD2 B4CWA0BDB5BM These functions compute yields as a function of height.
+We know the yield, however, and want bounds on height.
+Given a grammar in which the non-pre-terminal rules have a constant branching factor, we also know that CG D1CPDC B4CWB5 and CG D1CXD2 B4CWB5, are monotonically non-decreasing in CW, where they are defined.
+This means that we can iteratively compute CG D1CPDC B4CWB5, for all non-terminals CG, and all values CW out to the first CW BC that produces a value strictly greater than the current yield (the length of the given input).
+Similarly, we can compute CG D1CXD2 B4CWB5, for all non-terminals CG,and 14 all values CW out to the first CW BCBC that is equal to or greater than the current yield.
+The height of the resulting parse tree, CW, can then be bounded as CW BC A0 BD AK CW AK CW BCBC . These iterative computations can be cached and reused across different inputs.
+In general, in the absence of a constant branching factor, we still have a finite maximum branching factor, from which an upper bound on any potential decrease in CG D1CPDC B4CWB5 and CG D1CXD2 B4CWB5 can be determined.
+This provides an interval constraint.
+Because there may be heights for which CG D1CPDC B4CWB5 and CG D1CXD2 B4CWB5 is not defined, one could, with small enough intervals, additionally define a finite domain constraint that excludes these.
+These recursive definitions are well-founded when there is at least one finite string derivable by every non-terminal in the grammar.
+The CG D1CXD2 functions converge in the presence of unit production cycles in BVB4BZB5;theCG D1CPDC functions can also converge in this case.
+Convergence restricts our ability to constrain search with yields.
+A proper empirical test of the efficacy of these constraints requires large-scale phrase structure grammars with weakened word-order constraints, which are very difficult to come by.
+On the other hand, our preliminary experiments with simple top-down parsing on the Penn Treebank II suggest that even in the case of classical context-free grammars, yield constraints can improve the efficiency of parsing.
+The latency of constraint enforcement has proven to be a real issue in this case (weaker bounds that are faster to enforce can produce better results), but the fact that yield constraints produce any benefit whatsoever with CFGs is very promising, since the search space is so much smaller than in the FWO case, and edge indexing is so much easier.
+3.2 Cycle
+Variables The heights of non-terminals from whose category nodes the cycles of BVB4BZB5 are not path-accessible can easily be bounded.
+Using the above heightdependent yield equations, the heights of the other non-terminals can also be bounded, because any input string fixes the yield to a finite value, and thus the height to a finite range (in the absence of converging CG D1CXD2 sequences).
+But we can do better.
+We can condition these bounds not only upon height but upon the individual rules used.
+We could even make them depend upon sequences of rules, or on vertical chains of non-terminals within trees.
+If BVB4BZB5 contains cycles, however, there are infinitely many such chains (although finitely many of any given length), but trips around cycles themselves can also be counted.
+Let us formally specify that a cycle refers to a unique path from some category node to itself, such that every node along the path except the last is unique.
+Note that because BVB4BZB5 is bipartite, paths alternate between category nodes and rule nodes.
+Now we can enumerate the distinct cycles of any category graph.
+In Figure 4, there are two, both passing through NP and S, with one passing through VP in addition.
+Note that cycles, even though they are unique, may share nodes as these two do.
+For each cycle, we will arbitrarily choose an index node for it, and call the unique edge along the cycle leading into that node its index link.
+It will be convenient to choose the distinguished non-terminal, CB, as the index node when it appears in a cycle, and in other cases, to choose a node with a minimal path-distance to CB in the category graph.
+For each cycle, we will also assign it a unique cycle variable (written D2, D1 etc.).
+The domain of this variable is the natural numbers and it counts the number of times in a parse that we traverse this cycle as we search top-down for a tree.
+When an index link is traversed, the corresponding cycle variable must be incremented.
+For each category node CG in BVB4BZB5, we can define the maximum and minimum yield as before, but now instead of height being the only independent parameter, we also make these functions depend on the cycle variables of all of the cycles that pass through CG.IfCG has no cycles passing through it, then its only parameter is still CW.We can also easily extend the definition of these functions to rule nodes.
+Rather than provide the general definitions here, we simply give some of the equations for Figure 4, 15 for shortage of space: S D1CPDC B4CWBND2BND1B5BPS D1CPDC B4CWBNAMD2BN AMD1B5 S D1CPDC B4CWBND2BN AMD1B5BPS D1CPDC B4CWBNAMD2BN AMD1B5 S D1CPDC B4CWBN AMD2BN AMD1B5BP D1CPDC CX B7 CY BP D2, CZ B7 D0 BP D1 BK BQ BQ BQ BO BQ BQ BQ BM NP D1CPDC B4CWA0BDBN AM CXBNCZB5 B7VP D1CPDC B4AK CWA0BDBNCYBN AM D0B5 NP D1CPDC B4AK CWA0BDBN AM CXBNCZB5 B7VP D1CPDC B4CWA0BDBNCYBN AM D0B5 NP D1CPDC B4CWBN AMD2BN AMD1B5 BP D1CPDC B4 NP D1CPDC BD B4CWBNAMD2BN AMD1B5 NP D1CPDC BE B4CWBND2BND1B5 NP D1CPDC BD B4CWBN AMD2BN AMD1B5BP D1CPDC BK BQ BQ BQ BO BQ BQ BQ BM N’ D1CPDC B4CWA0BDB5 B7S D1CPDC B4AK CWA0BDBND2A0BDBND1A0BDB5 N’ D1CPDC B4AK CWA0BDB5 B7S D1CPDC B4CWA0BDBND2A0BDBND1A0BDB5 NP D1CPDC BD B4CWBND2BN AMD1B5BP D1CPDC BK BQ BQ BQ BO BQ BQ BQ BM N’ D1CPDC B4CWA0BDB5 B7S D1CPDC B4AK CWA0BDBND2BND1A0BDB5 N’ D1CPDC B4AK CWA0BDB5 B7S D1CPDC B4CWA0BDBND2BND1A0BDB5 NP D1CPDC BD B4CWBN AMD2BND1B5BP D1CPDC BK BQ BQ BQ BO BQ BQ BQ BM N’ D1CPDC B4CWA0BDB5 B7S D1CPDC B4AK CWA0BDBND2A0BDBND1B5 N’ D1CPDC B4AK CWA0BDB5 B7S D1CPDC B4CWA0BDBND2A0BDBND1B5 NP D1CPDC BE B4CWBND2BND1B5BP B4 N’ D1CPDC B4CWA0BDB5 D2 BP D1 BPBC undefined D3BMDBBM VP D1CPDC BD B4CWBND2BN AMD1B5BP D1CPDC BK BQ BQ BQ BO BQ BQ BQ BM V D1CPDC B4CWA0BDB5 B7NP D1CPDC B4AK CWA0BDBND2BND1A0BDB5 V D1CPDC B4AK CWA0BDB5 B7NP D1CPDC B4CWA0BDBND2BND1A0BDB5 We think of functions in which overscores are written over some parameters as entirely different functions that have witnessed partial traversals through the cycles corresponding to the overscored parameters, beginning at the respective index nodes of those cycles.
+Cycle variables are a local measure of nonterminal instances in that they do not depend on the absolute height of the tree — only on a fixed range of nodes above and below them in the tree.
+These makes them more suitable for the iterative computation of yields that we are interested in.
+Because CG D1CPDC and CG D1CXD2 are now multivariate functions in general, we must tabulate an entire table out to some bound in each dimension, from which we obtain an entire frontier of acceptable values for the height and each cycle variable.
+Again, these can be posed either as interval constraints or finite domain constraints.
+In the case of grammars over atomic categories, using a single cycle variable for every distinct cycle is generally not an option.
+The grammar induced from the local trees of the 35-sentence section wsj 0105 of the Penn Treebank II, for example, has 49 non-terminals and 258 rules, with 153,026 cycles.
+Grouping together cycles that differ only in their rule nodes, we are left with 204 groupings, and in fact, they pass through only 12 category nodes.
+Yet the category node with the largest number of incident cycles (NP) would still require 163 cycle (grouping) variables — too many to iteratively compute these functions efficiently.
+Naturally, it would be possible to conflate more cycles to obtain cruder but more efficient bounds.
+References G.
+E. Barton, R.
+C. Berwick, and E.
+S. Ristad.
+1987. Computational Complexity and Natural Language.
+MIT Press.
+M. Daniels and W.
+D. Meurers.
+2002. Improving the efficiency of parsing with discontinuous constituents.
+In 7th International Workshop on Natural Language Understanding and Logic Programming (NLULP).
+M. Johnson.
+1985. Parsing with discontinuous constituents.
+In Proceedings of the 23rd Annual Meeting of the Association for Computational Linguistics, pages 127–132.
+U. Moencke and R.
+Wilhelm. 1982.
+Iterative algorithms on grammar graphs.
+In H.
+J. Schneider and H.
+Goettler, editors, Proceedings of the 8th Conference on Graphtheoretic Concepts in Computer Science (WG 82), pages 177–194.
+Carl Hanser Verlag.
+F. Morawietz.
+2000. Chart parsing and constraint programming.
+In Proceedings of the 18th International Conference on Computational Linguistics (COLING-00), volume 1, pages 551–557.
+G. Penn and M.
+Haji-Abdolhosseini. 2003.
+Topological parsing.
+In Proceedings of the 10th Conference of the European Chapter of the Association for Computational Linguistics (EACL-03), pages 283–290.
+F. C.
+N. Pereira and D.
+H. D.
+Warren. 1983.
+Parsing as deduction.
+In Proceedings of 21st Annual Meeting of the Association for Computational Linguistics (ACL), pages 137–144.
+M. Reape.
+1991. Parsing bounded discontinuous constituents: Generalisations of some common algorithms.
+In M.
+Reape, editor, Word Order in Germanic and Parsing, pages 41–70.
+Centre for Cognitive Science, University of Edinburgh .
+

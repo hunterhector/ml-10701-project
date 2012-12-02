@@ -1,0 +1,2 @@
+Kit et al.(2002) and Kit et al.(2003) attempt to integrate case-based learning with statistical models (e.g., n-gram) by extracting transformation rules from the training corpus for disambiguation via error correction; Gao et al.(2004) adopt a similar strategy for adaptive segmentation, with transformation templates (instead of case-based rules) to modify word boundaries (instead of individual words).
+P04-1059

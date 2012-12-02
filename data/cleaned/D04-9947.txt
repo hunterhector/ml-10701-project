@@ -1,0 +1,221 @@
+1:220	Learning Hebrew Roots: Machine Learning with Linguistic Constraints Ezra Daya Dept. of Computer Science University of Haifa 31905 Haifa Israel edaya@cs.haifa.ac.il Dan Roth Dept. of Computer Science University of Illinois Urbana, IL 61801 USA danr@cs.uiuc.edu Shuly Wintner Dept. of Computer Science University of Haifa 31905 Haifa Israel shuly@cs.haifa.ac.il Abstract The morphology of Semitic languages is unique in the sense that the major word-formation mechanism is an inherently non-concatenative process of interdigitation, whereby two morphemes, a root and a pattern, are interwoven.
+2:220	Identifying the root of a given word in a Semitic language is an important task, in some cases a crucial part of morphological analysis.
+3:220	It is also a non-trivial task, which many humans find challenging.
+4:220	We present a machine learning approach to the problem of extracting roots of Hebrew words.
+5:220	Given the large number of potential roots (thousands), we address the problem as one of combining several classifiers, each predicting the value of one of the roots consonants.
+6:220	We show that when these predictors are combined by enforcing some fairly simple linguistics constraints, high accuracy, which compares favorably with human performance on this task, can be achieved.
+7:220	1 Introduction The standard account of word-formation processes in Semitic languages describes words as combinations of two morphemes: a root and a pattern.1 The root consists of consonants only, by default three (although longer roots are known), called radicals.
+8:220	The pattern is a combination of vowels and, possibly, consonants too, with slots into which the root consonants can be inserted.
+9:220	Words are created by interdigitating roots into patterns: the first radical is inserted into the first consonantal slot of the pattern, the second radical fills the second slot and the third fills the last slot.
+10:220	See Shimron (2003) for a survey.
+11:220	Identifying the root of a given word is an important task.
+12:220	Although existing morphological analyzers for Hebrew only provide a lexeme (which is a combination of a root and a pattern), for other Semitic languages, notably Arabic, the root is an essential part of any morphological analysis sim1An additional morpheme, vocalization, is used to abstract the pattern further; for the present purposes, this distinction is irrelevant.
+13:220	ply because traditional dictionaries are organized by root, rather than by lexeme.
+14:220	Furthermore, roots are known to carry some meaning, albeit vague.
+15:220	We believe that this information can be useful for computational applications and are currently experimenting with the benefits of using root and pattern information for automating the construction of a WordNet for Hebrew.
+16:220	We present a machine learning approach, augmented by limited linguistic knowledge, to the problem of identifying the roots of Hebrew words.
+17:220	To the best of our knowledge, this is the first application of machine learning to this problem.
+18:220	While there exist programs which can extract the root of words in Arabic (Beesley, 1998a; Beesley, 1998b) and Hebrew (Choueka, 1990), they are all dependent on labor intensive construction of large-scale lexicons which are components of full-scale morphological analyzers.
+19:220	Note that Tim Bockwalters Arabic morphological analyzer2 only uses word stems  rather than root and pattern morphemes  to identify lexical items.
+20:220	(The information on root and pattern morphemes could be added to each stem entry if this were desired.) The challenge of our work is to automate this process, avoiding the bottleneck of having to laboriously list the root and pattern of each lexeme in the language, and thereby gain insights that can be used for more detailed morphological analysis of Semitic languages.
+21:220	As we show in section 2, identifying roots is a non-trivial problem even for humans, due to the complex nature of Hebrew derivational and inflectional morphology and the peculiarities of the Hebrew orthography.
+22:220	From a machine learning perspective, this is an interesting test case of interactions among different yet interdependent classifiers.
+23:220	After presenting the data in section 3, we discuss a simple, baseline, learning approach (section 4) and then propose two methods for combining the results of interdependent classifiers (section 5), one which is purely statistical and one which incorporates lin2http://www.qamus.org/morphology.htm guistic constraints, demonstrating the improvement of the hybrid approach.
+24:220	We conclude with suggestions for future research.
+25:220	2 Linguistic background In this section we refer to Hebrew only, although much of the description is valid for other Semitic languages as well.
+26:220	As an example of root-andpattern morphology, consider the Hebrew roots g.d.l, k.t.b and r.$.m and the patterns haCCaCa, hitCaCCut and miCCaC, where the Cs indicate the slots.
+27:220	When the roots combine with these patterns the resulting lexemes are hagdala, hitgadlut, migdal, haktaba, hitkatbut, miktab, har$ama, hitra$mut, mir$am, respectively.
+28:220	After the root combines with the pattern, some morpho-phonological alternations take place, which may be non-trivial: for example, the hitCaCCut pattern triggers assimilation when the first consonant of the root is t or d: thus, d.r.$+hitCaCCut yields hiddar$ut. The same pattern triggers metathesis when the first radical is s or $: s.d.r+hitCaCCut yields histadrut rather than the expected *hitsadrut.
+29:220	Semi-vowels such as w or y in the root are frequently combined with the vowels of the pattern, so that q.w.m+haCCaCa yields haqama, etc. Frequently, root consonants such as w or y are altogether missing from the resulting form.
+30:220	These matters are complicated further due to two sources: first, the standard Hebrew orthography leaves most of the vowels unspecified.
+31:220	It does not explicate a and e vowels, does not distinguish between o and u vowels and leaves many of the i vowels unspecified.
+32:220	Furthermore, the single letter w is used both for the vowels o and u and for the consonant v, whereas i is similarly used both for the vowels i and for the consonant y. On top of that, the script dictates that many particles, including four of the most frequent prepositions, the definite article, the coordinating conjunction and some subordinating conjunctions all attach to the words which immediately follow them.
+33:220	Thus, a form such as mhgr can be read as a lexeme (immigrant), as m-hgr from Hagaror even as m-h-gr from the foreigner.
+34:220	Note that there is no deterministic way to tell whether the first m of the form is part of the pattern, the root or a prefixing particle (the preposition m from).
+35:220	The Hebrew script has 22 letters, all of which can be considered consonants.
+36:220	The number of tri-consonantal roots is thus theoretically bounded by 223, although several phonological constraints limit this number to a much smaller value.
+37:220	For example, while roots whose second and third radicals are identical abound in Semitic languages, roots whose first and second radicals are identical are extremely rare (see McCarthy (1981) for a theoretical explanation).
+38:220	To estimate the number of roots in Hebrew we compiled a list of roots from two sources: a dictionary (Even-Shoshan, 1993) and the verb paradigm tables of Zdaqa (1974).
+39:220	The union of these yields a list of 2152 roots.3 While most Hebrew roots are regular, many belong to weak paradigms, which means that root consonants undergo changes in some patterns.
+40:220	Examples include i or n as the first root consonant, w or i as the second, i as the third and roots whose second and third consonants are identical.
+41:220	For example, consider the pattern hCCCh.
+42:220	Regular roots such as p.s.q yield forms such as hpsqh.
+43:220	However, the irregular roots n.p.l, i.c.g, q.w.m and g.n.n in this pattern yield the seemingly similar forms hplh, hcgh, hqmh and hgnh, respectively.
+44:220	Note that in the first and second examples, the first radical (n or i) is missing, in the third the second radical (w) is omitted and in the last example one of the two identical radicals is omitted.
+45:220	Consequently, a form such as hC1C2h can have any of the roots n.C1.C2, C1.w.C2, C1.i.C2, C1.C2.C2 and even, in some cases, i.C1.C2.
+46:220	While the Hebrew script is highly ambiguous, ambiguity is somewhat reduced for the task we consider here, as many of the possible lexemes of a given form share the same root.
+47:220	Still, in order to correctly identify the root of a given word, context must be taken into consideration.
+48:220	For example, the form $mnh has more than a dozen readings, including the adjective fat (feminine singular), which has the root $.m.n, and the verb count, whose root is m.n.i, preceded by a subordinating conjunction.
+49:220	In the experiments we describe below we ignore context completely, so our results are handicapped by design.
+50:220	3 Data and methodology We take a machine learning approach to the problem of determining the root of a given word.
+51:220	For training and testing, a Hebrew linguist manually tagged a corpus of 15,000 words (a set of newspaper articles).
+52:220	Of these, only 9752 were annotated; the reason for the gap is that some Hebrew words, mainly borrowed but also some frequent words such as prepositions, do not have roots; we further eliminated 168 roots with more than three consonants and were left with 5242 annotated word types, exhibiting 1043 different roots.
+53:220	Table 1 shows the distribution of word types according to root ambiguity.
+54:220	3Only tri-consonantal roots are counted.
+55:220	Ornan (2003) mentions 3407 roots, whereas the number of roots in Arabic is estimated to be 10,000 (Darwish, 2002).
+56:220	Number of roots 1 2 3 4 Number of words 4886 335 18 3 Table 1: Root ambiguity in the corpus Table 2 provides the distribution of the roots of the 5242 word types in our corpus according to root type, where Ci is the i-th radical (note that some roots may belong to more than one group).
+57:220	Paradigm Number Percentage C1 = i 414 7.90% C1 = w 28 0.53% C1 = n 419 7.99% C2 = i 297 5.66% C2 = w 517 9.86% C3 = h 18 0.19% C3 = i 677 12.92% C2 = C3 445 8.49% Regular 3061 58.41% Table 2: Distribution of root paradigms As assurance for statistical reliability, in all the experiments discussed in the sequel (unless otherwise mentioned) we performed 10-fold cross validation runs a for every classification task during evaluation.
+58:220	We also divided the test corpus into two sets: a development set of 4800 words and a held-out set of 442 words.
+59:220	Only the development set was used for parameter tuning.
+60:220	A given example is a word type with all its (manually tagged) possible roots.
+61:220	In the experiments we describe below, our system produces one or more root candidates for each example.
+62:220	For each example, we define tp as the number of candidates correctly produced by the system; fp as the number of candidates which are not correct roots; and fn as the number of correct roots the system did not produce.
+63:220	As usual, we define recall as tptp+fp and precision as tptp+fn; we then compute f-measure for each example (with  = 0.5) and (macro-) average to obtain the systems overall fmeasure.
+64:220	To estimate the difficulty of this task, we asked six human subjects to perform it.
+65:220	Subjects were asked to identify all the possible roots of all the words in a list of 200 words (without context), randomly chosen from the test corpus.
+66:220	All subjects were computer science graduates, native Hebrew speakers with no linguistic background.
+67:220	The average precision of humans on this task is 83.52%, and with recall at 80.27%, f-measure is 81.86%.
+68:220	Two main reasons for the low performance of humans are the lack of context and the ambiguity of some of the weak paradigms.
+69:220	4 A machine learning approach To establish a baseline, we first performed two experiments with simple, baseline classifiers.
+70:220	In all the experiments described in this paper we use SNoW (Roth, 1998) as the learning environment, with winnow as the update rule (using perceptron yielded comparable results).
+71:220	SNoW is a multi-class classifier that is specifically tailored for learning in domains in which the potential number of information sources (features) taking part in decisions is very large, of which NLP is a principal example.
+72:220	It works by learning a sparse network of linear functions over a pre-defined or incrementally learned feature space.
+73:220	SNoW has already been used successfully as the learning vehicle in a large collection of natural language related tasks, including POS tagging, shallow parsing, information extraction tasks, etc. , and compared favorably with other classifiers (Roth, 1998; Punyakanok and Roth, 2001; Florian, 2002).
+74:220	Typically, SNoW is used as a classifier, and predicts using a winner-take-all mechanism over the activation values of the target classes.
+75:220	However, in addition to the prediction, it provides a reliable confidence level in the prediction, which enables its use in an inference algorithm that combines predictors to produce a coherent inference.
+76:220	4.1 Feature types All the experiments we describe in this work share the same features and differ only in the target classifiers.
+77:220	The features that are used to characterize a word are both grammatical and statistical:  Location of letters (e.g. , the third letter of the word is b ).
+78:220	We limit word length to 20, thus obtaining 440 features of this type (recall the the size of the alphabet is 22).
+79:220	 Bigrams of letters, independently of their location (e.g. , the substring gd occurs in the word).
+80:220	This yields 484 features.
+81:220	 Prefixes (e.g. , the word is prefixed by k$h when the).
+82:220	We have 292 features of this type, corresponding to 17 prefixes and sequences thereof.
+83:220	 Suffixes (e.g. , the word ends with im, a plural suffix).
+84:220	There are 26 such features.
+85:220	4.2 Direct prediction In the first of the two experiments, referred to as Experiment A, we trained a classifier to learn roots as a single unit.
+86:220	The two obvious drawbacks of this approach are the large set of targets and the sparseness of the training data.
+87:220	Of course, defining a multi-class classification task with 2152 targets, when only half of them are manifested in the training corpus, does not leave much hope for ever learning to identify the missing targets.
+88:220	In Experiment A, the macro-average precision of ten-fold cross validation runs of this classification problem is 45.72%; recall is 44.37%, yielding an f-score of 45.03%.
+89:220	In order to demonstrate the inadequacy of this method, we repeated the same experiment with a different organization of the training data.
+90:220	We chose 30 roots and collected all their occurrences in the corpus into a test file.
+91:220	We then trained the classifier on the remainder of the corpus and tested on the test file.
+92:220	As expected, the accuracy was close to 0%, 4.3 Decoupling the problem In the second experiment, referred to as Experiment B, we separated the problem into three different tasks.
+93:220	We trained three classifiers to learn each of the root consonants in isolation and then combined the results in the straight-forward way (a conjunction of the decisions of the three classifiers).
+94:220	This is still a multi-class classification but the number of targets in every classification task is only 22 (the number of letters in the Hebrew alphabet) and data sparseness is no longer a problem.
+95:220	As we show below, each classifier achieves much better generalization, but the clear limitation of this method is that it completely ignores interdependencies between different targets: the decision on the first radical is completely independent of the decision on the second and the third.
+96:220	We observed a difference between recognizing the first and third radicals and recognizing the second one, as can be seen in table 3.
+97:220	These results correspond well to our linguistic intuitions: the most difficult cases for humans are those in which the second radical is w or i, and those where the second and the third consonants are identical.
+98:220	Combining the three classifiers using logical conjunction yields an f-measure of 52.84%.
+99:220	Here, repeating the same experiment with the organization of the corpus such that testing is done on unseen roots yielded 18.1% accuracy.
+100:220	To demonstrate the difficulty of the problem, we conducted yet another experiment.
+101:220	Here, we trained the system as above but we tested it on different words whose roots were known to be in the training set.
+102:220	The results of experiment A here were 46.35%, whereas experiment B was accurate in 57.66% of C1 C2 C3 root Precision: 82.25 72.29 81.85 53.60 Recall: 80.13 70.00 80.51 52.09 f-measure: 81.17 71.13 81.18 52.84 Table 3: Accuracy of SNoWs identifying the correct radical the cases.
+103:220	Evidently, even when testing only on previously seen roots, both nave methods are unsuccessful (although method A here outperforms method B).
+104:220	5 Combining interdependent classifiers Evidently, simple combination of the results of the three classifiers leaves much room for improvement.
+105:220	Therefore we explore other ways for combining these results.
+106:220	We can rely on the fact that SNoW provides insight into the decisions of the classifiers  it lists not only the selected target, but rather all candidates, with an associated confidence measure.
+107:220	Apparently, the correct radical is chosen among SNoWs top-n candidates with high accuracy, as the data in table 3 reveal.
+108:220	This observation calls for a different way of combining the results of the classifiers which takes into account not only the first candidate but also others, along with their confidence scores.
+109:220	5.1 HMM combination We considered several ways, e.g., via HMMs, of appealing to the sequential nature of the task (C1 followed by C2, followed by C3).
+110:220	Not surprisingly, direct applications of HMMs are too weak to provide satisfactory results, as suggested by the following discussion.
+111:220	The approach we eventually opted for combines the predictive power of a classifier to estimate more accurate state probabilities.
+112:220	Given the sequential nature of the data and the fact that our classifier returns a distribution over the possible outcomes for each radical, a natural approach is to combine SNoWs outcomes via a Markovian approach.
+113:220	Variations of this approach are used in the context of several NLP problems, including POS tagging (Schutze and Singer, 1994), shallow parsing (Punyakanok and Roth, 2001) and named entity recognition (Tjong Kim Sang and De Meulder, 2003).
+114:220	Formally, we assume that the confidence supplied by the classifier is the probability of a state (radical, c) given the observation o (the word), P(c|o).
+115:220	This information can be used in the HMM framework by applying Bayes rule to compute P(o|c) = P(c|o)P(o)P(c), where P(o) and P(c) are the probabilities of observing o and being at c, respectively.
+116:220	That is, instead of estimating the observation probability P(o|c) directly from training data, we compute it from the classifiers output.
+117:220	Omitting details (see Punyakanok and Roth (2001)), we can now combine the predictions of the classifiers by finding the most likely root for a given observation, as r = argmaxP(c1c2c3|o,) where  is a Markov model that, in this case, can be easily learned from the supervised data.
+118:220	Clearly, given the short root and the relatively small number of values of ci that are supported by the outcomes of SNoW, there is no need to use dynamic programming here and a direct computation is possible.
+119:220	However, perhaps not surprisingly given the difficulty of the problem, this model turns out to be too simplistic.
+120:220	In fact, performance deteriorated.
+121:220	We conjecture that the static probabilities (the model) are too biased and cause the system to abandon good choices obtained from SNoW in favor of worse candidates whose global behavior is better.
+122:220	For example, the root &.b.d was correctly generated by SNoW as the best candidate for the word &obdim, but since P(C3 = b|C2 = b), which is 0.1, is higher than P(C3 = d|C2 = b), which is 0.04, the root &.b.b was produced instead.
+123:220	Note that in the above example the root &.b.b cannot possibly be the correct root of &obdim since no pattern in Hebrew contains the letter d, which must therefore be part of the root.
+124:220	It is this kind of observations that motivate the addition of linguistic knowledge as a vehicle for combining the results of the classifiers.
+125:220	An alternative approach, which we intend to investigate in the future, is the introduction of higher-level classifiers which take into account interactions between the radicals (Punyakanok and Roth, 2001).
+126:220	5.2 Adding linguistic constraints The experiments discussed in section 4 are completely devoid of linguistic knowledge.
+127:220	In particular, experiment B inherently assumes that any sequence of three consonants can be the root of a given word.
+128:220	This is obviously not the case: with very few exceptions, all radicals must be present in any inflected form (in fact, only w, i, n and in an exceptional case l can be deleted when roots combine with patterns).
+129:220	We therefore trained the classifiers to consider as targets only letters that occurred in the observed word, plus w, i, n and l, rather than any of the alphabet letters.
+130:220	The average number of targets is now 7.2 for the first radical, 5.7 for the second and 5.2 for the third (compared to 22 each in the previous setup).
+131:220	In this model, known as the sequential model (Even-Zohar and Roth, 2001), SNoWs performance improved slightly, as can be seen in table 4 (compare to table 3).
+132:220	Combining the results in the straight-forward way yields an f-measure of 58.89%, a small improvement over the 52.84% performance of the basic method.
+133:220	This new result should be considered baseline.
+134:220	In what follows we always employ the sequential model for training and testing the classifiers, using the same constraints.
+135:220	However, we employ more linguistic knowledge for a more sophisticated combination of the classifiers.
+136:220	C1 C2 C3 root Precision: 83.06 72.52 83.88 59.83 Recall: 80.88 70.20 82.50 57.98 f-measure: 81.96 71.34 83.18 58.89 Table 4: Accuracy of SNoWs identifying the correct radical, sequential model 5.3 Combining classifiers using linguistic knowledge SNoW provides a ranking on all possible roots.
+137:220	We now describe the use of linguistic constraints to rerank this list.
+138:220	We implemented a function which uses knowledge pertaining to word-formation processes in Hebrew in order to estimate the likelihood of a given candidate being the root of a given word.
+139:220	The function practically classifies the candidate roots into one of three classes: good candidates, which are likely to be the root of the word; bad candidates, which are highly unlikely; and average cases.
+140:220	The decision of the function is based on the observation that when a root is regular it either occurs in a word consecutively or with a single w or i between any two of its radicals.
+141:220	The scoring function checks, given a root and a word, whether this is the case.
+142:220	Furthermore, the suffix of the word, after matching the root, must be a valid Hebrew suffix (there is only a small number of such suffixes in Hebrew).
+143:220	If both conditions hold, the scoring function returns a high value.
+144:220	Then, the function checks if the root is an unlikely candidate for the given word.
+145:220	For example, if the root is regular its consonants must occur in the word in the same order they occur in the root.
+146:220	If this is not the case, the function returns a low value.
+147:220	We also make use in this function of our pre-compiled list of roots.
+148:220	A root candidate which does not occur in the list is assigned the low score.
+149:220	In all other cases, a middle value is returned.
+150:220	The actual values that the function returns were chosen empirically by counting the number of occurrences of each class in the training data.
+151:220	For example, good candidates make up 74.26% of the data, hence the value the function returns for good roots is set to 0.7426.
+152:220	Similarly, the middle value is set to 0.2416 and the low  to 0.0155.
+153:220	As an example, consider hipltm, whose root is n.p.l (note that the first n is missing in this form).
+154:220	Here, the correct candidate will be assigned the middle score while p.l.t and l.t.m will score high.
+155:220	In addition to the scoring function we implemented a simple edit distance function which returns, for a given root and a given word, the inverse of the edit distance between the two.
+156:220	For example, for hipltm, the (correct) root n.p.l scores 1/4 whereas p.l.t scores 1/3.
+157:220	We then run SNoW on the test data and rank the results of the three classifiers globally, where the order is determined by the product of the three different classifiers.
+158:220	This induces an order on roots, which are combinations of the decisions of three independent classifiers.
+159:220	Each candidate root is assigned three scores: the product of the confidence measures of the three classifiers; the result of the scoring function; and the inverse edit distance between the candidate and the observed word.
+160:220	We rank the candidates according to the product of the three scores (i.e. , we give each score an equal weight in the final ranking).
+161:220	In order to determine which of the candidates to produce for each example, we experimented with two methods.
+162:220	First, the system produced the top-i candidates for a fixed value of i. The results on the development set are given in table 5.
+163:220	i = 1 2 3 4 Precision 82.02 46.17 32.81 25.19 Recall 79.10 87.83 92.93 94.91 f-measure 80.53 60.52 48.50 39.81 Table 5: Performance of the system when producing top-i candidates.
+164:220	Obviously, since most words have only one root, precision drops dramatically when the system produces more than one candidate.
+165:220	This calls for a better threshold, facilitating a non-fixed number of outputs for each example.
+166:220	We observed that in the difficult examples, the top ranking candidates are assigned close scores, whereas in the easier cases, the top candidate is usually scored much higher than the next one.
+167:220	We therefore decided to produce all those candidates whose scores are not much lower than the score of the top ranking candidate.
+168:220	The drop in the score, , was determined empirically on the development set.
+169:220	The results are listed in table 6, where  varies from 0.1 to 1 ( is actually computed on the log of the actual score, to avoid underflow).
+170:220	These results show that choosing  = 0.4 produces the highest f-measure.
+171:220	With this value for , results for the held-out data are presented in table 7.
+172:220	The results clearly demonstrate the added benefit of the linguistic knowledge.
+173:220	In fact, our results are slightly better than average human performance, which we recall as well.
+174:220	Interestingly, even when testing the system on a set of roots which do not occur in the training corpus (see section 4), we obtain an f-score of 65.60%.
+175:220	This result demonstrates the robustness of our method.
+176:220	Held-out data Humans Precision: 80.90 83.52 Recall: 88.16 80.27 f-measure: 84.38 81.86 Table 7: Results: performance of the system on held-out data.
+177:220	It must be noted that the scoring function alone is not a function for extracting roots from Hebrew words.
+178:220	First, it only scores a given root candidate against a given word, rather than yield a root given a word.
+179:220	While we could have used it exhaustively on all possible roots in this case, in a general setting of a number of classifiers the number of classes might be too high for this solution to be practical.
+180:220	Second, the function only produces three different values; when given a number of candidate roots it may return more than one root with the highest score.
+181:220	In the extreme case, when called with all 223 potential roots, it returns on the average more than 11 candidates which score highest (and hence are ranked equally).
+182:220	Similarly, the additional linguistic knowledge is not merely eliminating illegitimate roots from the ranking produced by SNoW.
+183:220	Using the linguistic constraints encoded in the scoring function only to eliminate roots, while maintaining the ranking proposed by SNoW, yields much lower accuracy.
+184:220	Clearly, our linguistically motivated scoring does more than elimination, and actually re-ranks the  = 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0 Precision 81.81 80.97 79.93 78.86 77.31 75.48 73.71 71.80 69.98 67.90 Recall 81.06 82.74 84.03 85.52 86.49 87.61 88.72 89.70 90.59 91.45 f-measure 81.43 81.85 81.93 82.06 81.64 81.10 80.52 79.76 78.96 77.93 Table 6: Performance of the system, producing candidates scoring no more than  below the top score.
+185:220	roots.
+186:220	It is only the combination of the classifiers with the linguistically motivated scoring function which boosts the performance on this task.
+187:220	5.4 Error analysis Looking at the questionnaires filled in by our subjects (section 3), it is obvious that humans have problems identifying the correct roots in two general cases: when the root paradigm is weak (i.e. , when the root is irregular) and when the word can be read in more than way and the subject chooses only one (presumably, the most prominent one).
+188:220	Our system suffers from similar problems: first, its performance on the regular paradigms is far superior to its overall performance; second, it sometimes cannot distinguish between several roots which are in principle possible, but only one of which happens to be the correct one.
+189:220	To demonstrate the first point, we evaluated the performance of the system on a different organization of the data.
+190:220	We tested separately words whose roots are all regular, vs. words all of whose roots are irregular.
+191:220	We also tested words which have at least one regular root (mixed).
+192:220	The results are presented in table 8, and clearly demonstrate the difficulty of the system on the weak paradigms, compared to almost 95% on the easier, regular roots.
+193:220	Regular Irregular Mixed Number of words 2598 2019 2781 Precision: 92.79 60.02 92.54 Recall: 96.92 73.45 94.28 f-measure: 94.81 66.06 93.40 Table 8: Error analysis: performance of the system on different cases.
+194:220	A more refined analysis reveals differences between the various weak paradigms.
+195:220	Table 9 lists fmeasure for words whose roots are irregular, classified by paradigm.
+196:220	As can be seen, the system has great difficulty in the cases of C2 = C3 and C3 = i. Finally, we took a closer look at some of the errors, and in particular at cases where the system produces several roots where fewer (usually only one) are correct.
+197:220	Such cases include, for example, the Paradigm f-measure C1 = i 70.57 C1 = n 71.97 C2 = i/w 76.33 C3 = i 58.00 C2 = C3 47.42 Table 9: Error analysis: the weak paradigms word hkwtrt (the title), whose root is the regular k.t.r; but the system produces, in addition, also w.t.r, mistaking the k to be a prefix.
+198:220	This is the kind of errors which are most difficult to cope with.
+199:220	However, in many cases the systems errors are relatively easy to overcome.
+200:220	Consider, for example, the word hmtndbim (the volunteers) whose root is the irregular n.d.b. Our system produces as many as five possible roots for this word: n.d.b, i.t.d, d.w.b, i.h.d, i.d.d. Clearly some of these could be eliminated.
+201:220	For example, i.t.d should not be produced, because if this were the root, nothing could explain the presence of the b in the word; i.h.d should be excluded because of the location of the h. Similar phenomena abound in the errors the system makes; they indicate that a more careful design of the scoring function can yield still better results, and this is the direction we intend to pursue in the future.
+202:220	6 Conclusions We have shown that combining machine learning with limited linguistic knowledge can produce stateof-the-art results on a difficult morphological task, the identification of roots of Hebrew words.
+203:220	Our best result, over 80% precision, was obtained using simple classifiers for each of the roots consonants, and then combining the outputs of the classifiers using a linguistically motivated, yet extremely coarse and simplistic, scoring function.
+204:220	This result is comparable to average human performance on this task.
+205:220	This work can be improved in a variety of ways.
+206:220	We intend to spend more effort on feature engineering.
+207:220	As is well-known from other learning tasks, fine-tuning of the feature set can produce additional accuracy; we expect this to be the case in this task, too.
+208:220	In particular, introducing features that capture contextual information is likely to improve the results.
+209:220	Similarly, our scoring function is simplistic and we believe that it can be improved.
+210:220	We also intend to improve the edit-distance function such that the cost of replacing characters reflect phonological and orthographic constraints (Kruskal, 1999).
+211:220	In another track, there are various other ways in which different inter-related classifiers can be combined.
+212:220	Here we only used a simple multiplication of the three classifiers confidence measures, which is then combined with the linguistically motivated functions.
+213:220	We intend to investigate more sophisticated methods for this combination, including higher-order machine learning techniques.
+214:220	Finally, we plan to extend these results to more complex cases of learning tasks with a large number of targets, in particular such tasks in which the targets are structured.
+215:220	We are currently working on similar experiments for Arabic root extraction.
+216:220	Another example is the case of morphological disambiguation in languages with non-trivial morphology, which can be viewed as a POS tagging problem with a large number of tags on which structure can be imposed using the various morphological and morphosyntactic features that morphological analyzers produce.
+217:220	We intend to investigate this problem for Hebrew in the future.
+218:220	Acknowledgments This work was supported by The Caesarea Edmond Benjamin de Rothschild Foundation Institute for Interdisciplinary Applications of Computer Science.
+219:220	Dan Roth is supported by NSF grants CAREER IIS9984168, ITR IIS-0085836, and ITR-IIS 00-85980.
+220:220	We thank Meira Hess and Liron Ashkenazi for annotating the corpus and Alon Lavie and Ido Dagan for useful comments.
+

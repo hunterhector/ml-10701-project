@@ -1,0 +1,6 @@
+We have selected a representative set of 22 metric variants corresponding to six different families: BLEU (Papineni et al., 2001), NIST (Doddington, 2002), GTM (Melamed et al., 2003), mPER (Leusch et al., 2003), mWER (Nießen et al., 2000) and ROUGE (Lin and Och, 2004a).
+C04-1072 N03-2021 P04-1077
+Inspired in the work by Liu and Gildea (2005), who introduced a series of metrics based on constituent/dependency syntactic matching, we have designed three subgroups of syntactic similarity metrics.
+W05-0904
+Let a5 and a6 be the sets of automatic and reference translations, respectively, anda7a9a8a11a10a13a12a14a6a16a15 an evaluation metric which outputs the quality of an automatic translation a10a18a17a19a5 by comparison to a6. ORANGE measures the descriptive power as the probability that a human reference a20 is more similar than an automatic translation a10 to the rest of human references: a21 a6a22a5a24a23a26a25a28a27a30a29a32a31a33a34a8a35a7a36a15a38a37 a39 a8a35a20a40a17a41a6a42a12a14a10a43a17a41a5a45a44a46a7a9a8a35a20a47a12a14a6a41a48a50a49a51a20a53a52a47a15a55a54a56a7a9a8a11a10a13a12a14a6a41a48a50a49a51a20a53a52a47a15a57a15 ORANGE was introduced by Lin and Och (2004b)6 for the meta-evaluation of MT evaluation metrics.
+C04-1072 P04-1077

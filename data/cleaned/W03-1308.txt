@@ -1,0 +1,226 @@
+Bio-Medical Entity Extraction using Support Vector Machines Koichi Takeuchi and Nigel Collier National Institute of Informatics 2-1-2 Hitotsubashi, Chiyoda-ku Tokyo 101-8430, Japan fkoichi,collierg@nii.ac.jp Abstract Support Vector Machines have achieved state of the art performance in several classification tasks.
+In this article we apply them to the identification and semantic annotation of scientific and technical terminology in the domain of molecular biology.
+This illustrates the extensibility of the traditional named entity task to special domains with extensive terminologies such as those in medicine and related disciplines.
+We illustrate SVM’s capabilities using a sample of 100 journal abstracts texts taken from the fhuman, blood cell, transcription factorg domain of MEDLINE.
+Approximately 3400 terms are annotated and the model performs at about 74% F-score on cross-validation tests.
+A detailed analysis based on empirical evidence shows the contribution of various feature sets to performance.
+1 Introduction
+With the rapid growth in the number of published papers in the scientific fields such as medicine there has been growing interest in the application of Information Extraction (IE), (Thomas et al., 1999) (Craven and Kumlien, 1999), to help solve some of the problems that are associated with information overload.
+IE can benefit the medical sciences by enabling the automatic extraction of facts related to prototypical events such as those contained in patient records or research articles regarding molecular processes and their affect on human health.
+These facts can then be used to populate databases, aid in searching or document summarization and a variety of tasks which require the computer to have an intelligent understanding of the contents inside a document.
+Our aim here is to show a state of the art method for identifying and classifying technical terminology.
+This task is an extension of the named entity task defined by the DARPA-sponsored Message Understanding Conferences (MUCs) (MUC, 1995) and is aimed at acquiring the shallow semantic building blocks that contribute to a high level understanding of the text.
+Although our study here looks at shallow semantics that can be captured using IE our basic goal is to join this with deep semantic representations so that computers can obtain a full understanding of the facts in a text using logical inference and reasoning.
+The scenario is that human experts will create taxonomies and axioms (ontologies) and by providing a small set of annotated examples, machine learning can take over the role of instance capturing though information extraction technology.
+Recent studies into the use of supervised learningbased models for the named entity task have shown that models based on hidden Markov models (HMMs) (Bikel et al., 1997), and decision trees (Sekine et al., 1998), and maximum entropy (Borthwick et al., 1998) are much more generalisable and adaptable to new classes of words than systems based on hand-built patterns (including wrappers) and domain specific heuristic rules such as (Herzig and Johns, 1997).
+The method we use is based on support vector machines (SVMs)(Vapnik, 1995), a state of the art model that has achieved new levels of performance in many classification tasks.
+In previous work we have shown SVMs to be superior to several other commonly used machine learning methods for named entity in previous experiments such as HMMs and C4.5 (citations omitted).
+This paper explores the underlying SVM model and shows through detailed empirical analysis the key features and parameter settings.
+To show the application of SVMs to term extraction in unstructured texts related to the medical sciences we are using a collection of abstracts from PubMed’s MEDLINE (MEDLINE, 1999).
+The MEDLINE database is an online collection of abstracts for published journal articles in biology and medicine and contains more than nine million articles.
+The collection we use in our tests is a controlled subset of MEDLINE obtained using three search keywords in the domain of molecular biology.
+From the retrieved abstracts 100 were randomly chosen for annotation by a human expert according to classes in a small top-level ontology.
+In the remainder of this paper in Section (2) we outline the background to the task and the data set we are using; in Section (3) we described the basic advantages of SVMs and the formal model we are using as well as implementation specific issues such as the choice of feature set and report experimental results.
+In Section (4) we provide extensive results and a discussion of four sets of experiments we conducted that show the best feature sets and parameter settings in our sample domain.
+2 Background
+The names that we are trying to extract fall into a number of categories that are outside the definitions used for the traditional named-entity task used in MUC.
+For this reason we consider the task of term identification and classification to be an extended named entity task (NE+) in which the goal is to find types as well as individuals and where the term classes belong to an explicitly defined ontology.
+The use of an ontology allows us to associate human-readable terms in the domain with a set of computer-readable classes, relations, properties and axioms (Gruber, 1993).
+The particular difficulties with identifying and classifying terms in scientific and technical domains are the size of the vocabulary (Lindberg et al., 1993), an open growing vocabulary (Lovis et al., 1995), irregular naming conventions as well as extensive cross-over in vocabulary between named entity classes.
+The irregular naming arises in part because of the number of researchers and practitioners from different fields who are working on the same knowledge discovery area as well as the large number of entities that need to be named.
+Despite the best efforts of major journals to standardize the terminology, there is also a significant problem with synonymy so that often an entity has more than one name that is widely used.
+In molecular biology for example class cross-over of terms may arise because many DNA and RNA are named after the protein with which they transcribe.
+This semantic ambiguity which is dependent on often complex contextual conditions is one of the main reasons why we need learnable models and why it is difficult to re-use existing term lists and vocabularies such as MeSH(NLM, 1997), UMLS (Lindberg et al., 1993) or those found in databases such as SwissProt (Bairoch and Apweiler, 1997).
+An additional obstacle to re-use is that the classification scheme used within an existing thesaurus or database may not be the same as the one in the users’ ontology which may change from time to time as the consensus view of the structure of knowledge is refined.
+Our work has focussed on identifying names belonging to the classes shown in Table 1 which are all taken from the domain of molecular biology. Example sentences from a marked up abstract are given in Figure 1.
+The ontology (Tateishi et al., 2000) that underlies this classification scheme describes a simple top-level model which is almost flat except for the source class which shows places where genetic activity occurs and has a number of sub-types.
+Further discussion of our use of deep semantic structures in the ontology is given elsewhere1 and we will now focus our attention on the machine learning model used to capture low level semantics.
+The training set we used in our experiments called Bio1 consists of 100 MEDLINE abstracts, marked up in XML by a doctoral-qualified domain expert 1Now being submitted for publication Class # Description PROTEIN 2125 proteins, protein groups, families, complexes and substructures.
+DNA 358 DNAs, DNA groups, regions and genes RNA 30 RNAs, RNA groups, regions and genes SOURCE.cl 93 cell line SOURCE.ct 417 cell type SOURCE.mo 21 mono-organism SOURCE.mu 64 multiorganism SOURCE.vi 90 virus SOURCE.sl 77 sublocation SOURCE.ti 37 tissue Table 1: Markup classes used in Bio1 with the number of word tokens for each class.
+TI Differential interactions of <NAME cl=“PROTEIN” >Rel </NAME ><NAME cl=“PROTEIN” >NF-kappa B </NAME > complexes with <NAME cl=“PROTEIN” >I kappa B alpha </NAME > determine pools of constitutive and inducible <NAME cl=“PROTEIN” >NF-kappa B </NAME > activity.
+AB The <NAME cl=“PROTEIN” >Rel </NAME ><NAME cl=“PROTEIN” >NF-kappa B </NAME > family of transcription factors plays a crucial role in the regulation of genes involved in inflammatory and immune responses.
+We demonstrate that in vivo, in contrast to the other members of the family, <NAME cl=“PROTEIN” >RelB </NAME >associates efficiently only with <NAME cl=“PROTEIN” >NF-kappa B1 </NAME > ( <NAME cl=“PROTEIN” >p105-p50 </NAME >) and <NAME cl=“PROTEIN” >NFkappa B2 </NAME > ( <NAME cl=“PROTEIN” >p100-p52 </NAME >), but not with <NAME cl=“PROTEIN” >cRel </NAME > or <NAME cl=“PROTEIN” >p65 </NAME >.
+The <NAME cl=“PROTEIN” >RelB </NAME ><NAME cl=“PROTEIN” >p52 </NAME >heterodimers display a much lower affinity for <NAME cl=“PROTEIN” >I kappa B alpha </NAME > than <NAME cl=“PROTEIN” >RelB </NAME ><NAME cl=“PROTEIN” >p50 </NAME > heterodimers or <NAME cl=“PROTEIN” >p65 </NAME > complexes.
+Figure 1: Example MEDLINE sentence marked up in XML for molecular biology named-entities.
+for the name classes given in Table 1.
+The number of named entities that were marked up by class are also given in Table 1 and the total number of words in the corpus is 29940.
+The abstracts were chosen from a sub-domain of molecular biology that we formulated by searching under the terms human, blood cell, transcription factor in the PubMed database.
+An example can be seen in Figure 1 3 Method 3.1 Basic model The named entity task can be formulated as a type of classification task.
+In the supervised machine learning approach which we adopt here we aim to estimate a classification function f, f : ´N !f§1g (1) so that error on unseen examples is minimized, using training examples that are N dimensional vectors xi with class labels yi.
+The sample set S with m examples is S = (x1;y1);(x2;y2);:::;(xm;ym) 2 ´N £f§1g (2) The classification function returns either +1 if the test data is a member of the class, or ¡1 if it is not.
+SVMs use linear models to discriminate between two classes.
+This raises the question of how can they be used to capture non-linear classification functions?
+The answer to this is by the use of a nonlinear mapping function called a kernel, Φ : ´N ! Γ (3) which maps the input space ´N into a feature space Γ.
+The kernel function k requires the evaluation of a dot product k(xi;xj) = (Φ(xi)¢Φ(xj)) (4) Clearly the complexity of data being classified determines which particular kernel should be used and of course more complex kernels require longer training times.
+By substituting Φ(xi) for each training example in S we derive the final form of the optimal decision function f, f(x) = sgn( mX i yifiik(x;xi)+b) (5) where b 2 R is the bias and the Lagrange parameters fii (fii ‚ 0) are estimated using quadratic optimization to maximize the following function w(fi) = mX i=1 fii ¡ 12 mX i;j fiifijyiyjk(xi;xj) (6) under the constraints that mX i=1 fiiyi = 0 (7) and 0 • fii • C (8) for i = 1;:::;m.
+C is a constant that controls the ratio between the complexity of the function and the number of misclassified training examples.
+The number of parameters to be estimated in fi therefore never exceeds the number of examples.
+The influence of fii basically means that training examples with fii > 0 define the decision function (the support vectors) and those examples with fii = 0 have no influence, making the final model very compact and testing (but not training) very fast.
+The point x is classified as positive (or negative) if f(x) > 0 (or f(x) < 0).
+The kernel function we explored in our experiments was the polynomial function k(xi;xj) = (xi ¢xj + 1)d for d = 2 which was found to be the best by (Takeuchi and Collier, 2002).
+Once input vectors have been mapped to the feature space the linear discrimination function which is found is the one which gives the maximum the geometric margin between the two classes in the feature space.
+Besides efficiency of representation, SVMs are known to maximize their generalizability, making them an ideal model for the NE+ task.
+Generalizability in SVMs is based on statistical learning theory and the observation that it is useful sometimes to misclassify some of the training data so that the margin between other training points is maximized.
+This is particularly useful for real world data sets that often contain inseparable data points.
+We implemented our method using the Tiny SVM package from NAIST2 which is an implementation of Vladimir Vapnik’s SVM combined with an optimization algorithm (Joachims, 1999).
+The multiclass model is built up from combining binary classifiers and then applying majority voting.
+3.2 Generalising
+with features In order for the model to be successful it must recognize regularities in the training data that relate preclassified examples of terms with unseen terms that will be encountered in testing.
+Following on from previous studies in named entity we chose a set of linguistically motivated wordlevel features that include surface word forms, part of speech tags using the Brill tagger (Brill, 1992) and orthographic features.
+Additionally we used head-noun features that were obtained from preanalysis of the training data set using the FDG shallow parser from Conexor (Tapanainen and J¨arvinen, 1997).
+A significant proportion of the terms in our corpus undergo a local syntactic transformations such as coordination which introduces ambiguity that needs to be resolved by shallow parsing.
+For example the cand v-rel (proto) oncogenes and NF-kappaB and I kappa B protein families.
+In these cases the head noun features oncogene and family would be added to each word in the constituent phrase.
+Head information is also needed when deciding the semantic category of a long term such as tumor necrosis factor-alpha which should be a PROTEIN, whereas tumor necrosis factor (TNF) gene and tumor necrosis factor promoter region should both be types of DNA.
+Table 2 shows the orthographic features that we used.
+We hypothesize that such features will help the model to find similarities between known words that were found in the training set and unknown words (of zero frequency in the training set) and so overcome the unknown word problem.
+In the experiments we report below we use feature vectors consisting of differing amounts of ‘context’ by varying the window around the focus word which is to be classified into one of the semantic classes.
+The full window of context considered in these experiments is §3 about the focus word.
+2Tiny SVM is available from http:// http://cl.aist-nara.ac.jp/ taku-ku/software/ TinySVM/ Feature Example Feature Example DigitNumber 15 CloseSquare ] SingleCap M Colon : GreekLetter alpha SemiColon ; CapsAndDigits I2 Percent % TwoCaps RalGDS OpenParen ( LettersAndDigits p52 CloseParen ) InitCap Interleukin Comma, LowCaps kappaB FullStop . Lowercase kinases Determiner the Hyphon Conjunction and Backslash / Other * + # OpenSquare [ Table 2: Orthographic features with examples 4 Experiment and Discussion Results are given as F-scores (van Rijsbergen, 1979) using the CoNLL evaluation script and are defined as F = (2PR)=(P+R).
+where P denotes Precision and R Recall.
+P is the ratio of the number of correctly found NE chunks to the number of found NE chunks, and R is the ratio of the number of correctly found NE chunks to the number of true NE chunks.
+All results are calculated using 10-fold cross validation.
+4.1 Experiment
+1: Effect of Training Set Size The effect of context window size is shown along the top column of Tables 3 and 4.
+It can be seen that without exception more training data results in higher overall F-scores except at 10 per cent.
+where the result seems to be biased by the small sample, perhaps because one abstract is partly included in the training and testing sets.
+As we would expect larger training sets reduce the effects of data sparseness and allow more accurate models to be induced.
+The rate of increase in improvement however is not uniform according to the feature sets that are used.
+For surface word features and head noun features the improvement in performance is consistently increasing whereas the improvement for using orthographic and part of speech features is quite erratic.
+This may be an effect of the small sample of training data that we used and we could not find any consistent explanation why this occurred.
+As we observed before, the best overall result comes from using Or hd, i.e. surface words, orthographic and head features.
+However the total score hides the fact that three classes, i.e.
+SOURCE.mo, SOURCE.mu and SOURCE.ti actually perform worse when using anything but surface word forms (shown in Table 5).
+One possible explanation for this is that all of these classes have very small numbers of samples and the effect of adding features may be to blur the distinction between these and other more numerous classes in the model.
+However it is interesting to note that this does not happen with the RNA class which is also very small.
+4.2 Experiment
+2: Effect of Feature Sets The effects of feature sets is of major importance in modelling named entity.
+In general we would like to identify only the necessary features that are required and to remove those that do not contribute to an increase in performance.
+This also saves time in training and testing.
+The results from Tables 3 and 4 at 100 per cent.
+training data are summarized in Table 5 and clearly illustrate the value of surface word level features combined with orthographic and head noun features.
+Orthographic features allow us to capture many generalities that are not obvious at the surface word level such as IkappaB alpha and IkappaB beta both being PROTEINs and IL-10 and IL-2 both being PROTEINs.
+The orthographic-head noun feature combination (Or hd) gives the best combined-class performance of 74.23 at 100 per cent.
+training data on a -2+2 window.
+Overall orthographic features combined with surface word features gave an improvement of between 4.9 and 22.0 per cent.
+at 100 per cent.
+data depending on window size over surface words alone.
+This was the biggest contribution by any feature except the surface words.
+Head information for example allowed us to correctly capture the fact that in the phrase NF-kappaB consensus site the whole of it is a DNA, whereas using orthographic information alone the SVM could only say that NF-kappaB was a PROTEIN and ignoring consensus site.
+We see a similar case in the phrase primary NK cells which is correctly classified as SOURCE.ct using head noun and orthographic features but only NK cells are found using orthographic features.
+This mistake is a natural consequence of a limited contextual view which the head noun feature helped to rectify.
+Part of speech (POS) when combined with surface word features gave an improvement of between 7.9 and 11.7 per cent.
+at 100 per cent.
+data. The influence of POS though does not appear to be sustained when combined with other features and we found that it actually degraded performance slightly in many cases.
+This may possibly be due to either overlapping knowledge or more likely subtle inconsistencies between POS features and say, orthographic features.
+This could have occurred during training when the POS tagger was trained on an out of domain (news) text collection.
+It is possible that if the POS tagger was trained on in-domain texts it would make a greater and more consistent contribution.
+An example where orthographic features allowed correct classification but adding POS features resulted in failure is p50 in the phrase consisting of 50 (p50) and 65 (p65) -kDa proteins.
+Also in the phrase c-Jun transactivation domain where only c-Jun should be tagged as a protein, by using orthographic features and POS the model tags the whole phrase as a PROTEIN.
+This is probably because POS tagging gives a NN feature value (common noun) to each word.
+This is very general and does not allow the model to discriminate between them.
+The fourth feature we investigated is related to syntactic rather than lexical knowledge.
+We felt though that there should exist a strong semantic relation between a word in a term and the head noun of that term.
+The results in Table 5 show that while the overall contribution of the Head feature is quite small, it is consistent for almost all classes.
+5 Conclusion
+The method we have shown for identifying and classifying technical terms has the advantage of being portable, not requiring large domain dependent dictionaries and no hand-made patterns were used.
+Additionally, since all the word level features are found automatically there is no need for intervention to create domain specific features.
+Indeed the only thing that is required is a quite small corpus of text containing entities tagged by a domain expert.
+For future work we are now looking at how to balance the scores from SVM for each word-class over the whole of a sentence using dynamic programming.
+Theoretically the existing SVM model cannot consider evidence from outside the context window, in particular evidence related to named entity class scores in the history and later in the sentence.
+References A.
+Bairoch and R.
+Apweiler. 1997.
+The SWISS-PROT protein sequence data bank and its new supplement TrEMBL.
+Nucleic Acids Research, 25:31–36.
+D. Bikel, S.
+Miller, R.
+Schwartz, and R.
+Wesichedel. 1997.
+Nymble: a high-performance learning namefinder.
+In Proceedings of the Fifth Conference on Applied Natural Language Processing (ANLP’97), Washington D.C., USA., pages 194–201, 31 March – 3 April.
+A. Borthwick, J.
+Sterling, E.
+Agichtein, and R.
+Grishman. 1998.
+Exploiting diverse knowledge sources via maximum entropy in named entity recognition.
+In Proceedings of the Sixth Workshop on Very Large Corpora (WVLC’98), Montreal, Canada, pages 152–160.
+E. Brill.
+1992. A simple rule-based part of speech tagger.
+In Third Conference on Applied Natural Language Processing – Association for Computational Linguistics, Trento, Italy, pages 152–155, 31st March – 3rd April.
+M. Craven and J.
+Kumlien. 1999.
+Constructing biological knowledge bases by extracting information from text sources.
+In Proceedings of the 7th International Conference on Intelligent Systemps for Molecular Biology (ISMB-99), pages 77–86, Heidelburg, Germany, August 6–10.
+T. R.
+Gruber. 1993.
+A translation approach to portable ontology specifications.
+Knowledge Acquisition, 6(2):199–221.
+T. Herzig and M.
+Johns. 1997.
+Extraction of medical information from textual sources: a statistical variant of the boundary word method.
+In Proceedings of the American Medical Informatics Association (AMIA) 1997 Annual Fall Symposium, Nashville, USA, 25–29 October.
+T. Joachims.
+1999. Making large-scale SVM learning practical.
+In B.
+Scholkopf, C.
+Burges, and A.
+Smola, editors, Advances in Kernel Methods Support Vector Learning.
+MIT Press.
+Donald A.B.
+Lindberg, L.
+Humphreys, Betsy, and T.
+McCray, Alexa.
+1993. The unified medical language system.
+Methods of Information in Medicine, 32:281– 291.
+C. Lovis, P.
+Michel, R.
+Baud, and J.
+Scherrer. 1995.
+Word segmentation processing: a way to exponentially extend medical dictionaries.
+Medinfo, 8:28–32.
+MEDLINE. 1999.
+The PubMed database can be found at:.
+http://www.ncbi.nlm.nih.gov/PubMed/. DARPA.
+1995. Proceedings of the Sixth Message Understanding Conference(MUC-6), Columbia, MD, USA, November.
+Morgan Kaufmann.
+NLM. 1997.
+Medical subject headings, bethesda, MD.
+National Library of Medicine.
+Satoshi Sekine, Ralph Grishman, and Hiroyuki Shinnou.
+1998. A Decision Tree Method for Finding and Classifying Names in Japanese Texts.
+In Proceedings of the Sixth Workshop on Very Large Corpora, Montreal, Canada, August.
+K. Takeuchi and N.
+Collier. 2002.
+Use of support vector machines in extended named entity recognition.
+In Proceedings of the 6th Conference on Natural Language Learning 2002 (CoNLL-2002), Roth, D.
+and van den Bosch, A.
+(eds), pages 119–125, August 31st.
+P. Tapanainen and T.
+J¨arvinen. 1997.
+A non-projective dependency parser.
+In Proceedings of the 5th Conference on Applied Natural Language Processing, Washington D.C., Association of Computational Linguistics, pages 64–71.
+Y. Tateishi, T.
+Ohta, N.
+Collier, C.
+Nobata, K.
+Ibushi, and J.
+Tsujii. 2000.
+Building an annotated corpus in the molecular-biology domain.
+In COLING’2000 Workshop on Semantic Annotation and Intelligent Content, Luxemburg, 5th–6th August.
+J. Thomas, D.
+Milward, C.
+Ouzounis, S.
+Pulman, and M.
+Carroll. 1999.
+Automatic extraction of protein interactions from scientific abstracts.
+In Proceedings of the Pacific Symposium on Biocomputing’99 (PSB’99), pages 1–12, Hawaii, USA, January 4–9.
+C. J.
+van Rijsbergen.
+1979. Information Retrieval.
+Butterworths, London.
+V. N.
+Vapnik. 1995.
+The Nature of Statistical Learning Theory.
+Springer-Verlag, New York .
+

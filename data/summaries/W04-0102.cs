@@ -1,0 +1,4 @@
+Barcelona, July 2004 Association for Computations Linguistics ACL Special Interest Group on Computational Phonology (SIGPHON) Proceedings of the Workshop of the 2 Background Lazy learning methods such as the nearest neighbour algorithm (van den Bosch et al., 1996) or the analogy-based approach (Pirrelli and Federici, 1994; Pirrelli and Yvon, 1999) require full storage of supervised data, and make on-line use of them with no prior or posterior lexical structuring.
+C94-1037
+To tackle the issue of word structure more squarely, there has been a recent upsurge of interest in global paradigm-based constraints on morphology learning, as a way to minimise the range of inflectional or derivational endings heuristically inferred from raw training data (Goldsmith, 2001; Gaussier, 1999; Baroni, 2000).
+J01-2001 W99-0904

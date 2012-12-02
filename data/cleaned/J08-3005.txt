@@ -1,0 +1,1325 @@
+IdentifyingSemiticRoots:MachineLearning
+withLinguisticConstraints
+EzraDaya
+∗
+UniversityofHaifa
+DanRoth
+∗∗
+UniversityofIllinois
+ShulyWintner
+†
+UniversityofHaifa
+Words in Semitic languages are formed by combining two morphemes: a root and a pattern. The
+root consists of consonants only, by default three, and the pattern is a combination of vowels
+and consonants, with non-consecutive “slots” into which the root consonants are inserted.
+Identifying the root of a given word is an important task, considered to be an essential part
+of the morphological analysis of Semitic languages, and information on roots is important for
+linguisticsresearchaswellasforpracticalapplications.Wepresentamachinelearningapproach,
+augmented by limited linguistic knowledge, to the problem of identifying the roots of Semitic
+words. Although programs exist which can extract the root of words in Arabic and Hebrew, they
+arealldependent onlabor-intensiveconstructionof large-scalelexiconswhicharecomponents of
+full-scalemorphologicalanalyzers.Theadvantageofourmethodisanautomationofthisprocess,
+avoiding the bottleneckof having to laboriously list the root and pattern of each lexeme in the
+language. To the best of our knowledge, this is the ﬁrst application of machine learning to this
+problem, and one of the few attempts to directly address non-concatenative morphology using
+machine learning. More generally, our results shed light on the problem of combining classiﬁers
+under (linguistically motivated) constraints.
+1.Introduction
+The standard account of word-formation processes in Semitic languages describes
+words as combinations of two morphemes: a root and a pattern.
+1
+The root consists of
+consonants only, by default three (although longer roots are known), called radicals.
+Thepatternisacombinationofvowelsand,possibly,consonantstoo,with“slots”into
+which the root consonants can be inserted. Words are created by interdigitating roots
+∗ DepartmentofComputerScience,UniversityofHaifa,31905Haifa,Israel.E-mail:edaya@cs.haifa.ac.il.
+∗∗ DepartmentofComputerScience,UniversityofIllinoisatUrbana-Champaign,Urbana,IL61801.E-mail:
+danr@cs.uiuc.edu.
+† DepartmentofComputerScience,UniversityofHaifa,31905Haifa,Israel.E-mail:shuly@cs.haifa.ac.il
+1 Anadditionalmorpheme,vocalization,isusedtoabstractthepatternfurther;forthepresentpurposes,
+thisdistinctionisirrelevant.
+Submissionreceived:19June2006;revisedsubmissionreceived:30May2007;acceptedforpublication:
+12October2007.
+©2008AssociationforComputationalLinguistics
+ComputationalLinguistics Volume34,Number3
+into patterns: The ﬁrst radical is inserted into the ﬁrst consonantal slot of the pattern,
+thesecondﬁllsthesecondslot,andthethirdﬁllsthelastslot.SeeShimron(2003)fora
+survey.
+We present a machine learning approach, augmented by limited linguistic knowl-
+edge, to the problem of identifying the roots of Semitic words. To the best of our
+knowledge, this is the ﬁrst application of machine learning to this problem, and one
+of the few attempts to directly address the non-concatenative morphology of Semitic
+languagesusingmachinelearning.Althoughthereexistprogramswhichcanextractthe
+rootsofwordsinArabic(Beesley1998a,1998b)andHebrew(Choueka1990),theyareall
+dependentonlabor-intensiveconstructionoflarge-scalelexiconswhicharecomponents
+of full-scale morphological analyzers. Note that the Arabic morphological analyzer of
+Buckwalter (2002, software documentation) only uses “word stems—rather than root
+andpatternmorphemes—toidentifylexicalitems.”Buckwalterfurthernotesthat“The
+information on root and pattern morphemes could be added to each stem entry if
+this were desired.” The challenge of our work is to automate this process, avoiding
+the bottleneck of having to laboriously list the root and pattern of each lexeme in the
+language.
+Identifying the root of a given word is a non-trivial problem, due to the complex
+nature of Semitic derivational and inﬂectional morphology and the peculiarities of the
+orthography.Itisalsoanimportanttask.Althoughexistingmorphologicalanalyzersfor
+Hebrewonlyprovidealexeme(whichisacombinationofarootandapattern),forother
+Semitic languages, notably Arabic, the root is an essential part of any morphological
+analysis simply because traditional dictionaries are organized by root, rather than by
+lexeme(Owens1997).Informationonrootsisimportantforlinguisticresearch,because
+rootscanshedlightonetymologicalprocesses,bothwithinasinglelanguageandacross
+languages. Furthermore, roots are known to carry some meaning, albeit vague. This
+informationcanbeusefulforcomputationalapplications:Forexample,severalstudies
+showthatindexingArabicdocumentsbyrootimprovestheperformanceofinformation
+retrievalsystems(Al-KharashiandEvens1994;Abu-Salem,Al-Omari,andEvens1999;
+Larkey,Ballesteros,andConnell2002).
+2
+The contributions of this article are manifold. First and foremost, we report on
+a practical system which can be used to extract roots in Hebrew and Arabic (the
+system is freely available; an on-line demo is provided at http://cl.haifa.ac.il/
+projects/roots/index.shtml). The system can be used for practical applications or
+for scientiﬁc (linguistic) research, and constitutes an important addition to the grow-
+ing set of resources dedicated to Semitic languages. It is one of the few attempts to
+directly address the non-concatenative morphology of Semitic languages and extract
+non-contiguousmorphemesfromsurfaceforms.Asamachinelearningapplication,this
+workdescribesasetofexperimentsincombinationofclassiﬁersunderconstraints.The
+resulting insights can be used for other applications of the same techniques for similar
+problems (see, e.g., Habash and Rambow 2005). Furthermore, this work demonstrates
+that providing a data-driven classiﬁer with limited linguistic knowledge signiﬁcantly
+improvestheclassiﬁcationresults.
+We focus on Hebrew in the ﬁrst part of this article. After sketching the linguistic
+data in Section 2 and our methodology in Section 3, we discuss in Section 4 a simple,
+baseline,learningapproach.Wethenproposeseveralmethodsforcombiningtheresults
+2 TheseresultsarechallengedbyDarwishandOard(2002),whoconcludethatrootsareinferiorto
+character n-gramsforthistask.
+430
+Daya,Roth,andWintner IdentifyingSemiticRoots
+ofinterdependent classiﬁersinSection5anddemonstratethebeneﬁtsofusinglimited
+linguistic knowledge in the inference procedure. Then, the same technique is applied
+to Arabic in Section 6 and we demonstrate comparable improvements. In Section 7
+we discuss the inﬂuence of global constraints on local classiﬁers. We conclude with
+suggestionsforfutureresearch.
+2.LinguisticBackground
+RootandpatternmorphologyisthemajorwordformationdeviceofSemiticlanguages.
+As an example, consider the Hebrew roots g.d.l, k.t.b,andr.$.m and the patterns
+haCCaCa, hitCaCCut,andmiCCaC, where the “C”s indicate the slots.
+3
+When the
+rootscombinewiththesepatternstheresultinglexemesarehagdala,hitgadlut,migdal,
+haktaba, hitkatbut, miktab, har$ama, hitra$mut,andmir$am, respectively. After the
+root combines with the pattern, some morpho-phonological alternations take place,
+which may be non-trivial: For example, the hitCaCCut pattern triggers assimilation
+when the ﬁrst consonant of the root is t or d:thus,d.r.$+hitCaCCut yields hiddar$ut.
+The same pattern triggers metathesis when the ﬁrst radical is s or $: s.d.r+hitCaCCut
+yieldshistadrut ratherthantheexpected*hitsadrut.Semi-vowelssuchasw ory inthe
+root are frequently combined with the vowels of the pattern, so that q.w.m+haCCaCa
+yields haqama, and so on. Frequently, root consonants such as w or y are altogether
+missingfromtheresultingform.
+These matters are complicated further due to two sources: First, the standard
+Hebreworthographyleavesmostofthevowelsunspeciﬁed.
+4
+Itdoesnotexplicatea and
+e vowels,doesnotdistinguishbetweeno andu vowelsandleavesmanyofthei vowels
+unspeciﬁed.Furthermore,thesingleletterw isusedbothforthevowelso andu andfor
+theconsonantv,whereasi issimilarlyusedbothforthevoweli andfortheconsonanty.
+Ontopofthat,thescriptdictatesthatmanyparticles,includingfourofthemostfrequent
+prepositions,thedeﬁnitearticle,thecoordinatingconjunction,andsomesubordinating
+conjunctions,allattachtothewordswhichimmediatelyfollowthem.Thus,aformsuch
+as mhgr can be read as a lexeme (‘immigrant’), as m-hgr (‘from Hagar’), or even as
+m-h-gr (‘fromtheforeigner’).Notethatthereisnodeterministicwaytotellwhetherthe
+ﬁrstm oftheformispartofthepattern,theroot,orapreﬁxingparticle(thepreposition
+m ‘from’).
+The Hebrew script has 22 letters, all of which can be considered consonants. The
+number of tri-consonantal roots is thus theoretically bounded by 22
+3, although several
+phonological constraints limit this number to a much smaller value. For example,
+although roots whose second and third radicals are identical abound in Semitic lan-
+guages, roots whose ﬁrst and second radicals are identical are extremely rare (see
+McCarthy1981foratheoreticalexplanation).ToestimatethenumberofrootsinHebrew
+wecompiledalistofrootsfromtwosources:adictionary(Even-Shoshan1993)andthe
+verbparadigmtablesofZdaqa(1974).Theunionoftheseyieldsalistof2,152roots.
+5
+3 Tofacilitatereadabilityweuseastraight-forwardtransliterationofHebrewusingASCIIcharacters,
+wherethecharacters(inHebrewalphabeticorder)are:’bgdhwzxviklmnsypcqr$t.
+4 Inthisworkweconsideronlytextsin
+undotted,orunvocalized script.Thisisthestandardscriptofboth
+HebrewandArabic.
+5 Onlytri-consonantalrootsarecounted.Ornan(2003)mentions3,407roots,whereasthenumberofroots
+inArabicisestimatedtobe10,000(Darwish2002).WedonotknowwhyArabicshouldhavesomany
+morerootsthanHebrew.
+431
+ComputationalLinguistics Volume34,Number3
+Whereas most Hebrew roots are regular, many belong to weakparadigms, which
+meansthatrootconsonantsundergochangesinsomepatterns.Examplesincludei orn
+astheﬁrstrootconsonant,w ori asthesecond,i asthethird,androotswhosesecond
+and third consonants are identical. For example, consider the pattern hCCCh.Regular
+roots such as p.s.q yield forms such as hpsqh. However, the irregular roots n.p.l, i.c.g,
+q.w.m,andg.n.n in this pattern yield the seemingly similar forms hplh,hcgh,hqmh,
+andhgnh,respectively.Notethatintheﬁrstandsecondexamples,theﬁrstradical(n or
+i)ismissing,inthethirdthesecondradical(w)isomitted,andinthelastexampleone
+ofthetwoidenticalradicalsisomitted.Consequently,aformsuchashC
+1
+C
+2
+h canhave
+anyoftherootsn.C
+1
+.C
+2, C
+1
+.w.C
+2, C
+1
+.i.C
+2, C
+1
+.C
+2
+.C
+2
+andeven,insomecases,i.C
+1
+.C
+2
+.
+Although root and pattern morphology is the major word formation device of Se-
+miticlanguages,bothHebrewandArabichavewordswhicharenotgeneratedthrough
+this mechanism, and therefore have no root. These are either loan words (which are
+oftentimes longer than originally Semitic words, in particular in the case of proper
+names)orshortfunctionalorfrequentwordswhoseoriginismoreancient.Forexample,
+the most frequent token in Hebrew texts is the accusative preposition ’t, which is not
+formedthroughrootandpatternprocesses.Ofcourse,theremaybesurfaceformswhich
+are ambiguous: one reading based on root and pattern morphology, the other a loan
+word,forexample,npl (either‘Nepal’or‘fall’(past,3rdpersonmasculinesingular)).
+AlthoughtheHebrewscriptishighlyambiguous,ambiguityissomewhatreduced
+for the task we consider here, as many of the possible lexemes of a given form share
+the same root. Still, in order to correctly identify the root of a given word, context
+must be taken into consideration. For example, the form $mnh has more than a dozen
+readings, including the adjective ‘fat’ (feminine singular), which has the root $.m.n,
+and the verb‘count,’ whose root is m.n.i, preceded by a subordinating conjunction.
+In the experiments we describe herein we ignore context completely, so our results
+are handicapped by design. Adding contextual information renders the problem very
+similartothatofwordsensedisambiguation(asdifferentrootsdenotedistinctsenses),
+andweoptedtofocusonlyonmorphologyhere.
+3.DataandMethodology
+3.1Machine-LearningFramework
+In this work we apply several machine-learning techniques to the problem of root
+identiﬁcation. In all the experiments described in this article we use SNoW (Roth
+1998; Carlson et al. 1999) as the learning environment, with Winnow as the update
+rule (using Perceptron yielded comparable results). SNoW is a multi-class classiﬁer
+that is speciﬁcally tailored for learning in domains in which the potential number of
+information sources (features) taking part in decisions is very large. It is an on-line
+linear classiﬁer, as are most of the classiﬁers currently used in NLP, over a variable
+numberofexpressivefeatures.Inadditiontothe“standard”perceptron-likealgorithms,
+SNoWhasanumberofextensionssuchasregularizationandgoodtreatmentofmulti-
+classclassiﬁcation.SNoWprovides,inadditiontoclassiﬁcation,areliableconﬁdencein
+theinstancepredictionwhichfacilitatesitsuseinaninferencealgorithmthatcombines
+predictorstoproduceacoherentinference.
+SNoW has already been used successfully as the learning vehicle in a large col-
+lection of natural language related tasks, including part-of-speech tagging, shallow
+parsing,informationextractiontasks,andsoforth,andcomparedfavorablywithother
+classiﬁers (Roth 1998; Golding and Roth 1999; Banko and Brill 2001; Punyakanok and
+432
+Daya,Roth,andWintner IdentifyingSemiticRoots
+Roth 2001; Florian 2002; Punyakanok, Roth, and Yih 2005). The choice of SNoW as
+the learning algorithm in this work is motivated by its good performance on other,
+similar tasks and on the availability in SNoW of easy to tune state-of-the-art versions
+of three linear algorithms (Perceptron, Winnow, and naive Bayes) in a single package.
+AswasshownbyRoth(1998),GoldingandRoth(1999),andincountlessexperimental
+papers thereafter, most algorithms used today, from on-line variations of Winnow and
+Perceptron to maximum entropy algorithms to SVMs, perform comparably if tuned
+properly,andtheeventualperformancedependsmostlyontheselectionoffeatures.
+3.2DataandEvaluation
+For training and testing, a Hebrew linguist manually tagged a corpus of 15,000 words
+(from a set of newspaper articles). Of these, only 9,752 were annotated; the reason for
+the gap is that some Hebrew words, mainly borrowed but also some frequent words
+suchasprepositions,arenotformedbytherootandpatternparadigm.Suchwordsare
+excluded from our experiments in this work; in an application, such words have to be
+identiﬁedandhandledseparately.Thiscanberathereasilydoneusingsimpleheuristics
+and a small list of frequent closed-class words, because words which do not conform
+to the root and pattern paradigm are either (short, functional) closed-class words, or
+loan words which tend to be longer and, in many cases, involve “foreign” characters
+(typically proper names). This problem is orthogonal to the problem of identifying the
+root,andhenceapipelineapproachisreasonable.
+We further eliminated 168 roots with more than three consonants and were left
+with 5,242 annotated word types, exhibiting 1,043 different roots. Table 1 shows the
+distributionofwordtypesaccordingtorootambiguity.
+Table2providesthedistributionoftherootsofthe5,242wordtypesinourcorpus
+according to root type, where R
+i
+is the ith radical (note that some roots may belong to
+morethanonegroup).
+Table1
+Rootambiguityinthecorpus.
+Numberofroots 1 2 3 4
+Numberofwordtypes 4,886 335 18 3
+Table2
+Distributionofrootparadigms.
+Paradigm Number Percentage
+R
+1
+=i 414 7.90
+R
+1
+=w 28 0.53
+R
+1
+=n 419 7.99
+R
+2
+=i 297 5.66
+R
+2
+=w 517 9.86
+R
+3
+=h 18 0.19
+R
+3
+=i 677 12.92
+R
+2
+= R
+3
+445 8.49
+Regular 3,061 58.41
+433
+ComputationalLinguistics Volume34,Number3
+Asassuranceforstatisticalreliability,inalltheexperimentsdiscussedinthesequel
+(unless otherwise mentioned) we performed 10-fold cross validation runs for every
+classiﬁcation task during evaluation. We also divided the annotated corpus into two
+sets: a training set of 4,800 words and a test set of 442 words. Only the training set
+wasusedformostexperiments,andtheresultsreportedhererefertothesedataunless
+statedotherwise.Weusedthetrainingsettotunetheparameter δ (seeSection5.4),and
+once δ wassetwereportonresultsobtainedbytrainingonthetrainingsetandtesting
+ontestdata(Table8).
+Agivenexample is a word type with all its (manually tagged) possible roots. In
+the experiments we describe subsequently, our system produces one or more root
+candidatesfor each example. For each example, we deﬁne tp as the number of correct
+candidates produced by the system; fp as the number of candidates which are not cor-
+rectroots;andfnasthenumberofrootsthesystemdidnotproduce.Asusual,wedeﬁne
+recall as
+tp
+tp+fp, precision as
+tp
+tp+fn
+and F-score as
+2×recall×precision
+recall+precision
+; we then (macro-) average
+overallwordstoobtainthesystem’soverallF-score.
+To estimate the difﬁculty of this task, we asked six human subjects to perform
+it. Participants were asked to identify all the possible roots of all the words in a list
+of 200 words (without context), randomly chosen from the training corpus. All par-
+ticipants were computer science graduates, native Hebrew speakers with no linguistic
+background.Theaverageprecisionofhumansonthistaskis83.52%,andwithrecallat
+80.27%,F-scoreis81.86%.Weconjecturethatthemainreasonsforthelowperformance
+ofoursubjectsarethelackofcontext(peopletendtopickthemostprominentrootand
+ignorethelesssalientones)andtheambiguityofsomeoftheweakparadigms(Hebrew
+speakers are unaware of the correct root in many of the weak paradigms, even when
+onlyoneexists).
+3.3FeatureDesign
+Alltheexperimentswedescribeinthisworksharethesamefeaturesanddifferonlyin
+the target classiﬁers. One of the advantages of SNoW is that it makes use of variable-
+sized feature vectors, represented as the list of the active (present) features in a given
+instance,ratherthantheﬁxed-sizedBooleanvectors.Thisfacilitatestheuseofverylong
+(theoretically, unbounded) feature lists, which are typically very sparse. The features
+thatareusedtocharacterizeawordarebothgrammaticalandstatistical:
+a114
+Positionofletters(e.g.,thethirdletterofthewordisb).Welimitword
+lengthto20,asthelongeststringgeneratedbyaHebrewmorphological
+generator(YonaandWintner2008)is18.Wethusobtainupto440
+features
+6
+ofthistype(recallthatthesizeofthealphabetis22).
+a114
+Bigramsofletters,independentlyoftheirlocation(e.g.,thesubstringgd
+occursintheword).Thisyieldsupto484features.
+a114
+Preﬁxes(e.g.,thewordispreﬁxedbyk$h,“whenthe”).Wehave292
+featuresofthistype,correspondingto17preﬁxesandsequencesthereof.
+a114
+Sufﬁxes(e.g.,thewordendswithim,apluralsufﬁx).Thereare26such
+features.
+6 Someofthesefeaturesareneveractiveandarethusneverrepresented.
+434
+Daya,Roth,andWintner IdentifyingSemiticRoots
+The lists of sufﬁxes and of preﬁx sequences were compiled from a morphological
+grammarofHebrew(YonaandWintner2008).Inthegeneralcase,suchfeaturescanbe
+elicitedfrom(non-expert)nativespeakersorextractedfromamorphologicallyanalyzed
+corpus,ifoneexists.
+3.4LinguisticResources
+One of our goals in this work is to demonstrate the contribution of limited linguistic
+knowledge to a machine-learning approach to an NLP task. Speciﬁcally, we used the
+followingresourcesforHebrewandArabic:
+a114
+Alistofroots(Section2)
+a114
+Listsofcommonpreﬁxesandsufﬁxes(Section3.3)
+a114
+Corporaannotatedwithroots(Section3.2)
+a114
+Knowledgeofword-formationprocesses,andinparticularthebehaviorof
+theweakrootsincertainparadigms(seeSection5.4)
+It is important to note that these resources do not constitute a method for identifying,
+evenapproximately,therootofagivenword.Weareunawareofanysetofruleswhich
+attemptstoaddressthistask,orofthechancesofsolvingthisproblemdeterministically.
+4.NaiveClassiﬁcationMethods
+4.1DirectPrediction
+To establish a baseline, we ﬁrst performed two experiments with simple, baseline clas-
+siﬁers. In the ﬁrst of the two experiments, referred to as Experiment A, we trained a
+classiﬁer to learn roots as a single unit. The two obvious drawbacks of this approach
+arethelargesetoftargetsandthesparsenessofthetrainingdata.Ofcourse,deﬁninga
+multi-classclassiﬁcationtaskwith2,152targets,whenonlyhalfofthemaremanifested
+in the training corpus, does not leave much hope for ever learning to identify the
+missingtargets.Thereisnogeneralizationwhenthewholerootispredictedasasingle
+unitwithasimpleclassiﬁer.
+InExperimentA,themacro-averageprecisionof10-foldcrossvalidationrunsofthis
+classiﬁcationproblemis45.72%;recallis44.37%,yieldinganF-scoreof45.03%.Inorder
+to demonstrate the inadequacy of this method, we repeated the same experiment with
+a different organization of the training data. We chose 30 roots and collected all their
+occurrencesinthecorpusintoatestﬁle.Wethentrainedtheclassiﬁerontheremainder
+ofthecorpusandtestedonthetestﬁle.Asexpected,theaccuracywascloseto0%.
+4.2DecouplingtheProblem
+In the second experiment, referred to as Experiment B, we separated the problem into
+three different tasks. We trained three classiﬁers to learn each of the root consonants
+in isolation and then combined the results in the straightforward way (a conjunction
+of the decisions of the three classiﬁers). This is still a multi-class classiﬁcation but the
+435
+ComputationalLinguistics Volume34,Number3
+number of targets in every classiﬁcation task is only 22 (the number of letters in the
+Hebrewalphabet)anddatasparsenessisnolongeraproblem.Althougheachclassiﬁer
+performs well in isolation, the clear limitation of this method is that it completely
+ignores interdependencies between different targets: The decision on the ﬁrst radical
+iscompletelyindependentofthedecisiononthesecondandthethird.
+We observed a difference between recognizing the ﬁrst and third radicals and
+recognizing the second one, as can be seen in Table 3. These results correspond well
+to our linguistic intuitions: The most difﬁcult cases for humans are those in which
+the second radical is w or i, and those where the second and the third consonants are
+identical. Combining the three classiﬁers using logical conjunction yields an F-score of
+52.84%.Repeatingthesameexperiment,buttestingonlyonunseenroots,yielded18.1%
+accuracy.
+Todemonstratethedifﬁcultyoftheproblem,weconductedyetanotherexperiment.
+Here,wetrainedthesystemasdescribedbutwetesteditondifferentwordswhoseroots
+were known to be in the training set. The results of Experiment A here were 46.35%,
+whereasExperimentBwasaccuratein57.66%ofthecases.Evidently,evenwhentesting
+onlyonpreviouslyseenroots,bothnaivemethodsareunsuccessful.
+5.CombiningInterdependentClassiﬁers
+5.1AddingLinguisticConstraints
+The experiments discussed previously are completely devoid of linguistic knowledge.
+In particular, Experiment B inherently assumes that any sequence of three consonants
+canbetherootofagivenword.Thisisobviouslynotthecase:Withfewexceptions,all
+radicalsmustbepresentinanyinﬂectedform.Infact,whenrootsandpatternscombine,
+the ﬁrst radical can be deleted only when it is w, i, n, and in an exceptional case l;the
+secondradicalcanonlybedeletedifitisw ori;andthethird,onlyifitisi.Wetherefore
+trainedtheclassiﬁerstoconsiderastargets,duringtrainingandtesting,onlylettersthat
+occurredintheobservedword,plusw, i, n,andl (dependingontheradical),ratherthan
+anyofthealphabetletters.Theaveragenumberoftargetsisnow7.2fortheﬁrstradical,
+5.7forthesecond,and5.2forthethird(comparedto22eachintheprevioussetup).
+Inthismodel,knownasthesequentialmodel(Even-ZoharandRoth2001),SNoW’s
+performance improved slightly, as can be seen in Table 4 (compare to Table 3). Com-
+bining the results in the straight-forward way yields an F-score of 58.89%, a small
+improvementoverthe52.84%performanceofthebasicmethod.Thisnewresultshould
+be considered the baseline. In what follows we always employ the sequential model
+fortrainingandtestingtheclassiﬁers,usingthesameconstraints.However,weemploy
+morelinguisticknowledgeforamoresophisticatedcombinationoftheclassiﬁers.
+Table3
+Accuracyofidentifyingthecorrectradical.
+R
+1
+R
+2
+R
+3
+root
+Precision 82.25 72.29 81.85 53.60
+Recall 80.13 70.00 80.51 52.09
+F-score 81.17 71.13 81.18 52.84
+436
+Daya,Roth,andWintner IdentifyingSemiticRoots
+Table4
+Accuracyofidentifyingthecorrectradical,sequentialmodel.
+R
+1
+R
+2
+R
+3
+root
+Precision 83.06 72.52 83.88 59.83
+Recall 80.88 70.20 82.50 57.98
+F-score 81.96 71.34 83.18 58.89
+5.2SequentialCombination
+Evidently, simple combination of the results of the three classiﬁers leaves much room
+forimprovement.Wethereforeexploreotherwaysforcombiningtheseresults.Wecan
+relyonthefactthat SNoWprovides insight intothedecisions oftheclassiﬁers—it lists
+not only the selected target, but rather all candidates, with an associated conﬁdence
+measure. Apparently, the correct radicals are chosen among SNoW’s top-n candidates
+with high accuracy, as shown in Table 5. This observation calls for a different way
+of combining the results of the classiﬁers which takes into account not only the ﬁrst
+candidatebutalsoothers,alongwiththeirconﬁdencescores.
+Given the sequential nature of the data and the fact that our classiﬁer returns
+a distribution over the possible outcomes for each radical, a natural approach is to
+combine SNoW’s outcomes via a Markovian approach. Variations of this approach
+are used in the context of several natural language problems, including part-of-speech
+tagging (Sch¨utze and Singer 1994), shallow parsing (Punyakanok and Roth 2001), and
+namedentityrecognition(TjongKimSangandDeMeulder2003).
+However,perhapsnotsurprisinglygiventhedifﬁcultyoftheproblem,thismodelis
+too simplistic. In fact, performance deteriorated to an F-score of 37.79%. We conjecture
+thatthestaticprobabilities(themodel)aretoobiasedandcausethesystemtoabandon
+goodchoicesobtainedfromSNoWinfavorofworsecandidateswhoseglobalbehavior
+is better. For example, the root q.r.n was correctly generated by SNoW as the best
+candidate for the word mqrn, but because P(R
+3
+=r | R
+2
+=r), which is 0.066, is higher
+than P(R
+3
+=n | R
+2
+=r),whichis0.025,therootq.r.r wasproducedinstead.
+Similar examples of interdependencies among radicals abound. In Hebrew and
+Arabic, some letters cannot appear in a sequence, mostly due to phonetic restrictions.
+For example, if the ﬁrst radical is s, the second radical cannot be z, c,ore. Taking into
+accountthedependencybetweentherootradicalsisaninterestinglearningexperiment
+which may provide a better results. We therefore extend the naive HMM approach to
+account for such dependencies, following the PMM model of Punyakanok and Roth
+(2001).
+Table5
+Recallofidentifyingthecorrectradicalamongtop-ncandidates
+R
+1
+R
+2
+R
+3
+top-1: 80.88 70.20 82.50
+top-2: 92.98 86.99 93.85
+top-5: 99.14 99.38 99.68
+top-10: 99.69 99.90 99.70
+437
+ComputationalLinguistics Volume34,Number3
+Consider a speciﬁc example of some word w. We already trained a classiﬁer for
+R
+1
+(the ﬁrst root radical), so we can look at the predictions of the R
+1
+classiﬁer for w.
+Assume that this classiﬁer predicts a
+1,a
+2,a
+3,...,a
+k
+with conﬁdence scores c
+1,c
+2,...,c
+k
+respectively (the maximum value of k is 22). For each value a
+i
+(1 ≤ i ≤ k)predictedby
+the R
+1
+classiﬁer,werunthe R
+2
+classiﬁerwherethevalueofthefeaturefor R
+1
+is a
+i
+.That
+is, we run the R
+2
+classiﬁer k times for each word w (k depends on w). Then, we check
+whichvalueofi(whereirunsfrom1tok)givesthebestsumofthetwoclassiﬁers,both
+the conﬁdence measure of the R
+1
+classiﬁer on a
+i
+and the conﬁdence measure of the R
+2
+classiﬁer.ThisgivesaconﬁdencerankingforR
+2
+.WeperformthesameevaluationforR
+3,
+usingtheresultsofthe R
+2
+classiﬁerasthevalueofthe R
+3
+addedfeature.Wethenselect
+the root which maximizes the conﬁdence of R
+3
+; selecting the root which maximizes all
+threeclassiﬁersyieldssimilarresults,asshowninTable6.
+Astheresultsdemonstrate,thisisapromisingapproachwhichwebelievecanyield
+evenbetterresultswithmoretrainingdata.However,asweshowsubsequently,adding
+morelinguisticknowledgecanimproveperformanceevenfurther.
+5.3LearningBigrams
+Intheﬁrstexperimentsofthisresearch,wetrainedaclassiﬁertolearnrootsasasingle
+unit. As already mentioned, the drawbacks of this approach are the large set of targets
+and the sparseness of the training data. Then, we decoupled the problem into three
+differentclassiﬁerstolearneachoftherootconsonantsinisolationandthencombined
+theresultsinvariousways.Trainingtheclassiﬁersinthesequentialmodel,considering
+as targets only letters that occurred in the observed word, plus w, i, n,andl, reduced
+thenumberoftargetsfrom22toapproximately7.Thisfacilitatesadifferentexperiment
+whereby bigrams of the root radicals, rather than each radical in isolation, are learned,
+taking advantage of the reduced number of targets for each radical. On one hand, the
+average number of targets is still relatively large (about 50), but on the other, we only
+havetodealwithacombinationoftwoclassiﬁers.Inthismethod,eachoftheclassiﬁers
+should predict two letters at once. For example, we deﬁne one classiﬁer to learn the
+ﬁrst and second radicals (R
+1
+R
+2
+), and a second classiﬁer to learn the second and third
+radicals(R
+2
+R
+3
+).Alternatively,theﬁrstandthirdradicalscanbelearnedasasingleunit
+byadifferentclassiﬁer.Inthiscase,weonlyneedtocombinethisclassiﬁerwithoneof
+theabovementionedclassiﬁerstoobtainthecompleteroot.
+It should be noted that the number of potential roots for a given word example
+in combining three different classiﬁers (for each of the root radicals) is determined by
+multiplyingthenumberoftargetsofeachoftheclassiﬁers.Inthisclassiﬁcationproblem,
+each classiﬁer predicts two root radicals, meaning that the classiﬁers overlap in one
+radical. This common radical should be identical in the combination (e.g., R
+1
+R
+2
+and
+Table6
+Results:Combiningdependentclassiﬁers.
+Maximizingallradicals Maximizing R
+3
+Baseline(Table4)
+Precision 76.99 76.87 59.83
+Recall 84.78 84.78 57.98
+F-score 80.70 80.63 58.89
+438
+Daya,Roth,andWintner IdentifyingSemiticRoots
+Table7
+Results:Combiningclassiﬁersofrootradicalsbigram.
+R
+1
+R
+2
+&R
+2
+R
+3
+R
+1
+R
+2
+&R
+1
+R
+3
+R
+2
+R
+3
+&R
+1
+R
+3
+Precision 82.11 79.71 79.11
+Recall 85.28 86.40 86.64
+F-score 83.67 82.92 82.71
+R
+2
+R
+3
+overlapinR
+2
+),andthusthenumberofpotentialrootsissigniﬁcantlyreduced.The
+resultsoftheseexperimentsaredepictedinTable7.
+5.4CombiningClassiﬁersusingLinguisticKnowledge
+SNoW provides a ranking on all possible roots. We now describe the use of linguis-
+tic constraints to re-rank this list. We implemented a function, dubbed the scoring
+function, which uses knowledge pertaining to word-formation processes in Hebrew
+inordertoestimatethelikelihoodofagivencandidatebeingtherootofagivenword.
+The function practically classiﬁes the candidate roots into one of three classes: good
+candidates,whicharelikelytobetherootoftheword;badcandidates,whicharehighly
+unlikely;andaveragecases.
+Itisimportanttonotethatthescoringfunctionaloneisnotafunctionforextracting
+roots from Hebrew words. First, it only scores a given root candidate against a given
+word, rather than yield a root given a word. Although we could have used it exhaus-
+tively on all possible roots in this case, in a general setting of a number of classiﬁers
+the number of classes might be too high for this solution to be practical. Second, the
+functiononlyproducesthreedifferentvalues;whengivenanumberofcandidateroots
+it may return more than one root with the highest score. In the extreme case, when
+calledwithall22
+3
+potentialroots,itreturnsonaveragemorethan11candidateswhich
+scorehighest(andhencearerankedequally).Thelinguisticknowledgeemployedbythe
+system, although signiﬁcant to the improved performance, is far from being sufﬁcient
+fordevisingadeterministicrootextractionalgorithm.
+Wenowdiscusstheconstraintsemployedbythescoringfunctionindetail.Inwhat
+follows, a root r = r
+1
+r
+2
+r
+3
+is said to be in Paradigm P1 if r
+1
+∈{w,i,n};inParadigm P2 if
+r
+2
+∈{w,i};inParadigm P3 if r
+3
+∈{h,i};inParadigm P4 if r
+2
+= r
+3
+;andregular if none
+of these holds. The constraints are deterministic, in the sense that they always hold in
+the training data. They can be easily evaluated because determining the paradigm(s) a
+givenrootbelongstoisdeterministicandefﬁcient.Intheexamples,rootconsonantsare
+typesetinboldface.
+1. If r isregularthen r
+1,r
+2,r
+3
+mustoccurinthewordinthisorder.
+Furthermore,either r
+1
+r
+2
+r
+3
+areconsecutiveinthetargetword,orasingle
+letterintervenesbetween r
+1
+and r
+2
+orbetween r
+2
+and r
+3
+(orboth).The
+interveningletterbetween r
+1
+and r
+2
+canonlybe w, i, t (if r
+1
+is $ or s),
+d (if r
+1
+is z),or v (if r
+1
+is c).Theinterveningletterbetween r
+2
+and r
+3
+canonlybe w or i.Forexample,hgrywmhmsxrigdlbkt$yh‘xwzim;
+hhstdrwthzdrzhlhctlmwlhcvdq.
+439
+ComputationalLinguistics Volume34,Number3
+2. If r isinParadigmP1andnotinParadigmP2,P3,orP4,then r
+2,r
+3
+must
+occurinthewordinthisorder.Furthermore,either r
+2
+r
+3
+areconsecutive
+inthetargetword,orasingleletterintervenesbetween r
+2
+and r
+3
+.The
+interveninglettercanonlybe w or i.Examples:l$bt(i.$.b);hwdiyh(i.d.y);
+mpilim(n.p.l).
+3. If r isinParadigmP2andnotinParadigmP1orP3,thenr
+1,r
+3
+must
+occurinthewordinthisorder.Furthermore,either r
+1
+r
+3
+areconsecutive
+inthetargetword,orasingleletterintervenesbetween r
+1
+and r
+3
+.The
+interveninglettercanonlybe w, i, t (if r
+1
+is $ or s),d (if r
+1
+is z),or v (if r
+1
+is
+c).Examples:hqmt(q.w.m)hmlwnhcviirh(c.i.r)kmbi‘h(b.w.‘)rwwxim.
+4. If r isinParadigmP3andnotinParadigmP1orP2,thenr
+1,r
+2
+must
+occurinthewordinthisorder.Furthermore,either r
+1
+r
+2
+areconsecutive
+inthetargetword,orasingleletterintervenesbetween r
+1
+and r
+2
+.The
+interveninglettercanonlybe w, i, t (if r
+1
+is $ or s),d (if r
+1
+is z),or v (if r
+1
+is c).Examples:tgliwt(g.l.i);hzdkw(z.k.i).
+5. If r isinParadigmP4andnotinParadigmP1orP2,thenr
+1,r
+2
+must
+occurinthewordinthisorder.Furthermore,either r
+1
+r
+2
+areconsecutive
+inthetargetword,orasingleletterintervenesbetween r
+1
+and r
+2
+.The
+interveninglettercanonlybe w, i, t (if r
+1
+is $ or s),d (if r
+1
+is z),or v (if r
+1
+is c).Examples:mgilh(g.l.l);hmginim(g.n.n).
+6. r mustoccurinthepre-compiledlistofroots.
+Thedecisionofthefunctionisbasedontheobservationthatwhenarootisregular
+iteitheroccursinawordconsecutively orwithacertainsingleletterbetweenanytwo
+of its radicals (constraint 1). The scoring function checks, given a root and a word,
+whether this is the case. If the condition holds, the scoring function returns a high
+value. The weak paradigm constraints (2–5) are assigned a middle score, because in
+such paradigms we are limited to a partial check on the root as we only check for
+the occurrence of two root radicals in the word. For roots that are in more than one
+paradigm, the scoring function returns an average score as a default value. We also
+makeuseinthisfunctionofourpre-compiledlistofroots.Arootcandidatewhichdoes
+notoccurinthelist(constraint6)isassignedthelowscore.
+Theactualvaluesthatthefunctionreturnswerechosenempiricallybycountingthe
+numberofoccurrencesofeachclassinthetrainingdata.Thus,“good”candidatesmake
+up 74.26% of the data, hence the value the function returns for “good” roots is set to
+0.7426.Similarly,themiddlevalueissetto0.2416andthelowto0.0155.
+Asanexample,considerki$lwn,whoseonlypossiblerootisk.$.l.Here,thecorrect
+candidatewillbeassignedthehighscore,becausek.$.l isaregularrootanditsradicals
+occur consecutively in the word with a single intervening letter i between k and $
+(constraint1).Thecandidateroot$.l.i willbeassignedamiddlescore,becausethisroot
+is in paradigm P3 and constraint 4 holds. The candidate root $.l.n will score low, as it
+doesnotoccurinthelistofroots(constraint6).
+Inadditiontothescoringfunctionweimplementedasimpleeditdistancefunction
+which returns, for a given root and a given word, the inverse of the edit distance
+betweenthetwo.Editdistance(Levenshtein1965)istheminimumnumberofcharacter
+insertions and deletions required to transform one string to another. For example, for
+hipilw, the (correct) root n.p.l scores 1/5 whereas h.p.l scores 1/3. The inverse edit
+440
+Daya,Roth,andWintner IdentifyingSemiticRoots
+distanceincreaseswiththesimilaritybetweentwostrings;ﬁnertuningofthissimilarity
+measureisofcoursepossible,butwasnotthefocusofthiswork.
+WethenrunSNoWonthetestdataandranktheresultsofthethreeclassiﬁersglob-
+ally,wheretheorderisdeterminedbytheproductofthethreedifferentclassiﬁers.This
+inducesanorderonroots,whicharecombinationsofthedecisionsofthreeindependent
+classiﬁers. Each candidate root is assigned three scores: the product of the conﬁdence
+measures of the three classiﬁers; the result of the scoring function; and the inverse
+edit distance between the candidate and the observed word. We rank the candidates
+accordingtotheproductofthethreescores(i.e.,wegiveeachscoreanequalweightin
+theﬁnalranking).
+Recallthatagivenwordformmayhaveseveralpossibleroots;oursystemtherefore
+hastodeterminehowmanyrootstoproduceforeachexample.Weobservedthatinthe
+“difﬁcult” examples, the top ranking candidates are assigned close scores, whereas in
+the easier cases, the top candidate is usually scored much higher than the next one.
+Wethereforedecidedtoproduceallthosecandidateswhosescoresarenotmuchlower
+than the score of the top ranking candidate. The drop in the score, δ, was determined
+empirically on the training set and was set to δ =0.4. With this value for δ,resultsfor
+thetestdataarepresentedinTable8.
+The results clearly demonstrate the added beneﬁt of the linguistic knowledge.
+Interestingly, even when testing the system on a set of roots which do not occur in the
+trainingcorpus,weobtainanF-scoreof65.60%.Thisresultdemonstratestherobustness
+ofourmethod.
+The additional linguistic knowledge is not merely eliminating illegitimate roots
+from the ranking produced by SNoW. Using the linguistic constraints encoded in the
+scoring function only to eliminate roots, while maintaining the ranking proposed by
+SNoW, yields much lower accuracy. Speciﬁcally, when we use only the list of roots
+as the single constraint when combining the three classiﬁers, thereby implementing
+only a ﬁlter of infeasible results, we obtain a precision of 65.24%, recall of 73.87%,
+and an F-score of 69.29%. Clearly, our linguistically motivated scoring does more than
+elimination, and actually re-ranks the roots. We conclude that it is only the combination
+of the classiﬁers with the linguistically motivated scoring function which boosts the
+performanceonthistask.
+5.5ErrorAnalysis
+Looking at the questionnaires ﬁlled in by our subjects (Section 3.2), it is obvious that
+humans have problems identifying the correct roots in two general cases: when the
+root paradigm is weak (i.e., when the root is irregular) and when the word can be
+read in more than one way and the subject chooses only one (presumably, the most
+prominent one). Our system suffers from similar problems: First, its performance on
+Table8
+Results:Usinglinguisticconstraintsforinference.
+System Baseline
+Precision 80.90 59.83
+Recall 88.16 57.98
+F-score 84.38 58.89
+441
+ComputationalLinguistics Volume34,Number3
+the regular paradigms is far superior to its overall performance; second, it sometimes
+cannot distinguish between several roots which are in principle possible, but only one
+ofwhichhappenstobethecorrectone.
+To demonstrate the ﬁrst point, we evaluated the performance of the system on a
+different organization of the data. We tested separately words whose roots are all reg-
+ular,versuswordsallofwhoserootsareirregular.Wealsotestedwordswhichhaveat
+leastoneregularroot(thisgroupistitled“mixed”herein).Asanadditionalexperiment,
+weextractedfromthecorpusasampleof200“hard”words:thesearesurfaceformsin
+whicheitheroneoftherootcharactersismissing,ortworootcharactersaretransposed
+due to metathesis. The results are presented in Table 9, and clearly demonstrate the
+difﬁcultyofthesystemontheweakparadigms,comparedtoalmost95%ontheeasier,
+regularroots.
+A more reﬁned analysis reveals differences between the various weak paradigms.
+Table 10 lists F-score for words whose roots are irregular, classiﬁed by paradigm. As
+can be seen, the system has great difﬁculty in the cases of R
+2
+= R
+3
+and R
+3
+=i. Refer to
+Table2forthesizesofthedifferentrootclasses.
+Finally,wetookacloserlookatsomeoftheerrors,andinparticularatcaseswhere
+thesystemproducesseveralrootswherefewer(usuallyonlyone)arecorrect.Suchcases
+include, for example, the word hkwtrt (‘the title’), whose root is the regular k.t.r;but
+thesystemproduces,inaddition,alsow.t.r,mistakingthek tobeapreﬁx.Thesearethe
+kindsoferrorswhicharemostdifﬁculttoﬁx.
+However, in many cases the system’s errors are relatively easy to overcome. Con-
+sider, for example, the word hmtndbim (‘the volunteers’) whose root is the irregular
+n.d.b. Our system produces as many as ﬁve possible roots for this word: n.d.b, i.t.d,
+d.w.b, i.h.d, and i.d.d. Clearly some of these could be eliminated. For example, i.t.d
+should not be produced, because if this were the root, nothing could explain the pres-
+ence of the b in the word; i.h.d should be excluded because of the location of the h.
+Similar phenomena abound in the errors the system makes; they indicate that a more
+Table9
+Erroranalysis:Performanceofthesystemondifferentcases.
+Regular Irregular Mixed Hard
+Numberofwords 2,598 2,019 2,781 200
+Precision 92.79 60.02 92.54 47.87
+Recall 96.92 73.45 94.28 55.11
+F-score 94.81 66.06 93.40 51.23
+Table10
+Erroranalysis:Theweakparadigms.
+Paradigm F-score
+R
+1
+=i 70.57
+R
+1
+=n 71.97
+R
+2
+=i/w 76.33
+R
+3
+=i 58.00
+R
+2
+= R
+3
+47.42
+442
+Daya,Roth,andWintner IdentifyingSemiticRoots
+Table11
+Arabicrootambiguityinthecorpus.
+Numberofroots 1 2 3 4 5 6
+Numberofwords 28,741 2,258 664 277 48 3
+carefuldesignofthescoringfunctioncanyieldstillbetterresults,andthisisadirection
+weintendtopursueinthefuture.
+6.ExtensiontoArabic
+Although Arabic and Hebrew have a very similar morphological system, being both
+Semiticlanguages,thetaskoflearningrootsinArabicismoredifﬁcultthaninHebrew,
+forthefollowingreasons.
+a114
+Thereare28lettersinArabicwhicharerepresentedusing
+approximately40charactersinthetransliterationofModernStandard
+ArabicorthographyofBuckwalter(2002).Thus,thelearningproblemis
+morecomplicatedduetotheincreasednumberoftargets(potentialroot
+radicals)aswellasthenumberofcharactersavailableinaword.
+a114
+ThenumberofrootsinArabicissigniﬁcantlyhigher.Wepre-compileda
+listof3,822trilateralrootsfromBuckwalter’slistofroots,2,517ofwhich
+occurinourcorpus.Accordingtoourlists,Arabichasalmosttwiceas
+manyrootsasHebrew.
+a114
+Notonlyisthenumberofrootshigh,thenumberofpatternsinArabicis
+alsomuchhigherthaninHebrew.
+a114
+WhereasinHebrewtheonlypossibleletterswhichcanintervenebetween
+rootradicalsinawordarei andw,inArabictherearemorepossibilities.
+Thepossibleinterveninglettersequencesbetween r
+1
+and r
+2
+arey, w, A, t,
+andwA,andbetween r
+2
+and r
+3
+y, w, A,andA}.
+7
+We applied the same methods discussed previously to the problem of learning
+(Modern Standard) Arabic roots. For training and testing, we produced a corpus
+of 31,991 word types (we used the morphological analyzer of Buckwalter 2002 to ana-
+lyzeacorpusof152,666wordtokensfromwhichourannotatedcorpuswasproduced).
+Table11showsthedistributionofwordtypesaccordingtorootambiguity.
+We then trained stand-alone classiﬁers to identify each radical of the root in iso-
+lation, using features of the same categories as for Hebrew: location of letters, letter
+bigrams (independently of their location), and preﬁxes and sufﬁxes compiled manu-
+ally from a morphological grammar (Buckwalter 2002). Despite the rather pessimistic
+startingpoint,eachclassiﬁerprovidessatisfyingresults,asshowninTable12,probably
+owing to the signiﬁcantly larger training corpus. The ﬁrst three columns present the
+results of each of the three classiﬁers, and the fourth column is a straightforward
+combinationofthethreeclassiﬁers.
+7‘}’isacharacterinBuckwalter’stransliteration.
+443
+ComputationalLinguistics Volume34,Number3
+Table12
+AccuracyofidentifyingthecorrectradicalinArabic.
+R
+1
+R
+2
+R
+3
+root
+Precision 86.02 70.71 82.95 54.08
+Recall 89.84 80.29 88.99 68.10
+F-score 87.89 75.20 85.86 60.29
+We combined the classiﬁers using linguistic knowledge pertaining to word-
+formation processes in Arabic, by implementing a function that approximates thelike-
+lihoodofagivencandidatetobetherootofagivenword.Thefunctionactuallychecks
+thefollowingcases:
+a114
+Ifarootcandidateisindeedtherootofagivenword,thenweexpect
+ittooccurinthewordconsecutivelyorwithoneof {y,w,A,t,wA}
+interveningbetween R
+1
+and R
+2,orwithoneof{ y, w, A, A}}between
+R
+2
+and R
+3
+(orboth).
+a114
+Ifarootcandidatedoesnotoccurinourpre-compiledlistofroots,it
+cannotbearootofanywordinthecorpus.
+We suppressed the constraints of weak paradigms in the Arabic experiments, be-
+causeinsuchparadigmswearelimitedtoapartialcheckontherootasweonlycheck
+fortheoccurrenceoftworootradicalsinsteadofthreeintheword.Thislimitationseems
+to be crucial in Arabic, considering the fact that the number of roots is much higher
+and,inaddition,therearemorepossibleinterveninglettersequencesbetweentheroot
+radicals. Consequently, more incorrect roots are wrongly extracted as correct ones. Of
+course,thisisanover-simplisticaccountofthelinguisticfacts,butitservesourpurpose
+of using very limited and very shallow linguistic constraints on the combination of
+specialized“expert”classiﬁers.Table13showstheﬁnalresults.
+The Arabic results are slightly worse than the Hebrew ones. One reason is that in
+Hebrew the number of roots is smaller than in Arabic (2,152 vs. 3,822), which leaves
+much room for wrong root selection. Another reason might be the fact that in Arabic
+wordformationisamorecomplicatedprocess,forexamplebyallowingmorecharacters
+to occur in the word between the root letters as previously mentioned. This may have
+causedthescoringfunctiontowronglytagsomerootcandidatesaspossibleroots.
+7.ImprovingLocalClassiﬁersbyApplyingGlobalConstraints
+InSection5wepresentedseveralmethodsaddressingtheproblemoflearningroots.In
+general, we trained stand-alone classiﬁers, each predicting a different root component,
+Table13
+Results:Arabicrootidentiﬁcation.
+Precision 78.21
+Recall 82.80
+F-score 80.44
+444
+Daya,Roth,andWintner IdentifyingSemiticRoots
+inwhichthedecisionforthecompleterootdependsontheoutcomesofthesedifferent
+but mutually dependent classiﬁers. The classiﬁers’ outcomes need to respect some
+constraints that arise from the dependency between the root radicals, requiring a level
+of inference on top of the predictions, which is implemented by the scoring function
+(Section5.4).
+In this section we show that applying global constraints, in the form of the scor-
+ing function, not only improves global decisions but also signiﬁcantly improves the
+local classiﬁcation task. Speciﬁcally, we show that the performance of identifying each
+radical in isolation improves after the scoring function is applied. In this experiment
+we trained each of the three radical classiﬁers as previously described, and then
+applied inference to re-rank the results. The combined classiﬁer now predicts the
+complete root, and in particular, induces a new local classiﬁer decision on each of
+the radicals which, due to re-ranking, may differ from the original prediction of the
+localclassiﬁers.
+Table 14 shows the results of each of the radical classiﬁers after inference with the
+scoringfunction.Thereisasigniﬁcantimprovementineachofthethreeclassiﬁersafter
+applying the global constraints (Table 14; cf. Table 4). The most remarkable improve-
+ment is of the R
+2
+classiﬁer. The gap between R
+2
+and other classiﬁers, as stand-alone
+classiﬁerswithnoexternalknowledge,is10–12%,duetolinguisticreasons.Now,after
+employing the global constraints, the gap is reduced to only 4%. In such scenarios,
+globalconstraintscansigniﬁcantlyaidlocalclassiﬁcation.
+Because the most dominant constraint is the occurrence of the candidate root in
+thepre-compiledlistofroots,weexaminedtheresultsofapplyingonlythisconstraint
+on each of the three classiﬁers, as a single global constraint. Although there is an
+improvementinallclassiﬁers,asshowninTable15,applyingthissingleconstraintstill
+performs worse than applying all the constraints mentioned in Section 5.4. Again, we
+concludethatre-rankingthecandidatesproducedbythelocalclassiﬁersisessentialfor
+improvingtheaccuracy,andﬁlteringoutinfeasibleresultsisnotsufﬁcient.
+Finally, to further emphasize the contribution of global inference to local classiﬁ-
+cation, we repeated the same experiment, measuring accuracy of each of the radical
+classiﬁers induced by the root identiﬁcation system, for Arabic. The results are listed
+Table14
+Accuracyofeachclassiﬁerafterapplyingglobalconstraints.
+R
+1
+R
+2
+R
+3
+Precision 89.67 84.7 89.27
+Recall 93.08 90.17 93.16
+F-score 91.34 87.35 91.17
+Table15
+Accuracyofeachclassiﬁerapplyingthelistofrootsasasingleconstraint.
+R
+1
+R
+2
+R
+3
+Precision 86.33 78.58 83.63
+Recall 88.59 83.75 88.82
+F-score 87.45 81.08 86.15
+445
+ComputationalLinguistics Volume34,Number3
+Table16
+Accuracyofeachclassiﬁerafterapplyingglobalconstraints(Arabic).
+R
+1
+R
+2
+R
+3
+Precision 90.41 84.40 87.92
+Recall 92.90 89.59 92.19
+F-score 91.64 86.92 90.01
+in Table 16, and show a signiﬁcant improvement over the basic classiﬁers (compare to
+Table12).
+8.Conclusions
+We have shown that combining machine learning with limited linguistic knowledge
+can produce state-of-the-art results on a difﬁcult morphological task, the identiﬁcation
+ofrootsofSemiticwords.Ourbestresult,over80%accuracy,wasobtainedusingsimple
+classiﬁers for each of the root’s consonants, and then combining the outputs of the
+classiﬁersusingalinguisticallymotivated,yetextremelycoarseandsimplistic,scoring
+function.
+Thisworkcanbeimprovedinavarietyofways.Asiswellknownfromotherlearn-
+ingtasks,ﬁne-tuningofthefeaturesetcanproduceadditionalaccuracy;weexpectthis
+tobethecaseinthistask,too.Inparticular,introducingfeaturesthatcapturecontextual
+informationislikelytoimprovetheresults.Similarly,ourscoringfunctionissimplistic
+andwebelievethatitcanbeimproved.Theedit-distancefunctioncanbeimprovedsuch
+that the cost of replacing characters reﬂect phonological and orthographic constraints
+(Kruskal1999).Other,learning-based,re-rankingmethodscanalsobeusedtoimprove
+theresults.
+There are various other ways in which different inter-related classiﬁers can be
+combined.Hereweonlyusedasimplemultiplicationofthethreeclassiﬁers’conﬁdence
+measures, which is then combined with the linguistically motivated functions. We
+intendtoinvestigatemoresophisticatedmethodsforthiscombination.
+Finally,weplantoextendtheseresultstomorecomplexcasesoflearningtaskswith
+alargenumberoftargets,inparticularsuchtasksinwhichthetargetsarestructured.We
+are currently working on morphological disambiguation in languages with non-trivial
+morphology, which can be viewed as a part-of-speech tagging problem with a large
+number of tags on which structure can be imposed using the various morphological
+andmorpho-syntacticfeaturesthatmorphologicalanalyzersproduce.
+Acknowledgments
+Previousversionsofthisworkwere
+publishedasDaya,Roth,andWinter(2004,
+2007).ThisworkwassupportedbyThe
+CaesareaEdmondBenjamindeRothschild
+FoundationInstituteforInterdisciplinary
+ApplicationsofComputerScienceatthe
+UniversityofHaifaandtheIsraeliMinistry
+ofScienceandTechnology,underthe
+auspicesoftheKnowledgeCenterfor
+ProcessingHebrew.DanRothissupported
+byNSFgrantsCAREERIIS-9984168,ITR
+IIS-0085836,andITR-IIS00-85980.We
+aregratefultoIdoDagan,AlonLavie,
+andIdanSzpektorforusefulcomments.
+Webeneﬁttedgreatlyfromusefuland
+instructivecommentsbythreereviewers.
+References
+Abu-Salem,Hani,MahmoudAl-Omari,
+andMarthaW.Evens.1999.Stemming
+methodologiesoverindividualquery
+wordsforanArabicinformationretrieval
+446
+Daya,Roth,andWintner IdentifyingSemiticRoots
+system. Journal of the American Society for
+Information Science,50(6):524–529.
+Al-Kharashi,IbrahimA.andMarthaW.
+Evens.1994.Comparingwords,stems,
+androotsasindextermsinanArabic
+informationretrievalsystem. Journal of the
+American Society for Information Science,
+45(8):548–560.
+Banko,MicheleandEricBrill.2001.Scaling
+toveryverylargecorporafornatural
+languagedisambiguation.InProceedings of
+the 39th Annual Meeting of the Association for
+Computational Linguistics,pages26–33,
+Morristown,NJ.
+Beesley,KennethR.1998a.Arabic
+morphologicalanalysisontheinternet.
+In Proceedings of the 6th International
+Conference and Exhibition on Multi-lingual
+Computing,Cambridge,UK.
+Beesley,KennethR.1998b.Arabic
+morphologyusingonlyﬁnite-state
+operations.Proceedings of the Workshop
+on Computational Approaches to Semitic
+Languages,pages50–57,Montreal,Quebec.
+Buckwalter,Tim.2002.BuckwalterArabic
+morphologicalanalyzer.LinguisticData
+Consortium(LDC)catalognumber
+LDC2002L49andISBN1-58563-257-0.
+Carlson,AndrewJ.,ChadM.Cumby,JeffL.
+Rosen,andDanRoth.1999.TheSNoW
+learningarchitecture.TechnicalReport
+UIUCDCS-R-99-2101,UIUCComputer
+ScienceDepartment.
+Choueka,Yaacov.1990.MLIM—Asystemfor
+full,exact,on-linegrammaticalanalysis
+ofModernHebrew.InProceedings of the
+Annual Conference on Computers in
+Education,page63,TelAviv.[InHebrew.]
+Darwish,Kareem.2002.Buildingashallow
+Arabicmorphologicalanalyzerinone
+day.In Computational Approaches to
+Semitic Languages, an ACL’02 Workshop,
+pages47–54,Philadelphia,PA.
+Darwish,KareemandDouglasW.Oard.
+2002.Termselectionforsearchingprinted
+Arabic.In SIGIR ’02: Proceedings of the 25th
+Annual International ACM SIGIR Conference
+on Research and Development in Information
+Retrieval,pages261–268,NewYork,NY.
+Daya,Ezra,DanRoth,andShulyWintner.
+2004.LearningHebrewroots:Machine
+learningwithlinguisticconstraints.In
+Proceedings of EMNLP’04,pages357–364,
+Barcelona,Spain.
+Daya,Ezra,DanRoth,andShulyWintner.
+2007.LearningtoidentifySemiticroots.
+InAbdelhadiSoudi,GuenterNeumann,
+andAntalvandenBosch,editors, Arabic
+Computational Morphology: Knowledge-based
+and Empirical Methods,volume38ofText,
+Speech and Language Technology.Springer,
+NewYork,pages143–158.
+Even-Shoshan,Abraham.1993.HaMillon
+HaXadash (The New Dictionary).Kiryat
+Sefer,Jerusalem.InHebrew.
+Even-Zohar,YairandDanRoth.2001.
+Asequentialmodelformulticlass
+classiﬁcation.InEMNLP-2001, the SIGDAT
+Conference on Empirical Methods in Natural
+Language Processing,pages10–19,
+Pittsburgh,PA.
+Florian,Radu.2002.Namedentity
+recognitionasahouseofcards:Classiﬁer
+stacking.In Proceedings of CoNLL-2002,
+pages175–178,Taiwan.
+Golding,AndrewR.andDanRoth.
+1999.AWinnowbasedapproachto
+context-sensitivespellingcorrection.
+Machine Learning,34(1–3):107–130.
+Habash,NizarandOwenRambow.
+2005.Arabictokenization,part-of-
+speechtaggingandmorphological
+disambiguationinonefellswoop.
+InProceedings of the 43rd Annual Meeting
+of the Association for Computational
+Linguistics (ACL’05),pages573–580,
+AnnArbor,MI.
+Kruskal,Joseph.1999.Anoverviewof
+sequencecomparison.InDavidSankoff
+andJosephKruskal,editors,Time Warps,
+String Edits and Macromolecules: The Theory
+and Practice of Sequence Comparison.CSLI
+Publications,Stanford,CA,pages1–44.
+Larkey,LeahS.,LisaBallesteros,and
+MargaretE.Connell.2002.Improving
+stemmingforArabicinformationretrieval:
+Lightstemmingandco-occurrence
+analysis.In SIGIR ’02: Proceedings of the
+25th Annual International ACM SIGIR
+Conference on Research and Development
+in Information Retrieval,pages275–282,
+NewYork,NY.
+Levenshtein,VladimirI.1965.Binarycodes
+capableofcorrectingdeletions,insertions
+andreversals. Doklady Akademii Nauk
+SSSR,163(4):845–848.
+McCarthy,JohnJ.1981.Aprosodictheoryof
+nonconcatenativemorphology.Linguistic
+Inquiry,12(3):373–418.
+Ornan,Uzzi.2003. The Final Word.University
+ofHaifaPress,Haifa,Israel.[InHebrew.]
+Owens,Jonathan.1997.TheArabic
+grammaticaltradition.InRobertHetzron,
+editor,The Semitic Languages.Routledge,
+LondonandNewYork,chapter3,
+pages46–58.
+Punyakanok,VasinandDanRoth.2001.The
+useofclassiﬁersinsequentialinference.In
+447
+ComputationalLinguistics Volume34,Number3
+NIPS-13; The 2000 Conference on Advances in
+Neural Information Processing Systems 13,
+pages995–1001,Denver,CO.
+Punyakanok,Vasin,DanRoth,andWen-Tau
+Yih.2005.Thenecessityofsyntactic
+parsingforsemanticrolelabeling.In
+Proceedings of IJCAI 2005,pages1117–1123,
+Edinburgh.
+Roth,Dan.1998.Learningtoresolvenatural
+languageambiguities:Auniﬁedapproach.
+In Proceedings of AAAI-98 and IAAI-98,
+pages806–813,Madison,WI.
+Sch¨utze,HinrichandYoramSinger.1994.
+Part-of-speechtaggingusingavariable
+memoryMarkovmodel.In Proceedings
+of the 32nd Annual Meeting of the
+Association for Computational Linguistics,
+pages181–187,LasCruses,NM.
+Shimron,Joseph,editor.2003. Language
+Processing and Acquisition in Languages of
+Semitic, Root-Based, Morphology.Number28
+inLanguageAcquisitionandLanguage
+Disorders.JohnBenjamins,Amsterdam.
+TjongKimSang,ErikF.andFien
+DeMeulder.2003.Introduction
+totheCoNLL-2003sharedtask:
+Language-independentnamedentity
+recognition.InProceedings of CoNLL-2003,
+pages142–147,Edmonton,Canada.
+Yona,ShlomoandShulyWintner.2008.A
+ﬁnite-statemorphologicalgrammarof
+Hebrew. Natural Language Engineering,
+14(2):173–190.
+Zdaqa,Yizxaq.1974. Luxot HaPoal [The
+Verb Tables].KiryathSepher,Jerusalem.
+[InHebrew.]
+448
+

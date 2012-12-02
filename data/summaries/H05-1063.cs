@@ -1,0 +1,4 @@
+Although the terms “mining”, “web mining” and “knowledge discovery” have been used by other researchers in various contexts (Cooley, 1997), we believe it is legitimate to use them to describe our work for two major reasons: 1) We use algorithms and formulas coming from the data mining field, specifically signal to noise ratio association metric (Church, 1989; Church, 1991) 2) Our approach interacts with commercial search engines and harvests web pages contextually close to the target collection, and there is mining of resources (the search engine database) and discovery of content (web pages) involved.
+P89-1010
+Although more recent works removed some of the limitations and produced more encouraging results (Grefenstette, 1994; Church et al., 1991; Hearst et al., 1992; Schutze and Pedersen, 1997; Voorhees, 1994) there are still a number of questions that remain open: 1) What is the range for the magnitude of the improvement.
+C92-2082

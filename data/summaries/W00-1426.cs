@@ -1,0 +1,4 @@
+The sometimes competing informational and intentional roles of discourse segments have been at the centre of the debate over the nucleus-satellite distinction (Moore and Pollack, 1992; Moser and Moore, 1996; Bateman and Rondhius, 1997); the accessibility of discourse segments on the right frontier of a discourse structure is a phenomenon that has already been discussed by several researchers (Webber, 1991; Asher, 1993).
+J92-4007 J96-3006
+If KhetRep is incompatible with AbsRhetRep, the text structure DocRep will also be incompatible with AbsRhetRep, even though the rules for realizing rhetorical structure by document structure are themselves compatibility-preserving, qYaalsformation operations are also used by Marcu (2000) to map Japanese rhetorical structures onto English-like rhetorical structures, but these are mappings between two PdaetReps rather than from an AbsRhetRep to a RhetRep.
+A00-2002

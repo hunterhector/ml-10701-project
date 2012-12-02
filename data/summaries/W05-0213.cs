@@ -1,0 +1,4 @@
+Segond F, Parmentier T, 2004 NLP serving the cause of language learning Proceeding of International Workshop on eLearning for Computational Linguistics and Computational Linguistics for eLearning COLING, Geneva.
+W04-1702
+In the following sections we present the following: • The Thetis scenario and the technologies applied • Aspects of content adaptation • the results of the users’ evaluation • the lessons we have learned both regarding the value of the technologies (including the linguistics technologies), and the peda3 See www.exills.com 85 gogical value of such an innovative approach to language learning 3 Thetis : scenario and linguistic technologies As the general technical architecture behind Thetis has already been described in details in (Segond and Parmentier 2004) (Brun et Al.
+W04-1702

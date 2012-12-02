@@ -1,0 +1,2 @@
+Some of the better general-purpose annotation tools include Callisto 2, WordFreak 3 (Morton and LaCivita, 2003), GATE 4, and MMAX2 5 . Each of these tools is distributed with a limited number of annotation tasks that can be used ‘out of the box.’ Many of the tasks that are provided can be customized to a limited extent to suit the requirements of a user’s annotation task via configuration files.
+N03-4009

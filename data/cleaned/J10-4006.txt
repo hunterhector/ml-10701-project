@@ -1,0 +1,3597 @@
+Distributional Memory: A General
+Framework for Corpus-Based Semantics
+MarcoBaroni
+∗
+University ofTrento
+AlessandroLenci
+∗∗
+University ofPisa
+Researchintocorpus-basedsemanticshasfocusedonthedevelopmentofadhocmodelsthattreat
+singletasks,orsetsofcloselyrelatedtasks,asunrelatedchallengestobetackledbyextracting
+differentkindsofdistributionalinformationfromthecorpus.Asanalternativetothis“onetask,
+onemodel”approach,theDistributionalMemoryframeworkextractsdistributionalinformation
+onceandforallfromthecorpus,intheformofasetofweightedword-link-wordtuplesarranged
+intoathird-ordertensor.Differentmatricesarethengeneratedfromthetensor,andtheirrows
+andcolumnsconstitutenaturalspacestodealwithdifferentsemanticproblems.Inthisway,
+thesamedistributionalinformationcanbesharedacrosstaskssuchasmodelingwordsimilarity
+judgments,discoveringsynonyms,conceptcategorization,predictingselectionalpreferencesof
+verbs, solving analogy problems, classifying relations between word pairs, harvesting qualia
+structures with patterns or example pairs, predicting the typical properties of concepts, and
+classifyingverbsintoalternationclasses.Extensiveempiricaltestinginallthesedomainsshows
+thataDistributionalMemoryimplementationperformscompetitivelyagainsttask-speciﬁcal-
+gorithmsrecentlyreportedintheliteratureforthesametasks,andagainstourimplementations
+ofseveralstate-of-the-artmethods.TheDistributionalMemoryapproachisthusshowntobe
+tenabledespitetheconstraintsimposedbyitsmulti-purposenature.
+1. Introduction
+Thelasttwodecadeshaveseenarisingwaveofinterestamongcomputationallinguists
+andcognitivescientistsincorpus-basedmodelsofsemanticrepresentation(Grefenstette
+1994;LundandBurgess1996;LandauerandDumais1997;Sch¨utze1997;Sahlgren2006;
+Bullinaria and Levy 2007; Grifﬁths, Steyvers, and Tenenbaum 2007; Pad´o and Lapata
+2007; Lenci 2008; Turney and Pantel 2010). These models, variously known as vector
+spaces,semanticspaces,wordspaces,corpus-basedsemanticmodels,or,usingtheterm
+we will adopt, distributional semantic models (DSMs), all rely on some version of the
+distributionalhypothesis(Harris1954;MillerandCharles1991),statingthatthedegree
+of semantic similarity between two words (or other linguistic units) can be modeled
+∗ CenterforMind/BrainSciences (CIMeC), University ofTrento,C.so Bettini31,38068Rovereto(TN),
+Italy.E-mail:marco.baroni@unitn.it.
+∗∗ Department ofLinguistics T. Bolelli,University ofPisa,Via SantaMaria36,56126Pisa(PI), Italy.
+E-mail:alessandro.lenci@ling.unipi.it.
+Submission received: 11 January 2010; revised submission received: 15 April 2010; accepted for publication:
+1June 2010.
+©2010AssociationforComputationalLinguistics
+ComputationalLinguistics Volume36,Number4
+as a function of the degree of overlap among their linguistic contexts. Conversely, the
+formatofdistributionalrepresentationsgreatlyvariesdependingonthespeciﬁcaspects
+of meaning theyare designed to model.
+The most straightforward phenomenon tackled by DSMs is what Turney (2006b)
+calls attributional similarity, which encompasses standard taxonomic semantic rela-
+tions such as synonymy, co-hyponymy, and hypernymy. Words like dog and puppy,
+for example, are attributionally similar in the sense that their meanings share a large
+number of attributes: They are animals, they bark, and so on. Attributional similarity
+is typically addressed by DSMs based on word collocates (Grefenstette 1994; Lund and
+Burgess 1996; Sch¨utze 1997; Bullinaria and Levy 2007; Pad´o and Lapata 2007). These
+collocates are seen as proxies for various attributes of the concepts that the words
+denote. Words that share many collocates denote concepts that share many attributes.
+Bothdogandpuppymay occur nearowner,leash,andbark, because these words denote
+properties that are shared by dogs and puppies. The attributional similarity between
+dogandpuppy, as approximated bytheir contextual similarity, will be very high.
+DSMs succeed in tasks like synonym detection (Landauer and Dumais 1997) or
+concept categorization (Almuhareb and Poesio 2004) because such tasks require a mea-
+sure of attributional similarity that favors concepts that share many properties, such
+as synonyms and co-hyponyms. However, many othertasks require detecting different
+kindsofsemanticsimilarity.Turney(2006b)deﬁnesrelational similarityastheproperty
+shared by pairs of words (e.g, dog–animal and car–vehicle) linked by similar semantic
+relations (e.g., hypernymy), despite the fact that the words in one pair might not be
+attributionallysimilartothoseintheotherpair(e.g.,dogisnotattributionallysimilarto
+car,norisanimaltovehicle). Turney generalizes DSMs to tackle relational similarity and
+represents pairs of words in the space of the patterns that connect them in the corpus.
+Pairs of words that are connected by similar patterns probably hold similar relations,
+that is, they are relationally similar. For example, we can hypothesize that dog–tail is
+more similar to car–wheel than to dog–animal, because the patterns connecting dog and
+tail(of,have,etc.)aremore likethoseofcar–wheelthanlikethoseofdog–animal(isa,such
+as, etc.). Turney uses the relational space to implement tasks such as solving analogies
+and harvesting instances of relations. Although they are not explicitly expressed in
+these terms, relation extraction algorithms (Hearst 1992, 1998; Girju, Badulescu, and
+Moldovan 2006; Pantel and Pennacchiotti 2006) also rely on relational similarity, and
+focus on learning one relation type at atime (e.g.,ﬁnding parts).
+Although semantic similarity, either attributional or relational, has the lion’s share
+inDSMs,similarityisnottheonlyaspectofmeaningthatisaddressedbydistributional
+approaches.Forinstance,thenotionofpropertyplaysakeyroleincognitivescienceand
+linguistics,whichbothtypicallyrepresentconceptsasclustersofproperties(Jackendoff
+1990; Murphy 2002). In this case, the task is not to ﬁnd out thatdogis similar topuppy
+orcat,butthatithasatail,itisusedforhunting, and so on. Almuhareb (2006), Baroni
+and Lenci (2008), and Baroni et al. (2010) use the words co-occurring with a noun to
+approximateitsmostprototypicalpropertiesandcorrelatedistributionallyderiveddata
+with the properties produced by human subjects. Cimiano and Wenderoth (2007) in-
+steadfocusonthatsubsetofnounpropertiesknowninlexicalsemanticsasqualiaroles
+(Pustejovsky 1995), and use lexical patterns to identify, for example, the constitutive
+parts of a concept or its function (this is in turn analogous to the problem of relation
+extraction). The distributional semantics methodology also extends to more complex
+aspects of word meaning, addressing issues such as verb selectional preferences (Erk
+2007), argument alternations (Merlo and Stevenson 2001; Joanis, Stevenson, and James
+2008), event types (Zarcone and Lenci 2008), and so forth. Finally, some DSMs capture
+674
+Baroniand Lenci DistributionalMemory
+a sort of “topical” relatedness between words: They might ﬁnd, for example, a relation
+between dog and ﬁdelity. Topical relatedness, addressed by DSMs based on document
+distributions such as LSA (Landauer and Dumais 1997) and Topic Models (Grifﬁths,
+Steyvers, and Tenenbaum 2007), is not further discussed in this article.
+DSMs have found wide applications in computational lexicography, especially for
+automatic thesaurus construction (Grefenstette 1994; Lin 1998a; Curran and Moens
+2002; Kilgarriff et al. 2004; Rapp 2004). Corpus-based semantic models have also at-
+tractedtheattentionoflexicalsemanticistsasawaytoprovidethenotionofsynonymy
+withamorerobustempiricalfoundation(Geeraerts2010;Heylenetal.2008).Moreover,
+DSMs for attributional and relational similarity are widely used for the semi-automatic
+bootstrapping or extension of terminological repositories, computational lexicons (e.g.,
+WordNet), and ontologies (Buitelaar, Cimiano, and Magnini 2005; Lenci 2010). Inno-
+vative applications of corpus-based semantics are also being explored in linguistics,
+for instance in the study of semantic change (Sagi, Kaufmann, and Clark 2009), lexical
+variation(PeirsmanandSpeelman2009),andfortheanalysisofmultiwordexpressions
+(Alishahi and Stevenson 2008).
+The wealth and variety of semantic issues that DSMs are able to tackle conﬁrms
+the importance of looking at distributional data to explore meaning, as well as the
+maturityofthisresearchﬁeld.However,ifwelookedfromadistanceatthewholeﬁeld
+of DSMs we would see that, besides the general assumption shared by all models that
+informationaboutthecontextofawordisanimportantkeyingraspingitsmeaning,the
+elementsofdifferenceovercomethecommonalities.Forinstance,DSMsgearedtowards
+attributionalsimilarityrepresentwordsinthecontextsofother(content)words,thereby
+looking very different from models that represent word pairs in terms of patterns
+linking them. In turn, both these models differ from those used to explore concept
+properties or argument alternations. The typical approach in the ﬁeld has been a local
+one, in which each semantic task (or set of closely related tasks) is treated as a separate
+problem, that requires its own corpus-derived model and algorithm, both optimized to
+achieve the best performance in a given task, but lacking generality, since they resort
+to task-speciﬁc distributional representations, often complemented by additional task-
+speciﬁc resources. As a consequence, the landscape of DSMs looks more like a jigsaw
+puzzle in which different parts have been completed and the whole ﬁgure starts to
+emerge from the fragments, but it is not clear yet how to put everything together and
+compose a coherent picture.
+We argue that the “one semantic task, one distributional model” approach repre-
+sents a great limit of the current state of the art. From a theoretical perspective, corpus-
+based models hold promise as large-scale simulations of how humans acquire and use
+conceptual and linguistic information from their environment (Landauer and Dumais
+1997).However,existingDSMslackexactlythemulti-purposenaturethatisahallmark
+of human semantic competence. The common view in cognitive (neuro)science is that
+humans resort to a single semantic memory, a relatively stable long-term knowledge
+database, adapting the information stored there to the various tasks at hand (Murphy
+2002; Rogers and McClelland 2004). The fact that DSMs need to go back to their
+environment (the corpus) to collect ad hoc statistics for each semantic task, and the fact
+thatdifferentaspectsofmeaningrequirehighlydifferentdistributionalrepresentations,
+cast many shadows on the plausibility of DSMs as general models of semantic mem-
+ory.Fromapracticalperspective,goingbacktothecorpustotrainadifferentmodelfor
+each application is inefﬁcient, and it runs the risk of overﬁtting the model to a speciﬁc
+task, while losing sight of its adaptivity—a highly desirable feature for any intelligent
+system. Think, by contrast, of WordNet (Fellbaum 1998), a single, general purpose
+675
+ComputationalLinguistics Volume36,Number4
+network of semantic information that has been adapted to all sorts of tasks, many of
+them certainly not envisaged by the resource creators. We think that it is not by chance
+that no comparable resource has emerged from DSMdevelopment.
+In this article, we want to show that a uniﬁed approach is not only a desirable
+goal, but it is also a feasible one. With this aim in mind, we introduce Distributional
+Memory (DM), a generalized framework for distributional semantics. Differently from
+othercurrentproposalsthatsharesimilaraims,webelievethatthelackofgeneralization
+incorpus-basedsemanticsstemsfromthechoiceofrepresentingco-occurrencestatistics
+directly as matrices—geometrical objects that model distributional data in terms of
+binary relations between target items (the matrix rows) and their contexts (the matrix
+columns).Thisresultsinthedevelopmentofadhocmodelsthatlosesightofthefactthat
+different semantic spaces actually rely on the same kind of underlying distributional
+information. DM instead represents corpus-extracted co-occurrences as a third-order
+tensor, a ternary geometrical object that models distributional data in terms of word–
+link–word tuples. Matrices are then generated from the tensor in order to perform se-
+mantictasksinthespacestheydeﬁne.Crucially,theseon-demandmatricesarederived
+from the same underlying resource (the tensor) and correspond to different “views”
+of the same data, extracted once and for all from a corpus. DM is tested here on what
+we believe to be the most varied array of semantic tasks ever addressed by a single
+distributional model. In all cases, we compare the performance of several DM imple-
+mentationstostate-of-the-artresults.Whilesomeoftheadhocmodelsthatweredevel-
+oped to tackle speciﬁc tasks do outperform our most successful DM implementation,
+the latter is never too far from the top, without any task-speciﬁc tuning. We think that
+theadvantageofhavingageneralmodelthatdoesnotneedtoberetrainedforeachnew
+task outweighs the (often minor) performance advantage of the task-speciﬁc models.
+The article is structured as follows. After framing our proposal within the general
+debate on co-occurrence modeling in distributional semantics (Section 2), we introduce
+theDMframeworkinSection3andcompareittootheruniﬁedapproachesinSection4.
+Section 5 pertains to the speciﬁc implementations of the DM framework we will test
+experimentally. The experiments are reported in Section 6. Section 7 concludes by
+summarizing what we have achieved, and discussing the implications of these results
+for corpus-based distributional semantics.
+2. Modeling Co-occurrence in Distributional Semantics
+Corpus-basedsemanticsaimsatcharacterizingthemeaningoflinguisticexpressionsin
+terms of their distributional properties. The standard view models such properties in
+terms of two-way structures, that is, matrices coupling target elements (either single
+words or whatever other linguistic constructions we try to capture distributionally)
+and contexts. In fact, the formal deﬁnition of semantic space provided by Pad´oand
+Lapata (2007) is built around the notion of a matrix M
+|B|×|T|,withB the set of basis
+elements representing the contexts used to compare the distributional similarity of the
+target elementsT.
+This binary structure is inherently suitable for approaches that represent distribu-
+tional data in terms of unstructured co-occurrence relations between an element and
+a context. The latter can be either documents (Landauer and Dumais 1997; Grifﬁths,
+Steyvers, and Tenenbaum 2007) or lexical collocates within a certain distance from the
+target(LundandBurgess1996;Sch¨utze1997;Rapp2003;BullinariaandLevy2007).We
+willrefertosuchmodelsasunstructured DSMs, because theydo not use the linguistic
+structureoftextstocomputeco-occurrences,andonlyrecordwhetherthetargetoccurs
+676
+Baroniand Lenci DistributionalMemory
+in or close to the context element, without considering the type of this relation. For
+instance, an unstructured DSM might derive from a sentence like Theteachereatsared
+applethateatis a feature shared byappleandred, just because they appear in the same
+context window, without considering the fact that there is no real linguistic relation
+linkingeatandred, besides that of linear proximity.
+In structured DSMs, co-occurrence statistics are collected instead in the form of
+corpus-derived triples: typically, word pairs and the parser-extracted syntactic relation
+or lexico-syntactic pattern that links them, under the assumption that the surface con-
+nection between two words should cue their semantic relation (Grefenstette 1994; Lin
+1998a; Curran and Moens 2002; Almuhareb and Poesio 2004; Turney 2006b; Pad´oand
+Lapata2007;ErkandPad´o2008;Rothenh¨auslerandSch¨utze2009).Distributionaltriples
+are also used in computational lexicography to identify the grammatical and colloca-
+tional behavior of a word and to deﬁne its semantic similarity spaces. For instance,
+the Sketch Engine
+1
+builds “word sketches” consisting of triples extracted from parsed
+corpora and formed by two words linked by a grammatical relation (Kilgarriff et al.2004). The number of shared triples is then used to measure the attributional similarity
+between word pairs.
+Structured models take into account the crucial role played by syntactic structures
+in shaping the distributional properties of words. To qualify as context of a target item,
+a word must be linked to it by some (interesting) lexico-syntactic relation, which is
+also typically used to distinguish the type of this co-occurrence. Given the sentence
+Theteachereatsaredapple, structured DSMs would not considereatas a legitimate con-
+text for red and would distinguish the object relation connecting eat and apple as a
+different type of co-occurrence from the modiﬁer relation linking red and apple.Onthe
+other hand, structured models require more preliminary corpus processing (parsing or
+extraction of lexico-syntactic patterns), and tend to be more sparse (because there are
+more triples than pairs). What little systematic comparison of the two approaches has
+been carried out (Pad´o and Lapata 2007; Rothenh¨ausler and Sch¨utze 2009) suggests
+that structured models have a slight edge. In our experiments in Section 6.1herein, the
+performance of unstructured and structured models trained on the same corpus is in
+general comparable. It seems safe to conclude that structured models are at least not
+worse than unstructured models—an important conclusion for us, as DM is built upon
+the structured DSM idea.
+Structured DSMs extract a much richer array of distributional information from
+linguistic input, but they still represent it in the same way as unstructured models.
+The corpus-derived ternary data are mapped directly onto a two-way matrix, either
+bydroppingoneelementfromthetuple(Pad´oandLapata2007)or,morecommonly,by
+concatenating two elements. The two words can be concatenated, treating the links as
+basis elements, in order to model relational similarity (Pantel and Pennacchiotti 2006;
+Turney 2006b). Alternatively, pairs formed by the link and one word are concatenated
+as basis elements to measure attributional similarity among the other words, treated
+as target elements (Grefenstette 1994; Lin 1998a; Curran and Moens 2002; Almuhareb
+and Poesio 2004; Rothenh¨ausler and Sch¨utze 2009). In this way, typed DSMs obtain
+ﬁner-grained features to compute distributional similarity, but, by couching distribu-
+tionalinformationastwo-waymatrices,theylosethehighexpressivepowerofcorpus-
+derived triples. We believe that falling short of fully exploiting the potential of ternary
+1 http://www.sketchengine.co.uk.
+677
+ComputationalLinguistics Volume36,Number4
+distributional structures is the major reason for the lack of uniﬁcation in corpus-based
+semantics.
+The debate in DSMs has so far mostly focused on the context choice—for example,
+lexical collocates vs. documents (Sahlgren 2006; Turney and Pantel 2010)—or on the
+costs and beneﬁts of having structured contexts (Pad´o and Lapata 2007; Rothenh¨ausler
+and Sch¨utze 2009). Although we see the importance of these issues, we believe that a
+real breakthrough in DSMs can only be achieved by overcoming the limits of current
+two-way models of distributional data. We propose here the alternative DM approach,
+in which the core geometrical structure of a distributional model is a three-way object,
+namely a third-order tensor. As in structured DSMs, we adopt word–link–word tuples
+as the most suitable way to capture distributional facts. However, we extend and
+generalize this assumption, by proposing that, once they are formalized as a three-
+way tensor, tuples can become the backbone of a uniﬁed model for distributional
+semantics. Different semantic spaces are then generated on demand through the inde-
+pendently motivated operation of tensor matricization, mapping the third-order tensor
+onto two-way matrices. The matricization of the tuple tensor produces both familiar
+spaces, similar to those commonly used for attributional or relational similarity, and
+other less known distributional spaces, which will yet prove useful for capturing some
+interesting semantic phenomena. The crucial fact is that all these different semantic
+spaces are now alternative views of the same underlying distributional object. Appar-
+ently unrelated semantic tasks can be addressed in terms of the same distributional
+memory, harvested only once from the source corpus. Thus, thanks to the tensor-based
+representation, distributional data can be turned into a general purpose resource for
+semantic modeling. As a further advantage, the third-order tensor formalization of
+corpus-based tuples allows distributional information to be represented in a similar
+waytoothertypesofknowledge.Inlinguistics,cognitivescience,andAI,semanticand
+conceptualknowledgeisrepresentedintermsofsymbolicstructuresbuiltaroundtyped
+relations between elements, such as synsets, concepts, properties, and so forth. This is
+customary in lexical networks like WordNet (Fellbaum 1998), commonsense resources
+like ConceptNet (Liu and Singh 2004), and cognitive models of semantic memory
+(RogersandMcClelland2004).Thetensorrepresentationofcorpus-baseddistributional
+data promises to build new bridges between existing approaches to semantic represen-
+tation that still appear distant in many respects. This may indeed contribute to the on-
+goingeffortstocombinedistributionalandsymbolicapproachestomeaning(Clarkand
+Pulman 2007).
+3. The Distributional Memory Framework
+We ﬁrst introduce the notion of a weighted tuple structure, the format in which DM
+expects the distributional data extracted from the corpus to be arranged (and that it
+shareswithtraditionalstructuredDSMs).Wethenshowhowaweightedtuplestructure
+can be represented, in linear algebraic terms, as a labeled third-order tensor. Finally,
+we derive different semantic vector spaces from the tensor by the operation of labeled
+tensor matricization.
+3.1 Weighted
+Tuple Structures
+Relations among entities can be represented by ternary tuples, or triples. Let O
+1
+and
+O
+2
+be two sets of objects, and R⊆O
+1
+×O
+2
+a set of relations between these objects.
+Atriple〈o
+1,r,o
+2
+〉 expresses the fact that o
+1
+is linked to o
+2
+through the relation r.DM
+678
+Baroniand Lenci DistributionalMemory
+(like previous structured DSMs) includes tuples of a particular type, namely, weighted
+distributional tuples that encode distributional facts in terms of typed co-occurrence
+relations among words. Let W
+1
+and W
+2
+be sets of strings representing content words,
+and L a set of strings representing syntagmatic co-occurrence links between words in
+a text. T⊆W
+1
+×L×W
+2
+is a set of corpus-derived tuples t=〈w
+1,l,w
+2
+〉,suchthatw
+1
+co-occurs withw
+2
+andlrepresents the type of this co-occurrence relation. For instance,
+the tuple 〈marine, use, bomb〉 in the toy example reported in Table 1encodes the piece
+of distributional information that marine co-occurs with bomb in the corpus, and use
+speciﬁes the type of the syntagmatic link between these words. Each tuple t has a
+weight, a real-valued score v
+t, assigned by a scoring function σ :W
+1
+×L×W
+2
+→R.
+A weighted tuple structure consists of the set T
+W
+of weighted distributional tuples
+t
+w
+=〈t,v
+t
+〉 for all t∈T and σ(t)=v
+t
+.Theσ function encapsulates all the operations
+performed to score the tuples, for example, by processing an input corpus with a
+dependency parser, counting the occurrences of tuples, and weighting the raw counts
+by mutual information. Because our focus is on how tuples, once they are harvested,
+should be represented geometrically, we gloss over the important challenges of choos-
+ingthe appropriateW
+1,LandW
+2
+string sets, as well as specifying σ.
+In this article, we make the further assumption that W
+1
+=W
+2
+. This is a natural
+assumption when the tuples represent (link-mediated) co-occurrences of word pairs.
+Moreover, we enforce an inverse link constraint such that for any linklinL, there is a
+k in L such that for each tuple t
+w
+=〈〈w
+i,l,w
+j
+〉,v
+t
+〉 in the weighted tuple structure T
+W,
+the tuple t
+−1
+w
+=〈〈w
+j,k,w
+i
+〉,v
+t
+〉 is also in T
+W
+(we call k the inverse link of l). Again, this
+seems reasonable in our context: If we extract a tuple 〈marine,use,gun〉 and assign it a
+certain score, we might as well add the tuple 〈gun,use
+−1,marine〉 with the same score.
+Thetwoassumptions,combined,leadthematricizationprocessdescribedinSection3.3
+to generate exactly four distinct vector spaces that, as we discuss there, are needed for
+the semantic analyses we conduct. See Section 6.6 of Turney (2006b) for a discussion of
+similar assumptions. Still, it is worth emphasizing that the general formalism we are
+proposing,wherecorpus-extractedweightedtuplestructuresarerepresentedaslabeled
+tensors, does not strictly require these assumptions. For example,W
+2
+could be a larger
+set of “relata” including not only words, but also documents, morphological features,
+or even visual features (with appropriate links, such as, for word-document relations,
+occurs-at-the-beginning-of). The inverse link constraint might not be appropriate, for
+example, if we use an asymmetric association measure, or if we are only interested in
+one direction of certain grammatical relations. We leave the investigation of all these
+possibilities to further studies.
+Table 1
+Atoyweighted tuplestructure.
+word link word weight word link word weight
+marine own bomb 40.0 sergeant use gun 51.9
+marine use bomb 82.1sergeant own book 8.0
+marine own gun 85.3 sergeant use book 10.1
+marine use gun 44.8 teacher own bomb 5.2
+marine own book 3.2 teacher use bomb 7.0
+marine use book 3.3 teacher own gun 9.3
+sergeant own bomb 16.7 teacher use gun 4.7
+sergeant use bomb 69.5 teacher own book 48.4
+sergeant own gun 73.4 teacher use book 53.6
+679
+ComputationalLinguistics Volume36,Number4
+3.2 Labeled
+Tensors
+DSMsadoptingabinarymodelofdistributionalinformation(eitherunstructuredmod-
+els or structured models reduced to binary structures) are represented by matrices
+containing corpus-derived co-occurrence statistics, with rows and columns labeled by
+thetargetelementsandtheircontexts.InDM,weformalizetheweightedtuplestructure
+as a labeled third-order tensor, from which semantic spaces are then derived through
+the operation of labeled matricization. Tensors are multi-way arrays, conventionally
+denoted by boldface Euler script letters: X (Turney 2007; Kolda and Bader 2009). The
+order (or n-way) of a tensor is the number of indices needed to identify its elements.
+Tensors are a generalization of vectors and matrices. The entries in a vector can be
+denotedbyasingleindex.Vectorsarethusﬁrst-ordertensors,oftenindicatedbyabold
+lowercaseletter: v.Thei-thelementofavector v isindicatedbyv
+i
+.Matricesaresecond-
+ordertensors,andareindicatedwithboldcapitalletters:A.Theentry(i,j)inthei-throw
+andj-th column of a matrix A is denoted bya
+ij
+. An array with three indices is a third-
+order (or three-way) tensor. The element (i,j,k) of a third-order tensor X is denoted
+by x
+ijk
+. A convenient way to display third-order tensors is via nested tables such as
+Table 2, where the ﬁrst index is in the header column, the second index in the ﬁrst
+headerrow,andthethirdindexinthesecondheaderrow.Theentryx
+321
+ofthetensorin
+the table is 7.0 and the entryx
+112
+is 85.3. An index has dimensionalityIif it ranges over
+the integers from 1to I. The dimensionality of a third-order tensor is the product of the
+dimensionalities of its indices I×J×K. For example, the third-order tensor in Table 2
+has dimensionality 3×2×3.
+If we ﬁx the integer i as the value of the ﬁrst index of a matrix A and take the
+entries corresponding to the full range of values of the other index j,weobtainarow
+vector (that we denote a
+i∗
+). Similarly, by ﬁxing the second index to j,weobtainthe
+column vector a
+∗j
+. Generalizing, a ﬁber is equivalent to rows and columns in higher
+order tensors, and it is obtained by ﬁxing the values of all indices but one. A mode-n
+ﬁber is a ﬁber where only then-th index has not been ﬁxed. For example, in the tensor
+X ofTable2, x
+∗11
+= (40.0,16.7,5.2)isamode-1ﬁber, x
+2∗3
+= (8.0,10.1)isamode-2ﬁber,
+and x
+32∗
+= (7.0,4.7,53.6) is amode-3 ﬁber.
+Aweightedtuplestructurecanberepresentedasathird-ordertensorwhoseentries
+contain the tuple scores. As for the two-way matrices of classic DSMs, in order to make
+tensors linguistically meaningful we need to assign linguistic labels to the elements of
+the tensor indices. We deﬁne a labeled tensor X
+λ
+as a tensor such that for each of its
+indices there is a one-to-one mapping of the integers from 1to I(the dimensionality of
+theindex)toIdistinctstrings,thatwecallthelabelsoftheindex.Wewillreferhereinto
+thestringλuniquelyassociatedtoindexelementiasthelabelofi,theircorrespondence
+Table 2
+Alabeled third-ordertensor of dimensionality3×2×3representingtheweightedtuple
+structureof Table1.
+j=1:own j=2:use j=1:own j=2:use j=1:own j=2:use
+k=1:bomb k=2:gun k=3:book
+i=1:marine 40.0 82.185.3 44.8 3.2 3.3
+i=2:sergeant 16.7 69.5 73.4 51.9 8.0 10.1
+i=3:teacher 5.2 7.0 9.3 4.7 48.4 53.6
+680
+Baroniand Lenci DistributionalMemory
+beingindicatedbyi: λ.Asimplewaytoperformthemapping—theoneweapplyinthe
+runningexampleofthissection—isbysortingtheIitemsinthestringsetalphabetically,
+and mapping increasing integers from1to Itothe sorted strings.
+A weighted tuple structure T
+W
+built from W
+1, L,andW
+2
+can be represented by a
+labeled third-order tensor X
+λ
+with its three indices labeled by W
+1, L,andW
+2, respec-
+tively, and such that for each weighted tuple t∈T
+W
+=〈〈w
+1,l,w
+2
+〉,v
+t
+〉 there is a tensor
+entry (i:w
+1,j:l,k:w
+2
+)= v
+t
+. In other terms, a weighted tuple structure corresponds to
+a tensor whose indices are labeled with the string sets forming the triples, and whose
+entries are the tuple weights. Given the toy weighted tuple structure in Table 1, the
+object in Table 2is the corresponding labeled third-order tensor.
+3.3 Labeled
+Matricization
+Matricization rearranges a higher order tensor into a matrix (Kolda 2006; Kolda and
+Bader 2009). The simplest case is mode-n matricization, which arranges the mode-n
+ﬁberstobethecolumnsoftheresultingD
+n
+×D
+j
+matrix(whereD
+n
+isthedimensionality
+ofthen-thindex,D
+j
+istheproductofthedimensionalitiesoftheotherindices).Mode-n
+matricization of a third-order tensor can be intuitively understood as the process of
+making vertical, horizontal, or depth-wise slices of a three-way object like the tensor in
+Table 2, and arranging these slices sequentially to obtain a matrix (a two-way object).
+Matricization unfolds the tensor into a matrix with then-th index indexing the rows of
+thematrixandacolumnforeachpairofelementsfromtheothertwotensorindices.For
+example, the mode-1matricization of the tensor in Table 2 results in a matrix with the
+entries vertically arranged as they are in the table, but replacing the second and third
+indices withasingle index ranging from1to6(cf.matrix A of Table 3).More explicitly,
+in mode-n matricization we map each tensor entry (i
+1,i
+2,...,i
+N
+) to matrix entry (i
+n,j),
+wherejis computed as in Equation (1),adapted fromKolda and Bader (2009).
+j=1+
+N
+summationdisplay
+k=1
+knegationslash=n
+((i
+k
+−1)
+k−1
+productdisplay
+m=1
+mnegationslash=n
+D
+m
+)(1)
+Forexample,ifweapplymode-1matricizationtothetensorofdimensionality3 ×2×3
+in Table 2, we obtain the matrix A
+3×6
+in Table 3 (ignore the labels for now). The tensor
+entryx
+3,1,1
+is mapped to the matrix cella
+3,1
+;x
+3,2,3
+is mapped toa
+3,6
+;andx
+1,2,2
+is mapped
+toa
+1,4
+. Observe that each column of the matrix is a mode-1ﬁber of the tensor: The ﬁrst
+column is the x
+∗11
+ﬁber; the second column is the x
+∗21
+ﬁber, and so on.
+Matricizationhasvariousmathematicallyinterestingpropertiesandpracticalappli-
+cationsincomputationsinvolvingtensors(Kolda2006).InDM,matricizationisapplied
+tolabeledtensorsanditisthefundamentaloperationforturningthethird-ordertensor
+representing the weighted tuple structure into matrices whose row and column vector
+spaces correspond to the linguistic objects we want to study; that is, the outcome of
+matricization must be labeled matrices. Therefore, we must deﬁne an operation of
+labeled mode-nmatricization. Recall from earlier discussion that when mode-nmatri-
+cizationisapplied,then-thindexbecomestherowindexoftheresultingmatrix,andthe
+correspondinglabelsdonotneedtobeupdated.Theproblemistodeterminethelabels
+ofthecolumnindexoftheresultingmatrix.Wesawthatthecolumnsofthematrixpro-
+duced by mode-n matricization are the mode-n ﬁbers of the original tensor. We must
+681
+ComputationalLinguistics Volume36,Number4
+Table 3
+Labeled mode-1,mode-2,and mode-3matricizationsof thetensorin Table2.
+A
+mode-1
+1:〈own, 2:〈use, 3:〈own, 4:〈use, 5:〈own, 6:〈use,
+bomb〉 bomb〉 gun〉 gun〉 book〉 book〉
+1:marine 40.0 82.185.3 44.8 3.2 3.3
+2:sergeant 16.7 69.5 73.4 51.9 8.0 10.1
+3:teacher 5.2 7.0 9.3 4.7 48.4 53.6
+B
+mode-2
+1:〈marine, 2:〈serg., 3:〈teacher, 4:〈marine, 5:〈serg., 6:〈teacher, 7:〈marine, 8:〈serg., 9:〈teach.,
+bomb〉 bomb〉 bomb〉 gun〉 gun〉 gun〉 book〉 book〉 book〉
+1:own 40.0 16.7 5.2 85.3 73.4 9.3 3.2 8.0 48.4
+2:use 82.1 69.5 7.0 44.8 51.9 4.7 3.3 10.1 53.6
+C
+mode-3
+1:〈marine, 2:〈marine, 3:〈sergeant, 4:〈sergeant, 5:〈teacher, 6:〈teacher,
+own〉 use〉 own〉 use〉 own〉 use〉
+1:bomb 40.0 82.116.7 69.5 5.2 7.0
+2:gun 85.3 44.8 73.4 51.9 9.3 4.7
+3:book 3.2 3.3 8.0 10.1 48.4 53.6
+therefore assign a proper label to mode-n tensor ﬁbers. A mode-n ﬁber is obtained by
+ﬁxing the values of two indices, and by taking the tensor entries corresponding to the
+full range of values of the third index. Thus, the natural choice for labeling a mode-n
+ﬁber is to use the pair formed by the labels of the two index elements that are ﬁxed.
+Speciﬁcally, each mode-n ﬁber of a tensor X
+λ
+is labeled with the binary tuple whose
+elements are the labels of the corresponding ﬁxed index elements. For instance, given
+the labeled tensor in Table 2, the mode-1ﬁber x
+∗11
+= (40,16.7,5.2) is labeled with the
+pair 〈own,bomb〉, the mode-2 ﬁber x
+2∗1
+= (16.7,69.5) is labeled with the pair 〈sergeant,
+bomb〉, and the mode-3 ﬁber x
+32∗
+= (7.0,4.7,53.6) is labeled with the pair〈teacher,use〉.
+Because mode-n ﬁbers are the columns of the matrices obtained through mode-n
+matricization, we deﬁne the operation of labeled mode-n matricization that, given
+a labeled third-order tensor X
+λ, maps each entry (i
+1
+: λ
+1,i
+2
+: λ
+2,i
+3
+: λ
+3
+) to the labeled
+entry (i
+n
+: λ
+n,j: λ
+j
+)suchthatj is obtained according to Equation (1), and λ
+j
+is the bi-
+nary tuple obtained from the triple 〈λ
+1,λ
+2,λ
+3
+〉 by removing λ
+n
+. For instance, in mode-1
+matricization, the entry (1:marine,1:own,2:gun) in the tensor in Table 2 is mapped onto
+the entry (1:marine,3:〈own,gun〉). Table 3 reports the matrices A, B,andC, respectively,
+obtainedbyapplyinglabeledmode-1,mode-2,andmode-3matricizationtothelabeled
+tensor in Table 2. The columns of each matrix are labeled with pairs, according to the
+deﬁnitionoflabeledmatricizationwejustgave.Fromnowon,whenwerefertomode-n
+matricization we always assume we are performinglabeledmode-nmatricization.
+The rows and columns of the three matrices resulting from n-mode matricization
+of a third-order tensor are vectors in spaces whose dimensions are the corresponding
+column and row elements. Such vectors can be used to perform all standard linear
+algebra operations applied in vector-based semantics: Measuring the cosine of the
+angle between vectors, applying singular value decomposition (SVD) to the whole
+matrix, and so on. Under the assumption thatW
+1
+=W
+2
+and the inverse link constraint
+(see Section 3.1), it follows that for each column of the matrix resulting from mode-1
+matricization and labeled by 〈l,w
+2
+〉, there will be a column in the matrix resulting
+682
+Baroniand Lenci DistributionalMemory
+from mode-3 matricization that is labeled by 〈w
+1,k〉 (with k being the inverse link of
+l and w
+1
+=w
+2
+) and that is identical to the former, except possibly for the order of the
+dimensions (which is irrelevant to all operations we perform on matrices and vectors,
+however). Similarly, for any roww
+2
+in the matrix resulting from mode-3 matricization,
+there will be an identical row w
+1
+in the mode-1matricization. Therefore, given a
+weighted tuple structureT
+W
+extracted from a corpus and subject to the constraints we
+just mentioned, by matricizing the corresponding labeled third-order tensor X
+λ
+we
+obtain the following four distinct semantic vector spaces:
+word by link–word (W
+1
+×LW
+2
+): vectors are labeled with wordsw
+1,and vector
+dimensions are labeled with tuples of type〈l,w
+2
+〉;
+word–word by link (W
+1
+W
+2
+×L): vectors are labeled with tuples of type〈w
+1,w
+2
+〉,
+and vector dimensions are labeled with linksl;
+word–link by word (W
+1
+L×W
+2
+): vectors are labeled with tuples of type〈w
+1,l〉,
+and vector dimensions are labeled with wordsw
+2
+;
+link by word–word (L×W
+1
+W
+2
+): vectors are labeled with linksland vector
+dimensions are labeled with tuples of type〈w
+1,w
+2
+〉.
+Words like marine and teacher are represented in the W
+1
+×LW
+2
+space by vectors whose
+dimensions correspond to features such as 〈use, gun〉 or 〈own, book〉. In this space,
+we can measure the similarity of words to each other, in order to tackle attributional
+similarity tasks such as synonym detection or concept categorization. The W
+1
+W
+2
+×L
+vectors represent instead word pairs in a space whose dimensions are links, and it
+can be used to measure relational similarity among different pairs. For example, one
+could notice that the link vector of 〈sergeant,gun〉 is highly similar to that of 〈teacher,
+book〉. Crucially, as can be seen in Table 3, the corpus-derived scores that populate the
+vectorsinthesetwospacesareexactlythesame,justarrangedindifferentways.InDM,
+attributionalandrelationalsimilarityspacesaredifferentviewsofthesameunderlying
+tuple structure.
+The other two distinct spaces generated by tensor matricization look less familiar,
+andyetwearguethattheyallowustosubsumeunderthesamegeneralDMframework
+other interesting semantic phenomena. We will show in Section 6.3 how the W
+1
+L×W
+2
+space can be used to capture different verb classes based on the argument alternations
+they display. For instance, this space can be used to ﬁnd out that the object slot of kill
+is more similar to the subject slot ofdiethan to the subject slot ofkill(and, generalizing
+fromsimilarobservations,thatthesubjectslotofdieisathemeratherthananagent).The
+L×W
+1
+W
+2
+space displays similarities among links. The usefulness of this will of course
+dependonwhatthelinksare.WewillillustrateinSection6.4onefunctionofthisspace,
+namely, to perform feature selection, picking links that can then be used to determine a
+meaningful subspace of theW
+1
+W
+2
+×Lspace.
+Direct matricization is just one of the possible uses we can make of the labeled
+tensor. In Section 6.5 we illustrate another use of the tensor formalism by performing
+smoothingthroughtensordecomposition.Otherpossibilities,suchasgraph-basedalgo-
+rithmsoperatingdirectlyonthegraphdeﬁnedbythetensor(BaroniandLenci2009),or
+deriving unstructured semantic spaces from the tensor by removing one of the indices,
+are left to future work.
+Before we move on, it is worth emphasizing that, from a computational point of
+view, there is virtually no additional cost in the tensor approach, with respect to tra-
+ditional structured DSMs. The labeled tensor is nothing other than a formalization of
+683
+ComputationalLinguistics Volume36,Number4
+distributional data extracted in the word–link–word–score format, which is customary
+in many structured DSMs. Labeled matricization can then simply be obtained by con-
+catenatingtwoelementsintheoriginaltripletobuildthecorrespondingmatrix—again,
+a common step in building a structured DSM. In spite of being cost-free in terms of
+implementation,themathematicalformalismoflabeledtensorshighlightsthecommon
+core shared by different views of the semantic space, thereby making distributional
+semantics more general.
+4. Related Work
+As will be clear in the next sections, the ways in which we tackle speciﬁc tasks are, by
+themselves, mostly not original. The main element of novelty is the fact that methods
+originallydevelopedtoresorttoadhocdistributionalspacesarenowadaptedtoﬁtinto
+theuniﬁedDMframework.Wewillpointoutconnectionstorelatedresearchspeciﬁcto
+the various tasks in the sections devoted to describing their reinterpretation in DM.
+We omit discussion of our own work that the DM framework is an extension and
+generalization of Baroni et al. (2010) and Baroni and Lenci (2009). Instead, we brieﬂy
+discuss two other studies that explicitly advocate a uniform approach to corpus-based
+semantic tasks, and one article that, like us, proposes a tensor-based formalization of
+corpus-extracted triples. See Turney and Pantel (2010) for a very recent general survey
+of DSMs.
+Pad´oandLapata(2007),partlyinspiredbyLowe(2001),haveproposedaninterest-
+inggeneralformalizationofDSMs.Intheirapproach,acorpus-basedsemanticmodelis
+characterized by (1) a set of functions to extract statistics from the corpus, (2) construc-
+tion of the basis-by-target-elements co-occurrence matrix, and (3) a similarity function
+operating on the matrix. Our focus is entirely on the second aspect. A DM, according
+to the characterization in Section 3, is a labeled tensor based on a source weighted
+tuple structure and coupled with matricization operations. How the tuple structure
+was built (corpus extraction methods, association measures, etc.) is not part of the DM
+formalization. At the other end, DM provides sets of vectors in different vector spaces,
+but it is agnostic about how they are used (measuring similarity via cosines or other
+measures, reducing the matrices with SVD, etc.). Of course, much of the interesting
+progressindistributionalsemanticswilloccuratthetwoendsofourtensor,withbetter
+tuple extraction and weighting techniques on one side, and better matrix manipulation
+and similarity measurement on the other. As long as the former operations result in
+data that can be arranged into a weighted tuple structure, and the latter procedures act
+on vectors, such innovations ﬁt into the DM framework and can be used to improve
+performance on tasks deﬁned on any space derivable from the DMtensor.
+Whereas the model proposed by Pad´o and Lapata (2007) is designed only to ad-
+dress tasks involving the measurement of the attributional similarity between words,
+Turney(2008)shareswithDMthegoalofunifyingattributionalandrelationalsimilarity
+underthesamedistributionalmodel.Heobservesthattasksthataretraditionallysolved
+with an attributional similarity approach can be recast as relational similarity tasks.
+Instead of determining whether two words are, for example, synonymous by looking
+at the features they share, we can learn what the typical patterns are that connect syn-
+onym pairs when they co-occur (alsoknownas, sometimescalled,etc.),andmakeade-
+cision about a potential synonym pair based on their occurrence in similar contexts.
+Given a list of pairs instantiating an arbitrary relation, Turney’s PairClass algorithm
+extracts patterns that are correlated with the relation, and can be used to discover new
+684
+Baroniand Lenci DistributionalMemory
+pairs instantiating it. Turney tests his system in a variety of tasks (TOEFL synonyms;
+SAT analogies; distinguishing synonyms and antonyms; distinguishing pairs that are
+semantically similar, associated, or both), obtaining good results across the board.
+IntheDMapproach,wecollectonesetofstatisticsfromthecorpus,andthenexploit
+different views of the extracted data and different algorithms to tackle different tasks.
+Turney,onthecontrary,usesasinglegenericalgorithm,butmustgobacktothecorpus
+to obtain new training data for each new task. We compare DM with some of Turney’s
+results in Section 6 but, independently of performance, we ﬁnd the DM approach more
+appealing. As corpora grow in size and are enriched with further levels of annotation,
+extractingadhocdatafromthembecomesaverytime-consumingoperation.Although
+wedidnotcarryoutanysystematicexperiments,weobservethattheextractionoftuple
+counts from (already POS-tagged and parsed) corpora in order to train our sample DM
+models took days, whereas even the most time-consuming operations to adapt DM to
+a task took on the order of 1to 2 hours on the same machines (task-speciﬁc training is
+also needed in PairClass, anyway). Similar considerations apply to space: Compressed,
+our source corpora take about 21GB, our best DM tensor (TypeDM) 1.1GB (and opti-
+mized sparse tensor representations could bring this quantity down drastically, if the
+need arises). Perhaps more importantly, extracting features from the corpus requires
+a considerable amount of NLP know-how (to pre-process the corpus appropriately, to
+navigateadependencytree,etc.),whereastheDMrepresentationofdistributionaldata
+as weighted triples is more akin to other standard knowledge representation formats
+based on typed relations, which are familiar to most computer and cognitive scientists.
+Thus,atrainedDMcanbecomeageneral-purpose resource andbeusedbyresearchers
+beyond the realms of the NLP community, whereas applying PairClass requires a good
+understanding of various aspects of computational linguistics. This severely limits its
+interdisciplinary appeal.
+At a more abstract level, DM and PairClass differ in the basic strategy with which
+uniﬁcation in distributional semantics is pursued. Turney’s approach amounts to pick-
+ingatask(identifyingpairsexpressingthesamerelation)andreinterpretingothertasks
+as its particular instances. Thus, attributional and relational similarity are uniﬁed by
+considering the former as a subtype of the latter. Conversely, DM assumes that each
+semantic task may keep its speciﬁcity, and uniﬁcation is achieved by designing a sufﬁ-
+ciently general distributional structure, populating a speciﬁc instance of the structure,
+and generating semantic spaces on demand from the latter. This way, DM is able to
+address a wider range of semantic tasks than Turney’s model. For instance, language
+is full of productive semantic phenomena, such as the selectional preferences of verbs
+with respect to unseen arguments (eating topinambur vs. eating sympathy). Predicting
+the plausibility of unseen pairs cannot, by deﬁnition, be tackled by the current version
+ofPairClass,whichwillhavetobeexpandedtodealwithsuchcases,perhapsadopting
+ideas similar to those we present (that are, in turn, inspired by Turney’s own work on
+attributionalandrelationalsimilarity).Aﬁrststepinthisdirection,withinaframework
+similar to Turney’s, was taken byHerdaˇgdelen and Baroni (2009).
+Turney (2007) explicitly formalizes the set of corpus-extracted word–link–word
+triplesasatensor,andwasourprimarysourceofinspirationinformalizingDMinthese
+terms.ThefocusofTurney’sarticle,however,isondimensionalityreductiontechniques
+applied to tensors, and the application to corpora is only brieﬂy discussed. Moreover,
+Turney only derives the W
+1
+×LW
+2
+space from the tensor, and does not discuss the pos-
+sibilityofusingthetensor-basedformalizationtounifydifferentviewsofsemanticdata,
+which is instead our main point. The higher-order tensor dimensionality reduction
+techniques tested on language data by Turney (2007) and Van de Cruys (2009) can be
+685
+ComputationalLinguistics Volume36,Number4
+applied to the DM tensors before matricization. We present a pilot study in this direc-
+tion in Section 6.5.
+5. Implementing DM
+5.1 Extraction
+of Weighted Tuple Structures from Corpora
+Inordertomakeourproposalconcrete,weexperimentwiththreedifferentDMmodels,
+corresponding to different ways to construct the underlying weighted tuple structure
+(Section 3.1). All models are based on the natural idea of extracting word–link–word
+tuples from a dependency parse of a corpus, but this is not a requirement for DM: The
+links could for example be based on frequentn-grams as in Turney (2006b) and Baroni
+et al. (2010), or even on very different kinds of relation, such as co-occurring within the
+same document.
+Thecurrentmodelsaretrainedontheconcatenationof(1)theWeb-derivedukWaC
+corpus,
+2
+about 1.915 billion tokens (here and subsequently, counting only strings
+that are entirely made of alphabetic characters); (2) a mid-2009 dump of the English
+Wikipedia,
+3
+about 820 million tokens; and (3) the British National Corpus,
+4
+about
+95 million tokens. The resulting concatenated corpus was tokenized, POS-tagged, and
+lemmatized with the TreeTagger
+5
+and dependency-parsed with the MaltParser.
+6
+It
+contains about 2.83 billion tokens. The ukWaC and Wikipedia sections can be freely
+downloaded, with full annotation, fromthe ukWaC corpus site.
+For all our models, the label sets W
+1
+=W
+2
+contain 30,693 lemmas (20,410 nouns,
+5,026 verbs, and 5,257 adjectives). These terms were selected based on their frequency
+inthecorpus(theyareapproximatelythetop20,000mostfrequentnounsandtop5,000
+most frequent verbs and adjectives), augmenting the list with lemmas that we found in
+variousstandardtestsets,suchastheTOEFLandSATlists.Inallmodels,thewordsare
+stored in POS-sufﬁxed lemma form. The weighted tuple structures differ for the choice
+of links inLand/or for the scoring function σ.
+DepDM. Our ﬁrst DM model relies on the classic intuition that dependency paths are
+a good approximation to semantic relations between words (Grefenstette 1994; Curran
+and Moens 2002; Pad´o and Lapata 2007; Rothenh¨ausler and Sch¨utze 2009). DepDM is
+alsothemodelwiththeleastdegreeoflinklexicalizationamongthethreeDMinstances
+we have built (its only lexicalized links are prepositions). L
+DepDM
+includes the follow-
+ing noun–verb, noun–noun, and adjective–noun links (in order to select more reliable
+dependencies and ﬁlter out possible parsing errors, dependencies between words with
+more than ﬁve intervening items were discarded):
+sbj intr: subject ofa verb that has no direct object:Theteacherissinging→
+〈teacher,sbj intr,sing〉;Thesoldiertalkedwithhissergeant→〈soldier,sbj intr,talk〉;
+sbj tr: subject ofa verb that occurs with adirect object:Thesoldierisreadinga
+book→〈soldier,sbj tr,read〉;
+2 http://wacky.sslmit.unibo.it/.
+3 http://en.wikipedia.org/wiki/Wikipedia:Database download.
+4 http://www.natcorp.ox.ac.uk.
+5 http://www.ims.uni-stuttgart.de/projekte/corplex/TreeTagger/.
+6 http://w3.msi.vxu.se/∼nivre/research/MaltParser.html.
+686
+Baroniand Lenci DistributionalMemory
+obj: direct object:Thesoldierisreadingabook→〈book,obj,read〉;
+iobj: indirect object in adouble object construction:Thesoldiergavethewoman
+abook→〈woman,iobj,give〉;
+nmod: noun modiﬁer:goodteacher→〈good,nmod,teacher〉;schoolteacher→〈school,
+nmod,teacher〉;
+coord: noun coordination:teachersandsoldiers→〈teacher,coord,soldier〉;
+prd: predicate noun:Thesoldierbecamesergeant→〈sergeant,prd,become〉;
+verb: an underspeciﬁed link between a subject noun and a complement noun
+of the same verb:Thesoldiertalkedwithhissergeant→〈soldier,verb,sergeant〉;
+Thesoldierisreadingabook→〈soldier,verb,book〉;
+preposition: every preposition linking the noun head of aprepositional phrase
+to its noun or verb head (adifferent link for each preposition):Isawasoldier
+withthegun→〈gun,with,soldier〉;Thesoldiertalkedwithhissergeant→
+〈sergeant,with,talk〉.
+Foreachlink,wealsoextractitsinverse(thisholdsforallourDMmodels).Forexample,
+there is a sbj intr
+−1
+link between an intransitive verb and its subject: 〈talk, sbj intr
+−1,
+soldier〉.The cardinality ofL
+DepDM
+is 796, including direct and inverse links.
+The weights assigned to the tuples by the scoring function σ are given by Local
+Mutual Information (LMI) computed on the raw corpus-derived word–link–word co-
+occurrence counts. Given the co-occurrence count O
+ijk
+of three elements of interest (in
+ourcase,theﬁrstword,thelink,andthesecondword),andthecorrespondingexpected
+count under independence E
+ijk,LMI=O
+ijk
+log
+O
+ijk
+E
+ijk
+. LMI is an approximation to the
+log-likelihood ratio measure that has been shown to be a very effective weighting
+scheme for sparse frequency counts (Dunning 1993; Pad´o and Lapata 2007). The mea-
+sure can also be interpreted as the dominant term of average MI or as a heuristic
+variant of pointwise MI to avoid its bias towards overestimating the signiﬁcance of
+low frequency events, and it is nearly identical to the Poisson–Stirling measure (Evert
+2005). LMI has considerable computational advantages in cases like ours, in which we
+measure the association of three elements, because it does not require keeping track
+of the full 2×2×2 contingency table, which is the case for the log-likelihood ratio.
+Following standard practice (Bullinaria and Levy 2007), negative weights (cases where
+the observed value is lower than the expected value) are raised to 0. The number of
+non-zero tuples in the DepDM tensor is about 110M, including tuples with direct links
+and their inverses. DepDM is a 30,693×796×30,693 tensor with density 0.0149% (the
+proportion of non-zero entries in the tensor).
+LexDM. The second model is inspired by the idea that the lexical material connect-
+ing two words is very informative about their relation (Hearst 1992; Pantel and
+Pennacchiotti 2006; Turney 2006b).L
+LexDM
+contains complex links, each with the struc-
+ture pattern+sufﬁx.Thesufﬁxisinturnformedbytwosubstringsseparatedbya+,each
+respectivelyencodingthefollowingfeaturesofw
+1
+andw
+2
+:theirPOSandmorphological
+features (number for nouns, number and tense for verbs); the presence of an article
+(further speciﬁed with its deﬁniteness value) and of adjectives for nouns; the presence
+ofadverbsforadjectives;andthepresenceofadverbs,modals,andauxiliariesforverbs,
+together with their diatheses (for passive only). If the adjective (adverb) modifying
+w
+1
+or w
+2
+belongs to a list of 10 (250) high frequency adjectives (adverbs), the sufﬁx
+687
+ComputationalLinguistics Volume36,Number4
+string contains the adjective (adverb) itself, otherwise only its POS. For instance, from
+the sentence The tall soldier has already shot we extract the tuple 〈soldier, sbj intr+n-the-
+j+vn-aux-already, shoot〉. Its complex link contains the pattern sbj intr and the sufﬁx
+n-the-j+vn-aux-already. The sufﬁx substring n-the-j encodes the information that w
+1
+is
+a singular noun (n), is deﬁnite (the), and has an adjective (j) that does not belong to
+the list of high frequency adjectives. The substring vn-aux-already speciﬁes that w
+2
+is a
+past-participle (vn), has an auxiliary (aux), and is modiﬁed byalready, belonging to the
+pre-selected list of high frequency adverbs. The patterns in the LexDM links include:
+L
+DepDM
+:every DepDM linkis apotential pattern of aLexDM link:Thesoldierhas
+shot→〈soldier,sbj intr+n-the+vn-aux,shoot〉;
+verb: if the verb link between asubject noun and a complement noun belongs to
+alist of 52 high frequency verbs, the underspeciﬁed verb link of DepDM is
+replaced bythe verb itself:Thesoldierusedagun→〈soldier,use+n-the+n-a,
+gun〉;Thesoldierreadtheyellowbook →〈soldier,verb+n-the+n-the-j,book〉;
+is: copulative structures with an adjectival predicate:Thesoldieristall→〈tall,
+is+j+n-the,soldier〉;
+preposition–link noun–preposition: this schema captures connecting expressions
+such asofanumberof,inakindof;linknounis one of48 semi-manually
+selected nouns such asnumber,variety,orkind;thearrivalofanumberof
+soldiers→〈soldier,of-number-of+ns+n-the,arrival〉;
+attribute noun: one of127 nouns extracted fromWordNet and expressing
+attributes of concepts, such assize,color,orheight. Thispattern connects
+adjectives and nouns that occur in the templates(the)attributenounof
+(a|the)NOUNisADJ(Almuhareb and Poesio 2004) and(a|the)ADJ
+attributenounofNOUN(Veale and Hao 2008):thecolorofstrawberriesisred→
+〈red, color+j+ns,strawberry〉;theautumnalcoloroftheforest→〈autumnal,
+color+j+n-the,forest〉;
+as adj as: this pattern links an adjective and anoun that match the templateas
+ADJas(a|the)NOUN(Veale and Hao 2008):assharpasaknife→〈sharp,
+as adj as+j+n-a,knife〉;
+such as: links two nouns occurring in the templatesNOUNsuchasNOUNand
+suchNOUNasNOUN(Hearst 1992, 1998):animalssuchascats→
+〈animal,such as+ns+ns,cat〉;suchvehiclesascars→〈vehicle,such as+ns+ns,car〉.
+LexDM links have a double degree of lexicalization. First, the sufﬁxes encode a wide
+array of surface features of the tuple elements. Secondly, the link patterns themselves,
+besides including standard syntactic relations (such as direct object or coordination),
+extend to lexicalized dependency relations (speciﬁc verbs) and lexico-syntactic shallow
+templates. The latter include patterns adopted in the literature to extract speciﬁc pieces
+of semantic knowledge. For instance,NOUNsuchasNOUNandsuchNOUNasNOUN
+were ﬁrst proposed by Hearst (1992) as highly reliable patterns for hypernym identiﬁ-
+cation,whereas(the)attributenounof(a|the)NOUNisADJand(a|the)ADJattributenoun
+of NOUN were successfully used to identify typical values of concept attributes
+(AlmuharebandPoesio2004;VealeandHao2008).Therefore,theLexDMdistributional
+memoryisarepositoryofpartiallyheterogeneoustypesofcorpus-derivedinformation,
+differing in their level of abstractness, which ranges from fairly abstract syntactic rela-
+tionstoshallowlexicalizedpatterns.L
+LexDM
+contains3,352,148links,includinginverses.
+688
+Baroniand Lenci DistributionalMemory
+The scoring function σ is the same as that in DepDM, and the number of non-
+zero tuples is about 355M, including direct and inverse links. LexDM is a 30,693×
+3,352,148×30,693 tensor with density 0.00001%.
+TypeDM.Thismodelisbasedontheidea,motivatedandtestedbyBaronietal.(2010)—
+but see also Davidov and Rappoport (2008a, 2008b) for a related method—that what
+matters is not so much the frequency of a link, but the variety of surface forms that
+express it. For example, if we just look at frequency of co-occurrence (or strength of
+association), the triple 〈fat,of
+−1,land〉 (a ﬁgurative expression) is much more common
+than the semantically more informative 〈fat, of
+−1, animal〉. However, if we count the
+different surface realizations of the former pattern in our corpus, we ﬁnd that there are
+only three of them (thefatoftheland,thefatoftheADJland,andtheADJfatoftheland),
+whereas 〈fat,of
+−1,animal〉 has nine distinct realizations (afatoftheanimal,thefatofthe
+animal,fatsofanimal,fatsoftheanimal,fatsoftheanimals,ADJfatsoftheanimal,andthefats
+oftheanimal).TypeDMformalizes thisintuitionbyadoptingaslinksthepatternsinside
+the LexDM links, while the sufﬁxes of these patterns are used to count their number
+of distinct surface realizations. We call the model TypeDM because it counts types of
+realizations,nottokens.Forinstance,thetwoLexDMlinks of
+−1
++n-a+n-theand of
+−1
++ns-
+j+n-thearecountedastwooccurrencesofthesameTypeDMlink of
+−1,correspondingto
+the pattern in the two original links.
+The scoring function σ computes LMI not on the raw word–link–word co-
+occurrencecounts,butonthenumberofdistinctsufﬁxtypesdisplayedbyalinkwhenit
+co-occurs with the relevant words. For instance, a TypeDM link derived from a LexDM
+patternthatoccurswithninedifferentsufﬁxtypesinthecorpusisassignedafrequency
+of 9 for the purpose of the computation of LMI. The distinct TypeDM links are 25,336.
+The number of non-zero tuples in the TypeDM tensor is about 130M, including direct
+and inverse links. TypeDM is a 30,693×25,336×30,693 tensor with density 0.0005%.
+To sum up, the three DM instance models herein differ in the degree of lexicali-
+zation of the link set, and/or in the scoring function. LexDM is a heavily lexicalized
+model, contrasting with DepDM, which has a minimum degree of lexicalization, and
+consequently the smallest set of links. TypeDM represents a sort of middle level both
+forthekindandthenumberoflinks.Theseconsistofsyntacticandlexicalizedpatterns,
+as in LexDM. The lexical information encoded in the LexDM sufﬁxes, however, is not
+used to generate different links, but to implement a different counting scheme as part
+ofa different scoring function.
+A weighted tuple structure (equivalently: a labeled DM tensor) is intended as
+a long-term semantic resource that can be used in different projects for different
+tasks, analogously to traditional hand-coded resources such as WordNet. Coherent
+with this approach, we make our best DM model (TypeDM) publicly available from
+http://clic.cimec.unitn.it/dm. The site also contains a set of Perl scripts that per-
+formthebasicoperationsonthetensoranditsderivedvectorsweareabouttodescribe.
+5.2 Semantic
+Vector Manipulation
+TheDMframeworkprovides,viamatricization,asetofmatriceswithassociatedlabeled
+row and column vectors. These labeled matrices can simply be derived from the tuple
+tensor by concatenating two elements in the original triples. Any operation that can
+be performed on the resulting matrices and that might help in tackling a semantic
+task is fair game. However, in the experiments reported in this article we will work
+with a limited number of simple operations that are well-motivated in terms of the
+689
+ComputationalLinguistics Volume36,Number4
+geometric framework we adopt, and sufﬁce to face all the tasks we will deal with (the
+decomposition techniques explored in Section 6.5are brieﬂy introduced there).
+Vectorlengthandnormalization.Thelengthofavector v withdimensionsv
+1,v
+2,...,v
+n
+is:
+||v||=
+radicalbigg
+summationdisplay
+i=n
+i=1
+v
+2
+i
+A vector is normalized to have length 1by dividing each dimension by the original
+vector length.
+Cosine.We measure the similarity of two vectors x and y by the cosine of the angle they
+form:
+cos(x,y)=
+summationtext
+i=n
+i=1
+x
+i
+y
+i
+||x||||y||
+Thecosinerangesfrom±1forvectorspointinginthesamedirectionto0fororthogonal
+vectors. Other similarity measures, such as Lin’s measure (Lin 1998b), work better than
+the cosine in some tasks (Curran and Moens 2002; Pad´o and Lapata 2007). However,
+the cosine is the most natural similarity measure in the geometric formalism we are
+adopting, and we stick to it as the default approach to measuring similarity.
+Vectorsum. Twoormorevectorsaresummedintheobviousway,byaddingtheirvalues
+on each dimension. We always normalize the vectors before summing. The resulting
+vector points in the same direction as the average of the summed normalized vectors.
+We refer to it as the centroidof the vectors.
+Projectionontoasubspace.Itissometimesusefultomeasurelengthorcomparevectorsby
+takingonlysomeoftheirdimensionsintoaccount.Forexample,onewaytoﬁndnouns
+thataretypicalobjectsoftheverbtosingistomeasurethelengthofnounsinaW
+1
+×LW
+2
+subspace in which only dimensions such as 〈obj,sing〉 have non-0 values. We project
+a vector onto a subspace of this kind through multiplication of the vector by a square
+diagonal matrixwith1sinthediagonal cellscorresponding tothedimensions wewant
+topreserveand0selsewhere.Amatrixofthissortperformsanorthogonalprojectionof
+the vector itmultiplies (Meyer 2000, chapter 5).
+6. Semantic Experiments with the DM Spaces
+As we saw in Section 3, labeled matricization generates four distinct semantic spaces
+from the third-order tensor. For each space, we have selected a set of semantic ex-
+periments that we model by applying some combination of the vector manipulation
+operations of Section 5.2. The experiments correspond to key semantic tasks in compu-
+tational linguistics and/or cognitive science, typically addressed by distinct DSMs so
+far. We have also aimed at maximizing the variety of aspects of meaning covered by
+the experiments, ranging from synonymy detection to argument structure and concept
+properties, and encompassing all the major lexical classes. Both these facts support the
+view of DM as a generalized model that is able to overtake state-of-the-art DSMs in
+the number and types of semantic issues addressed, while being competitive in each
+speciﬁc task.
+690
+Baroniand Lenci DistributionalMemory
+The choice of the DM semantic space to tackle a particular task is essentially based
+on the “naturalness” with which the task can be modeled in that space. However,
+alternatives are conceivable, both with respect to space selection, and to the operations
+performed on the space. For instance, Turney (2008) models synonymy detection with
+a DSM that closely resembles our W
+1
+W
+2
+×L space, whereas we tackle this task under
+the more standard W
+1
+×LW
+2
+view. It is an open question whether there are principled
+ways to select the optimal space conﬁguration for a given semantic task. In this article,
+we limit ourselves to proving that each space derived through tensor matricization is
+semanticallyinterestinginthesensethatitprovidesthepropergroundtoaddresssome
+semantic task.
+Feature selection/reweighting and dimensionality reduction have been shown to
+improve DSM performance. For instance, the feature bootstrapping method proposed
+by Zhitomirsky-Geffet and Dagan (2009) boosts the precision of a DSM in lexical en-
+tailment recognition. Even if these methods can be applied to DM as well, we did not
+usetheminourexperiments.Theresultspresentedsubsequentlyshouldberegardedas
+a “baseline” performance that could be enhanced in future work by exploring various
+task-speciﬁc parameters (we will come back in the conclusion to the role of parameter
+tuninginDM).Thisisconsistentwithourcurrentaimoffocusingonthegeneralityand
+adaptivity of DM, rather than on task-speciﬁc optimization. As a ﬁrst, important step
+in this latter direction, however, we conclude the empirical evaluation in Section 6.5
+by replicating one experiment using tensor-decomposition-based smoothing, a form of
+optimization that can only be performed within the tensor-based approach to DSMs.
+In order to maximize coverage of the experimental test sets, they are pre-processed
+with a mixture of manual and heuristic procedures to assign a POS to the words they
+contain, lemmatize, convert some multiword forms to single words, and turn some ad-
+verbsintoadjectives(ourmodelsdonotcontainmultiwordsoradverbs).Nevertheless,
+some words (or word pairs) are unrecoverable, and in such cases we make a random
+guess(incaseswherewedonothavefullcoverageofadataset,thereportedresultsare
+averagesacrossrepeatedexperiments,toaccountforthevariabilityinrandomguesses).
+In many of the experiments herein, DM is not only compared to the results avail-
+able in the literature, but also to our implementation of state-of-the-art DSMs. These
+alternative models have been trained on the same corpus (with the same linguistic pre-
+processing) used to build the DM tuple tensors. This way, we aim at achieving a fairer
+comparison with alternative approaches in distributional semantics, abstracting away
+fromthe effectsinduced by differences in the training data.
+Most experiments report global (micro-averaged) test set accuracy (alone, or com-
+binedwithothermeasures)toassesstheperformanceofthealgorithms.Thenumberof
+correctlyclassiﬁeditemsamongalltestelementscanbeseenasabinomiallydistributed
+random variable, and we follow the ACL Wiki state-of-the-art site
+7
+in reporting also
+Clopper–Pearson binomial 95% conﬁdence intervals around the accuracies (binomial
+intervalsandotherstatisticalquantitieswerecomputedusingtheRpackage;
+8
+whereno
+furtherreferencesaregiven,weusedthestandardRfunctionsfortherelevantanalysis).
+The binomial conﬁdence intervals give a sense of the spread of plausible population
+values around the test-set-based point estimates of accuracy. Where appropriate and
+interesting, we compare the accuracy of two speciﬁc models statistically with an exact
+Fisher test on the contingency table of correct and wrong responses given by the two
+7 http://aclweb.org/aclwiki/index.php?title=State Of The Art.
+8 http://www.r-project.org/.
+691
+ComputationalLinguistics Volume36,Number4
+models. This approach to signiﬁcance testing is problematic in many respects, the most
+important being that we ignore dependencies in correct and wrong counts due to the
+fact that the algorithms are evaluated on the same test set (Dietterich 1998). More
+appropriate tests, however, would require access to the fully itemized results from the
+comparedalgorithms,whereasinmostcasesweonlyknowthepointestimatereported
+intheearlier literature.For similar reasons, wedonotmake signiﬁcance claims regard-
+ing other performance measures, such as macro-averaged F. Other forms of statistical
+analysisoftheresultsareintroducedhereinwhentheyareused;theyaremostlylimited
+tothemodelsforwhichwehavefullaccesstotheresults.Notethatweareinterestedin
+whether DM performance is overall within state-of-the-art range, and not on making
+precise claims about the models it outperforms. In this respect, we think that our
+general results are clear even where they are not supported by statistical inference, or
+interpretation of the latter is problematic.
+6.1 The
+W
+1
+×LW
+2
+Space
+The vectors of this space are labeled with wordsw
+1
+(rows of matrix A
+mode-1
+in Table 3),
+andtheirdimensionsarelabeledwithbinarytuplesoftype〈l,w
+2
+〉(columnsofthesame
+matrix). The dimensions represent the attributes of words in terms of lexico-syntactic
+relations with lexical collocates, such as 〈sbjintr,read〉,or〈use,gun〉. Consistently, all
+the semantic tasks that we address with this space involve the measurement of the
+attributional similarity between words.
+TheW
+1
+×LW
+2
+matrix is a structured semantic space similar to those used by Curran
+and Moens (2002), Grefenstette (1994), and Lin (1998a), among others. To test if the
+use of links detracts from performance on attributional similarity tasks, we trained on
+our concatenated corpus two alternative models—Win and DV—whose features only
+includelexicalcollocatesofthetarget.WinisanunstructuredDSMthatdoesnotrelyon
+syntacticstructuretoselectthecollocates,butjustontheirlinearproximitytothetargets
+(Lund and Burgess 1996; Sch¨utze 1997; Bullinaria and Levy 2007, and many others). Its
+matrix is based on co-occurrences of the same 30K words we used for the other models
+within a window of maximally ﬁve content words before or after the target. DV is an
+implementation of the Dependency Vectors approach of Pad´o and Lapata (2007). It is a
+structuredDSM,butdependencypathsareusedtopickcollocates,withoutbeingpartof
+the attributes. The DV model is obtained from the same co-occurrence data as DepDM
+(thus, relying on the dependency paths we picked, not the ones originally selected
+by Pad´o and Lapata for their tests). Frequencies are summed across dependency path
+links for word–link–word triples with the same ﬁrst and second words. Suppose that
+soldierandgunoccurinthetuples〈soldier,have,gun〉(frequency3)and〈soldier,use,gun〉
+(frequency 37). In DepDM, this results in two features for soldier: 〈have,gun〉 and 〈use,
+gun〉. In DV, we would derive a single gun feature with frequency 40. As for the DM
+models,theWinandDVcountsareconvertedtoLMIweights,andnegativeLMIvalues
+are raised to 0. Win is a 30,693×30,693 matrix with about 110 million non-zero entries
+(density: 11.5%). DV is a 30,693×30,693 matrix with about 38 million non-zero values
+(density: 4%).
+6.1.1 Similarity
+Judgments. Our ﬁrst challenge comes from the classic data set of
+Rubenstein and Goodenough (1965), consisting of 65 noun pairs rated by 51 subjects
+on a 0–4 similarity scale. The average rating for each pair is taken as an estimate of the
+perceived similarity between the two words (e.g., car–automobile:3.9, cord–smile:0.0).
+Following the earlier literature, we use Pearson’s r to evaluate how well the cosines
+692
+Baroniand Lenci DistributionalMemory
+in the W
+1
+×LW
+2
+space between the nouns in each pair correlate with the ratings. The
+results (expressed in terms of percentage correlations) are presented in Table 4, which
+alsoreportsstate-of-the-artperformancelevelsofcorpus-basedsystemsfromthelitera-
+ture (the correlation of all systems with the ratings is very signiﬁcantly above chance,
+according to a two-tailed t-test for Pearson correlation coefﬁcients;df =63, p < 0.0001
+for all systems).
+OneoftheDMmodels,namelyTypeDM,doesverywellonthistask,outperformed
+onlybyDoubleCheck,anunstructuredsystemthatreliesonWebqueries(andthusona
+much larger corpus) and for which we report the best result across parameter settings.
+We also report the best results from a range of experiments with different models and
+parameter settings from Herdaˇgdelen, Erk, and Baroni (2009) (whose corpus is about
+halfthesizeofours)andPad´oandLapata(2007)(whouseamuchsmallercorpus).For
+the latter, we also report the best result they obtain when using cosine as the similarity
+measure(cosDV-07).Overall,theTypeDMresultisinlinewiththestateoftheart,given
+thesizeoftheinputcorpus,andthefactthatwedidnotperformanytuning.Following
+Pad´o, Pad´o, and Erk (2007) we used the approximate test proposed by Raghunathan
+(2003)tocomparethecorrelationswiththehumanratingsofsetsofmodels(thisisonly
+possibleforthemodelswedeveloped,asthetestrequirescomputationofcorrelationco-
+efﬁcientsacrossmodels).Thetestsuggeststhatthedifferenceincorrelationwithhuman
+ratingsbetweenTypeDMandoursecondbestmodel,Win,issigniﬁcant(Q=4.55,df =
+0.23,p< 0.01).Ontheotherhand,thereisnosigniﬁcantdifferenceacrossWin,DepDM,
+DVand LexDM (Q=1.02,df =1.80, p=0.55).
+6.1.2SynonymDetection.The previous experiment assessed how the models can simu-
+late quantitative similarity ratings. The classic TOEFL synonym detection task focuses
+on the high end of the similarity scale, asking the models to make a discrete decision
+about which word is the synonym from a set of candidates. The data set, introduced
+to computational linguistics by Landauer and Dumais (1997), consists of 80 multiple-
+choice questions, each made of a target word (a noun, verb, adjective, or adverb) and
+fourcandidates.Forexample,giventhetargetlevied,thecandidatesareimposed,believed,
+requested, correlated, the ﬁrst one being the correct choice. Our algorithms pick the
+candidatewiththehighestcosinetothetargetitemastheirguessoftherightsynonym.
+Table 5 reports results (percentage accuracies) on the TOEFL set for our models as
+well as the best model of Herdaˇgdelen and Baroni (2009) and the corpus-based models
+from the ACL Wiki TOEFL state-of-the-art table (we do not include those models from
+the Wiki that resort to other knowledge sources, such as WordNet or a thesaurus). The
+claims to follow about the relative performance of the models must be interpreted
+cautiously, in light of the spread of the conﬁdence intervals: It sufﬁces to note that,
+Table 4
+PercentagePearsoncorrelationwiththeRubensteinand Goodenough(1965) similarityratings.
+model r model r model r
+DoubleCheck
+1
+85 Win 65 DV 57
+TypeDM 82 DV-07
+3
+62 LexDM 53
+SVD-09
+2
+80 DepDM 57 cosDV-07
+3
+47
+Model sources:
+1
+Chen, Lin, and Wei (2006);
+2
+Herdaˇgdelen, Erk, and Baroni (2009);
+3
+Pad´oand
+Lapata(2007).
+693
+ComputationalLinguistics Volume36,Number4
+Table 5
+Percentageaccuracy inTOEFL synonymdetectionwith95% binomialconﬁdenceintervals(CI).
+model accuracy 95%CI model accuracy 95%CI
+LSA-03
+1
+92.50 84.39–97.20 DepDM 75.0164.06–84.01
+GLSA
+2
+86.25 76.73–92.93 LexDM 74.37 63.39–83.49
+PPMIC
+3
+85.00 75.26–92.00 PMI-IR-01
+8
+73.75 62.72–82.96
+CWO
+4
+82.55 72.38–90.09 DV-07
+9
+73.00 62.72–82.96
+PMI-IR-03
+5
+81.25 70.97–89.11 Win 69.37 58.07–79.20
+BagPack
+6
+80.00 69.56–88.11 Human
+10
+64.50 53.01–74.88
+DV 76.87 66.10–85.57 LSA-97
+10
+64.38 52.90–74.80
+TypeDM 76.87 66.10–85.57 Random 25.00 15.99–35.94
+PairClass
+7
+76.25 65.42–85.05
+Model sources:
+1
+Rapp (2003);
+2
+Matveeva et al. (2005);
+3
+Bullinaria and Levy (2007);
+4
+Ruiz-Casado,
+Alfonseca,andCastells(2005);
+5
+TerraandClarke(2003);
+6
+HerdaˇgdelenandBaroni(2009);
+7
+Turney
+(2008);
+8
+Turney(2001);
+9
+Pad´oandLapata(2007);
+10
+Landauerand Dumais(1997).
+accordingtoaFishertest,thedifferencebetweenthesecond-bestmodel,GLSA,andthe
+twelfthmodel,PMI-IR-01,isnotsigniﬁcantattheα = .05level(p=0.07).Thedifference
+betweenthebottommodel, LSA-97,andrandom guessingis,ontheotherhand,highly
+signiﬁcant (p <.00001).
+The best DM model is again TypeDM, which also outperforms Turney’s uniﬁed
+PairClass approach (supervised, and relying on a much larger corpus), as well as his
+Web-statistics based PMI-IR-01model. TypeDM does better than the best Pad ´oand
+Lapatamodel(DV-07),andcomparablytoourDVimplementation.Itsaccuracyismore
+than10%higherthantheaveragehumantesttakerandtheclassicLSAmodel(LSA-97).
+Among the approaches that outperform TypeDM, BagPack is supervised, and CWO
+and PMI-IR-03 rely on much larger corpora. This leaves us with three unsupervised
+(and unstructured) models from the literature that outperform TypeDM while being
+trained on comparable or smaller corpora: LSA-03, GLSA, and PPMIC. In all three
+cases, the authors show that parameter tuning is beneﬁcial in attaining the reported
+bestperformance.FurtherworkshouldinvestigatehowwecouldimproveTypeDMby
+exploring various parameter settings (many of which do not require going back to the
+corpus: feature selection and reweighting, SVD, etc.).
+6.1.3 Noun
+Categorization. Humans are able to group words into classes or categories
+depending on their meaning similarities. Categorization tasks play a prominent role
+in cognitive research on concepts and meaning, as a probe into the semantic organiza-
+tion of the lexicon and the ability to arrange concepts hierarchically into taxonomies
+(Murphy 2002). Research in corpus-based semantics has always been interested in
+investigating whether distributional (attributional) similarity could be used to group
+wordsintosemanticallycoherentcategories.Fromthecomputationalpointofview,this
+is a particularly crucial issue because it concerns the possibility of using distributional
+informationtoassignasemanticclassortypetowords.Categorizationrequires(atleast
+incurrentsettings)adiscretedecision,asintheTOEFLtask,butitisbasedondetecting
+not only synonyms but also less strictly related words that stand in a coordinate/co-
+hyponym relation. We focus here on noun categorization, which we operationalize as
+a clustering task. Distributional categorization has been investigated for other POS as
+well,mostnotablyverbs(MerloandStevenson2001;SchulteimWalde2006).However,
+694
+Baroniand Lenci DistributionalMemory
+verb classiﬁcations are notoriously more controversial than nominal ones, and deeply
+interact with argument structure properties. Some experiments on verb classiﬁcation
+will be carried out in theW
+1
+L×W
+2
+space in Section 6.3.
+Because the task of clustering concepts/words into superordinates has recently
+attracted much attention, we have three relevant data sets from the literature available
+for our tests. The Almuhareb–Poesio (AP) set includes 402 concepts from WordNet,
+balanced in terms of frequency and ambiguity. The concepts must be clustered into
+21classes,eachselectedfromoneofthe21uniqueWordNetbeginners,andrepresented
+bybetween13and21nouns.Examplesincludethevehicleclass(helicopter,motorcycle...),
+themotivationclass (ethics,incitement,...),andthesocialunitclass (platoon,branch). See
+Almuhareb (2006) for the full set.
+The Battig test set introduced by Baroni et al. (2010) is based on the expanded
+Battig and Montague norms of Van Overschelde, Rawson, and Dunlosky (2004). The
+set comprises 83 concepts from 10 common concrete categories (up to 10 concepts per
+class), with the concepts selected so that they are rated as highly prototypical of the
+class. Class examples includelandmammals(dog,elephant...),tools(screwdriver,hammer)
+andfruit(orange,plum). See Baroni et al. (2010) for the full list.
+Finally, the ESSLLI 2008 set was used for one of the Distributional Semantic Work-
+shop shared tasks (Baroni, Evert, and Lenci 2008). It is also based on concrete nouns,
+but it includes fewer prototypical members of categories (rocket as vehicle or snail as
+land animal). The 44 target concepts are organized into a hierarchy of classes of in-
+creasing abstraction. There are 6 lower level classes, with maximally 13 concepts per
+class (birds, land animals, fruit, greens, tools, vehicles). At a middle level, concepts are
+grouped into three classes (animals,vegetables,andartifacts). At the most abstract level,
+thereisatwo-waydistinctionbetweenlivingbeingsandobjects.Seehttp://wordspace.
+collocations.defor the full set.
+We cluster the nouns in each set by computing their similarity matrix based on
+pairwise cosines, and feeding it to the widely used CLUTO toolkit (Karypis 2003). We
+use CLUTO’s built-in repeated bisections with global optimization method, accepting
+all of CLUTO’s default values for this method.
+Cluster quality is evaluated by percentage purity, one of the standard clustering
+quality measures returned by CLUTO (Zhao and Karypis 2003). Ifn
+i
+r
+is the number of
+itemsfromthei-thtrue(goldstandard)classthatwereassignedtother-thcluster,nthe
+total number ofitems, andkthe number of clusters, then
+Purity=
+1
+n
+k
+summationdisplay
+r=1
+max
+i
+(n
+i
+r
+)
+Expressed in words, for each cluster we count the number of items that belong to the
+true class that is most represented in the cluster, and then we sum these counts across
+clusters. The resulting sum is divided by the total number of items so that, in the best
+case(perfectclusters),puritywillbe1(inpercentageterms,100%).Asclusterqualityde-
+teriorates,purityapproaches0.Forthemodelswherewehavefullaccesstotheresults,
+we use a heuristic bootstrap procedure to obtain conﬁdence intervals around the puri-
+ties (Efron and Tibshirani 1994). We resample with replacement 10K data sets (cluster-
+assignment+true-labelpairs)oftheoriginalsize.Empirical95%conﬁdenceintervalsare
+then computed from the distribution of the purities in the bootstrapped data sets (for
+theESSLLIresults,weonlyperformtheprocedurefor6-wayclustering).Theconﬁdence
+intervals give a rough idea of how stable purity estimates are across small variations of
+695
+ComputationalLinguistics Volume36,Number4
+the items in the data sets. The Random models for this task are baselines assigning
+the concepts randomly to the target clusters, with the constraint that each cluster must
+contain at least one concept. Random assignment is repeated 10K times, and we obtain
+means and conﬁdence intervals from the distribution of these simulations.
+Table 6 reports purity results for the three data sets, comparing our models to
+those in the literature. Again, the TypeDM model has an excellent performance. On
+theESSLLI2008set,itoutperformsthebestconﬁgurationofthebestsharedtasksystem
+among those that did three-level categorization (Katrenko’s), despite the fact that the
+latter uses the full Web as a corpus and manually crafted patterns to improve feature
+extraction.TypeDM’sperformanceisequallyimpressiveontheAPset,whereitoutper-
+forms AttrValue-05, the best unsupervised model by the data set proponents, trained
+onthefullWeb.Interestingly,theDepPathmodelofRothenh¨ausler andSch¨utze(2009),
+which is the only one outperforming TypeDM on the AP set, is another structured
+model with dependency-based link-mediated features, which would ﬁt well into the
+Table 6
+Purityinnounclusteringwithbootstrapped95%conﬁdenceintervals(CI).
+Almuhareb&Poesio (AP)
+model purity 95%CI model purity 95%CI
+DepPath
+1
+79 NA DV 65 61–69
+TypeDM 76 72–81DepDM 62 59–67
+AttrValue-05
+2
+71NA LexDM 59 56–65
+Win 71 67–76 Random 16 14–17
+VSM
+3
+70 67–75
+Battig
+model purity 95%CI model purity 95%CI
+Win 96 91–100 DV-10
+4
+79 73–89
+TypeDM 94 89–99 LexDM 78 72–88
+Strudel
+4
+9185–98 SVD-10
+4
+7167–83
+DepDM 90 84–96 AttrValue
+4
+45 44–61
+DV 84 79–93 Random 29 24–34
+ESSLLI2008
+model 6-waypurity 95%CI 3-waypurity 2-waypurity avgpurity
+TypeDM 84 77–95 98 100 94.0
+Katrenko
+5
+91NA 100 80 90.3
+DV 75 70–89 93 100 89.3
+DepDM 75 68–89 93 100 89.3
+LexDM 75 70–89 87 100 87.3
+Peirsman
+5
+82 NA 84 86 84.0
+Win 75 70–89 86 59 73.3
+Shaoul
+5
+41NA 52 55 49.3
+Random 38 32–45 49 57 48.0
+Modelsources:
+1
+Rothenh¨auslerandSch¨utze(2009);
+2
+AlmuharebandPoesio(2005);
+3
+Herdaˇgdelen,
+Erk,and Baroni(2009);
+4
+Baroniet al.(2010);
+5
+ESSLLI2008 shared task.
+696
+Baroniand Lenci DistributionalMemory
+DMframework.TypeDM’spurityisextremelyhighwiththeBattigsetaswell,although
+here it is outperformed by the unstructured Win model. Our top two performances are
+higherthanStrudel,thebestmodelbytheproponentsofthetask.Thelatterwastrained
+onabouthalfofthedataweused,however(moreover,theconﬁdenceintervalsofthese
+models largely overlap, suggesting that their difference is not signiﬁcant).
+6.1.4 Selectional
+Preferences. Our last pair of data sets for the W
+1
+×LW
+2
+space illustrate
+how the space can be used not only to measure similarity among words, but also to
+work with more abstract notions, such as that of a typical ﬁller of an argument slot of a
+verb (such as the typicalkillerand the typicalkillee). We think that these are especially
+importantexperiments,becausetheyshowhowthesamematrixthathasbeenusedfor
+tasks that were entirely bound to lexical items can also be used to generalize to struc-
+tures that go beyond what is directly observed in the corpus. In particular, we model
+here selectional preferences (how plausible a noun is as subject/object of a verb), but
+our method is generalizable to many other semantic tasks that pertain to composition
+constraints; that is, they require measuring the goodness of ﬁt of a word/concept as
+argument ﬁller of another word/concept, including assigning semantic roles, logical
+metonymy, coercion (Pustejovsky 1995), and many other challenges.
+The selectional preference test sets are based on averages of human judgments
+on a seven-point scale about the plausibility of nouns as arguments (either subjects
+or objects) of verbs. The McRae data set (McRae, Spivey-Knowlton, and Tanenhaus
+1998) consists of 100 noun–verb pairs rated by 36 subjects. The Pad´o set (Pad´o 2007)
+has 211 pairs rated by20 subjects.
+For each verb, we ﬁrst use the W
+1
+×LW
+2
+space to select a set of nouns that are
+highly associated with the verb via a subject or an object link. In this space, nouns are
+represented as vectors with dimensions that are labeled with 〈link,word〉 tuples, where
+the word might be a verb, and the link might stand for, among other things, syntactic
+relationssuchasobj(or,intheLexDMmodel,anexpansionthereof,suchasobj+the-j).To
+ﬁnd nouns that are highly associated with a verbvwhen linked by the subject relation,
+we project theW
+1
+×LW
+2
+vectors onto a subspace where all dimensions are mapped to 0
+exceptthedimensionsthatarelabeledwith〈l
+sbj,v〉,wherel
+sbj
+isalinkcontainingeither
+thestringsbjintrorthestringsbjtr,andvistheverb.Wethenmeasurethelengthofthe
+noun vectors in this subspace, and pick the topnlongest ones as prototypical subjects
+oftheverb.Thesameoperationisperformedfortheobjectrelation.Inourexperiments,
+we setnto 20, but this is of course a parameter that should be explored.
+We normalize and sum the vectors (in the fullW
+1
+×LW
+2
+space) of the picked nouns,
+to obtain a centroid that represents an abstract “subject prototype” for the verb (and
+analogouslyforobjects).Theplausibilityofanarbitrarynounasthesubject(object)ofa
+verbisthenmeasuredbythecosineofthenounvectortothesubject(object)centroidin
+W
+1
+×LW
+2
+space. Crucially, the algorithm can provide plausibility scores for nouns that
+do not co-occur with the target verb in the corpus, by looking at how close they are
+to the centroid of nouns that do often co-occur with the verb. The corpus may contain
+neithereattopinamburnoreatsympathy,butthetopinamburvectorwilllikelybecloserto
+the prototypicaleatobject vector than the one ofsympathywould be.
+It is worth stressing that the whole process relies on a singleW
+1
+×LW
+2
+matrix: This
+spaceisﬁrstusedtoidentifytypicalsubjects(orobjects)ofaverbviasubspacing,thento
+constructcentroidvectorsfortheverbsubject(object)prototypes,andﬁnallytomeasure
+the distance of nouns to these centroids. Our method is essentially the same, save for
+implementation and parameter choice details, as the one proposed by Pad´o, Pad´o,
+and Erk (2007), in turn inspired by Erk (2007). However, they treat the identiﬁcation
+697
+ComputationalLinguistics Volume36,Number4
+of typical argument ﬁllers of a verb as an operation to be carried out using different
+resources,whereaswereinterpretitasadifferentwaytousethesameW
+1
+×LW
+2
+spacein
+which we measure plausibility.
+FollowingPad´oandcolleagues,wemeasureperformancebytheSpearmanρcorre-
+lation coefﬁcient between the average human ratings and the model predictions, con-
+sidering only verb–noun pairs that are present in the model. Table 7 reports percentage
+coverage and correlations for the DM models (the task requires the links to extract
+typical subjects and objects, so we cannot use DV nor Win), results from Pad´o, Pad´o,
+and Erk (2007) (ParCos is the best among their purely corpus-based systems), and the
+performance on the Pad´o data set of the supervised system of Herdaˇgdelen and Baroni
+(2009). Testingforsigniﬁcance ofthecorrelation coefﬁcients withtwo-tailed testsbased
+onaSpearman-coefﬁcientderivedtstatistic,weﬁndthattheResnik’smodelcorrelation
+for the McRae data is not signiﬁcantly different from 0 (t=0.29, df =92, p =0.39),
+ParCos on McRae is signiﬁcant at α = .05 (t=2.134,df =89, p =0.018), and all other
+models on either data set are signiﬁcant at α = .01and below.
+TypeDMemergesasanexcellentmodeltotackleselectionalpreferences,andasthe
+overallwinneronthistask.OnthePad´odataset,itisasgoodasPad´o’s(2007)FrameNet
+based model, and it is outperformed only by the supervised BagPack approach. On the
+McRae data set, all three DM models do very well, and TypeDM is slightly worse than
+the other two models. On this data set, the DM models are outperformed by Pad´o’s
+FrameNet model in terms of correlation, but the latter has a much lower coverage,
+suggesting that for practical purposes the DM models are a better choice. According to
+Raghunathan’s test (see Section 6.1.1), the difference in correlation with human ratings
+among the three DM models is not signiﬁcant on the McRae data, where TypeDM is
+below the other models (Q=0.19, df =0.67, p =0.50). On the Pad´o data set, on the
+other hand, where TypeDM outperforms the other DM models, the same difference is
+highly signiﬁcant (Q=12.70,df =1.00, p < 0.001).
+As a ﬁnal remark on the W
+1
+×LW
+2
+space, we can notice that DM models perform
+very well in tasks involving attributional similarity. The performance of unstructured
+DSMs (including Win, our own implementation of this type of model) is also high,
+sometimesevenbetterthanthatofstructuredDSMs.However,ourbestDMmodelalso
+achieves brilliant results in capturing selectional preferences, a task that is not directly
+addressablebyunstructuredDSMs.Thisfactsuggeststhattherealadvantageprovided
+by structured DSMs—particularly when linguistic structure is suitably exploited, as
+Table 7
+Correlationwithverb–argumentplausibilityjudgments.
+McRae Pad´o
+model coverage ρ model coverage ρ
+Pad´o
+1
+56 41BagPack
+2
+100 60
+DepDM 97 32 TypeDM 100 51
+LexDM 97 29 Pad´o
+1
+97 51
+TypeDM 97 28 ParCos
+1
+98 48
+ParCos
+1
+9122 DepDM 100 35
+Resnik
+1
+94 3 LexDM 100 34
+Resnik
+1
+98 24
+Model sources:
+1
+Pad´o,Pad´o,andErk(2007);
+2
+Herdaˇgdelenand Baroni(2009).
+698
+Baroniand Lenci DistributionalMemory
+with the DM third-order tensor—actually resides in their versatility in addressing a
+much larger and various range of semantic tasks. This preliminary conclusion will also
+be conﬁrmed bythe experiments modeled with the other DM spaces.
+6.2 The
+W
+1
+W
+2
+×L Space
+The vectors of this space are labeled with word pair tuples 〈w
+1,w
+2
+〉 (columns of matrix
+B
+mode-2
+in Table 3) and their dimensions are labeled with links l (rows of the same
+matrix). This arrangement of our tensor reproduces the “relational similarity” space of
+Turney (2006b), also implicitly assumed in much relation extraction work, where word
+pairs are compared based on the patterns that link them in the corpus, in order to mea-
+sure the similarity of their relations (Pantel and Pennacchiotti 2006). The links that in
+W
+1
+×LW
+2
+space provide a form of shallow typing of lexical features (〈use,gun〉) associ-
+atedwithsinglewords(soldier)constituteundertheW
+1
+W
+2
+×Lviewfullfeatures(use)as-
+sociated with word pairs (〈soldier,gun〉). Besides exploiting this view of the tensor to
+solveclassicrelational tasks,wewillalsoshowhowproblemsthathavenotbeentradi-
+tionally deﬁned in terms of a word-pair-by-link matrix, such as qualia harvesting with
+patterns or generating lists of characteristic properties, can be elegantly recast in the
+W
+1
+W
+2
+×L space by measuring the length of 〈w
+1,w
+2
+〉 vectors in a link (sub)space, thus
+bringing a wider range of semantic operations under the umbrella of the natural DM
+spaces.
+TheW
+1
+W
+2
+×Lspacerepresentspairsofwordsthatco-occurinthecorpuswithinthe
+maximum span determined by the scope of the links connecting them (for our models,
+thismaximumspanisneverlargerthanasinglesentence).Whenwordsdonotco-occur
+oronlyco-occurveryrarely(andeveninlargecorporathiswilloftenbethecase),attri-
+butional similarity can come to the rescue. Given a target pair, we can construct other,
+probablysimilarpairsbyreplacingoneofthewordswithanattributionalneighbor.For
+example,giventhepair〈automobile,wheel〉,wemightdiscoverinW
+1
+×LW
+2
+spacethatcar
+is a close neighbor ofautomobile. We can then look for the pair〈car,wheel〉, and use rela-
+tionalevidenceaboutthispairasifitpertainedto〈automobile,wheel〉.Thisisessentially
+the way to deal withW
+1
+W
+2
+×Ldata sparseness proposed by Turney (2006b), except that
+he relies on independently harvested attributional and relational spaces, whereas we
+derive bothfromthesame tensor. Moreprecisely, intheW
+1
+W
+2
+×Ltasks where weknow
+thesetoftargetpairsinadvance(Sections6.2.1and6.2.2),wesmooththeDMmodelsby
+combining in turn one of the words of each target pair with the top 20 nearestW
+1
+×LW
+2
+neighbors of the other word, obtaining a total of 41pairs (including the original). The
+centroid of the W
+1
+W
+2
+×L vectors of these pairs is then taken to represent a target pair
+(the smoothed 〈automobile, wheel〉 vector is an average of the 〈automobile, wheel〉, 〈car,
+wheel〉, 〈automobile,circle〉, etc., vectors). The nearest neighbors are efﬁciently searched
+in the W
+1
+×LW
+2
+matrix by compressing it to 5,000 dimensions via random indexing,
+using the parameters suggested by Sahlgren (2005). Smoothing consistently improved
+performance, and we only report the relevant results for the smoothed versions of the
+models (including our implementation of LRA, to be discussed next).
+WereimplementedTurney’sLatentRelationalAnalysis(LRA)model,trainingiton
+oursourcecorpus(LRAistrainedseparatelyforeachtestset,becauseitreliesonagiven
+list of word pairs to ﬁnd the patterns that link them). We chose the parameter values of
+Turney’s main model (his “baseline LRA system”). In short (see Turney’s article for de-
+tails),foragivensetoftargetpairswecountallthepatternsthatconnectthem,ineither
+order,inthecorpus.Patternsaresequencesofonetothreewordsoccurringbetweenthe
+targets,withall,none,oranysubsetoftheelementsreplacedbywildcards(withthe,with
+699
+ComputationalLinguistics Volume36,Number4
+Table 8
+Percentageaccuracy insolvingSAT analogies with95% binomialconﬁdenceintervals(CI).
+model accuracy 95%CI model accuracy 95%CI
+Human
+1
+57.0 52.0–62.3 TypeDM 42.4 37.4–47.7
+LRA-06
+2
+56.1 51.0–61.2 LSA
+7
+42.0 37.2–47.4
+PERT
+3
+53.3 48.5–58.9 LRA 37.8 32.8–42.8
+PairClass
+4
+52.146.9–57.3 PMI-IR-06
+2
+35.0 30.2–40.1
+VSM
+1
+47.142.2–52.5 DepDM 31.4 26.6–36.2
+BagPack
+5
+44.139.0–49.3 LexDM 29.3 24.8–34.3
+k-means
+6
+44.0 39.0–49.3 Random 20.0 16.1–24.5
+Model sources:
+1
+Turney and Littman (2005);
+2
+Turney (2006b);
+3
+Turney (2006a);
+4
+Turney (2008);
+5
+Herdaˇgdelen and Baroni (2009);
+6
+Bicic¸i and Yuret (2006);
+7
+Quesada, Mangalath, and Kintsch
+(2004).
+*,*the,**). Only the top 4,000 most frequent patterns are preserved, and a target-pair-
+by-pattern matrix is constructed (with 8,000 dimensions, to account for directionality).
+Values in the matrix are logand entropy-transformed using Turney’s formula. Finally,
+SVD is applied, reducing the columns to the top 300 latent dimensions (here and sub-
+sequently, we use SVDLIBC
+9
+to perform SVD). For simplicity and to make LRA more
+directly comparable to the DM models, we applied our attributional-neighbor-based
+smoothing technique (the neighbors for target pair expansion are taken from the best
+attributional DM model, namely, TypeDM) instead of the more sophisticated one used
+byTurney.Thus,ourLRAimplementationdiffersfromTurney’soriginalintwoaspects:
+the smoothing method and the source corpus (Turney uses a corpus of more than
+50 billion words). Neither variation pertains to inherent differences between LRA and
+DM.Giventheappropriateresources,aDMmodelcouldbetrainedonTurney’sgigantic
+corpus, and smoothed with his technique.
+6.2.1SolvingAnalogyProblems.The SAT test set introduced by Turney and collaborators
+contains374multiple-choicequestionsfromtheSATcollegeentranceexam.Eachques-
+tion includes one target (ostrich–bird) and ﬁve candidate analogies (lion–cat,goose–ﬂock,
+ewe–sheep, cub–bear, primate–monkey). The data set is dominated by noun–noun pairs,
+butallothercombinationsarealsoattested(noun–verb,verb–adjective,verb–verb,etc.)
+The task is to choose the candidate pair most analogous to the target (lion–cat in the
+previous example). This is essentially the same task as the TOEFL, but applied to word
+pairs instead of words. As in the TOEFL, we pick the candidate with the highest cosine
+with the target as the right analogy.
+Table 8 reports our SAT results together with those of other corpus-based methods
+from the ACL Wiki and other systems. TypeDM is again emerging as the best among
+our models. To put its performance in context statistically, according to a Fisher test its
+accuracy is not signiﬁcantly different from that of VSM (p=0.239), whereas it is better
+thanthatofPMI-IR-06(p=0.043;eventhebottommodel,LexDM,issigniﬁcantlybetter
+than the random guesser, p=0.004).
+TypeDM is at least as good as LRA when the latter is trained on the same data
+and smoothed with our method, suggesting that the excellent performance of Turney’s
+versionofLRA(LRA-06)isduetothefactthatheusedamuchlargercorpus,and/orto
+9 http://tedlab.mit.edu/∼dr/SVDLIBC/.
+700
+Baroniand Lenci DistributionalMemory
+his more sophisticated smoothing technique, and not to the speciﬁc way in which LRA
+collects corpus-based statistics. All the algorithms with higher accuracy than TypeDM
+arebasedonmuchlargerinputcorpora,exceptBagPack,whichis,however,supervised.
+The LSA system of Quesada, Mangalath, and Kintsch (2004), which performs similarly
+toTypeDM,isbasedonasmallercorpus,butitreliesonhand-coded“analogydomains”
+that are represented bylists of manually selected characteristic words.
+6.2.2RelationClassiﬁcation.JustastheSATistherelationalequivalentoftheTOEFLtask,
+the test sets we tackle next are a relational analog to attributional concept clustering,
+in that they require grouping pairs of words into classes that instantiate the same
+relations. Whereas we cast attributional categorization as an unsupervised clustering
+problem (following much of the earlier literature), the common approach to classify-
+ing word pairs by relation is supervised, and relies on labeled examples for training. In
+this article, we exploit training data in a very simple way, via anearestcentroidmethod.
+In the SEMEVAL task we are about to introduce, where both positive and negative
+examples are available for each class, we use the positive examples to construct a
+centroidthatrepresentsatargetclass,andnegativeexamplestoconstructacentroidrep-
+resentingitemsoutsidetheclass.Wethendecideifatestpairbelongstothetargetclass
+by measuring its distance from the positive and negative centroids, picking the nearest
+one. For example, the Cause–Effect relation has positive training examples such as
+cycling–happinessandmassage–relief and negative examples such ascustomer–satisfaction
+andexposure–protection. We create a positive centroid by summing theW
+1
+W
+2
+×Lvectors
+of the ﬁrst set of pairs, and a negative centroid by summing the latter. We then mea-
+sure the cosine of a test item such as smile–wrinkle with the centroids, and decide
+if it instantiates the Cause–Effect relation based on whether it is closer to the positive
+or negative centroid. For the other tasks (as well as the transitive alternation task of
+Section 6.3), we do not have negative examples, but positive examples for different
+classes. We create a centroid for each class, and classify test items based on the centroid
+theyare nearest to.
+Our ﬁrst test pertains to the seven relations between nominals in Task 4 of
+SEMEVAL 2007 (Girju et al. 2007): Cause–Effect, Instrument–Agency, Product–
+Producer, Origin–Entity, Theme–Tool, Part–Whole, Content–Container. For each rela-
+tion, the data set includes 140 training and about 80 test items. Each item consists of a
+Web snippet, containing word pairs connected by a certain pattern (e.g., “*causes*”).
+The retrieved snippets are manually classiﬁed by the SEMEVAL organizers as positive
+ornegativeinstancesofacertainrelation(seetheearlierCause–Effectexamples).About
+50% training and test cases are positive instances. In our experiments we do not make
+use of the contexts ofthe target word pairs that are provided with the test set.
+Theseconddataset(NS)comesfromNastaseandSzpakowicz(2003).Itpertainsto
+the classiﬁcation of 600 modiﬁer–noun pairs and it is of interest because it proposes a
+very ﬁne-grained categorization into 30 semantic classes, such as Cause (cloud–storm),
+Purpose (album–picture), Location-At (pain–chest), Location-From (visitor–country), Fre-
+quency (superstition–occasional), Time-At (snack–midnight), and so on. The modiﬁers can
+be nouns, adjectives, or adverbs. Because the data set is not split into training and test
+datawefollowTurney(2006b)andperformleave-one-outcross-validation.Thedataset
+also comes with a coarser ﬁve-way classiﬁcation. Our unreported results on it are com-
+parable, in terms of relative performance, to the ones for the 30-way classiﬁcation.
+The last data set (OC) contains 1,443 noun–noun compounds classiﬁed by
+´
+O
+S´eaghdhaandCopestake(2009)into6relations:Be(celebrity–winner),Have(door–latch),
+In (air–disaster), Actor (university–scholarship), Instrument (freight–train), and About
+701
+ComputationalLinguistics Volume36,Number4
+(bank–panic); see
+´
+OS´eaghdha and Copestake (2009) and references there. We use the
+same ﬁve-way cross-validation splits as the dataset proponents.
+Table9reportsperformanceofmodelsfromourexperimentsandfromtheliterature
+onthethreesupervisedrelationclassiﬁcationtasks.Followingtherelevantearlierstud-
+ies, for SEMEVAL we report macro-averaged accuracy, whereas for the other two data
+setswereportglobalaccuracy(withbinomialconﬁdenceintervals).Allothermeasures
+are macro-averaged. Majority is the performance of a classiﬁer that always guesses the
+Table 9
+Relationclassiﬁcationperformance;allmeasuresmacro-averaged,exceptaccuracyintheNSand
+OC datasets, wherewealso reporttheaccuracy95%conﬁdenceintervals(CI).
+SEMEVAL 2007
+model prec recall F acc model prec recall F acc
+TypeDM 71.7 62.5 66.4 70.2 DepDM 61.0 57.3 58.9 61.8
+UCD-FC
+1
+66.166.7 64.8 66.0 UTH
+1
+56.157.155.9 58.8
+UCB
+1
+62.7 63.0 62.7 65.4 Majority 81.3 42.9 30.8 57.0
+LexDM 64.7 61.3 62.5 65.4 ProbMatch 48.5 48.5 48.5 51.7
+ILK
+1
+60.5 69.5 63.8 63.5 UC3M
+1
+48.2 40.3 43.149.9
+LRA 63.7 60.0 61.0 63.1 AllTrue 48.5 100.0 64.8 48.5
+UMELB-B
+1
+61.5 55.7 57.8 62.7
+Nastase &Szpakowicz(NS)
+model prec recall F acc acc95%CI
+LRA-06
+2
+41.0 35.9 36.6 39.8 35.9–43.9
+VSM-AV
+3
+27.9 26.8 26.5 27.8 24.3–31.6
+LRA 23.0 23.1 21.1 25.5 22.1–29.2
+VSM-WMTS
+2
+24.0 20.9 20.3 24.7 21.3–28.3
+TypeDM 19.5 20.2 13.7 15.4 12.5–18-5
+LexDM 7.5 14.1 8.1 12.1 9.7–15.0
+DepDM 11.6 14.5 8.1 8.7 6.5–11.2
+Majority 0.3 3.3 0.5 8.2 6.1–10.6
+ProbMatch 3.3 3.3 3.3 4.7 3.1–6.7
+AllTrue 3.3 100 6.4 NA NA
+´
+OS´eaghdha&Copestake (OC)
+model prec recall F acc acc95%CI
+OC-Comb
+4
+NA NA 61.6 63.1 60.6–65.6
+OC-Rel
+4
+NA NA 49.9 52.149.5–54.7
+TypeDM 33.8 33.5 31.4 32.1 29.7–34.6
+LRA 31.5 30.8 30.7 31.3 28.9–33.8
+LexDM 29.9 28.9 28.7 29.7 27.4–32.2
+DepDM 28.2 28.2 27.0 27.6 25.3–30.0
+Majority 3.6 16.7 5.9 21.3 19.2–23.5
+ProbMatch 16.7 16.7 16.7 17.1 15.2–19.2
+AllTrue 16.7 100 28.5 NA NA
+Model sources:
+1
+SEMEVAL Task 4;
+2
+Turney (2006b);
+3
+Turney and Littman (2005);
+4
+´
+OS´eaghdha
+and Copestake (2009).
+702
+Baroniand Lenci DistributionalMemory
+majority class in the test set (in SEMEVAL, for each class, it guesses that all or no items
+belong to it depending on whether there are more positive or negative examples in the
+test data; in the other tasks, it labels all items with the majority class). AllTrue always
+assigns an item to the target class (being inherently binary, it does not provide a well-
+deﬁned multi-class global accuracy). ProbMatch randomly guesses classes matching
+their distribution in the test data (in SEMEVAL, it matches the proportion of positive
+and negative examples within each class).
+For SEMEVAL, the table reports the results of those models that took part in the
+shared task and, like ours, did not use the organizer-provided WordNet sense labels
+nor information about the query used to retrieve the examples. All these models are
+outperformed by TypeDM, despite the fact that they exploit the training contexts
+and/or speciﬁc additional resources: an annotated compound database (UCD-FC),
+more sophisticated machine learning algorithms to train the relation classiﬁers (ILK,
+UCD-FC),Web counts (UCB),and so on.
+For the NS data set, none of the DM models do well, although TypeDM is once
+more the best among them. The DM models are outperformed by other models from
+the literature, all trained on much larger corpora, and also by our implementation of
+LRA.ThedifferenceinglobalaccuracybetweenLRAandTypeDMissigniﬁcant(Fisher
+test, p =0.00002). TypeDM’s accuracy is nevertheless well above the best (Majority)
+baseline accuracy (p=0.0001).
+The OC results conﬁrm that TypeDM is the best of our models, again (slightly)
+outperforming our LRA implementation. Still, our best performance is well below
+that of OC-Comb, the absolute best, and OC-Rel, the best purely relational model
+of
+´
+OS´eaghdha and Copestake (2009) (the difference in global accuracy between the
+latter and TypeDM is highly signiﬁcant, p < 0.000001).
+´
+OS´eaghdha and Copestake use
+sophisticated kernel-based methods and extensive parameter tuning to achieve these
+results. We hope that the TypeDM performance would also improve by improving the
+machine learning aspects of the procedure.
+Asanadinterimsummary,weobservethatTypeDMachievescompetitiveresultsin
+semantictasksinvolvingrelationalsimilarity.Inparticular,inbothanalogysolvingand
+two out of three relation classiﬁcation experiments, TypeDM is at least as good as our
+LRA implementation. We now move on to show how this same view of the DM tensor
+can be successfully applied to aspects of meaning that are not normally addressed by
+relational DSMs.
+6.2.3 Qualia
+Extraction. A popular alternative to the supervised approach to relation
+extraction is to pick a set of lexico-syntactic patterns that should capture the relation
+of interest and to harvest pairs they connect in text, as famously illustrated by Hearst
+(1992) for the hyponymy relation. In the DM approach, instead of going back to the
+corpus to harvest the patterns, we exploit the information already available in the
+W
+1
+W
+2
+×Lspace.Weselectpromisinglinksasourequivalentofpatternsandwemeasure
+the length of word pair vectors in the W
+1
+W
+2
+×L subspace deﬁned by these links. We
+illustratethiswiththedatasetofCimianoandWenderoth(2007),whichcontainsqualia
+structures (Pustejovsky1995)for30nominalconcepts,bothconcrete(door)andabstract
+(imagination). Cimiano and Wenderoth asked 30 subjects to produce qualia for these
+words (each word was rated by at least three subjects), obtaining a total of 1,487 word–
+qualepairs,instantiatingthefourrolespostulatedbyPustejovsky:Formal(thecategory
+of the object:door–barrier), Constitutive (constitutive parts, materials the object is made
+of: food–fat), Agentive (what brings the object about: letter–write), and Telic (the func-
+tion of the object:novel–entertain).
+703
+ComputationalLinguistics Volume36,Number4
+We approximate the patterns proposed by Cimiano and Wenderoth by manually
+selecting links that are already in our DM models, as reported in Table 10 (here and
+subsequently when discussing qualia-harvesting links, we use n and q to indicate the
+linear position of the noun and the potential quale with respect to the link). All qualia
+roles have links pertaining to noun–noun pairs. The Agentive and Telic patterns also
+harvestnoun–verbpairs.ForLexDM,wepickalllinksthatbeginwithoneofthestrings
+in Table 10. For the DepDM model, the only attested links are nwithq(Constitutive),
+nsbjintr q, nsbjtr q (Telic), and qobjn(Agentive). Consequently, DepDM does not
+harvest Formal qualia, and is penalized accordingly in the evaluation.
+We project all W
+1
+W
+2
+×L vectors that contain a target noun onto each of the four
+subspaces determined by the quale-speciﬁc link sets, and we compute their subspace
+lengths. Given a target noun n and a potential quale q, the length of the 〈n,q〉 vector
+in the subspace characterized by the links that represent role r is our measure of how
+goodqisasaqualeoftyperforn(forexample,thelengthof〈book,read〉inthesubspace
+deﬁned by the Telic links is our measure of ﬁtness ofread as Telic role ofbook). We use
+lengthinthesubspaceassociatedtothequaliarolertorankall〈n,q〉pairsrelevanttor.
+Following Cimiano and Wenderoth’s evaluation method, for each noun we ﬁrst
+compute,separatelyforeachrole,therankedlistprecision(withrespecttothemanually
+constructed qualia structure) at 11 equally spaced recall levels from 0% to 100%. We
+select the precision, recall, and F values at the recall level that results in the highest
+Fscore(i.e.,inthebestprecision–recalltrade-off).Wethenaverageacrosstheroles,and
+then across target nouns. The task, as framed here, cannot be run with the LRA model,
+and, because of its open-ended nature (we do not start from a predeﬁned list of pairs),
+we do not smooth the models.
+Table 11 reports the performance of our models, as well as the F scores reported by
+Cimiano and Wenderoth. For our models, where we have access to the itemized data,
+we also report the standard deviation ofF across the target nouns.
+All the DM models perform well (including DepDM, which is disfavored by the
+lack of Formal links), and once more TypeDM emerges as the best among them, with
+an F value that is also (slightly) above the best Cimiano and Wenderoth models (that
+are based on co-occurrence counts from the whole Web). Despite the large standard
+deviations, the difference in F across concepts between TypeDM and the second-best
+DM model (DepDM) is highly signiﬁcant (paired t-test, t=4.02, df =29, p < 0.001),
+suggestingthatthelargevarianceisduetodifferentdegreesofdifﬁcultyoftheconcepts,
+affecting the models in similar ways.
+Table 10
+LinksapproximatingthepatternsproposedinCimianoandWenderoth(2007).
+FORMAL CONSTITUTIVE
+nas-form-ofq,qas-form-ofnqas-member-ofn,qas-part-ofn,nwithq
+nas-kind-ofq,nas-sort-ofq,nbeqnwith-lot-ofq,nwith-majority-ofq
+qsuch asnnwith-number-ofq,nwith-sort-ofq
+nwith-variety-ofq
+AGENTIVE TELIC
+nas-result-ofq,qobjnnfor-use-asq,nfor-use-inq,nsbj trq
+nsbj intrq
+704
+Baroniand Lenci DistributionalMemory
+Table 11
+Averagequaliaextractionperformance.
+model precision recall F Fs.d.
+TypeDM 26.2 22.7 18.4 8.7
+P
+1
+NA NA 17.1 NA
+WebP
+1
+NA NA 16.7 NA
+LexDM 19.9 23.6 16.2 7.1
+WebJac
+1
+NA NA 15.2 NA
+DepDM 17.8 16.9 12.8 6.4
+Verb-PMI
+1
+NA NA 10.7 NA
+Base
+1
+NA NA 7.6 NA
+Model source:
+1
+Cimianoand Wenderoth (2007).
+6.2.4 Predicting
+Characteristic Properties. Recently, there has been some interest in the
+automated generation of commonsense concept descriptions in terms of intuitively
+salient properties: a dog is a mammal,itbarks,ithasatail, and so forth (Almuhareb
+2006; Baroni and Lenci 2008; Baroni, Evert, and Lenci 2008; Baroni et al. 2010). Similar
+property lists, collected from subjects in elicitation tasks, are widely used in cognitive
+science as surrogates of mental features (Garrard et al. 2001; McRae et al. 2005; Vinson
+and Vigliocco 2008). Large-scale collections of property-based concept descriptions are
+also carried out in AI, where they are important for commonsense reasoning (Liu and
+Singh 2004).
+Inthequaliatask,givenaconceptwehadtoextractpropertiesofcertainkinds(cor-
+respondingtothequaliaroles).Theproperty-baseddescriptiontaskislessconstrained,
+because themost salient relations ofanominal concept might beinallsortsofrelations
+withit(parts,typicalbehaviors,location,etc.).Still,wecouchthetaskofunconstrained
+property extraction as a challenge in theW
+1
+W
+2
+×Lspace. The approach is similar to the
+method adopted for qualia roles, but now the wholeW
+1
+W
+2
+×Lspace is used, instead of
+selected subspaces. Given all the 〈n,w
+2
+〉 pairs that have the target nominal concept as
+ﬁrst element, we rank them by length in theW
+1
+W
+2
+×Lspace. The longest〈n,w
+2
+〉vectors
+in this space should correspond to salient properties of the target concept, as we expect
+aconcepttooftenco-occurintextswithitsimportantproperties(becauseinthecurrent
+DM implementations links are disjoint across POS, we map properties with different
+POS onto the same scale by dividing the length of the vector representing a pair by the
+lengthofthelongestvectorintheharvestedconcept–propertysetthathasthesamePOS
+pair).Forexample,amongthelongestW
+1
+W
+2
+×Lvectorswithcarasﬁrstitemweﬁnd〈car,
+drive〉,〈car,park〉,and〈car,engine〉.Theﬁrsttwopairsarenormalizedbydividingbythe
+longest 〈noun, verb〉 vector in the harvested set, the third by dividing by the longest
+〈noun,noun〉vector.
+We test this approach in the ESSLLI 2008 Distributional Semantic Workshop un-
+constrained property generation challenge (Baroni, Evert, and Lenci 2008). The data set
+contains, for each of 44 concrete concepts, 10 properties that are those that were most
+frequentlyproducedbysubjectsintheelicitationexperimentofMcRaeetal.(2005)(the
+“gold standard lists”). Algorithms must generate lists of 10 properties per concept, and
+performance is measured by overlap with the subject-produced properties, that is, by
+the cross-concept average proportions of properties in the generated lists that are also
+in the corresponding gold standard lists. Smoothing would be very costly (we would
+need to smooth all pairs that contain a target concept) and probably counterproductive
+705
+ComputationalLinguistics Volume36,Number4
+(as the most typical properties of a concept should be highly speciﬁc to it, rather than
+sharedwithneighbors).BecauseLRA(atleastinareasonablyefﬁcientimplementation)
+requires apriori speciﬁcation ofthe target pairs, it is not well suited to this task.
+Table12reportsthepercentageoverlapwiththegoldstandardproperties(averaged
+across the 44 concepts) for our models as well as the only ESSLLI 2008 participant that
+triedthistask,andforthemodelsofBaronietal.(2010).TypeDMisthebestDMmodel,
+and it also does quite well compared to the state of the art. The difference between
+Strudel,thebestmodelfromtheearlierliterature,andTypeDMisnotstatisticallysignif-
+icant, according to a paired t-test across the target concepts (t=1.1,df =43, p=0.27).
+The difference between TypeDM and DV-10, the second best model from the literature,
+is highly signiﬁcant (t=2.9, df =43, p < 0.01). If we consider how difﬁcult this sort
+of open-ended task is (see the very low performance of the respectable models at the
+bottomofthelist),matchingonaveragetwooutoftenspeaker-generatedproperties,as
+TypeDM does, is an impressive feat.
+6.3 The
+W
+1
+L×W
+2
+Space
+The vectors of this space are labeled with binary tuples of type 〈w
+1,l〉 (columns of
+matrix C
+mode-3
+in Table 3), and their dimensions are labeled with wordsw
+2
+(rows of the
+samematrix).Weillustratethisspaceinthetaskofdiscriminatingverbsparticipatingin
+different argument alternations. However, other uses of the space can also be foreseen.
+For example, the rows of W
+1
+L×W
+2
+correspond to the columns of the W
+1
+×LW
+2
+space
+(given the constraints on the tuple structure we adopted in Section 3.1). We could use
+the former space for feature smoothing or selection in the latter space, for example, by
+mergingthefeaturesofW
+1
+×LW
+2
+whosecorrespondingvectorsinW
+1
+L×W
+2
+haveacosine
+similarity over agiven threshold. We leave this possibility to further work.
+Among the linguistic objects represented by the W
+1
+L×W
+2
+vectors, we ﬁnd the
+syntactic slots of verb frames. For instance, the vector labeled with the tuple 〈read,
+sbj
+−1
+〉 represents the subject slot of the verb read in terms of the distribution of its
+noun ﬁllers, which label the dimensions of the space. We can use theW
+1
+L×W
+2
+space to
+explorethesemanticpropertiesofsyntacticframes,andtoextractgeneralizationsabout
+the inner structure of lexico-semantic representations of the sort formal semanticists
+have traditionally been interested in. For instance, the high similarity between the
+object slot of kill and the subject slot of die might provide a distributional correlate to
+the classiccause(subj,die(obj))analysis ofkillingbyDowty (1977) and many others.
+Measuring the cosine between the vectors of different syntactic slots of the same
+verb corresponds to estimating the amount of ﬁllers they share. Measures of “slot
+overlap” have been used by Joanis, Stevenson, and James (2008) as features to classify
+verbs on the basis of their argument alternations. Levin and Rappaport-Hovav (2005)
+Table 12
+Average percentageoverlapwithsubject-generated propertiesand standarddeviation.
+model overlap s.d. model overlap s.d. model overlap s.d.
+Strudel
+1
+23.9 11.3 LexDM 14.5 12.1 SVD-10
+1
+4.16.1
+TypeDM 19.5 12.4 DV-10
+1
+14.1 10.3 Shaoul
+2
+1.8 3.9
+DepDM 16.1 12.6 AttrValue
+1
+8.8 9.9
+Model sources:
+1
+Baroni et al.(2010);
+2
+ESSLLI2008 sharedtask.
+706
+Baroniand Lenci DistributionalMemory
+deﬁne argument alternations as the possibility for verbs to have multiple syntactic
+realizations of their semantic argument structure. Alternations involve the expression
+of the same semantic argument in two different syntactic slots. We expect that, if a
+verb undergoes a particular alternation, then the set of nouns that appear in the two
+alternating slots should overlap to acertain degree.
+Argumentalternationsrepresentakeyaspectofthecomplexconstraintsthatshape
+the syntax–semantics interface. Verbs differ with respect to the possible alternations
+they can undergo, and this variation is strongly dependent on their semantic proper-
+ties (semantic roles, event type, etc.). Levin (1993) has in fact proposed a well-known
+classiﬁcation of verbs based on their range of syntactic alternations. Recognizing the
+alternations licensed by a verb is extremely important in capturing its argument struc-
+tureproperties,andconsequentlyindescribingitssemanticbehavior.Wefocushereon
+a particular class of alternations, namely transitivity alternations, whose verbs allow
+both for a transitive NP V NP variant and for an intransitive NP V (PP) variant (Levin
+1993). We use theW
+1
+L×W
+2
+space to carry out the automatic classiﬁcation of verbs that
+participate in different types of transitivity alternations.
+In the causative/inchoative alternation, the object argument (e.g., Johnbrokethevase)
+can also be realized as an intransitive subject (e.g.,Thevasebroke). In a ﬁrst experiment,
+we use the W
+1
+L×W
+2
+space to discriminate between transitive verbs undergoing the
+causative/inchoativealternation(C/I)(e.g.,break)andnon-alternatingones(e.g.,mince;
+cf. John minced the meat vs. *The meat minced). The C/I data set was introduced by
+Baroni and Lenci (2009), but not tested in a classiﬁcation task there. It consists of 232
+causative/inchoative verbs and 170 non-alternating transitive verbs from Levin (1993).
+In a second experiment, we apply the W
+1
+L×W
+2
+space to discriminate verbs that
+belong to three different classes, each corresponding to a different type of transitive
+alternation. We use the MS data set (Merlo and Stevenson 2001), which includes 19 un-
+ergative verbs undergoing the induced action alternation (e.g., race), 19 unaccusative
+verbsthatundergothecausative/inchoativealternation(e.g.,break),and20object-drop
+verbs participating in the unexpressed object alternation (e.g., play). See Levin (1993)
+for details about each of these transitive alternations. The complexity of this task is
+due to the fact that the verbs in the three classes have both transitive and intransitive
+variants, but with very different semantic roles. For instance, the transitive subject of
+unaccusative(Themanbrokethevase)andunergativeverbs(Thejockeyracedthehorsepast
+thebarn) is an agent of causation, whereas the subject of the intransitive variant of un-
+accusative verbs has a theme role (i.e., undergoes a change of state:Thevasebroke), and
+theintransitivesubjectofunergativeverbshasinsteadanagentrole(Thehorseracedpast
+thebarn). Thus, their surface identity notwithstanding, the semantic properties of the
+syntacticslotsoftheverbsineachclassareverydifferent.BytestingtheW
+1
+L×W
+2
+space
+on such a task we can therefore evaluate its ability to capture non-trivial properties of
+the verb’s thematic structure.
+We address these tasks by measuring the similarities between theW
+1
+L×W
+2
+vectors
+of the transitive subject, intransitive subject, and direct object slots of a verb, and using
+these inter-slot similarities to classify the verb. For instance, given the deﬁnition of
+the C/I alternation, we can predict that with alternating verbs the intransitive subject
+slot should be similar to the direct object slot (the things that are broken also break),
+while this should not hold for non-alternating verbs (mincees are very different from
+mincers). For each verb v in a data set, we extract the corresponding W
+1
+L×W
+2
+slot
+vectors 〈v,l〉 whose links are sbjintr, sbjtr,andobj (for LexDM, we sum the vectors
+with links beginning with one of these three patterns). Then, for each v we build a
+three-dimensional vector with the cosines between the three slot vectors. These second
+707
+ComputationalLinguistics Volume36,Number4
+ordervectorsencodetheproﬁleofsimilarityacrosstheslotsofaverb,andcanbeusedto
+spotverbsthathavecomparableproﬁles(e.g.,verbsthathaveahighsimilaritybetween
+theirsubjintrandobjslots).
+We model both experiments as classiﬁcation tasks using the nearest centroid
+method on the three-dimensional vectors, with leave-one-out cross-validation. We per-
+formbinaryclassiﬁcationoftheC/Idataset(treatingnon-alternatingverbsasnegative
+examples),andthree-wayclassiﬁcationoftheMSdata.Table13reportstheresults,with
+thebaselinescomputedsimilarlytotheonesinSection6.2.2(forC/I,Majorityisequiv-
+alent to AllTrue). The DM performance is also compared with the results of Merlo and
+Stevenson(2001)fortheirclassiﬁerstestedwiththeleave-one-outmethodology(macro-
+averaged Fhas been computed on the class-by-class scores reported in that article).
+AlltheDMmodelsdiscriminate theverbclassesmuchmorereliablythanthebase-
+lines.Theaccuracy ofDepDM,theworstDMmodel,issigniﬁcantly higherthanthatof
+thebestbaselines,AllTrueinC/I(Fishertest,p=0.024)andMajorityonMS(p=0.039).
+TypeDM is again our best model. Its performance is comparable to thelower range
+oftheMerloandStevensonclassiﬁers(consideringthelargeconﬁdenceintervalsdueto
+thesmallsamplesize,theaccuracyofTypeDMisnotsigniﬁcantlybeloweventhatofthe
+top model NoPass; p=0.43). The TypeDM results were obtained simply by measuring
+the verb inter-slot similarities intheW
+1
+L×W
+2
+space. Conversely, the classiﬁers inMerlo
+and Stevenson (2001) rely on a much larger range of knowledge-intensive features
+selected in an ad hoc fashion for this task (on the other hand, their training corpus
+Table 13
+Verb classiﬁcation performance(precision,recall,and FforMS aremacro-averaged).Global
+accuracy supplementedby95%binomialconﬁdenceintervals(CI).
+Causative/Inchoative(C/I)
+model prec recall F acc acc95%CI
+LexDM 76.0 69.9 72.8 69.9 65.2–74.3
+TypeDM 75.7 68.5 71.9 69.1 64.4–73.6
+DepDM 72.8 64.6 68.4 65.7 60.8–70.3
+AllTrue 57.7 100 73.2 57.7 52.7–62.6
+ProbMatch 57.7 57.7 57.7 51.2 46.2–56.2
+Merlo &Stevenson (MS)
+model prec recall F acc acc95%CI
+NoPass
+1
+NA NA 71.2 71.2 57.3–81.9
+AllFeatures
+1
+NA NA 69.169.5 55.5–80.5
+NoTrans
+1
+NA NA 63.8 64.4 50.1–76.0
+NoCaus
+1
+NA NA 62.6 62.7 48.4–74.5
+TypeDM 60.7 61.7 60.8 61.5 47.5–73.7
+NoVBN
+1
+NA NA 61.0 61.0 46.6–73.0
+NoAnim
+1
+NA NA 59.9 61.0 46.6–73.0
+LexDM 55.3 56.7 55.8 56.4 43.2–69.8
+DepDM 52.9 55.0 53.2 54.7 41.5–68.3
+Majority 11.3 33.3 16.9 33.9 22.5–48.1
+ProbMatch 33.3 33.3 33.3 33.3 21.0–46.3
+AllTrue 33.3 100 50.0 NA NA
+Model source:
+1
+Merloand Stevenson (2001).
+708
+Baroniand Lenci DistributionalMemory
+is not parsed and it is much smaller than ours). Finally, we can notice that in both
+experiments the mildly (TypeDM) and heavily (LexDM) lexicalized DM models score
+betterthantheirnon-lexicalizedcounterpart(DepDM),althoughthedifferencebetween
+the best DM model and DepDM is not signiﬁcant on either data set (p =0.23 for the
+LexDM/DepDMdifferenceinC/I;p=0.57fortheTypeDM/DepDMdifferenceinMS).
+VerbalternationsdonottypicallyappearamongthestandardtasksonwhichDSMs
+are tested. Moreover, they involve non-trivial properties of argument structure. The
+good performance of DM in these experiments is therefore particularly signiﬁcant in
+supporting its vocation as ageneral model for distributional semantics.
+6.4 The
+L×W
+1
+W
+2
+Space
+The vectors of this space are labeled with links l (rows of matrix B
+mode-2
+in Table 3)
+and their dimensions are labeled with word pair tuples 〈w
+1,w
+2
+〉 (columns of the same
+matrix). Links are represented in terms of the word pairs they connect. The L×W
+1
+W
+2
+space supports tasks where we are directly interested in the links as an object of
+study—for example, characterizing prepositions (Baldwin, Kordoni, and Villavicencio
+2009) or measuring the relative similarity of different kinds of verb–noun relations. We
+focus here instead on a potentially more common use ofL×W
+1
+W
+2
+vectors as a “feature
+selection and labeling” space forW
+1
+W
+2
+×Ltasks.
+Speciﬁcally, we go back to the qualia extraction task of Section 6.2.3. There, we
+started with manually identiﬁed links. Here, we start with examples of noun–quale
+pairs〈n,q
+r
+〉thatinstantiatearoler.WeprojectallL×W
+1
+W
+2
+vectorsinasubspacewhere
+only dimensions corresponding to one of the example pairs are non-zero. We then pick
+the most characteristic links in this subspace to represent the target roler, and look for
+new pairs 〈n,q
+r
+〉 in theW
+1
+W
+2
+×Lsubspace deﬁned by these automatically picked links,
+instead of the manual ones. Although we stop at this point, the procedure can be seen
+asaDMversionofpopulariterativebootstrappingalgorithmssuchasEspresso(Pantel
+and Pennacchiotti 2006): Start with some examples of the target relation, ﬁnd links that
+are typical of these examples, use the links to ﬁnd new examples, and so on. In DM,
+the process does not go back to a corpus to harvest new links and example pairs, but it
+iterates between the column and row spaces of a pre-compiled matrix (i.e, the mode-2
+matricization in Table 3).
+For each of the 30 noun concepts in the Cimiano and Wenderoth gold standard, we
+use the noun–quale pairs pertaining to the remaining 29 concepts as training examples
+toselectasetof20linksthatwethenuseinthesamewayasthemanuallyselectedlinks
+ofSection6.2.3.SimplypickingthelongestlinksintheL×W
+1
+W
+2
+subspacedeﬁnedbythe
+example 〈n,q
+r
+〉 dimensions does not work, because we harvest links that are frequent
+in general, rather than characteristic of the qualia roles (noun modiﬁcation,of,etc.).For
+eachroler,weconstructinsteadtwoL×W
+1
+W
+2
+subspaces,onepositivesubspacewiththe
+examplepairs〈n,q
+r
+〉asuniquenon-zerodimensions,andanegativesubspacewithnon-
+zero dimensions corresponding to all 〈w
+1,w
+2
+〉 pairs such that w
+1
+is one of the training
+nominal concepts, and w
+2
+is not a quale q
+r
+in the example pairs. We then measure the
+length of each link in both subspaces. For example, we measure the length of the obj
+link in a subspace characterized by 〈n,q
+telic
+〉 example pairs, and the length of obj in a
+subspace characterized by 〈n,w
+2
+〉 pairs that are probablynotTelic examples. We com-
+pute the pointwise mutual information (PMI) statistic (Church and Hanks 1990) on
+these lengths to ﬁnd the links that are most typical of the positive subspace corre-
+sponding to each qualia role. PMI, with respect to other association measures, ﬁnds
+more speciﬁc links, which is good for our purposes. However, it is also notoriously
+709
+ComputationalLinguistics Volume36,Number4
+prone to over-estimating the importance of rare items (Manning and Sch¨utze 1999,
+Chapter 5). Thus, before selecting the top 20 links ranked by PMI, we ﬁlter out those
+links that do not have at least 10 non-zero dimensions in the positive subspace. Many
+parametershereshouldbetunedmoresystematically(topnlinks,associationmeasure,
+minimum non-zero dimensions), but the current results will nevertheless illustrate our
+methodology.
+Table 14 reports, for each quale, the TypeDM links that were selected in each of the
+30leave-one-concept-outfolds.Thelinksnisq,ninq,andqsuchasnareagoodsketchof
+theFormalrelation,whichessentiallysubsumesvarioustaxonomicrelations.Theother
+Formal links are less conspicuous. However, note the presence of noun coordination
+(ncoordq and qcoordn), consistently with the common claim that coordinated terms
+tend to be related taxonomically (Widdows and Dorow 2002). Constitutive is mostly a
+whole–partrelation,andtheharvestedlinksdoagoodjobatillustratingsucharelation.
+FortheTelic,qbyn,qthroughn,andqviancapturecasesinwhichthequalestandsinan
+action–instrument relation to the target noun (murderbyknife). These links thus encode
+the subtype of Telic role that Pustejovsky (1995) calls “indirect.” The two verb–noun
+links (qobjnand nsbjintrq) instead capture “direct” Telic roles, which are typically
+expressed by the theme of a verb (readabook, thebookreadswell). The least convincing
+results are those for the Agentive role, where only qobjnand perhaps q out n are
+intuitively plausible canonical links. Interestingly, the manual selections we carried out
+in Section 6.2.3 also gave very poor results for the Agentive role, as shown by the fact
+that Table 10 reports just one link for such a role. This suggests that the problems with
+this qualia role might be due to the number and type of lexicalized links used to build
+the DM tensors, rather than to the selection algorithm presented here.
+Coming now to the quantitative evaluation of the harvested patterns, the results in
+Table 15 (to be compared to Table 11 in Section 6.2.3) are based onW
+1
+W
+2
+×Lsubspaces
+where the non-zero dimensions correspond to the links that we picked automatically
+with the method we just described (different links for each concept, because of the
+leave-one-concept-out procedure). TypeDM is the best model in this setting as well.
+Its performance is even better than the one (reported in Table 11) obtained with the
+manually picked patterns (although the difference is not statistically signiﬁcant; paired
+t-test, t=0.75, df =29, p =0.46), and the automated approach has more room for
+improvement via parameter optimization.
+We did not get as deeply into L×W
+1
+W
+2
+space as we did with the other views, but
+our preliminary results on qualia harvesting suggest at least that looking at links as
+Table 14
+Linksselected inallfoldsof theleave-one-outproceduretoextract linkstypicalof eachqualia
+role.
+FORMAL CONSTITUTIVE
+nisq,qisn,qbecomen,ncoordq, nhaveq,nuseq,nwithq,nwithoutq
+qcoordn,qhaven,ninq,nprovideq,
+qsuch asn
+AGENTIVE TELIC
+qaftern,qalongsiden,qasn,qbeforen, qbehindn,qbyn,qliken,qobjn,
+qbesidesn,qduringn,qinn,qobjn, nsbj intrq,qthroughn,qvian
+qoutn,qovern,qsincen,qunliken
+710
+Baroniand Lenci DistributionalMemory
+Table 15
+Averagequaliaextractionperformancewithautomaticallyharvestedlinks(comparetoTable11).
+model precision recall F Fs.d.
+TypeDM 24.2 26.7 19.1 7.7
+DepDM 18.4 27.0 15.1 4.9
+LexDM 22.6 18.1 14.8 7.7
+L×W
+1
+W
+2
+vectors might be useful for feature selection inW
+1
+W
+2
+×Lor for tasks in which
+we are given a set of pairs, and we have to ﬁnd links that can function as verbal labels
+for the relation between the word pairs (Turney 2006a).
+6.5 Smoothing
+by Tensor Decomposition
+Dimensionalityreductiontechniquessuchasthe(truncated)SVDapproximateasparse
+co-occurrence matrix with a denser lower-rank matrix of the same size, and they have
+been shown to be effective in many semantic tasks, probably because they provide
+a beneﬁcial form of smoothing of the dimensions. See Turney and Pantel (2010) for
+references and discussion. We can apply SVD (or similar methods) to any of the tensor-
+derivedmatricesweusedforthetasksherein.Aninterestingalternativeistosmooththe
+source tensor directly by a tensor decomposition technique. In this section, we present
+(very preliminary) evidence that tensor decomposition can improve performance, and
+it is at least as good in this respect as matrix-based SVD. This is the only experiment
+in which we operate on the tensor directly, rather than on the matrices derived from it,
+paving the way to a more active role for the underlying tensor in the DM approach to
+semantics.
+The (truncated) Tucker decomposition of a tensor can be seen as a higher-order
+generalization of SVD. Given a tensor X of dimensionality I
+1
+×I
+2
+×I
+3,itsn-rank R
+n
+is the rank of the vector space spanned by its mode-n ﬁbers (obviously, for each
+modenofthetensor,R
+n
+≤I
+n
+).TuckerdecompositionapproximatesthetensorX having
+n-ranks R
+1,...,R
+n
+with
+˜
+X, a tensor with n-ranks Q
+n
+≤R
+n
+for all modes n. Unlike the
+caseofSVD,thereisnoanalytical procedure toﬁndthebestlower-rankapproximation
+to a tensor, and Tucker decomposition algorithms search for the reduced rank tensor
+with the best ﬁt (as measured by least square error) iteratively. Speciﬁcally, we use the
+memory-efﬁcient MET(1) algorithm of Kolda and Sun (2008) as implemented in the
+Matlab Tensor Toolbox.
+10
+Kolda and Bader (2009) provide details on Tucker decompo-
+sition, its general properties, as well as applications and alternatives.
+SVDisbelievedtoexploitpatternsofhigherorderco-occurrence betweentherows
+and columns of a matrix (Manning and Sch¨utze 1999; Turney and Pantel 2010), making
+row elements that co-occur with two synonymic columns more similar than in the
+original space. Tucker decomposition applied to the mode-3 tuple tensor could capture
+patterns of higher order co-occurrence for each of the modes. For example, it might
+captureatthesametimesimilaritiesbetweenlinkssuchasuseandholdandw
+2
+elements
+such as gun and knife. SVD applied after construction of the W
+1
+×LW
+2
+matrix, on the
+other hand, would miss the composite nature of columns such as 〈use,gun〉, 〈use,knife〉
+and 〈hold,gun〉. Another attractive feature of Tucker decomposition is that it could be
+10 http://csmr.ca.sandia.gov/∼tgkolda/TensorToolbox/.
+711
+ComputationalLinguistics Volume36,Number4
+Table 16
+PurityinAlmuhareb–Poesioconcept clusteringwithrankreductionof theAPTypeDMtensor;
+95%conﬁdence intervals(CI) obtainedbybootstrapping.
+reduction rank purity 95%CI
+Tucker 250×50×500 75 72–80
+Tucker 300×50×500 75 71–79
+Tucker 300×50×450 74 71–79
+SVD 200 74 71–79
+SVD 350 74 70–79
+Tucker 300×40×500 74 70–78
+Tucker 300×60×500 74 70–78
+Tucker 350×50×500 73 69–77
+Tucker 300×50×550 72 69–77
+SVD 250 72 69–77
+SVD 150 72 68–77
+none ≤ 402 7169–77
+SVD 300 7168–76
+SVD 100 68 65–73
+SVD 50 64 61–70
+applied once to smooth the source tensor, whereas with SVD each matricization must
+besmoothedseparately.However,TuckerdecompositionandSVDarecomputationally
+intensiveprocedures,and,atleastwithourcurrentcomputationalresources,wearenot
+able to decompose even the smallest DM tensor (similarly, we cannot apply SVD to a
+full matricization). Given the continuous growth in computational power and the fact
+thatefﬁcienttensordecomposition isaveryactiveareaofresearch (Turney2007;Kolda
+and Sun 2008) full tensor decomposition is nevertheless arealistic near future task.
+For the current pilot study, we replicated the AP concept clustering experiment
+described in Section 6.1.3. Because for efﬁciency reasons we must work with just a
+portionoftheoriginal tensor,wethoughtthattheAPdataset,consistingofarelatively
+largeandbalancedcollectionofnominalconcepts,wouldofferasensiblestartingpoint
+to extract the subset. Speciﬁcally, we extract from our best tensor TypeDM the values
+labeledbytuples〈w
+AP,l,w
+2
+〉wherew
+AP
+isintheAPset,lisoneofthe100mostcommon
+links occurring in tuples with a w
+AP,andw
+2
+is one of the 1,000 most common words
+occurring in tuples with a w
+AP
+and a l. The resulting (sub-)tensor, APTypeDM, has
+dimensionality 402×100×1,000 with 1,318,214 non-zero entries (density: 3%). The
+W
+1
+×LW
+2
+matricization of APTypeDM results in a 402×1,000,000 matrix with 66,026
+non-zero columns and the same number ofnon-zero entries and density as the tensor.
+Thepossiblecombinations oftargetlowern-ranksconstitutealargetridimensional
+parameter space, and we leave its systematic exploration to further work. Instead, we
+pick300,50,and500as(intuitivelyreasonable)initialtargetn-ranksforthethreemodes,
+andweexploretheirneighborhoodinparameterspacebychangingonetargetn-rankat
+atime,byarelativelysmallvalue(300±50,50±10,and500±50,respectively).Forthe
+parameters concerning the reduced tensor ﬁtting process, we accept the default values
+of the Tensor Toolbox. For comparison purposes, we also apply SVD to the W
+1
+×LW
+2
+matrix derived from APTypeDM. We systematically explore the SVD target lower rank
+parameter from 50 to 350 in increments of 50 units.
+The results are reported in Table 16. The rank column reports the n-ranks when
+reductionisperformedonthetensor,andmatrixranksintheothercases.Bootstrapped
+conﬁdence intervals are obtained as described in Section 6.1.3. In general, the results
+712
+Baroniand Lenci DistributionalMemory
+conﬁrm that smoothing by rank reduction is beneﬁcial to semantic performance, al-
+though not spectacularly so, with an improvement of about 4% for the best reduced
+model with respect to the raw APTypeDM tensor (consider however also the relatively
+wide conﬁdence intervals). As a general trend, tensor-based smoothing (Tucker) does
+better than matrix-based smoothing (SVD). As we said, for Tucker we only report re-
+sults from a small region of the tridimensional parameter space, whereas the SVD rank
+parameter range is explored coarsely but exhaustively. Thus, although other parameter
+combinations might lead to dramatic changes in Tucker performance, the best SVD
+performance in the table is probably close tothe SVDperformance upper bound.
+The present pilot study suggests an attitude of cautious optimism towards tensor
+decomposition as a smoothing technique. At least in the AP task, it helps as compared
+to no smoothing at all. The same conclusion is reached by Turney (2007), who uses
+essentially the same method (with some differences in implementation) to tackle the
+TOEFL task, and obtains more than 10% improvement in accuracy with respect to the
+correspondingrawtensor.Atleastasatrend,tensordecompositionappearstobebetter
+thanmatrixdecomposition, butonlymarginally so(Turneydoesnotperformthiscom-
+parison). Still, even if the tensorand matrix-based decompositions turned out to have
+comparable effects, tensor-based smoothing is more attractive in the DM framework
+becausewecouldperformthedecompositiononce,andusethesmoothedtensorasour
+stable underlying DM (modulo, of course, memory problems with computing such a
+large tensor decomposition).
+Beyond smoothing, tensor decomposition might provide some novel avenues for
+distributional semantics, while keeping to the DM program of a single model for many
+tasks. Van de Cruys (2009) used tensor decomposition to ﬁnd commonalities in latent
+dimensions across the ﬁber labels (in the DM formalism, this would amount to ﬁnding
+commonalities across w
+1, l,andw
+2
+elements). Another possible use for smoothing
+would be to propagate “link mass” across parts of speech. Our tensors, being based on
+POStagginganddependencyparsing,have0valuesfornoun-link-nountuplessuchas
+〈city,obj,destruction〉and〈city,subjtr,destruction〉.Inasmoothedtensor,bytheinﬂuence
+of tuples such as 〈city,obj,destroy〉 and 〈city,sbjtr,destroy〉, these tuples will get some
+non-0 weight that, hopefully, will make the object relation betweencityanddestruction
+emerge. This is at the moment just a conjecture, but it constitutes an exciting direction
+for further work focusing on tensor decomposition within the DMframework.
+7. Conclusion
+A general framework for distributional semantics should satisfy the following two
+requirements: (1) representing corpus-derived data in such a way as to capture aspects
+ofmeaningthathavesofarbeenmodeledwithdifferent,primafacieincompatibledata
+structures; (2) using this common representation to address a large battery of semantic
+experiments, achieving a performance at least comparable to that of state-of-art, task-
+speciﬁc DSMs. We can now safely claim that DM satisﬁes both these desiderata, and
+thereby represents a genuine step forward in the quest for a general purpose approach
+to distributional semantics.
+DM addresses point (1) by modeling distributional data as a structure of weighted
+tuples that is formalized as a labeled third-order tensor. This is a generalization with
+respecttothecommonapproachofmanycorpus-basedsemanticmodels(thestructured
+DSMs) that rely on distributional information encoded into word–link–word tuples,
+associatedwithweightsthatarefunctionsoftheirfrequencyofco-occurrenceinthecor-
+pus. Existing structured DSMs still couch this information directly in binary structures,
+713
+ComputationalLinguistics Volume36,Number4
+namely,co-occurrencematrices,therebygivingrisetodifferentsemanticspacesandlos-
+ing sight of the fact that such spaces share the same kind of distributional information.
+The third-order tensor formalization of distributional data allows DM to fully exploit
+thepotentialofcorpus-derivedtuples.Thefoursemanticspacesweanalyzedandtested
+inSection6aregeneratedfromthesameunderlyingthird-ordertensor,bythestandard
+operation of tensor matricization. This way, we derive a set of semantic spaces that can
+beusedformeasuringattributionalsimilarity(ﬁndingsynonyms,categorizingconcepts
+into superordinates, etc.) and relational similarity (ﬁnding analogies, grouping concept
+pairsintorelationclasses,etc.).Moreover,thedistributionalinformationencodedinthe
+tensor and unfolded via matricization leads to further arrangements of the data useful
+inaddressingsemanticproblemsthatdonotfallstraightforwardlyintotheattributional
+or the relational paradigm (grouping verbs by alternations, harvesting patterns that
+representarelation).Insomecases,itisobvioushowtoreformulateasemanticproblem
+in the new framework. Other tasks can be reframed in terms of our four semantic
+spaces using geometric operations such as centroid computations and projection onto
+a subspace. This was the case for selectional preferences, patternand example-based
+relation extraction (illustrated by qualia harvesting), and the task of generating typical
+properties of concepts. We consider a further strength of the DM approach that it natu-
+rally encourages us to think, as we did in these cases, of ways to tackle apparently
+unrelated tasks with the existing resources, rather than devising unrelated approaches
+todeal with them.
+Regardingpoint(2),thatis,addressingalargebatteryofsemanticexperimentswith
+good performance, in nearly all test sets our best implementation of DM (TypeDM) is
+at least as good as other algorithms reported in recently published papers (typically
+developed or tuned for the task at hand), often towards (or at) the top of the state-of-
+the-art ranking. Where other models outperform TypeDM by a large margin, there are
+typicallyobviousreasonsforthis:Therivalshavebeentrainedonmuchlargercorpora,
+or they rely on special knowledge resources, or on sophisticated machine learning
+algorithms. Importantly, TypeDM is consistently at least as good (or better than) those
+models we reimplemented tobe fullycomparable toour DMs(i.e.,Win, DV, LRA).
+Moreover, the best DM implementation does not depend on the semantic space:
+TypeDM outperforms (at least in terms of average performance across tasks) the other
+twomodelsinallfourspaces.Thisisnotsurprising(betterdistributionaltuplesshould
+still be better when seen from different views), but it is good to have an empirical con-
+ﬁrmation of the a priori intuition. The current results suggest that one could, for exam-
+ple, compare alternative DMs on a few attributional tasks, and expect the best DM in
+these tasks to also be the best in relational tasks and other semantic challenges.
+The ﬁnal experiment of Section 6 brieﬂy explored an interesting aspect of the
+tensor-based formalism, namely, the possibility of improving performance on some
+tasks by working directly on the tensor (in this case, applying tensor rank reduction
+for smoothing purposes) rather than on the matrices derived from it. Besides this pilot
+study, we did not carry out any task-speciﬁc optimization of TypeDM, which achieves
+its very good performance using exactly the same underlying parameter conﬁguration
+(e.g., dependency paths, weighting function) across the different spaces and tasks.
+Parameter tuning is an important aspect in DSM development, with an often dramatic
+impact of parameter variation (Bullinaria and Levy 2007; Erk and Pad´o 2009). We
+leave the exploration of parameter space in DM for future research. Its importance not-
+withstanding, however, we regard this as a rather secondary aspect, if compared with
+the good performance of a DM model (even in its current implementation) in the large
+and multifarious set oftasks we presented.
+714
+Baroniand Lenci DistributionalMemory
+Of course, many issues are still open. It is one thing to claim that the models that
+outperformTypeDMdosobecausetheyrelyonlargercorpora;itisanothertoshowthat
+TypeDM trained on more data does reach the top of the current heap. The differences
+between TypeDM and the other, generally worse-performing DM models remind us
+that the idea of a shared distributional memory per se is not enough to obtain good
+results, and the extraction of an ideal DM from the corpus certainly demands further
+attention. We need to reach a better understanding of which pieces of distributional
+informationtoextract,andwhetherdifferentsemantictasksrequirefocusingonspeciﬁc
+subsetsofdistributionaldata.Anotherissuewecompletelyignoredbutwhichwillbeof
+fundamental importance in applications is how a DM-based system can deal with out-
+of-vocabulary items. Ideally, we would like a seamless way to integrate new terms in
+themodelincrementally,basedonjustafewextradatapoints,butweleaveittofurther
+researchtostudyhowthiscouldbeaccomplished,togetherwiththeundoubtedlymany
+further practical and theoretical problems that will emerge. We will conclude, instead,
+bydiscussingsomegeneraladvantagesthatfollowfromtheDMapproachofseparating
+corpus-based modelbuilding,themulti-purposelongtermdistributionalmemory,and
+different views of the memory data to accomplish different semantic tasks, without
+resorting to the source corpus again.
+First of all, we would like to make a more general point regarding parameter
+tuning and task-speciﬁc optimization, by going back to the analogy with WordNet as a
+semantic multi-purpose resource. If you want to improve performance of a WordNet-
+based system, you will probably not wait for its next release, but rather improve the
+algorithmsthatworkontheexistingWordNetgraph.Similarly,intheDMapproachwe
+propose that corpus-based resources for distributional semantics should be relatively
+stable, multi-purpose, large-scale databases (in the form of weighted tuple structures),
+onlyoccasionallyupdated(becauseabetterorlargercorpusbecomesavailable,abetter
+parser, etc.). Still, given the same underlying DM and a certain task, much work can be
+done to exploit the DM optimally in the task, with no need to go back to corpus-based
+resource construction. For example, performance on attributional tasks could be raised
+bydimensionreweightingtechniquessuchasrecentlyproposedbyZhitomirsky-Geffet
+and Dagan (2009). For the problem of data sparseness in theW
+1
+W
+2
+×Lspace, we could
+treat the tensor as a graph and explore random walks and other graphical approaches
+that have been shown to “scale down” gracefully to capture relations in sparser data
+sets (Minkov and Cohen 2007, 2008). As in our simple example of smoothing relational
+pairs with attributional neighbors, more complex tasks may be tackled by combining
+different views of DM, and/or resorting to different (sub)spaces within the same view,
+as in our approach to selectional preferences. One might even foresee an algorithmic
+way to mix and match the spaces as most appropriate to a certain task. We propose a
+similarsplitfortheroleofsupervisioninDSMs.ConstructionoftheDMtensorfromthe
+corpus is most naturally framed as an unsupervised task, because the model will serve
+many different purposes. On the other hand, supervision can be of great help in tuning
+theDMdatatospeciﬁctasks(aswedid,inarathernaiveway,withthenearestcentroid
+approach to most non-attributional tasks). A crucial challenge for DSMs is whether
+and how corpus-derived vectors can also be used in the construction of meaning for
+constituents larger than words. These are the traditional domains of formal semantics,
+which is most interested in how the logical representation of a sentence or a discourse
+is built compositionally by combining the meanings of its constituents. DSMs have so
+far focused on representing lexical meaning, and compositional and logical issues have
+eitherremainedoutofthepicture,orhavereceivedstillunsatisfactoryaccounts.Agen-
+eral consensus exists on the need to overcome this limitation, and to build new bridges
+715
+ComputationalLinguistics Volume36,Number4
+betweencorpus-basedsemanticsandsymbolicmodelsofmeanings(ClarkandPulman
+2007; Widdows 2008). Most problems encountered by DSMs in tackling this challenge
+are speciﬁc instances of more general issues concerning the possibility of representing
+symbolic operations with distributed, vector-based data structures (Markman 1999).
+Many avenues are currently being explored in corpus-based semantics, and interesting
+synergies are emerging with research areas such as neural systems (Smolensky 1990;
+SmolenskyandLegendre2006),quantuminformation(WiddowsandPeters2003;Aerts
+and Czachor 2004; Widdows 2004; Van Rijsbergen 2004; Bruza and Cole 2005; Hou
+and Song 2009), holographic models of memory (Jones and Mewhort 2007), and so
+on. A core problem in dealing with compositionality with DSMs is to account for the
+role of syntactic information in determining the way semantic representations are built
+from lexical items. For instance, the semantic representation assigned to Thedogbites
+theman must be different from the one assigned to Themanbitesthedog, even if they
+contain exactly the same lexical items. Although it is still unclear which is the best
+way to compose the representation of content words in vector spaces, it is nowadays
+widely assumed that structured representations like those adopted by DM are in the
+rightdirectiontowardsasolutiontothisissue,exactlybecausetheyallowdistributional
+representationstobecomesensitivetosyntacticstructures(ErkandPad´o2008).Compo-
+sitionalityandsimilarissuesinDSMsliebeyondthescopeofthispaper.However,there
+isnothinginDMthatpreventsitfrominteractingwithanyoftheresearchdirectionswe
+have mentioned here. Indeed, we believe that the generalized nature of DM represents
+a precondition for distributional semantics to be able to satisfactorily address these
+more advanced challenges. A multi-purpose, distributional semantic resource like DM
+can allow researchers to focus on the next steps of semantic modeling. These include
+compositionality, but also modulating word meaning in context (Erk and Pad´o 2008;
+Mitchell and Lapata 2008) and ﬁnding ways to embed the distributional memory in
+complex NLP systems (e.g., for question answering or textual entailment) or even
+embodied agents and robots.
+DM-style triples predicating a relation between two entities are common currency
+in many semantic representation models (e.g., semantic networks) and knowledge-
+exchange formalisms such as RDF. This might also pave the way to the integration of
+corpus-based information with other knowledge sources. It is hard to see how such
+integration could be pursued within generalized systems, such as PairClass (Turney
+2008), that require keeping a full corpus around and corpus-processing know-how on
+behalf of interested researchers from outside the NLP community (see discussion in
+Section4above).Similarly,theDMtriplesmighthelpinfosteringthedialoguebetween
+computational linguists and the computational neuro-cognitive community, where it is
+commontoadopttriple-basedrepresentationsofknowledge,andtousethesamesetof
+tuples to simulate various aspects of cognition. For a recent extended example of this
+approach, see Rogers and McClelland (2004). It would be relatively easy to use a DM
+model in lieu of their neural network, and use it to simulate the conceptual processes
+they reproduce.
+DM, unlike classic DSM models that go directly from the corpus data to solving
+speciﬁc semantic tasks, introduces a clear distinction between an acquisition phase
+(corpus-based tuple extraction and weighting), the declarative structure at the core of
+semantic modeling (the distributional memory), and the procedural problem-solving
+components(possiblysupervisedprocedurestoperformdifferentsemantictasks).This
+separation is in line with what is commonly assumed in cognitive science and formal
+linguistics, and we hope it will contribute to make corpus-based modeling a core part
+of the ongoing study of semantic knowledge in humans and machines.
+716
+Baroniand Lenci DistributionalMemory
+Acknowledgments
+We thankAbdulrahmanAlmuhareb,
+PhilippCimiano,GeorgeKarypis,
+TamaraKolda,ThomasLandauer,
+MirellaLapata,Ken McRae, BrianMurphy,
+Vivi Nastase, Diarmuid
+´
+OS´eaghdha,
+Sebastianand UlrikePad´o,Suzanne
+Stevenson,PeterTurney,theircolleagues,
+andtheSEMEVAL Task4organizersfor
+dataand tools.We thankGemmaBoleda,
+PhillippCimiano,KatrinErk,StefanEvert,
+BrianMurphy,Massimo Poesio,Magnus
+Sahlgren,Tim Van deCruys, PeterTurney,
+andthreeanonymousreviewersfor a
+mixtureofadvice, clariﬁcation,and ideas.
+References
+Aerts,Diederikand MarekCzachor. 2004.
+Quantumaspects of semanticanalysis and
+symbolicartiﬁcialintelligence.Journalof
+PhysicsA:MathematicalandGeneral,
+37:123–132.
+Alishahi,Afraand SuzanneStevenson.2008.
+Adistributionalaccount ofthesemantics
+of multiwordexpressions.ItalianJournalof
+Linguistics,20(1):157–179.
+Almuhareb,Abdulrahman.2006.Attributes
+inLexicalAcquisition. Ph.D.thesis,
+Universityof Essex.
+Almuhareb,Abdulrahmanand Massimo
+Poesio.2004. Attribute-basedand
+value-based clustering:An evaluation.
+InProceedingsofEMNLP,pages158–165,
+Barcelona.
+Almuhareb,Abdulrahmanand Massimo
+Poesio.2005. Concept learningand
+categorizationfromtheweb.InProceedings
+ofCogSci, pages103–108, Stresa.
+Baldwin,Timothy,Valia Kordoni,and
+AlineVillavicencio. 2009.Prepositionsin
+applications:Asurveyandintroductionto
+thespecial issue.ComputationalLinguistics,
+35(2):119–149.
+Baroni,Marco,EduardBarbu,BrianMurphy,
+and Massimo Poesio.2010. Strudel:A
+distributionalsemantic modelbased on
+propertiesand types.CognitiveScience,
+34(2):222–254.
+Baroni,Marco,StefanEvert,and
+AlessandroLenci,editors.2008.Bridging
+theGapbetweenSemanticTheoryand
+ComputationalSimulations:Proceedings
+oftheESSLLIWorkshoponDistributional
+LexicalSemantic.FOLLI,Hamburg.
+Baroni,Marcoand AlessandroLenci. 2008.
+Concepts andpropertiesin wordspaces.
+ItalianJournalofLinguistics,20(1):55–88.
+Baroni,Marcoand AlessandroLenci. 2009.
+Onedistributionalmemory,many
+semantictasks. InProceedingsoftheEACL
+GEMSWorkshop, pages 1–8,Athens.
+Bicic¸i,ErgunandDeniz Yuret.2006.
+Clusteringword pairstoanswer analogy
+questions.InProceedingsoftheFifteenth
+TurkishSymposiumonArtiﬁcialIntelligence
+andNeuralNetworks,pages 277–284,
+Muˇgla.
+Bruza,Peter andRichard Cole. 2005.
+Quantumlogicof semanticspace:
+An exploratoryinvestigationof context
+effectsin practical reasoning.In
+SergeiArtemov,Howard Barringer,
+Arthurd’AvilaGarcez, LuisC.Lamb,
+and JohnWoods, editors,WeWillShow
+Them:EssaysinHonourofDovGabbay,
+volumeone.CollegePublications,London,
+pages339–361.
+Buitelaar,Paul,PhilippCimiano,and
+BernardoMagnini.2005.Ontology
+LearningfromText.IOSPress,Amsterdam.
+Bullinaria,Johnand JosephLevy.2007.
+Extractingsemanticrepresentations
+fromwordco-occurrencestatistics: A
+computationalstudy.BehaviorResearch
+Methods,39:510–526.
+Chen,Hsin-Hsi,Ming-ShunLin,and
+Yu-ChuanWei. 2006. Novel association
+measuresusingWeb search withdouble
+checking.InProceedingsofCOLING-ACL,
+pages1009–1016, Sydney.
+Church,Kenneth and Peter Hanks.1990.
+Word association norms,mutual
+information,and lexicography.
+ComputationalLinguistics,16(1):22–29.
+Cimiano,Philippand JohannaWenderoth.
+2007. Automaticacquisition of ranked
+qualiastructuresfromtheWeb. In
+ProceedingsofACL,pages888–895,
+Prague.
+Clark,Stephenand StephenPulman.2007.
+Combiningsymbolicand distributional
+modelsof meaning.InProceedingsofthe
+AAAISpringSymposiumonQuantum
+Interaction,pages 52–55, Stanford,CA.
+Curran,Jamesand MarcMoens. 2002.
+Improvementsinautomaticthesaurus
+extraction.InProceedingsoftheACL
+WorkshoponUnsupervisedLexical
+Acquisition,pages 59–66, Philadelphia,PA.
+Davidov,DmitryandAriRappoport.2008a.
+Classiﬁcation ofsemantic relationships
+betweennominalsusingpatternclusters.
+InProceedingsofACL,pages227–235,
+Columbus,OH.
+Davidov,DmitryandAriRappoport.
+2008b.Unsupervised discoveryof
+717
+ComputationalLinguistics Volume36,Number4
+genericrelationshipsusingpattern
+clusters and itsevaluationby
+automaticallygeneratedSAT analogy
+questions. InProceedingsofACL,
+pages 692–700, Columbus,OH.
+Dietterich,Thomas.1998.Approximate
+statistical tests forcomparingsupervised
+classiﬁcation learningalgorithms.Neural
+Computation, 10(7):1895–1924.
+Dowty,David.1977.WordMeaningand
+MontagueGrammar.Kluwer,Dordrecht.
+Dunning,Ted. 1993.Accuratemethodsfor
+thestatistics of surpriseand coincidence.
+ComputationalLinguistics,19(1):61–74.
+Efron,Bradleyand Robert Tibshirani.1994.
+AnIntroductiontotheBootstrap.Chapman
+and Hall,BocaRaton, FL.
+Erk,Katrin.2007. Asimple,similarity-based
+model forselectional preferences.
+InProceedingsofACL,pages 216–223,
+Prague.
+Erk,Katrinand SebastianPad´o.2008.A
+structuredvector space model forword
+meaningincontext.InProceedingsof
+EMNLP,pages 897–906, Honolulu,HI.
+Erk,Katrinand SebastianPad´o.2009.
+Paraphraseassessment in structured
+vector space: Exploringparametersand
+datasets. InProceedingsoftheEACL
+GEMSWorkshop, pages57–65, Athens.
+Evert,Stefan.2005.TheStatisticsofWord
+Cooccurrences.Ph.D.dissertation,
+StuttgartUniversity.
+Fellbaum,Christiane,editor.1998.WordNet:
+AnElectronicLexicalDatabase.MIT Press,
+Cambridge,MA.
+Garrard,Peter,MatthewLambonRalph,
+JohnHodges,and KaralynPatterson.
+2001. Prototypicality,distinctiveness,
+and intercorrelation:Analyses ofthe
+semantic attributesof livingand nonliving
+concepts.CognitiveNeuropsychology,
+18(2):25–174.
+Geeraerts,Dirk.2010.TheoriesofLexical
+Semantics.OxfordUniversityPress,
+Oxford.
+Girju,Roxana,AdrianaBadulescu,and
+Dan Moldovan.2006.Automaticdiscovery
+of part-wholerelations.Computational
+Linguistics,32(1):83–135.
+Girju,Roxana,PreslavNakov, Vivi Nastase,
+Stan Szpakowicz, PeterTurney,and
+Deniz Yuret.2007. SemEval-2007task04:
+Classiﬁcation of semanticrelations
+between nominals.InProceedingsof
+SemEval2007, pages13–18, Prague.
+Grefenstette,Gregory.1994.Explorationsin
+AutomaticThesaurusDiscovery.Kluwer,
+Boston,MA.
+Grifﬁths,Tom,MarkSteyvers,and Josh
+Tenenbaum.2007. Topicsin semantic
+representation.PsychologicalReview,
+114:211–244.
+Harris,Zellig.1954. Distributionalstructure.
+Word, 10(2-3):1456–1162.
+Hearst,Marti.1992. Automaticacquisition
+of hyponymsfromlargetext corpora.In
+ProceedingsofCOLING,pages 539–545,
+Nantes.
+Hearst,Marti.1998. Automateddiscovery
+of WordNet relations.InChristiane
+Fellbaum,editor,WordNet:AnElectronic
+LexicalDatabase.MIT Press, Cambridge,
+MA, pages 131–151.
+Herdaˇgdelen,Amac¸andMarcoBaroni.
+2009. BagPack:Ageneral frameworkto
+represent semanticrelations.InProceedings
+oftheEACLGEMSWorkshop, pages 33–40,
+Athens.
+Herdaˇgdelen,Amac¸,KatrinErk,and
+Marco Baroni.2009. Measuringsemantic
+relatedness withvector space models
+and randomwalks.InProceedingsof
+TextGraphs-4,pages50–53, Singapore.
+Heylen,Kris,Yves Peirsman,DirkGeeraerts,
+and DirkSpeelman.2008.Modellingword
+similarity:Anevaluationof automatic
+synonymyextractionalgorithms.In
+ProceedingsofLREC,pages 3243–3249,
+Marrakech.
+Hou,Yuexian andDawei Song.2009.
+Characterizingpurehigh-order
+entanglementsin lexical semantic
+spaces viainformationgeometry.
+In Peter Bruza,Donald Sofge,William
+Lawless, and C.J.van Rijsbergen, editors,
+QuantumInteraction:ThirdInternational
+Symposium,QI2009.Springer,Berlin,
+pages 237–250.
+Jackendoff,Ray. 1990.SemanticStructures.
+MIT Press, Cambridge,MA.
+Joanis,Eric,SuzanneStevenson,and David
+James. 2008.A generalfeaturespace for
+automaticverbclassiﬁcation.Natural
+LanguageEngineering,14(3):337–367.
+Jones,Michael and DouglasMewhort.
+2007. Representingwordmeaning
+and orderinformationinacomposite
+holographiclexicon.Psychological
+Review,114:1–37.
+Karypis,George.2003. CLUTO:Aclustering
+toolkit.Technical Report 02-017,
+Universityof MinnesotaDepartment
+of ComputerScience, Minneapolis.
+Kilgarriff,Adam,PavelRychly, PavelSmrz,
+and David Tugwell.2004.TheSketch
+Engine.InProceedingsofEuralex,
+pages 105–116, Lorient.
+718
+Baroniand Lenci DistributionalMemory
+Kolda,Tamara.2006.Multilinear operators
+forhigher-orderdecompositions.Technical
+Report 2081,SANDIA,Albuquerque,NM.
+Kolda,Tamaraand BrettBader.2009. Tensor
+decompositionsandapplications.SIAM
+Review,51(3):455–500.
+Kolda,Tamaraand JimengSun.2008.
+Scalable tensordecompositionsfor
+multi-aspectdatamining.InProceedings
+ofICDM,pages 94–101, Pisa.
+Landauer,Thomasand Susan Dumais.1997.
+AsolutiontoPlato’sproblem:Thelatent
+semanticanalysis theoryof acquisition,
+induction,and representationof
+knowledge.PsychologicalReview,
+104(2):211–240.
+Lenci,Alessandro.2008. Distributional
+approachesinlinguisticand cognitive
+research.ItalianJournalofLinguistics,
+20(1):1–31.
+Lenci,Alessandro.2010. Thelifecycle
+of knowledge.In Chu-Ren Huang,
+NicolettaCalzolari,AldoGangemi,
+AlessandroLenci,Alessandro Oltramari,
+andLaurentPr´evot,editors,Ontology
+andtheLexicon.ANaturalLanguage
+ProcessingPerspective.Cambridge
+UniversityPress, Cambridge,UK,
+pages241–257.
+Levin,Beth.1993.EnglishVerbClassesand
+Alternations:APreliminaryInvestigation.
+Universityof Chicago Press,Chicago, IL.
+Levin,Bethand MalkaRappaport-Hovav.
+2005.ArgumentRealization.Cambridge
+UniversityPress, Cambridge,UK.
+Lin,Dekang.1998a. Automaticretrieval
+and clusteringof similar words.In
+ProceedingsofCOLING-ACL,
+pages768–774, Montreal.
+Lin,Dekang.1998b.Aninformation-theoretic
+deﬁnitionofsimilarity.InProceedingsof
+ICML,pages296–304, Madison, WI.
+Liu,HugoandPushSingh.2004.
+ConceptNet:Apractical commonsense
+reasoningtoolkit.BTTechnologyJournal,
+pages211–226.
+Lowe,Will.2001.Towardsatheoryof
+semanticspace. InProceedingsofCogSci,
+pages576–581, Edinburgh,UK.
+Lund,Kevin and CurtBurgess.1996.
+Producinghigh-dimensionalsemantic
+spaces fromlexical co-occurrence.
+BehaviorResearchMethods,28:203–208.
+Manning,ChrisandHinrichSch¨utze.1999.
+FoundationsofStatisticalNaturalLanguage
+Processing.MIT Press,Cambridge,MA.
+Markman,ArthurB.1999.Knowledge
+Representation.Psychology Press,
+NewYork,NY.
+Matveeva,Irina,Gina-AnneLevow,
+Ayman Farahat,and Christian Royer.2005.
+Generalized latentsemantic analysis for
+termrepresentation.InProceedingsof
+RANLP,pages60–68, Borovets.
+McRae, Ken, GeorgeCree,Mark Seidenberg,
+and ChrisMcNorgan.2005. Semantic
+featureproductionnormsfor alargeset
+of livingand nonlivingthings.Behavior
+ResearchMethods,37(4):547–559.
+McRae, Ken, Michael Spivey-Knowlton,
+and Michael Tanenhaus. 1998.Modeling
+theinﬂuenceofthematicﬁt (and
+otherconstraints) inon-linesentence
+comprehension.JournalofMemoryand
+Language,38:283–312.
+Merlo,PaolaandSuzanneStevenson. 2001.
+Automaticverbclassiﬁcation based on
+statisticaldistributionsof argument
+structure.ComputationalLinguistics,
+27(3):373–408.
+Meyer,Carl.2000.MatrixAnalysisandApplied
+LinearAlgebra.SIAM, Philadelphia,PA.
+Miller,Georgeand Walter Charles.1991.
+Contextual correlatesof semantic
+similarity.LanguageandCognitive
+Processes,6:1–28.
+Minkov,Einatand William Cohen.2007.
+Learningtoranktyped graphwalks:
+Local and global approaches.In
+ProceedingsofWebKDD/SNA-KDD,
+pages1–8, San Jos´e, CA.
+Minkov,Einatand William Cohen.2008.
+Learninggraphwalkbased similarity
+measuresfor parsedtext.InProceedings
+ofEMNLP,pages 907–916, Honolulu,HI.
+Mitchell,Jeff andMirella Lapata.2008.
+Vector-based modelsofsemantic
+composition.InProceedingsofACL,
+pages236–244, Columbus,OH.
+Murphy,Gregory.2002.TheBigBookof
+Concepts.MIT Press, Cambridge,MA.
+Nastase, Vivi and Stan Szpakowicz.2003.
+Exploringnoun-modiﬁersemantic
+relations.InProceedingsoftheFifth
+InternationalWorkshoponComputational
+Semantics,pages285–301, Tilburg,
+TheNetherlands.
+´
+OS´eaghdha,Diarmuidand Ann Copestake.
+2009. Usinglexical and relational
+similaritytoclassify semanticrelations.
+InProceedingsofEACL,pages 621–629,
+Athens.
+Pad´o,Sebastian andMirella Lapata.2007.
+Dependency-based construction of
+semanticspace models.Computational
+Linguistics,33(2):161–199.
+Pad´o,Ulrike.2007.TheIntegrationof
+SyntaxandSemanticPlausibilityina
+719
+ComputationalLinguistics Volume36,Number4
+Wide-CoverageModelofSentenceProcessing.
+Ph.D.dissertation,SaarlandUniversity,
+Saarbr¨ucken.
+Pad´o,Ulrike,SebastianPad´o,andKatrinErk.
+2007. Flexible,corpus-based modelling
+of humanplausibilityjudgements.In
+ProceedingsofEMNLP,pages400–409,
+Prague.
+Pantel,Patrickand Marco Pennacchiotti.
+2006. Espresso: Leveraginggeneric
+patternsforautomaticallyharvesting
+semantic relations.InProceedingsof
+COLING-ACL,pages113–120, Sydney.
+Peirsman,Yvesand DirkSpeelman.2009.
+Word space modelsof lexical variation.
+InProceedingsoftheEACLGEMS
+Workshop, pages 9–16, Athens.
+Pustejovsky, James.1995.TheGenerative
+Lexicon. MIT Press,Cambridge,MA.
+Quesada, Jose,PrafulMangalath,and
+Walter Kintsch.2004. Analogy-making
+as predicationusingrelationalinformation
+and LSAvectors.InProceedingsofCogSci,
+page 1623,Chicago, IL.
+Raghunathan,Trivellore.2003. An
+approximatetest forhomogeneityof
+correlated correlationcoefﬁcients.
+Quality&Quantity,37:99–110.
+Rapp,Reinhard.2003. Word sense discovery
+based on sense descriptordissimilarity.
+InProceedingsofthe9thMTSummit,
+pages 315–322, NewOrleans,LA.
+Rapp,Reinhard.2004. Afreelyavailable
+automaticallygeneratedthesaurusof
+related words.InProceedingsofLREC,
+pages 395–398, Lisbon.
+Rogers, Timothyand JamesMcClelland.
+2004.SemanticCognition:AParallel
+DistributedProcessingApproach. MIT Press,
+Cambridge,MA.
+Rothenh¨ausler,Klaus and HinrichSch¨utze.
+2009. Unsupervised classiﬁcation with
+dependency based wordspaces. In
+ProceedingsoftheEACLGEMSWorkshop,
+pages 17–24, Athens,Greece.
+Rubenstein, HerbertandJohnGoodenough.
+1965. Contextual correlatesof synonymy.
+CommunicationsoftheACM, 8(10):627–633.
+Ruiz-Casado, Maria,EnriqueAlfonseca,
+and Pablo Castells. 2005. Using
+context-windowoverlappinginsynonym
+discoveryand ontologyextension. In
+ProceedingsofRANLP,pages 1–7,Borovets.
+Sagi,Eyal,StefanKaufmann,and Brady
+Clark.2009. Semanticdensityanalysis:
+Comparingwordmeaningacross time
+and phoneticspace. InProceedingsofthe
+EACLGEMSWorkshop, pages 104–111,
+Athens.
+Sahlgren,Magnus.2005. Anintroductionto
+randomindexing.http://www.sics.se/
+∼mange/papers/RI intro.pdf.
+Sahlgren,Magnus.2006.TheWord-Space
+Model. Ph.D.dissertation,Stockholm
+University.
+Schulteim Walde,Sabine. 2006.Experiments
+ontheautomaticinductionofGerman
+semantic verbclasses.Computational
+Linguistics,32:159–194.
+Sch¨utze,Hinrich.1997.AmbiguityResolution
+inNaturalLanguageLearning.CSLI
+Publications,Stanford,CA.
+Smolensky, Paul.1990. Tensor product
+variablebindingand therepresentation
+of symbolicstructuresin connectionist
+systems.ArtiﬁcialIntelligence,46:159–216.
+Smolensky, Pauland GeraldineLegendre.
+2006.TheHarmonicMind.FromNeural
+ComputationtoOptimality-theoretic
+Grammar. MIT Press,Cambridge,MA.
+Terra,Egidioand CharlesClarke.2003.
+Frequencyestimates forstatistical word
+similaritymeasures.InProceedingsof
+HLT-NAACL, pages244–251, Edmonton.
+Turney,Peter.2001.MiningtheWeb for
+synonyms: PMI-IRversusLSAonTOEFL.
+InProceedingsofECML,pages 491–502,
+Freiburg.
+Turney,Peter.2006a. Expressingimplicit
+semantic relationswithoutsupervision.
+InProceedingsofCOLING-ACL,
+pages 313–320, Sydney.
+Turney,Peter.2006b.Similarityof semantic
+relations.ComputationalLinguistics,
+32(3):379–416.
+Turney,Peter.2007.Empiricalevaluation
+of fourtensor decompositionalgorithms.
+Technical Report ERB-1152,NRC,
+Ottawa.
+Turney,Peter.2008.A uniformapproachto
+analogies, synonyms,antonymsand
+associations. InProceedingsofCOLING,
+pages 905–912, Manchester.
+Turney,Peterand Michael Littman.2005.
+Corpus-based learningofanalogies and
+semantic relations.MachineLearning,
+60(1-3):251–278.
+Turney,Peterand PatrickPantel.2010. From
+frequencytomeaning:Vector space
+modelsof semantics.JournalofArtiﬁcial
+IntelligenceResearch,37:141–188.
+Van deCruys,Tim.2009.Anon-negative
+tensor factorizationmodel forselectional
+preferenceinduction.InProceedingsofthe
+EACLGEMSWorkshop, pages 83–90,
+Athens.
+Van Overschelde,James, KatherineRawson,
+and John Dunlosky.2004. Category
+720
+Baroniand Lenci DistributionalMemory
+norms:An updatedand expanded
+versionoftheBattigandMontague(1969)
+norms.JournalofMemoryandLanguage,
+50:289–335.
+Van Rijsbergen, C.J.2004.TheGeometryof
+InformationRetrieval.Cambridge
+UniversityPress, Cambridge,UK.
+Veale, TonyandYanfen Hao.2008.
+Acquiringnaturalisticconcept
+descriptionsfromtheWeb.In
+ProceedingsofLREC,pages1121–1124,
+Marrakech.
+Vinson,David and GabriellaVigliocco.2008.
+Semanticfeatureproductionnormsfor a
+largeset of objects andevents.Behavior
+ResearchMethods,40(1):183–190.
+Widdows,Dominic.2004.Geometryand
+Meaning.CSLI Publications,Stanford,CA.
+Widdows,Dominic.2008.Semanticvector
+products:Someinitial investigations.
+InProceedingsoftheSecondAAAI
+SymposiumonQuantumInteraction,
+pages1–8, Oxford.
+Widdows,DominicandBeateDorow.
+2002. Agraphmodelfor unsupervised
+lexical acquisition.InProceedingsof
+ICCL,pages1–7, Taipei.
+Widdows,DominicandStanleyPeters.
+2003. Wordvectors andquantumlogic.
+InProceedingsoftheEighthMathematics
+ofLanguageConference,pages1–14,
+Bloomington,IN.
+Zarcone,Alessandra andAlessandro Lenci.
+2008. Computationalmodelsof event type
+classiﬁcation incontext. InProceedingsof
+LREC,pages1232–1238, Marrakech.
+Zhao,YingandGeorgeKarypis.2003.
+Criterionfunctionsfor document
+clustering:Experimentsandanalysis.
+Technical Report 01-40, Universityof
+MinnesotaDepartmentof Computer
+Science, Minneapolis.
+Zhitomirsky-Geffet,Maayanand IdoDagan.
+2009. Bootstrappingdistributionalfeature
+vector quality.ComputationalLinguistics,
+35(3):435–461.
+721
+
+

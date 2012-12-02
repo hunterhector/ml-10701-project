@@ -1,0 +1,2 @@
+The Prague Dependency Treebank 2.0 (PDT 2.0) described in Sgall et al.(2004) contains a large amount of Czech texts with complex and interlinked morphological (2 million words), syntactic (1.5M words), and complex semantic (tectogrammatical) annotation (0.8M words); in addition, certain properties of sentence information structure and coreference relations are annotated at the semantic level.
+W04-2706

@@ -1,0 +1,6 @@
+To illustrate our discussions below, we will adopt one trial application domain in which the Editor's Workbench has been used and for which a significant knowledge base has been constructedwthat is, the art and art history domain already used as a basis for NLG in Teich & Bateman (1994) and Bateman & Teich (1995).
+W94-0318
+l Based on previous, separate experiences in natural language generation (see: Teich & Bateman 1994, Bateman & Teich 1995) and in automatic diagram design and visualization (see: Htiser, Reichenberger, Rostek & Streitz 1995), the KOMET-PAVE experiment sought to combine NLG and visualization into a single integrated information presentation system capable • of producing effectively designed pages of information analogous to 'overviews' found in print-based publications such as encyclopediae or magazines.
+W94-0318
+The input to the page synthesis process was taken as a set of artists selected during the previous 'conversational move' and some generic features determined for such pages) When planning the information to be expressed by a page as a whole, it is possible to construct an RST-like structure as is familiar from NLG for individual texts (e.g., Hovy, Lavid, Maier, Mittal & Paris 1992; Moore & Paris 1993)--indeed, prior to further information chunking, the structure could well be a single text.
+J93-4004

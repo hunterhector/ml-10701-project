@@ -1,0 +1,2 @@
+The range of reports for any given patient at any given point in their illness thus present a special class of paraphrase, with a looser adherance to semantic equivalence between versions than is typically found in other paraphrase generators, for example Kozlowski et al (2003), McKeown et al (1994), Power, Scott and Bouyaad-Agha (2003), Rosner and Stede (1994),(1996), and Scott and Souza (1990).
+A94-1002 J03-2003 W03-1601

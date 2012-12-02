@@ -1,0 +1,6 @@
+Where Intentions Fit In Given that Moore and Pollack's (1992) examples of the need for simultaneous representation of relations and intentions are so compelling, there must some explanation of why the IMAGENE project was successful within the orthodox RST tradition.
+J92-4007
+There are a number of sub-issues related to this focus of concern, all of which tend to lend themselves to a traditional RST approach: Written rather than interactive discourse D A number of studies in the context of interactive discourse have emphasized the need for separate representation of intentions (Fox, 1988; Grosz and Sidner, 1986; Moore and Paris, 1989).
+J86-3001 P89-1025
+In fact, the definition of the instructional genre itself makes reference to the single fundamental intention of expressing a procedure in an effective way (termed the "deep" intention by Delin et al.(1993)), an intention which has manifested itself in a number of standardized, domain-specific forms of expression commonly used by technical writers (termed Domain Communication Knowledge by Kittredge et al.(1991)). Local rather than global relations -Not only did the IMACENE project specifically address instructional text, but it has exclusively addressed the use of local rhetorical relations.
+W93-0203

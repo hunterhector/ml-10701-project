@@ -1,0 +1,6 @@
+parsing Detection of self corrections on transcriptions before parsing has been explored (Bear et al., 1992; Nakatani and Hirschberg, 1993), but it is not clear that it will be feasible on WHGs, since recognition errors interfere and the search space may explode due to the number of paths.
+H93-1066 P92-1008 P93-1007
+VIT Format The VIT (short for Verbmobil Interface Term) was designed as a common output format for the two alternative and independently developed syntacticsemantic analysis components of the first project phase (Bos et al., 1998).
+P98-1024
+(1) vit(vitID(sid(l,a,ge,O,20,l,ge,y, semantics), \[word(montag, 13, \[II16\]), word(ist,14, \[ii17\]), word(gut,15, \[lllOl)l), index(lll3,1109,il04), \[decl(lll2,hl05), gut(lllO,il05), dofw(lll6,ilO5,mon), support(lll7,il04,1110), indef(llll,ilO5,1115,hl06)\], \[ccom_plug(hl05,1114), ccom_plug(h106,1109), in g(ii12,1113), in_g(lll7,1109), in_g(lll6,1115), in_g(llll,lll4), leq(lll4,hlO5),leq(llO9,hl06), leq(llOg,hl05)\], Is sort(ilO5,time)l, \[\], \[num(ilO5,sg),pers(il05,3)\], \[ta_mood(ilO4,ind), ta_tense(ilO4,pres), ta_perf(ilO4,nonperf)\], \[\] ) The VIT can be viewed as a theory-independent representation for underspecified semantic representations (Bos et al., 1996).
+C96-1024

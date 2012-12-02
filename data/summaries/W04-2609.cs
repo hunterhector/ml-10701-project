@@ -1,0 +1,22 @@
+(Rosario and Hearst 2001) focused on the medical domain making use of a lexical ontology and standard machine learning techniques.
+W01-0511
+Several approaches have been proposed for empirical noun-compound interpretation, such as syntactic analysis based on statistical techniques (Lauer and Dras 1994), (Pustejovsky et al.1993). Another popular approach focuses on the interpretation of the underlying semantics.
+J93-2005
+More recently, (Rosario and Hearst 2001), (Rosario, Hearst, and Fillmore 2002), (Lapata 2002) have proposed automatic methods that analyze and detect noun compounds relations from text.
+J02-3004 P02-1032 W01-0511
+Other researchers have identified other sets of semantic relations (Levi 1979), (Vanderwende 1994), (Sowa 1994), (Baker, Fillmore, and Lowe 1998), (Rosario and Hearst 2001), (Kingsbury, et al.2002), (Blaheta and Charniak 2000), (Gildea and Jurafsky 2002), (Gildea and Palmer 2002).
+A00-2031 C94-2125 J02-3001 P02-1031 P02-1032 P98-1013 W01-0511
+(Baker, Fillmore, and Lowe 1998) 34 EXTENT the change of status on a scale (by a percentage or by a value) of some entity; (The price of oil increased [ten percent].
+P98-1013
+Noun noun (adjective noun, respectively) sequences of words were extracted using the Lauer heuristic (Lauer 1995) which looks for consecutive pairs of nouns that are neither preceded nor succeeded by a noun after each sentence was syntactically parsed with Charniak parser (Charniak 2001) (for XWN we used the gold parse trees).
+P01-1017
+) (Blaheta and Charniak 2000) Table 1: A list of semantic relations at various syntactic levels (including NP level), their definitions, some examples, and references.
+A00-2031
+Many researchers that followed this approach relied mostly on hand-coded rules (Finin 1980), (Vanderwende 1994).
+C94-2125
+); (Blaheta and Charniak 2000) 35 PREDICATE expresses the property associated with the subject or the object through the verb; (He feels [sleepy].
+A00-2031
+(Navigli and Velardi 2003) 15 SOURCE/FROM place where an entity comes from; (olive oil; I got it from China) (Levi 1979) 16 TOPIC an object is a topic of another object; (weather report; construction plan; article about terrorism); (Rosario and Hearst 2001) 17 MANNER a way in which an event is performed or takes place; (hard-working immigrants; enjoy immensely; he died of cancer); (Blaheta and Charniak 2000) 18 MEANS the means by which an event is performed or takes place; (bus service; I go to school by bus).
+A00-2031 W01-0511
+Semantic Definition / Example Relation 1 POSSESSION an animate entity possesses (owns) another entity; (family estate; the girl has a new car.), (Vanderwende 1994) 2 KINSHIP an animated entity related by blood, marriage, adoption or strong affinity to another animated entity; (Mary’s daughter; my sister); (Levi 1979) 3 PROPERTY/ characteristic or quality of an entity/event/state; (red rose; The thunderstorm was awful.); (Levi 1979) ATTRIBUTE-HOLDER 4 AGENT the doer or instigator of the action denoted by the predicate; (employee protest; parental approval; The king banished the general.); (Baker, Fillmore, and Lowe 1998) 5 TEMPORAL time associated with an event; (5-o’clock tea; winter training; the store opens at 9 am), includes DURATION (Navigli and Velardi 2003), 6 DEPICTIONan event/action/entity depicting another event/action/entity; (A picture of my niece.), DEPICTED 7 PART-WHOLE an entity/event/state is part of another entity/event/state (door knob; door of the car), (MERONYMY) (Levi 1979), (Dolan et al.1993), 8 HYPERNYMY an entity/event/state is a subclass of another; (daisy flower; Virginia state; large company, such as Microsoft) (IS-A) (Levi 1979), (Dolan et al.1993) 9 ENTAIL an event/state is a logical consequence of another; (snoring entails sleeping) 10 CAUSE an event/state makes another event/state to take place; (malaria mosquitoes; to die of hunger; The earthquake generated a Tsunami), (Levi 1979) 11 MAKE/PRODUCE an animated entity creates or manufactures another entity; (honey bees; nuclear power plant; GM makes cars) (Levi 1979) 12 INSTRUMENT an entity used in an event/action as instrument; (pump drainage; the hammer broke the box) (Levi 1979) 13 LOCATION/SPACE spatial relation between two entities or between an event and an entity; includes DIRECTION; (field mouse; street show; I left the keys in the car), (Levi 1979), (Dolan et al.1993) 14 PURPOSE a state/action intended to result from a another state/event; (migraine drug; wine glass; rescue mission; He was quiet in order not to disturb her).
+C94-2125 P98-1013

@@ -1,0 +1,838 @@
+Proceedings of the NAACL HLT 2010 First Workshop on Computational Neurolinguistics, pages 1–9,
+Los Angeles, California, June 2010. c©2010 Association for Computational Linguistics
+Learning semantic features for fMRI data from definitional text
+Francisco Pereira, Matthew Botvinick and Greg Detre
+PsychologyDepartmentandPrincetonNeuroscienceInstitute
+PrincetonUniversity
+Princeton,NJ08540
+{fpereira,matthewb,gdetre}@princeton.edu
+Abstract
+(Mitchelletal.,2008)showedthatitwaspos-
+sible to use a textcorpusto learnthe valueof
+hypothesizedsemanticfeaturescharacterizing
+the meaning of a concrete noun. The authors
+also demonstrated that those features could
+be used to decompose the spatial pattern of
+fMRI-measuredbrainactivationinresponseto
+a stimulus containing that noun and a picture
+of it. In thispaperwe introducea methodfor
+learningsuchsemanticfeaturesautomatically
+fromatextcorpus,withoutneedingtohypoth-
+esize them or provide any proxies for their
+presenceonthe text. We showthatthosefea-
+turesareeffectiveinamoredemandingclassi-
+ficationtaskthanthatin(Mitchelletal.,2008)
+and describe their qualitative relationship to
+thefeaturesproposedinthatpaper.
+1 Introduction
+In the last few years there has been a gradual in-
+creaseinthenumberofpapersthatresorttomachine
+learning classifiers to decode information from the
+pattern of activation of activation of voxels across
+thebrain(see(Normanetal.,2006)and(Haynesand
+Rees,2006) forpointers tomuchof thiswork). Re-
+cently, however, interest has shifted to discovering
+how the information present isencoded, rather than
+just whether it is present, and also testing theories
+about that encoding. Oneespecially compelling ex-
+ample of the latter is (Kay et al., 2008), where the
+authors postulate amathematical model for how vi-
+sualinformationgetstransformedintothefMRIsig-
+nal one can record from visual cortex and, after fit-
+tingthemodel,validateitbyusingittopredictfMRI
+g1
+g2g3g4g5g6g7g2g8g9g5g4g10g2 g11g4g12g9g12g8g9g5g4g10g2 g11g4g12g9g12g8g9g5g4g10g2 g11g4g12g9g12g8g9g5g4g10g2
+g13 g13
+g1
+g3 g11g14 g11g15 g11g16
+g17g14 g17g15 g17g16
+g3 g17g14g8g17g15g8g17g16
+g11g14
+g11g15
+g11g16
+Figure 1: top: A complex pattern of activation is ex-
+pressedasacombinationofthreebasicpatterns. bottom:
+Thepatterncanbewrittenasa rowvector,andthecom-
+binationasalinearcombinationofthreerowvectors.
+activation for novel stimuli. A second example is,
+of course, (Mitchell et al., 2008), which aims at de-
+composing the pattern ofactivation inresponse to a
+picture+noun stimulus into a combination of basic
+patterns corresponding to the key semantic features
+of the stimulus. A schematic view of this is given
+inFigure1,wherethecomplexpatternontheleftis
+split into three simpler ones. This is done by deter-
+mining the value of several hypothesized semantic
+features andusing them asthecombination weights
+forbasic patterns, whichcanthenbeextracted from
+fMRIdata.
+Ideally, semantic features should reflect what is
+in a subject’s mind when she thinks about a con-
+crete concept, e.g. whether it is animate or inani-
+mate, or an object versus something natural. It also
+seems reasonable to expect that the main seman-
+tic features would likely be shared by most people
+thinking about the same concept; talking to some-
+one about a chair or table requires a common un-
+derstanding of the characteristics of that concept.
+(Mitchelletal.,2008)proposedamethodforcaptur-
+ingsuch commonunderstanding, byconsidering 25
+1
+verbs 1 reflecting,intheirwords,“basicsensoryand
+motor activities, actions performed on objects, and
+actions involving changes to spatial relationships”.
+Foreachofthe60nouns corresponding tothestim-
+ului shown, they counted the co-occurrence of the
+nounwitheachofthe25verbsinalargetextcorpus,
+converting those 25 counts into normalized feature
+values (the 25-vector has length 1). The hypothe-
+sis subjacent to this procedure is that the 25 verbs
+are a good proxy for the main characteristics of a
+concept, and that their frequent co-occurrence with
+thecorresponding nounintextmeansthatmanydif-
+ferent sources (and people) have that association in
+mindwhenusingthenoun;inanutshell,theassocia-
+tion reflects common understanding of the meaning
+of the noun. The results in (Mitchell et al., 2008)
+areanextremelycompellingdemonstration thattext
+corporacontaininformationusefulforparsingbrain
+activation into component patterns that reflect se-
+manticfeatures.
+We would like to go beyond the analysis in
+(Mitchell et al., 2008) by considering that stipulat-
+ing the semantic features to consider – via the verb
+proxy – may limit the information that can be ex-
+tracted. The verbs were selected to capture a range
+of characteristics described above, but this does not
+guaranteethatthosewillbealltheonesthatarerele-
+vant,evenforconcreteconcepts. Buthowtoidentify
+characteristics beyond those that one could hypoth-
+esizeinadvance?
+This paper describes an approach to identifying
+semantic features from a text corpus in an unsuper-
+vised manner, without the need to specify verbs or
+any other proxy for those features. The first aspect
+of the approach is the use of a text corpus that goes
+beyondmerelycontainingoccurrencesofthewords.
+WeuseasubsetofWikipedia 2,whichwechosebe-
+causearticlesaredefinitionalinstyleandalsoedited
+by many people, ensuring that they will contain the
+essential sharedknowledgepertaining tothesubject
+of the article. The articles in the subset were cho-
+senbecause theypertained toconcrete orimageable
+concepts, and the methodology for deciding on this
+is described in Section 2.2.2. One property in par-
+1see, hear, listen, taste, smell, eat, touch, rub, lift, manipu-
+late, run, push, fill, move, ride, say, fear, open, approach, near,
+enter,drive,wear,breakandclean
+2http://en.wikipedia.org
+ticular of text defining a concept will be especially
+helpful here: in order to make its meaning precise,
+ithastotouchonmostrelatedconcepts. Thismeans
+that we will still be resorting to co-ocurrence with
+our target nouns in order to identify semantic fea-
+tures, but not of a fixed set of verbs; rather, we are
+considering allpossiblerelatedwords.
+The tool we will use to do so is latent Dirichlet
+allocation (LDA, (Blei et al., 2003)). This tech-
+nique produces a generative probabilistic model of
+textcorporawhereeachdocument(article)isviewed
+as a bag-of-words (i.e. only which words appear,
+andhowoften,matters)witheachwordbeingdrawn
+from a finite mixture of an underlying set of topics,
+each of which is in turn a probability distribution
+over vocabulary words. We will use topics as our
+semanticfeatures,withtheproportionsofeachtopic
+inthearticleforagivennounbeingthevaluesofthe
+featuresforthatnoun.
+(Murphy et al., 2009) does something similar in
+flavour to this, by decomposing the patterns of co-
+occurrencesinatextcorpusbetweenthe20000most
+frequent nouns and 5000 most frequent verbs using
+SVD. This is used to identify 25 singular vectors
+whichyieldfeature valuesacrossnouns.
+2 Methods
+and Data
+2.1 Data
+We use the dataset from (Mitchell et al., 2008),
+which contains data from 9 subjects. For each sub-
+ject there is a dataset of 360 examples average
+fMRIvolumearoundthepeakofanexperimenttrial
+comprising 6 replications (epochs) of each of 60
+nouns as stimuli. The 60 nouns also belong to one
+of 12 semantic categories, hence there are two la-
+bels for classification tasks. We refer the reader to
+theoriginalpaperformoredetailsaboutthespecific
+categories andnounschosen.
+Allofourclassificationexperimentsaredoneover
+360 examples, rather than 60 average noun images,
+as wewantto leverage having multiple instances of
+the same noun and use cross-validation. We also
+replicated the main experiment in (Mitchell et al.,
+2008),andforthatweusedthe60averagenounim-
+ages,withtheirmeanimagesubtractedfromeachof
+them.
+2
+2.2 Semantic
+Features
+The experiments described on the paper rely on us-
+ing two different kinds of semantic features (low-
+dimensional representations of data) to decompose
+eachexampleinconstituent basisimages;thesetwo
+kindsaredescribed blow.
+2.2.1 Science
+Semantic Features (SSF)
+These are thesemantic features used in (Mitchell
+et al., 2008) to represent a given stimulus. They
+were obtained by considering co-occurrence counts
+of the noun naming each stimulus with each of 25
+verbsinatextcorpus,yieldingavectorof25counts
+whichwasnormalizedtohaveunitlength. Thelow-
+dimensional representation of the brain image for a
+givennounisthusa25-dimensional vector. Theleft
+ofFigure2showsthevalueofthese features forthe
+60nounsconsidered.
+2.2.2 Wikipedia
+Semantic Features (WSF)
+To obtain the Wikipedia semantic features we
+considered concepts rather than nouns, though we
+will use the latter terminology in the rest of the pa-
+per for consistency with (Mitchell et al., 2008). We
+started with the classical lists of words in (Paivio et
+al.,1968) and(Battigand Montague, 1969), aswell
+as modern revisions/extensions (Clark and Paivio,
+2004) and (Van Overschelde, 2004), and looked for
+words corresponding to concepts that were deemed
+concrete or imageable (be it because of their score
+in one of the norms or through editorial decision),
+identified the corresponding Wikipedia article ti-
+tles (e.g. “airplane” is “Fixed-wing aircraft”) and
+also compiled related articles which were linked
+to from these (e.g. “Aircraft cabin”). If there
+werewordsintheoriginal listswithmultiple mean-
+ings we included the articles for at least several
+of those meanings. Given the time available, we
+stoppedtheprocesswithalistof3500concepts and
+their corresponding articles (a corpus we call the
+“Weekipedia”). We used Wikipedia Extractor 3 to
+remove any HTML or wiki formatting and annota-
+tions and processed the resulting text through the
+morphological analysis tool Morpha (Minnen etal.,
+3http://medialab.di.unipi.it/wiki/
+Wikipedia_extractor
+2001) 4 to lemmatize all the words to their basic
+stems (e.g. “taste”,”tasted”,”taster” and “tastes” all
+becomethesameword).
+The resulting text corpus was processed with
+topicmodellingsoftwaretobuildseveralLDAmod-
+els. Thearticles were converted to the required for-
+mat,keepingonlywordsthatappearedinatleasttwo
+articles, and words were also excluded resorting to
+a custom stopword list. We run the software vary-
+ing the number of topics allowed from 10 to 60, in
+increments of 5, and allowing the software to esti-
+mate the α parameter. The α parameter influences
+the number of topics used for each example. For a
+givennumberoftopics K,thisyielded distributions
+overthevocabulary foreachtopicandonevectorof
+topic probabilities per article/concept; this vector is
+the low-dimensional representation of the concept.
+Note also that, since the probabilities add up to 1,
+the presence ofone semantic feature trades offwith
+thepresence oftheothers.
+ThemiddleandrightofFigure2showsthevalue
+of these features for the 60 nouns considered in 25
+and50topicmodels,respectively.
+2.2.3 Relating
+semantic features to brain
+images
+notation Eachexamplecorrespondstotheaverage
+fMRI volume around the peak of a trial, account-
+ing for haemodynamic delay. This 3D volume can
+be unfolded into a vector x with as many entries as
+voxels. A dataset is a n × m matrix X where row
+i is the example vector xi. Similarly to (Mitchell
+et al., 2008), each example x will be expressed as
+a linear combination of basis images b1,...,bK
+of the same dimensionality, with the weights given
+by the semantic feature vector z = [z1,...,zK]
+(see Figure 1 for an illustration of this). The low-
+dimensional representation of X is a n × K matrix
+Z whererowiisasemanticfeaturevectorzi andthe
+corresponding basis images area K ×m matrix B,
+whererow k corresponds tobasisimagebk.
+learning and prediction Learning the basis im-
+agesgivenX andZ (toppartofFigure4)canbede-
+composedintoasetofindependentregressionprob-
+4http://www.informatics.susx.ac.uk/
+research/groups/nlp/carroll/morph.
+html
+3
+Figure 2: The value of semantic featuresfor the 60 nounsconsidered, using SSF with 25 verbs(left) and WSF with
+25and50topics(middleandright). The60nounsbelongtooneof12categories,andthosearearrangedinsequence.
+AlthoughafewoftheSSFfeaturesmightcorrespondtoWSFfeatures,themajorityofthemdonot.
+lems, one per voxel j, i.e. the values of voxel j
+across all examples, X(:,j), are predicted from Z
+using regression coefficients B(:,j), which are the
+valuesofvoxel j acrossbasisimages.
+Predictingthesemanticfeaturevectorzforanex-
+ample x (bottom part of Figure 4) is a regression
+problemwherex′ ispredictedfromB′ usingregres-
+sion coefficients z′. For WSF, the prediction of the
+semantic feature vector isdone under theadditional
+constraint that the values need to add up to 1. Any
+situation where linear regression wasunfeasible be-
+causethesquarematrixinthenormalequations was
+notinvertible wasaddressedbyreplacing thedesign
+matrix by its singular value decomposition, leaving
+onlynon-zero singular values.
+3 Experiments
+and Discussion
+3.1 Classification/Reconstruction on semantic
+feature space
+3.1.1 Experiment
+details
+Several classification experiments are described
+in (Mitchell et al., 2008). The main one aims at
+gauging the accuracy of matching unseen stimuli to
+theirunseenfMRIimagesandisschematizedinFig-
+ure3. Todothis,theauthorsconsiderthe60average
+examples of each stimulus and, in turn, leave out
+each of 1770 possible pairs of examples. For each
+left out pair, they learn a set of basis images using
+theremaining 58examples andtheirrespective SSF
+representations. They then use the SSF representa-
+g1g2g3g4g5g4g5g6g7g4g8g3g6g9g10
+g11g1g2g3g4g5
+g1g9g10g1g7g4g8g3g6g9g10
+g11g1g9g10g1
+g10g9g8g3g5g1g4g12g7g13g9g3g1g14g2g9g10
+g15g1g2g3g4g5
+g16g9g3g2g5g9g17g7g4g8g3g6g9g7g18g3g10g4g10
+g19
+g10g9g8g3g5g1g4g12g7g13g9g3g1g14g2g9g10
+g15g1g9g10g1
+g20
+g21g2g9g17g4g12g1g9g17g7g4g8g3g6g9g10
+Figure3: Theclassificationtaskin(Mitchelletal.,2008)
+is such that semantic feature representations of the 2
+test nouns are used, in conjunction with the image ba-
+sis learned on the trainingset, to predicttheir respective
+testexamplesandusethatpredictionina2-wayclassifi-
+cation.
+tion of the two left-out examples and the basis to
+generate a predicted example for each one of them.
+These can then be used ina two-way matching task
+with the actual examples that were left out, where
+theoutcome iscorrect orincorrect. Notethat thisis
+notdoneovertheentirebrainbutoveraselectionof
+500stablevoxels,asdeterminedbycomputingtheir
+reproducibility over the 58 examples in each leave-
+one-out fold. This criterion identifies voxels whose
+activation levels across the 58 nouns bear the same
+relationship to each other over epochs (mathemat-
+ically, the vector of activation levels across the 60
+sorted nouns is highly correlated between epochs).
+Wereproduced thisexperimentforthesakeofcom-
+parisonanddescribe theresultsinSection3.4.
+Whereas (Mitchell et al., 2008) aimed at predict-
+ingtheactivationofasetofvoxels,andjudginghow
+4
+g1g2g3g4g5g4g5g6g7g4g8g3g6g9g10
+g11g1g2g3g4g5
+g1g9g10g1g7g4g8g3g6g9g10
+g11g1g9g10g1
+g10g9g8g3g5g1g4g12g7g13g9g3g1g14g2g9g10
+g15g1g2g3g4g5
+g16g9g3g2g5g9g17g7g4g8g3g6g9g7g18g3g10g4g10
+g19g2g9g17g4g12g1g9g17
+g10g9g8g3g5g1g4g12g7g13g9g3g1g14g2g9g10
+g15g19g2g9g17
+g20
+g10g9g8g3g5g1g4g12g7g13g9g3g1g14g2g9g10
+g15g1g2g3g4g5
+g10g9g8g3g5g1g4g12g7g13g9g3g1g14g2g9g10
+g15g1g9g10g1
+g21
+Figure4: Ourclassificationtaskrequireslearninganim-
+age basis from a set of training examples and their re-
+spectivesemanticfeaturerepresentations. Thisisusedto
+predictsemanticfeaturevaluesfortest setexamplesand
+from those one can classify against the known semantic
+featurevaluesforall60nouns.
+good that prediction is by its 2-way accuracy, this
+paperfocusesonadifferentsortofexperiment: pre-
+diction of semantic feature values for a test exam-
+ple, as schematized in FIgure 4. In this experiment,
+the semantic features get used tolearn basis images
+fromtrainingexamples,withthegoalofreconstruct-
+ingthosetrainingexamplesaswellaspossible. This
+learning does not contemplate the labels – category
+ornoun–ofthetrainingexamples. Thebasisimages
+are used, in turn, to predict semantic feature values
+fortestexamplesanddetermining,inessence,which
+semantic features are active during a test example.
+Thecriterion forjudging whetherthisisagoodpre-
+dictionwillbehowwellcanweclassifythecategory
+(1-of-12)andnoun(1-of-60)nounofatestexample.
+Goodclassification performanceimpliesthatthese-
+mantic features capture activation that is relevant to
+the task in the corresponding basis images and that,
+in combination, the features contain enough infor-
+mationtodistinguish thevariousnouns.
+Wewilluse either aleave-one-epoch-out (6fold)
+or a leave-one-noun-out (60 fold) cross-validation
+andweperformthefollowingstepsineachfold:
+1. from each training set Xtrain and correspond-
+ing semantic features Ztrain, select the top
+1000mostreproduciblevoxelsandlearnanim-
+agebasis B usingthose
+2. use the test set Xtest and basis B to predict a
+semanticfeaturerepresentation Zpred forthose
+examples
+3. use nearest-neighbour classification to predict
+the labels of examples in Xtest, by comparing
+Zpred for each example with known semantic
+features Z
+4. use the semantic features Zpred together with
+basis B to reconstruct test examples as
+Xpred = ZbredB and compute squared error
+betweenXpred andXtest (overselectedvoxels)
+This allows us to do both kinds of cross-
+validation, as there is always one semantic feature
+vector for each different noun in Z regardless. This
+procedureisunbiased,andwetestedthisempirically
+usingapermutation test(examplespermuted within
+epoch) to verify the accuracy results for either task
+wereatchancelevel.
+3.1.2 Experiment
+results
+Figure5showstheresultsusingleave-one-epoch-
+out cross-validation. For each subject (row), there
+is one plot of reconstruction error (column 1) and
+one for error in category classification (column 2)
+and noun classification (column 3). Each plot con-
+trasts the error obtained using SSF with that ob-
+tained using WSF with 10-60 topics, in increments
+of5;WSFisasgoodorbetterthanSSFinbothcat-
+egory and noun classification. Given the the results
+areover360testexampleswearenotdisplaying er-
+ror bars; each number of topics for which WSF is
+betterasdeemedbyapairedt-test(0.01significance
+level,uncorrected) ishighlighted byasquare onthe
+plot. The same is true for the category task when
+using leave-one-noun-out cross-validation, but nei-
+ther WSF nor SSF appear to do well in the noun
+task except for subject P1, where WSF again dom-
+inates. Results overall are somewhat lower than for
+theleave-one-epoch-outcross-validation. Giventhat
+the comparison results are qualitatively similar and
+space is limited we did not include the correspond-
+ing figure. In both cross-validations the reconstruc-
+tion error of WSF starts higher than that of SSF
+and decreases monotonically until they are roughly
+matched. Our conjecture is that WSF semantic fea-
+tures are sparser and thus there are fewer basis im-
+ages being added to predict any given test example.
+As the number of topics increases, this ceases to be
+thecase.
+One salient aspect of Figure 5 is that accuracy is
+muchhigherthanchanceforsubjectsP1-P4thanfor
+P5-P9, and this corresponds to the subjects where
+5
+10 15 20 25 30 35 40 45 50 55 60
+0
+500
+reconstruction error
+P1
+10 15 20 25 30 35 40 45 50 55 60
+0.6
+0.8
+1
+category error
+10 15 20 25 30 35 40 45 50 55 60
+0.8
+0.9
+1
+noun error
+10 15 20 25 30 35 40 45 50 55 60
+0
+500P2
+10 15 20 25 30 35 40 45 50 55 60
+0.6
+0.8
+1
+10 15 20 25 30 35 40 45 50 55 60
+0.8
+0.9
+1
+10 15 20 25 30 35 40 45 50 55 60
+0
+500
+P3
+10 15 20 25 30 35 40 45 50 55 60
+0.6
+0.8
+1
+10 15 20 25 30 35 40 45 50 55 60
+0.8
+0.9
+1
+10 15 20 25 30 35 40 45 50 55 60
+0
+500P4
+10 15 20 25 30 35 40 45 50 55 60
+0.6
+0.8
+1
+10 15 20 25 30 35 40 45 50 55 60
+0.8
+0.9
+1
+10 15 20 25 30 35 40 45 50 55 60
+0
+500
+P5
+10 15 20 25 30 35 40 45 50 55 60
+0.6
+0.8
+1
+10 15 20 25 30 35 40 45 50 55 60
+0.8
+0.9
+1
+10 15 20 25 30 35 40 45 50 55 60
+0
+500
+P6
+10 15 20 25 30 35 40 45 50 55 60
+0.6
+0.8
+1
+10 15 20 25 30 35 40 45 50 55 60
+0.8
+0.9
+1
+10 15 20 25 30 35 40 45 50 55 60
+0
+500P7
+10 15 20 25 30 35 40 45 50 55 60
+0.6
+0.8
+1
+10 15 20 25 30 35 40 45 50 55 60
+0.8
+0.9
+1
+10 15 20 25 30 35 40 45 50 55 60
+0
+500P8
+10 15 20 25 30 35 40 45 50 55 60
+0.6
+0.8
+1
+10 15 20 25 30 35 40 45 50 55 60
+0.8
+0.9
+1
+10 15 20 25 30 35 40 45 50 55 60
+0
+500
+# topics
+P9
+10 15 20 25 30 35 40 45 50 55 60
+0.6
+0.8
+1
+# topics
+10 15 20 25 30 35 40 45 50 55 60
+0.8
+0.9
+1
+# topics
+Figure5: Foreachofthe9subjects(rows)acomparisonbetweenSSFandWSF(using10-60topics)inreconstruction
+error(column1)and classification error in the category(column2) and noun(column3) tasks. In each plotWSF is
+red(fullline),SSFis blue(constantdashedline)andchancelevelis black(constantdottedline). Thereconstruction
+errorismeasuredonleftoutexamples,overthe1000voxelsselectedonthetrainingset. Theseresultswereobtained
+using leave-one-epoch-outcross-validation (one epoch containing one instance of all nouns is left out in each of 6
+folds). Errorbarsarenotshown,giventheirsmallsize(thereare360examples),buteachnumberoftopicsforwhich
+WSFerrorissignificantlylowerthanSSFerrorishighlightedwithasquare.
+P1 P2 P3 P4 P5 P6 P7 P8 P9
+same 0.57 0.39 0.36 0.32 0.26 0.16 0.26 0.24 0.18
+category 0.50 0.32 0.30 0.28 0.24 0.14 0.23 0.21 0.16
+other 0.45 0.30 0.27 0.22 0.22 0.13 0.21 0.20 0.14
+sameminusother 0.12 0.09 0.09 0.10 0.04 0.03 0.05 0.04 0.04
+sameminuscategory 0.07 0.07 0.06 0.04 0.02 0.02 0.03 0.03 0.02
+Table 1: For each subject (column), the average correlation between one test example of a noun and all training set
+examplesofthesamenoun(same),thosewhicharenotthesamebutbelongtothesamecategory(category)andthose
+whicharenotinthesamecategory(other). Thecorrelationiscomputedoverthe1000voxelsselectedinthetraining
+setwhichareusedtolearntheimagebasis. NotethedifferencebetweensameandotherforsubjectsP1-P4,incontrast
+withthatforsubjectsP5-P9. Thiswascomputedusingleave-one-epoch-outcross-validation,andthusshouldbeused
+inconjunctionwithFigure5.
+6
+WSF is significantly better than SSF. In an effort
+to find out why this was the case, we computed a
+measure of consistency of the data from each of the
+subjects; intuitively, this is the degree to which the
+brain activation pattern was similar between trials
+with the same noun stimulus (and dissimilar for tri-
+alswherethestimuluswasdifferent). Thiswascom-
+puted in leave-one-epoch-out cross-validation, and
+consisted of examining the correlation – computed
+acrossselectedvoxels–ofatestexamplewithtrain-
+ing examples of the same noun (same), the same
+category but a different noun (same category) and
+different category and noun (other); the measures
+wereaveragedacrossexamples. Inleave-one-group-
+out cross-validation subjects P1-P4have higher dif-
+ferences between correlation within examples of a
+noun and examples in the same category or other
+categories than subjects P5-P9, which suggests that
+theformeraremoreconsistentinhowtheyelicitpat-
+ternsinresponse tothesamestimulus.
+3.2 Classification
+on voxel space
+In order to have an idea of how much of the infor-
+mation present either SSF or WSF can extract and
+convey via their respective low-dimensional repre-
+sentations, wealso trained asimpleGaussian Naive
+Bayes(GNB)classifier onvoxels selected using the
+same reproducibility criterion described earlier. We
+used leave-one-epoch-out cross-validation and both
+category and noun tasks, respectively top and bot-
+tom of Table 2. Contrasting this with Figure 5,
+it’s clear that the accuracies in the category task
+are comparable, whereas those in the noun task are
+somewhat lower; this suggests that either informa-
+tion about individual nouns is lost when converting
+from voxels to semantic features, or that nearest-
+neighbour isnotthebestclassifiertouse.
+3.3 Similarity
+between SSF and WSF
+representations
+Inordertogaugethequality ofthesemantic feature
+representationswecanconsiderbothhowmuchthey
+differ between different nouns (and different cate-
+gories)andalsohowconsistenttheyareforthe6ex-
+amples of the same noun. Thisis shown forsubject
+P1 in Figure 6, where the semantic feature vectors
+learnedfor360examplesarecorrelated,forWSF50
+(left)andSSF25(right). Examplesaresortedsothat
+WSF 50
+SSF 25
+correlation between 25 SSF and 50 WSF across 360 nouns
+5 10 15 20 25 30 35 40 45 50
+5
+10
+15
+20
+25
+−1 −0.8 −0.6 −0.4 −0.2 0 0.2 0.4 0.6 0.8 1
+Figure7: CorrelationbetweeneachpairofSSFandWSF
+vectorsofpredictedfeaturevaluesacross360examples.
+the 6 examples of the same noun are together, and
+adjacent to the other 24 belonging to the same cat-
+egory (and the category changes are labelled. Note
+that these are the values obtained when each exam-
+plewasinthetestset,ratherthanthevaluesderived
+from text for each noun; this is why the semantic
+feature vectors forthe6examples ofthesamenoun
+are different. WSF 50 is such that nouns belonging
+tothesamecategory sharemanyfeaturevalues, and
+henceshowupaslargeblocksalongthediagonalof
+the correlation matrix. Less of the noun specific in-
+formationisbeingcaptured,butitissometimesvis-
+ible asthesmaller blocks along thediagonal, inside
+thelargeblocks.
+WecanalsoconsiderthequestionofwhetherSSF
+and WSF representations are similar, i.e. whether a
+given SSF feature has values across examples sim-
+ilar to a given WSF feature. This can be done
+by considering the correlation between each pair of
+predicted SSF/WSF vectors across 360 examples,
+which isshown in Figure 7. Thissuggests very few
+of the semantic features are similar when predicted
+for examples in the test set, and as was already evi-
+denceinFigure2.
+3.4 Leave-2-out 2-way classification
+We have also attempted to replicate the results in
+the main experiment in (Mitchell et al., 2008),
+schematizedinFigure3anddescribedearlierinSec-
+tion 3.1.1. The results of this are shown in Ta-
+ble 3, which compares the mean accuracy across
+7
+category accuracy
+#voxels 100 250 500 1000 1500 2000 5000 allvoxels
+P1 0.43 0.53 0.54 0.56 0.53 0.52 0.42 0.08
+P2 0.30 0.34 0.32 0.30 0.28 0.26 0.22 0.08
+P3 0.25 0.27 0.29 0.27 0.26 0.26 0.21 0.08
+P4 0.42 0.40 0.41 0.38 0.38 0.39 0.31 0.08
+P5 0.20 0.21 0.21 0.17 0.16 0.14 0.11 0.08
+P6 0.27 0.23 0.19 0.16 0.14 0.13 0.10 0.08
+P7 0.21 0.19 0.19 0.19 0.18 0.16 0.13 0.08
+P8 0.14 0.13 0.12 0.14 0.13 0.13 0.12 0.08
+P9 0.18 0.21 0.21 0.21 0.22 0.21 0.19 0.08
+nounaccuracy
+#voxels 100 250 500 1000 1500 2000 5000 allvoxels
+P1 0.34 0.41 0.41 0.41 0.35 0.33 0.23 0.02
+P2 0.26 0.32 0.29 0.22 0.18 0.17 0.08 0.02
+P3 0.17 0.20 0.21 0.17 0.14 0.12 0.07 0.02
+P4 0.21 0.23 0.22 0.20 0.18 0.16 0.14 0.02
+P5 0.11 0.09 0.08 0.06 0.05 0.05 0.03 0.02
+P6 0.13 0.08 0.06 0.04 0.04 0.04 0.02 0.02
+P7 0.08 0.07 0.08 0.07 0.07 0.07 0.05 0.02
+P8 0.07 0.08 0.06 0.05 0.05 0.04 0.03 0.02
+P9 0.06 0.08 0.06 0.06 0.05 0.05 0.04 0.02
+Table 2: top: Accuracy of a Gaussian Naive Bayes classifier trained on various numbers of voxels selected by the
+reproducibilitycriterion,onthecategorypredictiontask,usingleave-one-epoch-outcross-validation. bottom: Same,
+forthenounpredictiontask.
+animal (1)
+bodypart (31) building (61)
+buildingpart (91)
+clothing (121) furniture (151) insect (181) kitchen (211)
+manmade (241)
+tool (271)
+vegetable (301)
+vehicle (331)
+correlation between predicted WSF 50 dimensional vectors for 360 nounsanimal (1)
+bodypart (31)
+building (61)
+buildingpart (91)
+clothing (121)
+furniture (151)
+insect (181)
+kitchen (211)
+manmade (241)
+tool (271)
+vegetable (301)
+vehicle (331)
+0
+0.2
+0.4
+0.6
+0.8
+1
+animal (1)
+bodypart (31) building (61)
+buildingpart (91)
+clothing (121) furniture (151) insect (181) kitchen (211)
+manmade (241)
+tool (271)
+vegetable (301)
+vehicle (331)
+correlation between predicted SSF 25 dimensional vectors for 360 nounsanimal (1)
+bodypart (31)
+building (61)
+buildingpart (91)
+clothing (121)
+furniture (151)
+insect (181)
+kitchen (211)
+manmade (241)
+tool (271)
+vegetable (301)
+vehicle (331)
+0
+0.2
+0.4
+0.6
+0.8
+1
+Figure 6: left: correlation between the WSF 50 predicted feature vectors for the 360 examples right: same for the
+SSF25predictedfeaturevectors
+8
+SSF Org 20 25 30 35 40 45 50
+P1 0.84 0.83 0.88 0.91 0.87 0.89 0.85 0.85 0.86
+P2 0.80 0.76 0.75 0.77 0.74 0.76 0.72 0.72 0.73
+P3 0.78 0.78 0.76 0.78 0.73 0.76 0.72 0.70 0.78
+P4 0.82 0.72 0.88 0.88 0.85 0.86 0.86 0.85 0.87
+P5 0.85 0.78 0.79 0.84 0.78 0.71 0.78 0.73 0.78
+P6 0.77 0.85 0.82 0.84 0.78 0.79 0.76 0.81 0.75
+P7 0.78 0.73 0.83 0.84 0.80 0.81 0.79 0.75 0.74
+P8 0.77 0.68 0.66 0.68 0.64 0.62 0.67 0.64 0.69
+P9 0.75 0.82 0.77 0.81 0.77 0.79 0.81 0.78 0.78
+Table 3: Results of a replicationof the leave-2-noun-out
+2-wayclassificationexperimentin(Mitchelletal.,2008).
+For subjects P1-P9, SSF represents the mean accuracy
+obtainedusing SSF (across1770 leave-2-outpairs), Org
+themeanaccuracyreportedin(Mitchelletal.,2008)and
+theremainingcolumnsthemeanaccuracyobtainedusing
+WSFwith20-50topics.
+1770leave-2-outpairsusingSSF,themeanaccuracy
+reported in (Mitchell et al., 2008) and the mean ac-
+curacy using WSF with 20-50 topics. We were not
+able to exactly reproduce the numbers in (Mitchell
+et al., 2008), despite the same data preprocessing
+(making each example mean 0 and standard devia-
+tion 1, prior to averaging all the repetitions of each
+noun, and then subtracting the mean of all average
+examples from each one), the same voxel selection
+procedure (using500voxels)andthesameridgere-
+gression function (although (Mitchell et al., 2008)
+doesnotmentionthevalueoftheridgeparameterλ,
+which we assumed to be 1). We will endeavour to
+identify the source of the discrepancies, but it was
+notpossible todosointimeforthispaper.
+4 Conclusions
+We have shown that it is feasible to learn seman-
+tic features from a text corpus, without the need to
+postulate whatthey might represent in thebrain, ei-
+therdirectlyorviaproxyindicators liketheverbsin
+(Mitchelletal.,2008). Furthermore,wehaveshown
+that those semantic features are superior to the fea-
+tures proposed in (Mitchell et al., 2008) in two de-
+manding classification tasks that require using the
+featurestodecomposebrainactivationintobasisim-
+ages related to them. Further analysis of those and
+otherresults obtained classifying directly fromvox-
+elssuggestthatthesemanticfeaturescapturealarge
+amount ofcategory-level information, and atleast a
+fraction ofthenoun-level information present inthe
+patternofbrainactivation. (Mitchelletal.,2008).
+Acknowledgments
+We would like to thank David Blei for discussions about topic mod-
+elling in general and of the Wikipedia corpus in particular and Ken
+Normanforvaluable feedback atvarious stagesofthework.
+References
+William FBattig andWilliamE Montague. 1969. Cate-
+goryNormsforVerbalItemsin56Categories. Journal
+of Experimental Psychology,80(3).
+DMBlei,AYNg,andMIJordan. 2003. LatentDirich-
+letallocation. Journal of Machine Learning Research,
+3:993–1022.
+James M Clark and Allan Paivio. 2004. Extensions of
+the Paivio, Yuille, and Madigan (1968) norms. Be-
+havior research methods, instruments, & computers :
+a journal of the Psychonomic Society, Inc,36(3):371–
+83,August.
+John-Dylan Haynes and Geraint Rees. 2006. Decoding
+mental states from brain activity in humans. Nature
+reviews. Neuroscience,7(7):523–34.
+KendrickNKay,ThomasNaselaris,RyanJPrenger,and
+JackLGallant. 2008. Identifyingnaturalimagesfrom
+humanbrainactivity. Nature,452(7185):352–5.
+G. Minnen, J. Carroll, and D. Pearce. 2001. Applied
+morphological processing of English. Natural Lan-
+guage Engineering,7(03):207223.
+Tom M Mitchell, Svetlana V Shinkareva, Andrew Carl-
+son,Kai-MinChang,VicenteLMalave,RobertaMa-
+son, and MarcelAdam Just. 2008. Predictinghuman
+brain activity associated with the meanings of nouns.
+Science (New York, N.Y.),320(5880):1191–5.
+B. Murphy, M. Baroni, and M. Poesio. 2009. EEG Re-
+sponds to Conceptual Stimuli and Corpus Semantics.
+Proceedings of ACL/EMNLP.
+Kenneth A Norman, Sean M Polyn, Greg J Detre, and
+James VHaxby. 2006. Beyondmind-reading: multi-
+voxelpattern analysisof fMRI data. Trends in cogni-
+tive sciences,10(9):424–30.
+Allan Paivio, John C Yuille, and Stephen A Madigan.
+1968. Concreteness, Imagery, and Meaningfulness
+Values for 925 Nouns. Journal of Experimental Psy-
+chology,76(1).
+J Van Overschelde. 2004. Category norms: An up-
+dated and expanded version of the Battig and Mon-
+tague (1969) norms. Journal of Memory and Lan-
+guage,50(3):289–335.
+9
+

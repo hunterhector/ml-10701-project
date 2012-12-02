@@ -1,0 +1,4 @@
+In the field of natural language generation, empirical evaluation has only recently become a top research priority (Dale, Eugenio et al.1998). Some empirical work has been done to evaluate models for generating descriptions of objects and processes from a knowledge base (Lester and Porter March 1997), text summaries of quantitative data (Robin and McKeown 1996), descriptions of plans (Young to appear) and concise causal arguments (McConachy, Korb et al.1998). However, little attention has been paid to the evaluation of systems generating evaluative arguments, communicative acts that attempt to affect the addressee’s attitudes (i.e.
+J97-1004 J98-3001
+Following argumentation theory, we have designed an argumentative strategy for generating evaluative arguments that are properly arranged and concise (Carenini and Moore 2000).
+W00-1407

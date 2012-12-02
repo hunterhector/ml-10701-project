@@ -1,0 +1,2 @@
+Since then, we have been investigating ways of integrating tactile pointing and graphics with natural language understanding and generation in the XTRA (Wahlster 1991) and WIP projects (Wahlster et al.1991). The task of the knowledge-based presentation system WIP is the context-sensitive generation of a variety of multimodal communications from an input including a presentation goal (Wahlster et al.1993a). The presentation goal is a formal representation of the communicative intent specified by a back-end application system.
+E91-1003

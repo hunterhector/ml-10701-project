@@ -1,0 +1,2 @@
+Prague Dependency Tree Bank (PDT in the sequel), which has been inspired by the build-up of the Penn Treebank (Marcus, Santorini & Marcinkiewicz 1993; Marcus, Kim, Marcinkiewicz et al.1994), is aimed at a complex annotation of (a part of) the Czech National Corpus (CNC in the sequel), the creation of which is under progress at the Department of Czech National Corpus at the Faculty of Philosophy, Charles University (the corpus currently comprises about 100 million tokens of word forms).
+H94-1020 J93-2004

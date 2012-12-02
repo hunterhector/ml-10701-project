@@ -1,0 +1,273 @@
+A step towards incremental generation of logical forms Lu´ısa Coheur L2F INESC-ID / GRIL Lisboa, Portugal Luisa.Coheur@l2f.inesc-id.pt Nuno Mamede L2F INESC-ID / IST Lisboa, Portugal Nuno.Mamede@inesc-id.pt Gabriel G.
+B`es GRIL / Univ.
+Blaise-Pascal Clermont-Ferrand, France Gabriel.Bes@univ-bpclermont.fr Abstract This paper presents AsdeCopas, a module designed to interface syntax and semantics.
+AsdeCopas is based on hierarchically organised semantic rules, that output formulas in a flat language.
+In this paper, we show how this system can be used in the following applications: a) semantic disambiguation; b) logical formulas construction (in Minimal Recursion Semantics); c) question interpretation.
+1 Introduction
+We present AsdeCopas, a syntax-semantic interface based on hierarchically organised rules.
+AsdeCopas is integrated in a system where the input text is first transformed into a graph and then passed to AsdeCopas.
+AsdeCopas can be used in several ways.
+It can be used to enrich the graph (Figure 1), for example, by labeling its arrows.
+a0 a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a3 a2 a6 a11 a8 a12 a2 a13 a14 a15 a16 a1 a17 a18 a8 a6 Figure 1: Enriching the graph It can be used in a desambiguation process and to generate logical formulas.
+In this paper we show how AsdeCopas can be used to choose between several semantic values of some quantifiers and also how it can generate underspecified formulas in Minimal Recursion Semantics (MRS) (Copestake et al., 2001).
+Additionally, it can be used to add constraints to these underspecified formulas.
+As AsdeCopas makes a controled generation of variables, these new formulas can be simply added to the previous underspecified MRS formulas and the rules responsible for generating MRS underspecified structures remain unchangeable.
+a19 a20 a21 a22 a23 a24 a25 a26 a27 a28 a29 a22 a21 a25 a30 a27 a25 a31 a32 a33 a25 a34 a27 a35 a21 a36 a33 a37 a38 a20 a31 a32 a27 a25 Figure 2: Desambiguation Notice that in all the applications, AsdeCopas could previously be used to enrich the graph and the rules used in each task should take it into consideration.
+This paper is organised as follows: we start with the motivation for this work.
+Then, in section 3, we present our approach.
+This includes a description of the semantic rules formalism and a brief overview of the algorithm behind AsdeCopas.
+In section 4 we introduce some applications.
+Final remarks and future directions can be found in section 5.
+2 Motivation
+In 1992, an exhaustive study of the Portuguese tourist resources was made by the Direc¸c˜ao Geral de Turismo (DGT) and afterwards the Inventory of Tourist Resources (IRT) emerged.
+In order to access it, multimedia “kiosks” were developed and a system called Edite (da Silva, 1997; Reis et al., 1997; da Silva et al., 1997) was created with the purpose of being integrated in these “kiosks” and to allow database access using natural language.
+Edite had a set of linguistically motivated traditional modules (semantic rules associated with syntactic rules, bottom-up parser, and so on) and it soon became saturated: adding a new syntactic rule caused dramatic side effects, a new semantic value could duplicate the number of generated formulas, etc.
+It was this experiment that made us change our approach and invest in a more robust methodology.
+We found in the 5P Paradigm (B`es, 1999; B`es and Hag`ege, 2001; Hag`ege, 2000) the background we were looking for and the syntaxsemantic interface presented in this paper reflects the effort of adapting to a more robust methodology.
+Many systems base their interface in rules, that according to (A¨ıt-Mokhtar et al., 2002) “encode hypothetical local interpretations of sub-strings, yet to be validated by the production of a full parse”.
+This is typically what happens to syntactic-semantic bottom-up parsers where each semantic rule is associated with a syntactic rule.
+Even if these systems do not fail when a sub-string interpretation fails, their parsers need to deal with a combinatory explosion of multiple interpretations of words, even if syntactic conditions would allow precise values to be chosen.
+This is due to the fact that at each step there is not a whole vision of the (syntactic) context.
+An additional effect of not having access to context is that spurious ambiguities are produced.
+As an example, consider the Portuguese word qualquer (roughly, any), which can take several semantic values (see (M´oia, 1992) for a detailed discussion about the multiple interpretations of qualquer): • In Qualquer c˜ao gosta de ossos (All dogs like bones) it has an universal value (univ); • In Ele tem qualquer problema (There is some problem with him) it has an existential value (exist); • In Ele ´e um jornalista qualquer (He is an insignificant journalist) it is an adjective, and it means something like with no relevant characteristics in the class denoted by the noun it qualifies.
+We will denote this semantic value as indiscriminate; • In Ele n˜ao ´e um jornalista qualquer (He is not an insignificant journalist) it has the same indiscriminate value.
+Let us assume that on the right of a main verb in the scope of negation, qualquer can only take the indiscriminate semantic value.
+Typically, in a bottom-up parsing (Figure 3) we will not be able to discard unnecessary values, as in point (1), when finally we have the whole vision of the subtree, the semantic rule will not take into consideration the negation inside V.
+Figure 3: Grammar and qualquer example Another kind of interface can be found in systems such as ExtrAns (Moll´a et al., 2003), where the syntax-semantic interface is executed over dependencies.
+According to (Moll´a and Hutchinson, 2002), the current version of ExtrAns uses either Link Grammar or the Conexor FDG parser.
+In the first situation, the logical-form is constructed by a top-down procedure, starting in the head of the main dependency and following dependencies.
+The algorithm is prepared to deal with a certain type of dependencies, and whenever an unexpected link appears, a special recovery treatment is applied.
+When describing the algorithm, the authors say that most of these steps “... become very complex, sometimes involving recursive applications of the algorithm” and also that “specific particularities of the dependency structures returned by Link Grammar add complexity to this process” (Moll´a and Hutchinson, 2002).
+In the Conexor FDG case, the bottom up parser used has three stages.
+In the first one (introspection) possible underspecified predicates are associated with each word.
+Object predicates introduce their own arguments, but other predicates remain incomplete until the second stage (extrospection).
+During extrospection, arguments are filled by examing the relation between each word and its head.
+Sometimes dummy arguments need to be assigned when the algorithm faces disconnected dependency structures.
+A third stage (re-interpretation) is needed to re-analyse some logical constructs.
+According to the authors, the algorithm cannot produce the correct argument structure for long distance dependencies.
+As we will see, within AsdeCopas: • rules allow to identify semantic values that depend on the context; • the algorithm itself is independent from the utilised dependency structures.
+Only semantic rules have to be adapted to the dependency structures; • there is no need to recursively apply the algorithm or to create dummy arguments due to disconnected dependency structures: in these situations, default rules are triggered; • long distance dependencies cause no problem as rules are sensitive for the (possibly non-local) syntactic context; • all words, independently from their category, are mapped into formulas in one step: since rules are self-contained, they contain all the necessary information to calculate the corresponding formula.
+3 Our
+approach 3.1 Brief overview A¨ıt-Mokhtar (A¨ıt-Mokhtar et al., 2002) defines an incremental rule as “a self-contained operation, whose result depends on the set of contextual restrictions stated in the rule itself.
+[...] If a sub-string matches the contextual restrictions, the corresponding operation applies without later backtracking”. This is the gold property we achieved for our semantic rules.
+Now the question is: how are we going to define an incremental rule if in our output we have predicates sharing variables, scope relations to define, and so on?
+We propose a solution based on the following: • we split each rule in three parts: a) the element or elements to transform (notice that each rule can transform more than one element); b) the context of the elements to transform (it can be seen as a set of conditions that, being verified, indicate that the rule can be applied); c) the output (specified by a set of functions that will transform the elements according to the chosen representation).
+• we assume that there is a set of fixed variables associated with each word.
+Each variable has the position the word occupies in the text as index.
+As a result, if two elements are connected (directly or not) they know each other variables, and they can be used to build their formulas.
+Moreover, in order to incrementally add new information to our system without having to rewrite more general rules, semantic rules are organised in a subsumption hierarchy.
+As a result, if a set of rules can be applied, only the rules that do not subsume other rules are triggered.
+3.2 Semantic
+rules 3.2.1 Syntax Let W be a set of words, C a set of category labels, D a set of dependency labels and is used to represent an underspecified value.
+Element: elem(w, c) is an element, where: • w ∈ { } ∪ W; • c ∈ { } ∪ C.
+Arrow: arrow(c1, c2, d, l) is a dependency, and no arrow(c1, c2, d, l) a non existing dependency where: • c1, c2 ∈ C (c1 and c2 are, respectively, the source and the target); • d ∈ { } ∪ {L, R} (d is the dependency orientation: L if it goes from right to left, R from left to right); • l ∈ { } ∪ D (l is a possibly undefined dependency label).
+Semantic Rule: [Ri] Σ : Θ mapsto→ Γ is a semantic rule where: • Σ is a possibly empty set of elements (the elements to operate on); • Θ is a possible empty set of existing and non existing dependencies (the rule’s context); • Γ is a set of functions, that vary according to the chosen representation language.
+Extra constraints over semantic rules syntax can be found in (Coheur et al., 2003b; Coheur, 2004).
+3.2.2 Hierarchy
+of rules In the following we define the subsumption relation between semantic rules.
+This relation establishes the hierarchy of rules and it is based on the subsumption relation between categories.
+Although we use labels to represent categories, each category is a set of attribute/value pairs organized in a subsumption hierarchy.
+Element subsumption: Given e1 = elem(w1, c1) and e2 = elem(w2, c2) from Σ, e1 subsumes e2 (e1 subsetsqequale e2) iff: • c1 subsetsqequal c2; • (w1 negationslash= ) ⇒ (w2 = w1).
+Dependency subsumption: Given a1 = arrow(c1, c2, d1, l1) and a2 = arrow(c3, c4, d2, l2) from Θ, a1 subsumes a2 (a1 subsetsqequala a2) iff: • c1 subsetsqequal c3 ∧ c2 subsetsqequal c4; • (d1 negationslash= ) ⇒ (d2 = d1); • (l1 negationslash= ) ⇒ (l2 = l1).
+Subsumption of non existing dependencies: Given a1 = no arrow(c1, c2, d1, l1) and a2 = no arrow(c3, c4, d2, l2) from Θ, a1 subsumes a2 (a1 subsetsqequala a2) iff: • c1 subsetsqequal c3 ∧ c2 subsetsqequal c4; • (d1 negationslash= ) ⇒ (d2 = d1); • (l1 negationslash= ) ⇒ (l2 = l1).
+Rule subsumption: Given two semantic rules R1 = (Σ1, Θ1, Γ1) and R2 = (Σ2, Θ2, Γ2), R1 subsumes R2 (R1 subsetsqequalr R2) iff: • (∀ e1 ∈ Σ1)(∃ e2 ∈ Σ2) (e1 subsetsqequale e2); • (∀ a1 ∈ Θ1)(∃ a2 ∈ Θ2)(a1 subsetsqequala a2).
+Finally, if R1 subsumes R2, R2 is said to be more specific than R1.
+If both rules can apply, only the most specific rule does so.
+3.3 AsdeCopas
+AsdeCopas is integrated in a system called Javali (Coheur et al., 2003a), where a module called Ogre (Coheur, 2004) generates a graph, which is AsdeCopas’ input.
+Given the question Qual a maior praia do Algarve(Which is the largest beach in Algarve?), the following figure shows the graph generated by Ogre: Each graph node is a triple, representing: a) a word; b) its associated category; c) its position (in the text).
+Each graph arrow is also a triple, Figure 4: Ogre’s output.
+maintaining information about: a) the position associated with the source node; b) the position associated with the target node; c) the arrow label (possibly undefined)1.
+AsdeCopas is implemented in Prolog.
+It goes through each graph node and: • identifies the rules that can be applied; • chooses the most specific rules; • triggers the most specific rules.
+Then it continuous to the next node.
+Notice that since rules are self-contained, the way it goes through the graph and the order of rule’s application is not relevant, and results remain the same.
+Notice also, that at each step more than one rule can be triggered.
+AsdeCopas is responsible for variable generation.
+Thus, instead of randomly generating variables, each variable is indexed by the position that the related word occupies in the text.
+Although apparently naive, this is an important feature of our system which allows different semantic processes to run at different times and results to be merged at the end.
+4 Case
+studies We present three applications.
+First we show how AsdeCopas can be used in a disambiguation process.
+Then we use it to build formulas in MRS (Copestake et al., 2001).
+Finally, we present an application where AsdeCopas generates logical forms from questions.
+Quantification is ignored in this last task.
+Notice, however, that in order to have a serious evaluation of AsdeCopas capabilities, it needs to be applied to more demanding tasks.
+4.1 Disambiguation
+process Consider again the quantifier qualquer.
+As we saw, it can take several semantic values.
+Sometimes the syntactic context allows to limit these 1Within our applications, dependencies are unlabelled, and go from dependents to the head.
+The motivation behind these structures came from the 5P Paradigm.
+possibilities. In some situations, one semantic value can be chosen, allowing a full desambiguation.
+Let us assume that all is an underspecified value (Poesio, 1994) representing all of the semantic values.
+If no desambiguation takes place, this is the value that will represent this word’s semantics.
+Alternatively, we could opt for a default value.
+For example, the universal value since it is the most common.
+Let us opt for the universal default value.
+We can write a default rule, as the following: [R1] {elem(qualquer, qt)} : ∅ mapsto→ {sem(qt) = univ} Assuming again, as we did in section 2, that on the right of the main verb in the scope of negation, qualquer takes the value indiscriminate the following rule allows to choose the correct value for qualquer in that context:2 [R2] {elem(qualquer, qt)} : {arrow(qt, n, L, ), arrow(n, v, L, ), arrow(neg, v, R, )} mapsto→ {sem(qt) = indiscriminate} R2 is more specific than rule R1, thus it is applied in these particular conditions.
+In order to disambiguate, or at least to limit semantic values, other semantic rules would have to be added.
+Consider now the Portuguese quantifier algum.
+When it appears on the left side of a noun (n), it means “some” (some).
+On the right side it means “none” (none), unless it is in the scope of negation.
+In this particular situation it has an universal value.
+The following rules allow the right values to be chosen – in this particular situations – for this quantifier (notice that rule R5 is more specific than rule R4): [R3] {elem(algum, qt)} : {arrow(qt, n, R, )} mapsto→ {sem(qt) = some} 2We assume that the object with category n arrowing an object with category v is the same object with category n that receives an arrow from a qt.
+An index is used when we need to distinguish two different objects with the same category.
+[R4] {elem(algum, qt)} : {arrow(qt, n, L, )} mapsto→ {sem(qt) = none} [R5] {elem(algum, qt)} : {arrow(qt, n, L, ) arrow(n, v, L, ) arrow(neg, v,, )} mapsto→ {sem(qt) = every}3 A precise study of the disambiguation of the word qualquer can be found in (Coheur, 2003) and (Coheur, 2004), where we try to go as far as possible in the disambiguation process of this word (an some paraphrases of it), by using its syntactic context.
+Obviously, there are limits to this task, as in some situations information from semantics and pragmatics should also be taken into account to find the correct semantic value.
+4.2 Logical
+forms generation 4.2.1 Minimal Recursion Semantics Linking syntax with semantics is not an easy task.
+As Allen says in (Allen, 1995) there seems to be a structural inconsistency between syntactic structure and the structure of the logical form.
+We can ease this process by using an adequate representation language.
+In fact, although the concept is not new (Hobbs, 1983), state of the art frameworks such as (Moll´a et al., 2003; Baldridge and Kruijff, 2002) are using flat semantic representations, taht is formulas with no embedded structures (see (Moll´a, 2000) for details about flatness), which simplify the syntactic-semantic interface.
+At the same time, and because it is not reasonable to generate all the possible interpretations of a sentence, many frameworks are using representation languages that leave underspecified semantic interpretations (also an old concept (Woods, 1978)).
+MRS (Copestake et al., 2001) uses a flat representation with explicit pointers (called handles) to encode scope effects, corresponding to recursive structures in more conventional formal semantic representations.
+We have chosen this language because it has three fundamental characteristics: a) it is a flat language; b) it allows the treatment of quantification; c) it allows underspecification.
+Un3Notice, that by choosing the universal value, in the final formula this quantifier will no longer be in the scope of negation.
+derspecified MRS structures can be converted into scope-resolved structures that, according to (Copestake et al., 1997), “correspond to those obeyed by a conventionally written bracketed structure”.
+As an example, MRS represents Qualquer menino adora algum c˜ao(Every boy adores some dog) in the following underspecified structure (the =q constraint stands for the equality modulo quantifiers and relates a handle in an argument position to a label (Copestake et al., 2001)): top p4 h1:every(x, r1, n), h3:menino(x), r1 =q h3, h7:c~ao(y), h5:some(y, r5, m), r5 =q h7, h4:adora(e, x, y) where h1 outscopes h3 and h5 outscopes h7.
+Then, by means of a set of constraints, such that an MRS structure must be a tree, there should be a unique top-level handle, etc., the following readings are obtained: p=h1 (wide scope “every”) h1:every(x, h3, h5), h3:menino(x), h5:some(y, h7, h4), h7:c~ao(y), h4:adora(e, x, y) p=h5 (wide scope “some”), h5:some(y, h7, h1), h7:c~ao(y), h1:every(x, h3, h4), h3:menino(x), h4:adora(e, x, y) In the next section we will show how to reach these formulas.
+4.2.2 Toy
+example We will show how to reach an underspecified MRS representation for constructions as Qualquer67 menino68 adora69 a70 Maria715 and Qualquer678 menino679 adora680 algum681 c˜ao682.
+Notice that, for expository reasons, we are simplifying the process.
+Actual rules use fine grained categories for quantifiers, and scope restrictions are imposed differently (Coheur, 2004).
+In order to perform this task we use the following functions: 4p is the variable over the top.
+5Every boy adores Maria • sem returns a (default) predicate ex: sem(Maria) = Maria6; • var returns a variable ex: var(Maria) = x71; • handle returns a variable for an handle ex: handle(Maria) = h71; • restrictor returns a variable for a restrictor ex: restrictor(Maria) = r71; • scope returns a scope variable ex: scope(Maria) = s71.
+The following rule applies to nouns, either common nouns (nc) or proper nouns (npr), everytime it finds one (because the arrow set is empty).
+[R1]{elem(, n)} : ∅ mapsto→ {handle(n): sem(n)(var(n)} If only this rule is defined, the first sentence is translated into: h68:menino(x68) h71:Maria(x71) and the second sentence into: h679:menino(x679) h682:c~ao(x682) Nonetheless, h71:Maria(x71) is not the representation we want for Maria.
+Instead we use the predicate NAME.
+Thus, we define R2, subsumed by R1 (because n subsetsqequal npr), and consequently more specific.
+[R2]{elem(, npr)} : ∅ mapsto→ {handle(npr):NAME(var(npr), sem(npr))} Rule R2 is triggered instead of R1 and we obtain for the first sentence h71:NAME(x71, Maria) instead of h71:Maria(x71).
+6Although these values can be obtained in a lexicon, in this application they are generated from sentence words.
+Notice that a new rule needs to be defined for the situations where the npr arrows an nc and not a v, since we want to translate m˜ae807 Maria81 into m~ae(x80), NAME(x80, Maria) and not into m~ae(x80), NAME(x81, Maria).
+In order to do this, we need only to add a rule for npr (like the previous rule) to be applied when a npr arrows an nc.
+This rule, being more specific than rule R2, is applied in this particular situation.
+As the npr is connected with the nc, it “knows” its variable, which can be used is the associated formula.
+The next rule is applied to a verb (v) when the verb has an n arrowing from left (typically the subject) and an n arrowing from right (typically the direct object), and no preposition arrows these nouns.
+[R3]{elem(, v)} : {arrow(ni, v, R, ), arrow(nj, v, L, ), no arrow(prep, ni, R), no arrow(prep, nj, R)} mapsto→ {handle(v):sem(v)(var(v),var(ni), var(nj))} As a result, in the first sentence, adora is translated into: h69:adora(x69, x68, x71) and, in the second one, it is translated into: h680:adora(x680, x679, x682).
+Notice that, at this point, although we don’t have rules for all the elements within the example sentences, we already have a partial representation.
+Consider now, a generic rule for quantifiers (qt): [R4] {elem(,qt)} : {arrow(qt, nc,, )} mapsto→{handle(qt): sem(qt)(var(nc), restrictor(qt), scope(qt)), restrictor(qt) =q handle(nc)} Now, the results depend on previous processing: if the disambiguation task described in the previous section was performed, sem(qualquer) = every and sem(algum) = some.
+Otherwise, underspecified values are used.
+7mother. Let us consider that the disambiguation stage took place before.
+Thus, this rule adds to the first sentence: h67: every(x68, r67, s67), r67 =q h68 and to the second sentence: h678: every(x679, r678, s678), r678 =q h679 and h681: some(x682, r681, s681), r681 =q h682.
+Notice that we reach the underspecified formula from 4.2.1 for the first sentence.
+We will conclude now this example.
+It should be clear that additional rules could impose extra constraints to the formula, avoiding spurious ambiguities.
+4.3 Question
+interpretation From system Edite we inherited a corpus of 680 questions about tourist resources and we made a preliminar evaluation over 30 questions.
+There was no pre-processing of these questions, no compound terms were detected, no mistakes were corrected.
+Let “correct representation” be a set of formulas representing a question, where the exact number of expected predicates are produced, and variables are in the correct places.
+Let “system representation” be the set of formulas that the system suggests as the question representation.
+Each question can have more than one “system representation”.
+Moreover, a correct “system representation” is a “system representation” that is equal to the “correct representation”.
+A general evaluation (of the whole system) results in a precision of 0,19 (number of correct “system representations”/number of total “system representations”) and a recall of 0,77 (number of correct “system representations”/30).
+If we eliminate two particularly bad results (one associated 42 “system representations” to a question and the other 21), we have a precision of 0,37.
+The low precision results from previous stages, as several graphs are associated with each question.
+In fact, with the actual set of semantic rules only one representation is associated with each graph.
+Nevertheless, the analysis is not over.
+The majority of “system representations” produced by AsdeCopas are just incomplete and result from unknown words.
+For example, the statement Quais os roteiros pedestres sinalizados em Lisboa?(Which are the signalised footways in Lisbon?), originated the following formula, where AM is the predicate for adjectival modification and ? indicates the focus of the question: ?x759 roteiros(x759) AM(x759, x760), pedestres(x760) em(x759, x763) NAME(x763, Lisboa) As the word sinalizados was not recognised, the “system representation” is not correct, because a predicate associated with this word is missing.
+Nevertheless, most of the information contained in the question is retrieved.
+Within AsdeCopas framework a special effort was made with paraphrastic relations.
+As an example, both phrases Quais os hot´eis com piscina?(Which are the hotels with a swimming pool)? and Em que hot´eis h´a piscina?(In which hotels is there a swimming pool?), result in the following formulas: ?x22 hot´eis(x22) com(x22, x24) piscina(x24) Note that in order to reach this result, we had just to look into the particular syntactic conditions that make verb haver (to have) behave as the preposition com (with).
+5 Conclusions
+We presented AsdeCopas, a syntax-semantics interface based on hierarchically organized semantic rules.
+AsdeCopas is integrated in a system called Javali and it has been applied to several tasks.
+Apart from some adjustments, AsdeCopas should beable to process any dependency structure.
+In the near future, we will have to study coordination properly.
+We also indent to extend our work to English.
+6 Acknowledgements
+We are greatful for the corrections of Diamantino Caseiro, David Matos and S´ergio Paulo.
+We also acknowledge Ricardo Ribeiro and Rui Chaves.
+Finally, we thank for the useful comments of this paper reviewers.
+As usual, the responsability for the contents of this paper lies with the authors alone.
+This paper was supported by FCT (Funda¸c˜ao para a Ciˆencia e Tecnologia) and by Project POSI/PLP/41319/2001 (FEDER).
+References Salah A¨ıt-Mokhtar, Jean-Pierre Chanod, and Claude Roux.
+2002. Robustness beyound shallowness: incremental deep parsing.
+Natural Language Engineering, pages 121–144.
+James Allen.
+1995. Natural Language Understanding (second edition).
+The Benjamin Cummings Publishing Company, Inc.
+Jason Baldridge and Geert-Jan M.
+Kruijff. 2002.
+Coupling CCG and hybrid logic dependency semantics.
+In Proceedings of the 40th Annual Meeting of the Association for Computational Linguistics (ACL), pages 319–326.
+Gabriel G.
+B`es and Caroline Hag`ege.
+2001. Properties in 5P.
+Technical report, GRIL, Universit´e Blaise-Pascal, Clermont-Ferrand, France, November.
+Gabriel G.
+B`es. 1999.
+La phrase verbal noyau en fran¸cais.
+In Recherches sur le fran¸cais parl´e, volume 15, pages 273–358.
+Universit´e de Provence, France.
+Lu´ısa Coheur, Fernando Batista, and Joana Paulo.
+2003a. JaVaLI!: understanding real questions.
+In EUROLAN 2003 student workshop: Applied Natural Language Processing, possible applications for the Semantic Web, Bucharest, Romania, July.
+Lu´ısa Coheur, Nuno Mamede, and Gabriel G.
+B´es. 2003b.
+ASdeCopas: a syntacticsemantic interface.
+In Fernando Moura Pires and Salvador Abreu, editors, Progress in Artificial Intelligence: 11th Portuguese Conference on Artificial Intelligence, EPIA 2003, volume 2902 / 2003 of Lecture Notes in Artificial Inteligence, Beja, Portugal, Dezembro.
+Springer-Verlag. Lu´ısa Coheur.
+2003. A situa¸c˜ao do “qualquer” em qualquer situa¸c˜ao.
+Technical Report RT/004/03-CDIL, L2F-Laborat´orio de Sistemas de L´ıngua Falada, Inesc-id, Lisboa, Portugal, Mar¸co.
+Lu´ısa Coheur.
+2004. A interface entre a sintaxe e a semˆantica no quadro das l´ınguas naturais.
+Ph.D. thesis, Instituto Superior T´ecnico, Universidade T´ecnica de Lisboa, Portugal, Universit´e Blaise-Pascal, France.
+work in progress.
+Ann Copestake, Dan Flickinger, and Ivan A.
+Sag. 1997.
+Minimal recursion semantics: An introduction (draft).
+Ann Copestake, Dan Flickinger, Carl Pollard, and Ivan A.
+Sag. 2001.
+Minimal recursion semantics: An introduction.
+L&C, 1(3):1–47.
+Lu´ısa Marques da Silva, Nuno Mamede, and David Matos.
+1997. Edite um sistema de acesso a uma base de dados em linguagem natural.
+In Workshop sobre taggers para o portuguˆes, pages 20–33, Lisboa, Portugal.
+Instituto de Lingu´ıstica Te´orica e Computacional.
+Lu´ısa Marques da Silva.
+1997. Edite, um sistema de acesso a base de dados em linguagem natural, an´alise morfol´ogica, sint´actica e semˆantica.
+Master’s thesis, Instituto Superior T´ecnico, Universidade T´ecnica de Lisboa, Portugal.
+Caroline Hag`ege.
+2000. Analyse Syntatic Automatique du Portugais.
+Ph.D. thesis, Universit´e Blaise Pascal, Clermont-Ferrand, France.
+Jerry R.
+Hobbs. 1983.
+An improper treatment of quantification in ordinary english.
+In 21st Annual Meeting of the Association for Computational Linguistics (ACL).
+Telmo M´oia.
+1992. Aspectos da Semˆantica do Operador Qualquer (Cadernos de Semˆantica no 5).
+Faculdade de Letras da Universidade de Lisboa.
+Diego Moll´a.
+2000. Ontologically promiscuous flat logical forms for NLP.
+In IWCS-4, Tilburg, The Netherlands.
+Diego Moll´a and Ben Hutchinson.
+2002. Dependency-based semantic interpretation for answer extraction.
+In Proceedings of the Australasian NLP Workshop (ANLP’02), Canberra.
+Diego Moll´a, Rolf Schwitter, Fabio Rinaldi, James Dowdall, and Michael Hess.
+2003. Extrans: Extracting answers from technical texts.
+IEEE Intelligent Systems, 18(4), July/August.
+M. Poesio.
+1994. Ambiguity, underspecification and discourse interpretation.
+In R.
+A. Muskens H.
+Bunt and G.
+Rentier (eds.), editors, Proceedings of the First International Workshop on Computational Semantics, pages 151–160.
+”ITK, Tilburg University”.
+Paulo Reis, J.
+Matias, and Nuno Mamede.
+1997. Edite a natural language interface to databases: a new dimension for an old approach.
+In Proceedings of the Fourth International Conference on Information and Communication Technology in Tourism (ENTER’97), pages 317–326, Edinburgh, Esc´ocia.
+Springer-Verlag, Berlin, Germany.
+W. A.
+Woods. 1978.
+Semantics and quantification in natural language question answering.
+In M.
+Yovitz, editor, Advance in Computers, volume 17.
+New York: Academic Press.
+Reprinted in Readings in Natural Language Processing, edited by B.
+Grosz, K.
+Jones and B.
+Webber and published by Morgan Kaufmann Publishers, Inc.
+in 1986 .
+

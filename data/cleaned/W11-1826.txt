@@ -1,0 +1,870 @@
+Proceedings of BioNLP Shared Task 2011 Workshop, pages 164–172,
+Portland, Oregon, USA, 24 June, 2011. c©2011 Association for Computational Linguistics
+               FromGraphs toEvents: ASubgraphMatchingApproach
+                forInformationEextraction fromBiomedicalText
+HaibinLiu,RavikumarKomandur,KarinVerspoor
+Centerfor ComputationalPharmacology
+University of ColoradoSchoolof Medicine
+PO Box 6511, MS 8303, Aurora,CO, 80045USA
+Abstract
+We participatedin the BioNLPSharedTask 2011,
+addressingthe GENIAevent extraction(GE) and
+the Epigeneticsand Post-translationalModifica-
+tions (EPI) tasks. A graph-based approach is
+employed to automaticallylearn rules for detect-
+ing biologicalevents in the life-scienceliterature.
+The event rules are learned by identifying the
+key contextual dependenciesfrom full syntactic
+parsing of annotated text. Event recognition is
+performedby searching for an isomorphismbe-
+tween event rules and the dependency graphs of
+sentences in the input texts. While we explored
+methods such as performance-basedrule rank-
+ing to improve precision,we merged rules across
+multipleevent types in order to increaserecall.
+We achieved a 41.13%F-scorein detectingevents
+of nine types in the Task 1 of the GE task, and a
+52.67% F-score in identifying events across fif-
+teen types in the core task of the EPI task. Our
+performanceon both tasks is comparableto the
+state-of-the-artsystems. Our approach does not
+require any external domain-specificresources.
+The consistentperformanceon the two taskssup-
+ports the claim that the method generalizeswell
+to extract events from different domains where
+trainingdata is available.
+1 Introduction
+Recentresearchin informationextractionin the biolog-
+ical domain has focusedon extractingsemanticevents
+involving genes or proteins, such as binding events or
+post-translationalmodifications. To date, most of the
+biologicalknowledgeabout these events has only been
+available in the form of unstructuredtext in scientific
+articles (Abulaish and Dey, 2007; Ananiadou et al.,
+2010).
+When a biologicalevent is described in text, it can
+be analyzedby recognizingits type,the triggerthat sig-
+nals the event, and one or more event arguments. The
+BioNLP-ST 2009 (Kim et al., 2009) focused on the
+recognition of semanticallytyped, complex events in
+the biologicalliterature. Althoughthe best-performing
+systemachieved a 51.95%F-scorein identifyingevents
+across nine types, only 4 of the rest 23 participating
+teams obtainedan F-scorein the 40% range. This sug-
+gests that the problemof biologicalevent extractionis
+difficult and far from solved.
+Graphs provide a powerful primitive for modeling
+biological data such as pathways and protein interac-
+tionnetworks(Tian et al., 2007;Yan et al., 2006). More
+recently, the dependency representationsobtainedfrom
+full syntactic parsing, with its ability to reveal long-
+range dependencies, has shown an advantage in bi-
+ological relation extraction over the traditional Penn
+Treebank-style phrase structure trees (Miyao et al.,
+2009). Since the dependency representation maps
+straightforwardly onto a directed graph, operationson
+graphs can be naturallyapplied to the problemof bio-
+logicalevent extraction.
+We participatedin the BioNLP-ST2011 (Kim et al.,
+2011a), and applied a graph matching-basedapproach
+(Liu et al., 2010) to tackling the Task 1 of the GE-
+NIAevent extraction(GE)task(Kimet al., 2011b),and
+the core task of the Epigeneticsand Post-translational
+Modifications(EPI) task (Ohta et al., 2011), two main
+tasks of the BioNLP-ST 2011. Event recognition is
+performed by searching for an isomorphismbetween
+dependency representations of automatically learned
+event rules and complete sentences in the input texts.
+Thisprocessis treatedas a subgraphmatchingproblem,
+whichcorrespondsto the searchfor a subgraphisomor-
+phic to a rule graph within a sentence graph. While
+we explored methods such as performance-basedrule
+ranking to improve the precision of the GE and EPI
+tasks, we merged rules across multiple event types in
+order to increasethe recall of the EPI task.
+The rest of the paperis organizedas follows: In Sec-
+tion 2, we introduce the BioNLP Shared Task 2011.
+Section3 describesthe subgraphmatching-basedevent
+extraction method. Section 4 and Section 5 elabo-
+164
+rate the implementationdetails and our performance
+respectively. Finally, Section 6 summarizesthe paper
+and introducesfuturework.
+2 BioNLPSharedTask2011
+The BioNLP-ST2011 is the extensionof the BioNLP-
+ST 2009that focusedon the recognitionof eventsin the
+biologicalliterature.The BioNLP-ST2011extendsthe
+previous task in three directions: the type of the inves-
+tigated text, the domainof the subject,and the targeted
+event types. As a result, the shared task was organized
+into four independenttasks: GENIA Event Extraction
+Task (GE), Epigeneticsand Post-translationalModifi-
+cations Task (EPI), InfectiousDiseases Task (ID) and
+BacteriaTrack.
+The definitionof the GE task remainedthe same as
+the BioNLP-ST2009. However, additional annotated
+texts that comefromfull paperswereprovidedtogether
+with the dataset of the 2009 task to generalizethe task
+from PubMed abstracts to full text articles. The pri-
+marytaskof the GE taskwas to detectbiologicalevents
+of nine types such as protein binding and regulation,
+given the annotationof protein names. It was required
+to extract type, trigger, and primaryargumentsof each
+event. This task is an example of extractionof seman-
+tically typed, complex events for which the arguments
+can also be other events. Such embeddingresults in a
+nestedstructurethat capturesthe underlyingbiological
+statementsmore accurately.
+Different from the subjectdomainof the GE task on
+transcriptionfactorsin humanblood cells, the EPI task
+focusedon events relatedto epigeneticchange,includ-
+ing DNA methylationand histonemodification,as well
+as other common post-translationalprotein modifica-
+tions. The core task followed the definition for Phos-
+phorylationevent extraction in the 2009 task, and ex-
+tended that basic event type to a total of fifteen types
+including both positive and negative variants, for ex-
+ample Acetylationand Deacetylation. The task dataset
+was prepared from relevant PubMed abstracts, with
+additional evidence sentences from databases such as
+PubMeth (Ongenaertet al., 2007). Given the annota-
+tion of protein names, the core task requiredto extract
+type, trigger, and primaryargumentsof each event.
+We focused on the primary task of GE and the core
+task of EPI, and tackledthe event extractionproblemin
+both cases using a graph matching-basedmethod.
+inhibit-2/VBP
+Interferons-1/NNS
+nsubj
+activation-3/NN
+dobj
+inducing-12/VBG
+prepc_by
+BIO_Entity-5/NNP(STAT6)
+prep_of
+BIO_Entity-7/NNP(interleukin 4)
+prep_by
+monocytes-10/NNS
+prep_in
+human-9/JJ
+amod
+expression-15/NN
+dobj
+BIO_Entity-13/NNP(SOCS-1)
+nn
+gene-14/NN
+nn
+Figure1: Dependency GraphExample
+3 SubgraphMatching-basedEventExtraction
+3.1 DependencyRepresentation
+The dependency representationof a sentenceis formed
+by tokens in the sentenceand binary relationsbetween
+them. A single dependency relation is represented
+as relation(governor,dependent), where governor and
+dependent are tokens, and relation is a type of the
+grammaticaldependency relation. This representation
+is essentiallya labeleddirectedgraph, which is named
+dependencygraph and definedas follows:
+Deﬁnition1. A dependency graph is a pair of sets
+G = (V,E), whereV is a set of nodes that correspond
+to the tokens in a sentence, and E is a set of directed
+edges, for which the edge labels are types of depen-
+dency relationsbetweenthe tokens, and the edge direc-
+tion is from governor to dependentnode.
+Figure1 illustratesthe dependency graphfor the sen-
+tence: “Interferonsinhibit activation of STAT6 by in-
+terleukin 4 in human monocytes by inducing SOCS-1
+gene expression.” (MEDLINE:10485906). The token
+number in the sentence is appended to each token in
+order to differentiateidenticaltokens that co-occurin a
+sentence. All the protein names in the sentence have
+been replaced with a unified tag “BIO Entity”. The
+POS tag of each token is noted. “BIO Entity” tokens
+are uniformlytaggedas propernouns.
+3.2 EventRuleInduction
+The premise of our work is that there is a set of fre-
+quently occurringevent rules that match a majority of
+165
+stated events about protein biology. We consider that
+an event rule encodesthe detaileddescriptionand char-
+acterizesthe typical contextual structureof a group of
+biological events. The rules are learned from labeled
+training sentences using a graph-basedrule induction
+method (Liu et al., 2010), and we briefly describe the
+algorithmas follows.
+Startingwith the dependency graph of each training
+sentence, edge directionsare first removed so that the
+directedgraphis transformedinto an undirectedgraph,
+where a path must exist between any two nodes since
+the graphis always connected.For each gold event, the
+shortest dependency path in the undirectedgraph con-
+nectingthe event trigger nodes to each event argument
+node is selected. The union of all shortestdependency
+paths is then computed, and the original directed de-
+pendency representationof the path union is retrieved
+and used as the graph representationof the event.
+For multi-token event triggers, the shortest depen-
+dency path connectingthe node of every trigger token
+to the node of each event argumentis selected,and the
+union of the paths is then computed for each trigger.
+For regulation events, when a sub-event is used as an
+argument,only the type and the triggerof the sub-event
+are preserved as the argumentof the main events. The
+shortest dependency path is extracted so as to connect
+the triggernodes of the main event to the triggernodes
+of the sub-event. In case that there exists more than
+one shortestpath, all of the paths are considered. As a
+result, each gold event is transformedinto the form of
+a biologicalevent rule. The algorithmis elaboratedin
+more detailin (Liu et al., 2010). The obtainedrules are
+categorizedin terms of the event types of the tasks.
+3.3 SentenceMatching
+We attemptedto match event rules to each testing sen-
+tence to extract events from the sentence using a sen-
+tence matchingapproach.Since the event rules and the
+sentencesall possessa dependency graph,the matching
+process is a subgraph matching problem, which cor-
+responds to the search for a subgraph isomorphic to
+an event rule graph within the graph of a testing sen-
+tence. The subgraph matching problem is also called
+subgraph isomorphism, definedin this work as follows:
+Deﬁnition2. An event rule graph Gr = (Vr,Er)
+is isomorphicto a subgraphof a sentencegraphGs =
+(Vs,Es), denoted by Gr ∼= Ss ⊆ Gs, if there is an
+injective mapping f : Vr → Vs such that, for every
+directedpair of nodesvi,vj ∈Vr, if (vi,vj) ∈Er then
+(f(vi),f(vj)) ∈ Es, and the edge label of (vi,vj) is
+the same as the edge label of (f(vi),f(vj)).
+The subgraphisomorphismproblemis NP-complete
+(Cormen et al., 2001). A number of algorithms have
+been designed to tackle the problem of subgraph iso-
+morphism in different applications (Ullmann, 1976;
+Cordellaet al., 2004; Pelillo et al., 1999). Considering
+that the graphs of rules and sentences involved in the
+matchingprocess are small, a simple subgraphmatch-
+ing algorithm using a backtracking approach (Liu et
+al., 2010) was used in this work. It is named “Injec-
+tive GraphEmbeddingAlgorithm”and designedbased
+on the Huet’s graphunificationalgorithm(Huet,1975).
+The formalizedalgorithmand the detailed description
+are given in (Liu et al., 2010).
+When matchingbetweengraphs, different combina-
+tions of matchingfeatures can be applied, resultingin
+different matching criteria. The features include edge
+features (E) which are edge label and edge direction,
+and node features which are POS tags (P), trigger to-
+kens (T), and all tokens (A), rangingfromthe leastspe-
+cific matching criterion, E, to the much stricter crite-
+rion, A. For each sentence,the algorithmreturnsall the
+matched rules together with the correspondinginjec-
+tive mappingsfrom rule nodesto sentencetokens. Bio-
+logical events are then extractedby applyingthe event
+descriptionsof tokens in each matchedrule consisting
+of the type, the trigger and the argumentsto the corre-
+spondingtokens of the sentence.
+4 Implementation
+4.1 Preprocessing
+The same preprocessingsteps as in (Liu et al., 2010)
+are completed on the datasets of the GE and the EPI
+tasks before performingtext mining strategies. These
+include sentence segmentationand tokenization, Part-
+of-Speechtagging,and sentenceparsing.
+The Stanford unlexicalized natural language parser
+(version 1.6.5), which includes Genia Treebank 1.0
+(Ohta et al., 2005) as training material,is used to ana-
+lyze the syntacticstructureof the sentences.The parser
+returnsa dependency graph for each sentence.
+4.2 RuleInductionandSentenceMatching
+For each gold event, the shortestpath in the undirected
+graph connectingthe event trigger to each event argu-
+ment is extracted using Dijkstra’s algorithm (Cormen
+et al., 2001) with equal weightfor edges.
+Sentencematchingis performedand the raw match-
+ing resultsare then postprocessedbased on the specifi-
+cationsof the shared task, such as event trigger cannot
+166
+be a proteinname or anotherevent.
+5 ResultsandEvaluation
+This sectionpresentsour resultson the GE and the EPI
+tasks(Kimet al., 2011b;Ohtaet al., 2011)respectively.
+Different experimentalmethods in processingthe ob-
+tained event rules are describedfor the purposeof im-
+proving the precision of both tasks and increasingthe
+recall of the EPI task.
+5.1 GEtask
+5.1.1 PreprocessingResults
+For trainingdata, only sentencesthat containat least
+one protein and one event are considered candidates
+for further processing. For testing data, candidatesen-
+tences contain at least one protein. Our event recog-
+nition method focuses on extracting events from sen-
+tences. Therefore,only sentence-basedevents are con-
+sideredin this work. Table 1 presentssomestatisticsof
+the preprocesseddatasets.
+Attributes Counted Training Dev. Testing
+Abstracts&Fullarticles 908 259 347
+Total sentences 8,759 2,954 3,437
+Candidatesentences 3,615 1,989 2,353
+Total events 10,287 3,243 4,457
+Sentence-basedevents 9,583 3,058 hidden
+Table 1: Statisticsof GE dataset
+We were able to build event rules for 9,414 gold
+events. Gold events in which the event trigger and
+an event argument are not connected by a path in the
+undirecteddependency graphof the sentencecouldnot
+be transformedinto a biological event rule. After re-
+moving duplicaterules, we obtained8,677 event rules,
+which are distributed over nine event types. The rules
+that are isomorphicto eachotherin termsof theirgraph
+representationare not filteredat this stage as the dupli-
+cate events they producewill be removed eventuallyto
+preparethe annotationsfor the sharedtask.
+5.1.2 Probability-basedrulereﬁning
+We observed that some event rules of an event type
+overlap with rules of other event types. For instance,a
+Transcriptionrule is isomorphicto a Gene expression
+rule in terms of the graph representationand they also
+share a same event trigger token. In fact, tokens like
+“gene expression” and “induction” are used as event
+trigger of both Transcription and Gene expression
+in training data. Therefore, the detection of some
+Gene expressionevents is always accompaniedby cer-
+tain Transcription events. This will have detrimen-
+tal effects on the precision of both Transcriptionand
+Gene expressionevent types.
+As transcriptionis the first step leading to gene ex-
+pression (Ananiadouand Mcnaught, 2005), there ex-
+ist some correlationsor associationsbetween the two
+event types. In tackling this problem, we processed
+the overlappingrulesbasedon a conditionalprobability
+P(t|E), wheret standsfor an event triggerand E repre-
+sents one of the event types. Eq.(1) is used to estimate
+the value of P(ti|E).
+P(ti|E) = f(ti,E)summationtext
+if(ti,E), (1)
+wheref(ti,E) is the frequency of the event triggerti
+of the event typeE in the trainingdata,andsummationtextif(ti,E)
+calculatesthe totalfrequency of all event triggersof the
+event typeE in the trainingdata.
+P(ti|E) evaluates the degree of the importanceof a
+trigger to an event type. When the dependency graphs
+of two rules of different event types are isomorphicto
+each other, and two rules share a same event trigger,
+we examine the P(ti|E) of each event type, and only
+retain the rule for whichthe P(ti|E) is higher.
+Compared to the “once a trigger, always a trigger”
+method employed in other work (Buyko et al., 2009;
+Kilicoglu and Bergler, 2009), triggers are treated in a
+more flexible way in our work. A token is not neces-
+sarilyalways a triggerunlessit appearsin the appropri-
+ate context. Also, the same token can serve as trigger
+for differentevent types as long as it appearsin the dif-
+ferent context. A trigger will only be classifiedinto a
+fixed event type when it could serve as trigger for dif-
+ferent event types in the same context.
+5.1.3 Performance-basedruleranking
+In addition to the process of refining rules across
+event types, we proposed a performance-basedrule
+ranking method to evaluate each rule under one event
+type. We matched each rule to sentences in the de-
+velopment set using the subgraph matching approach.
+For rules that produceat least one event prediction,we
+ranked thembyPRC(ri), the precisionof eachruleri,
+whichis computedvia Eq.(2).
+PRC(ri) = #correctly predictedevents by ri#predictedevents by r
+i
+(2)
+167
+We manuallyexamined the rules with low rank. In
+our experiments, the PRC(ri) ratio of these rules is
+biggerthan4:1. We removed the onesthat are eitherin-
+corrector ambiguousin semanticsand syntacticsbased
+on our domainknowledge. Ourassumptionis thatthese
+rules will keep producing false positive events on the
+testing data if they are retained in the rule set. For
+rules that do not make any predictionson the develop-
+mentdata, we keep themin the set in the hopethat they
+maycontribute to the event recognitionfromthe testing
+data. Withoutaffectingmuchon the recall,this process
+helps to improve the precision of the events extracted
+from the developmentdata.
+5.1.4 GEResultsonDevelopmentSet
+In our previous work (Liu et al., 2010), the match-
+ing criteria, “E+P+T”and and “E+P+A”, achieved the
+highest F-score and the highest precision respectively
+amongall the investigated matchingcriteria. “E+P+T”
+requiresthat edge directionsand labels of all edges (E)
+be identical,POStags (P) of all tokens be identical,and
+tokens of only event triggers (T) be identical for the
+edges and the nodes of a rule and a sentenceto match
+with each other. “E+P+A” requiresthat edges(E), POS
+tags (P) and all tokens (A) be exactly the same. In this
+work, we focused on these two criteria and explored
+to extend them for graphmatchingbetweenevent rules
+and sentences.
+We attemptedto relax the matchingcriterionof POS
+tags for nouns and verbs. For nouns,the plural form of
+nouns is allowed to match with the singular form, and
+proper nouns are allowed to match with regular nouns.
+For verbs, past tense, present tense and base present
+form are allowed to matchwith each other.
+Next, lettersof eachtoken are transformedintolower
+case, and tokens containing hyphens are normalized
+into non-hyphenatedforms. Lemmatizationis thenper-
+formed on every pair of tokens to be matched using
+WordNet (Fellbaum, 1998) as the lemmatizer to al-
+low tokens that share a same lemma to match. Since
+WordNetis a lexicaldatabaseonly for the generalEng-
+lish language, the lemma of a fair amount of domain-
+specific vocabulary cannot be found in WordNet, such
+as “Phosphorylation”and “Methylation”. In this case,
+a backup process is invoked to stem the tokens to
+their root forms using the Porter’s stemmingalgorithm
+(Porter, 1997)allowing the tokens derived from a same
+root word to match.
+To further generalize event rules, we extended
+the matching criteria “E+P*+A*” to “E+P*+A*S”
+to allow tokens to match if their lemmatized forms
+have a common synonym in terms of the synsets
+of WordNet. Since WordNet will relate verbs such
+as “induce” and “receive” together as they share
+a synonym “have”, and allow nouns like “expres-
+sion” and “aspect” to match as they share a syn-
+onym “face”, we limited this extension to only ad-
+jective tokens to avoid too many false positive events
+and allow tokens like “crucial”and “critical”to match.
+Table 2 shows the event extraction results on the
+development data based on different matching cri-
+teria. The performance is evaluated by “Approxi-
+mate Span Matching/ApproximateRecursive Match-
+ing”,the primaryevaluationmeasureof the sharedtask.
+“E+P*+T*”, “E+P*+A*” and “E+P*+A*S” demon-
+strate the performanceof the extendedcriteria.
+Feature Recall(%) Prec.(%) F-score(%)
+E+P+A 28.03 66.74 39.48
+E+P+T 31.17 52.38 39.09
+E+P*+A* 31.45 63.51 42.07
+E+P*+T* 35.71 46.26 40.31
+E+P*+A*S 31.51 63.32 42.08
+Table 2: GE results on development set using different
+matchingcriteria
+As the strictestmatchingcriteria,“E+P+A” performs
+betterthan “E+P+T”in both precisionand F-score. Al-
+though “E+P+T”achieves a better recall, when relax-
+ing the matchingcriteriafromall tokens beingthe same
+to only event trigger tokens having to be identical,the
+precision of “E+P+T”is decreasedby a large margin,
+nearly14%. This indicatesthat a certainnumberof bi-
+ological events are described in very similar ways in
+the literature, involving same grammatical structures
+and identical contextual contents. While producing
+more incorrect events, “E+P*+A*” and “E+P*+T*”
+significantly improve the recall, leading to a better
+F-score over “E+P+A” and “E+P+T”. This confirms
+the effectiveness of the POS relaxation and the to-
+ken lemmatizationon the generalizationof event rules.
+“E+P*+A*S”obtains a comparableperformancewith
+“E+P*+A*”with only a 0.06%increasein recall and a
+0.2% drop in precision.
+5.1.5 GEResultsonTestingSet
+Table 3 shows our resultsof “E+P*+A*”on the test-
+ing data using the official metric. We are listed as
+team “CCP-BTMG”.Ranked by F-score, our perfor-
+mance ranked 10th out of 15 participatinggroups. It
+168
+is worth noting that our result on the event type “Pro-
+tein catabolism”ranked 1st.
+Event type Rec.(%) Prec.(%) F(%)
+Gene expression 58.68 75.77 66.14
+Transcription 39.08 51.91 44.59
+Protein catabolism 66.67 83.33 74.07
+Phosphorylation 63.78 85.51 73.07
+Localization 29.32 91.80 44.44
+Binding 22.61 49.12 30.96
+Regulation 12.99 46.73 20.33
+Positive regulation 21.90 44.51 29.35
+Negative regulation 15.76 40.18 22.64
+All total 31.57 58.99 41.13
+Table 3: GE results of “E+P*+A*”on testing set by “Ap-
+proximateSpan /ApproximateRecursive Matching”
+The performance of our system on the testing set
+is consistent with that of the development set. We
+achieved a comparableprecisionwith the top systems
+and ranked 6th by precision. However, our recall was
+lower, ranking11th. This adversely impactedthe over-
+all F-score. The lower recall is not surprisingbecause
+the graph matching criteria “E+P*+A*” strictly de-
+mandthat every lemmatizedtoken in the patterns,other
+than proteinnames representedas“BIO Entity”,has to
+find its exact matchin the inputsentences.The detailed
+analysison the recallproblemis presentedin the “Error
+Classification”section.
+While examining the false positives, we found that
+for many cases our result matchedthe gold annotation
+but for the triggerword. We believe that event type and
+their arguments are more important biologically than
+the trigger. We consulted some domain experts who
+reinforced our intuition in many cases that different
+words could be considered as trigger for the event in
+question. Following this we contacted organizers and
+they agreed to release a new evaluation scheme to ig-
+nore the trigger match requirementin order to support
+evaluationof the event extractionitself.
+Table 4 shows our results of “E+P*+A*”evaluated
+by other official evaluation metrics of the task. The
+strict matching scheme requires exact trigger span as
+well as all its nested events to be recursively correct
+for an event to be consideredcorrectlyextracted. Our
+F-score in terms of the strict matching is only 2.65%
+lower than the relaxed, primary measure, indicating
+that mostof the detectedtriggersare capturedwith cor-
+rect text span. The organizers also provided the eval-
+uation results on PubMed abstracts and PMC full text
+articles separately. Our system performs consistently
+on both abstractsand full papersand the differencebe-
+tween F-scores is less than 1% (41.39% vs. 40.47%)
+mostlydue to the small recall loss on full texts.
+Measures R(%) P(%) F(%)
+Strict Matching 29.55 55.13 38.48
+Appr. SpanNoTrigger/Recur. 33.68 62.17 43.69
+Appr. Span/Recur./Decomp. 32.56 66.20 43.65
+Appr. Sp. No T./Recur./Decomp. 34.96 69.87 46.60
+Appr. Span/Recur. (Abstract) 31.87 59.02 41.39
+Appr. Span/Recur. (Full paper) 30.82 58.92 40.47
+Table4: GE resultson testingset by other evaluationmeasures
+5.2 EPItask
+5.2.1 PreprocessingResults
+Table 5 presents some statistics of the datasets. We
+wereable to build event rules for 1598gold events. Af-
+ter removing duplicaterules, we obtained 1,562 event
+rules distributed over fifteenevent types.
+Attributes Counted Training Dev. Testing
+Abstracts 600 200 440
+Total sentences 6,411 2,218 4,640
+Candidatesentences 1,054 1,241 2,839
+Total events 1,738 582 1,194
+Sentence-basedevents 1,643 536 hidden
+Table 5: Statisticsof EPI dataset
+We processed the obtained rules following the
+same rule refining and ranking processes of the GE
+task. We experimented with two graph matching
+criteria for extracting EPI events, “E+P*+T*” and
+“E+P*+A*”. From the preliminary results, we ob-
+served that “E+P*+A*”achieves a high precisionover
+80% but a lower recall around 33%. Compared to
+the GE task results, “E+P*+T*”achieves a better re-
+call against a small tradeoff for precision. We consider
+that this is because the event triggers themselves for
+the EPI task such as “acetylation”,“deglycosylation”
+and “demethylation” are powerful enough to differen-
+tiate among event types without the need to resort to
+more contextual contentof the patterns. Therefore,we
+focusedon using “E+P*+T*”to extract events.
+5.2.2 Recall-orientedrulemerging
+Since all the event types except Catalysis,
+DNA methylation and DNA demethylation in the
+169
+EPI task involve addition or removal of biochemical
+functionalgroups at a particularamino acid residue of
+a protein (Hunter, 2009), commonsyntacticstructures
+of expressingthe protein PTM events might be shared
+across event types. To further improve the recall, we
+proposeda rule merging strategy to take advantage of
+the syntacticstructuresof rules acrossevent types.
+We first experimented with a “pairwise flip” ap-
+proach which combinesrules of the pairwise, positive
+and negative event types by flipping the type and the
+trigger of event rules. For instance, the event rules
+of Phosphorylationand Dephosphorylationare merged
+togetherand then used to detectevents of the two types
+respectively.
+Next, the “pairwise flip” approach was extended to
+an “all in one” method. For one event type, the rules
+of all other PTM event types are processedand merged
+into the rules of the current type if the trigger of rules
+of other types contains one of these 12 morphemes:
+“acetyl”,“glycosyl”,“hydroxyl”,“methyl”, “phospho-
+ryl”,“ubiqui”,“deacetyl”,“deglycosyl”,“dehydroxyl”,
+“demethyl”, “dephosphoryl”,“deubiqui”.We consider
+that event rules involving these morphemesin trigger
+are more likely to discuss representative protein post-
+translationalmodifications.
+5.2.3 EPIResultsonDevelopmentSet
+Table 6 shows the event extractionresultson the de-
+velopment data using different matching criteria and
+rule merging methods. The performanceis evaluated
+by the primaryevaluationmeasure.
+Feature Recall(%) Prec.(%) F(%)
+E+P*+A* 32.65 79.83 46.34
+E+P*+T* 38.14 73.51 50.23
+E+P*+A*(pairwise) 35.22 80.39 48.98
+E+P*+T*(pairwise) 40.89 77.52 53.54
+E+P*+T*(allin one) 46.39 63.08 53.47
+Table 6: EPI resultson developmentset
+The two rule merging methods using “E+P*+T*”
+outperformothers in terms of F-score. The “pairwise
+flip” method achieves higher precision as the syntac-
+tic structuresof rules to describethe pairwise,positive
+and negative events tend to be highlysimilar. However,
+when merging all the rules across PTM event types,
+although more events are captured, rules that involve
+syntacticstructuresfor expressingvery specific events
+of certaintypes may not generalizewell on some other
+types, resulting in incorrect events. Thus, the “all in
+one” approach significantlyimproves the recall while
+producing many false positive events, leading to a F-
+score comparablewith the “pairwiseflip” method.
+5.2.4 EPIResultsonTestingSet
+We conductedtwo runs on the testing data in terms
+of “E+P*+T*(pairwise)”and “E+P*+T*(allin one)”.
+Since the two rule merging methodsachieve compara-
+ble F-scores, we decided to submit a run with higher
+recall. Table 7 shows our results of “E+P*+T*”using
+the “all in one” approachon the official metrics. Only
+7 teams participatedin this task. For the core task, our
+performanceranked 7th, only 0.16% lower in F-score
+than the 6th team. Whenevaluatingour resultsin terms
+of the full task, we ranked 6th.
+Feature Recall(%) Prec.(%) F(%)
+E+P*+T*(coretask) 45.06 63.37 52.67
+E+P*+T*(fulltask) 23.44 37.93 28.97
+Table 7: EPI resultson testingset
+Comparedto the top teams,our F-scoreis mostlyaf-
+fectedby the lower recall. Althoughthe run we submit-
+ted achieves the highest recall among all our runs, our
+recall is about 20% less than the best performingsys-
+tem. Consideringthatmostof the event typesof the EPI
+task tend to use tokens containing only a small fixed
+set of domain-specificmorphemesas triggers, the re-
+call deficitis assumedto be lack of event rules that de-
+scribe syntactic structuresof expressinga fair amount
+of EPI events.
+5.3 ErrorClassiﬁcation
+Since the gold event annotation of the testing data is
+hidden,we examinedthe event extractionresultsof the
+developmentdata to analyzethe underlyingerrors. The
+detailed analysis is reported in terms of false negative
+and false positive events.
+5.3.1 Falsenegatives
+It is shown that false negative events have a substan-
+tial impact on the performanceof all 15 participating
+teams of the GE task. The best recall, 49.56%, cap-
+tures less than half of the gold events in the testingset.
+In our work, three major causes of false negatives are
+determinedfor both tasks.
+(1)Lowcoverageofruleset: For the GE task, the
+graph matchingcriteria“E+P*+A*”strictlyasks every
+lemmatizedtoken in the patternsto find its exact match
+in the input sentences. Althoughmaintainingthe pre-
+cision at a high level, this directlylimits the contextual
+170
+structureand contentaroundthe proteinsand thus pre-
+vents the recall from being higher.
+Lemmatizationhelpsto detectmoreevents,however,
+furthergeneralizationneedsto be performedon the ex-
+isting rules to relax the token matching requirement.
+For instance, when “lysine” appears in an event rule,
+knowing that “lysine”is an amino acid, the rule might
+be furthergeneralizedto allow all aminoacidsto match
+with each other in order to recognizemore events.
+For the EPI task, although “E+P*+T*”requires to-
+kens of only event triggersto be identical,we captured
+less than half of the gold events. We noticedthat many
+trigger tokens in the developmentsentencesdo not ap-
+pear as triggers in the training set. This leads to the
+failure of extracting the correspondingevents. Since
+the training data is the only source of triggers in our
+work, the coverage of triggerslimits the generalization
+power of event rules.
+For both tasks, we found that many gold events are
+described in grammaticalstructures that are not cov-
+eredby the existingrulesinducedfromthe trainingsen-
+tences. These structurestend to be more complex, in-
+volving a long dependency path from the trigger to ar-
+gumentsin the graphsof sentences.Events that consist
+of these structures are not recognized as no matched
+rules will be returnedfrom the subgraphmatching.
+In order to further improve the recall, some post-
+processingsteps are necessaryto be performedon the
+raw dependency graphsof both rules and sentencesin-
+stead of using them in the graph matchingdirectly. By
+eliminatingsemanticallyunimportantnodesandgroup-
+ing lexically connected nodes together, the rules can
+be generalizedto retain only their skeleton structures
+while complex sentences can be syntacticallysimpli-
+fied to allow event rules to matchthem.
+(2) Compounderror effect: In both tasks, reg-
+ulation and catalysis event types can take sub-events
+as arguments. Therefore, if the nested sub-events are
+not correctlyidentified,the main events will not be ex-
+tracteddue to the compounderror effect.
+(3) Anaphoraandcoreference: Since our system
+focuseson extractingeventsfromsentences,eventsthat
+containproteinnamesspanningmultiplesentenceswill
+not be captured. Recognitionof these events requires
+the abilityto do anaphoraand coreferenceresolutionin
+biologicaltext (Gasperinand Briscoe,2008).
+5.4 Falsepositives
+Three major causes of false positives are generalized
+from our analysis.
+(1) Assignmentofoverlappingeventrules: The
+conditional probability-basedmethod to assign over-
+lappedrulesof differentevent typeseffectively reduces
+the numberof event candidatesbut leads to errors. For
+instance, “methylation” is used as the trigger for two
+overlapping rules of DNA methylation and Methyla-
+tion. Based on the P(ti|E), “methylation”is classified
+intoDNA methylation. An erroneousDNA methylation
+event is then detectedfrom a developmentsentencein-
+stead of the gold Methylationevent. Althoughthe trig-
+ger and the participantare all identified correctly, the
+event type is assignedwrongly.
+In fact, the same contextual structure and con-
+tent appear in both DNA methylationand Methylation
+events in the training data. According to the EPI
+task (Ohta et al., 2011), Methylationis to abbreviate
+for “protein methylation” and thus is different from
+DNA methylation. In this case, the only way to dis-
+tinguish between the two types is to identify that the
+biologicalentitymentionedin the sentenceis a genefor
+DNA methylationand a proteinfor Methylation. Since
+genes and their products are uniformly annotated as
+“Protein”in the task, it is not possibleto assign a cor-
+rect event type in this case from the perspective of the
+event extractionitself.
+(2) Lackofpostprocessingrules: Some misiden-
+tified events require customized postprocessingrules.
+For instance,a Gene expression event is detectedfrom
+the phrase “Tax expression vector” of a development
+sentence. However, since “Tax expression” is only
+usedas an adjective to describe“vector”in this context,
+the identifiedGene expressionevent is not appropriate.
+Likewise, “Sp1 transcription”should not be identified
+as an event in the context of “Sp1transcriptionfactors”.
+(4) Inconsistenciesingoldannotation: Some ex-
+tracted events are considered biologicallymeaningful
+but evaluated as false positives due to the inconsisten-
+cies in the gold annotation. In Table 4, the 3.2% in-
+creasein precisionof the no-triggerevaluationmeasure
+over the primary evaluation scheme indicates that the
+inconsistentgold annotationsof event triggers.
+6 Conclusionandfuturework
+We used dependency graphs to automatically induce
+biological event rules from annotated events. We ex-
+plored methods such as performance-basedrule rank-
+ing to improve the accuracy of the obtainedrules, and
+we merged rules acrossmultipleevent typesin orderto
+increasethe coverageof the rules. The event extraction
+process is treated as a subgraph matching problem to
+171
+searchfor the graphof an event rule withinthe graphof
+a sentence. We tackled two main tasks of the BioNLP
+Shared Task 2011. We achieved a 41.13% F-score in
+detectingevents across nine types in the Task 1 of the
+GE task, and a 52.67% F-score in identifying events
+acrossfifteentypes in the core task of the EPI task.
+In future work, we would like to explore the ap-
+proachesof generalizingthe raw dependency graphsof
+both event rules and sentencesin order to improve the
+recall of our event extractionsystem. We also plan to
+extend our system to tackle the other sub-tasks in GE
+and EPI tasks, such as to extract events with additional
+argumentslike site and location,and to recognizenega-
+tions and speculationsregardingthe extractedevents.
+References
+MuhammadAbulaish and Lipika Dey. 2007. Biologicalre-
+lation extraction and query answering from medline ab-
+stractsusingontology-basedtext mining. Data & Knowl-
+edge Engineering, 61(2):228–262.
+Sophia Ananiadouand John Mcnaught. 2005. Text Mining
+for Biology And Biomedicine. ArtechHousePublishers.
+Sophia Ananiadou, Sampo Pyysalo, Jun’ichi Tsujii, and
+DouglasB. Kell. 2010. Event extractionfor systems bi-
+ology by text miningthe literature. Trends in Biotechnol-
+ogy, 28(7):381–390.
+EkaterinaBuyko, Erik Faessler, JoachimWermter, and Udo
+Hahn. 2009. Event extractionfrom trimmeddependency
+graphs. In BioNLP’09: Proceedingsof the Workshopon
+BioNLP, pages 19–27, Morristown, NJ, USA. Associa-
+tion for ComputationalLinguistics.
+Luigi P. Cordella, Pasquale Foggia, Carlo Sansone, and
+Mario Vento. 2004. A (sub)graph isomorphism algo-
+rithm for matching large graphs. IEEE Trans. Pattern
+Anal. Mach. Intell., 26(10):1367–1372.
+ThomasH. Cormen,CharlesE. Leiserson,RonaldL. Rivest,
+and Clifford Stein. 2001. Introduction to Algorithms.
+The MIT Press.
+ChristianeFellbaum. 1998. WordNet: An ElectronicLexical
+Database. BradfordBooks.
+Caroline Gasperin and Ted Briscoe. 2008. Statistical
+anaphora resolution in biomedical texts. In COLING
+’08: Proceedingsof the 22ndInternationalConferenceon
+ComputationalLinguistics, pages 257–264, Morristown,
+NJ, USA. Associationfor ComputationalLinguistics.
+G´erard P. Huet. 1975. A unification algorithm for typed
+lambda-calculus.Theor. Comput.Sci., 1(1):27–57.
+Lawrence Hunter. 2009. The Processes of Life: An Intro-
+ductionto MolecularBiology. The MIT Press.
+Halil Kilicoglu and Sabine Bergler. 2009. Syntactic de-
+pendency based heuristicsfor biologicalevent extraction.
+In Proceedings of the Workshop on Current Trends in
+BiomedicalNatural Language Processing: Shared Task,
+BioNLP’09, pages 119–127.
+Jin-Dong Kim, Yoshinobu Kano Tomoko Ohta,
+Sampo Pyysalo, and Jun’ichi Tsujii. 2009. Overview of
+bionlp’09sharedtask on event extraction. In Proceedings
+of the NAACL-HLT 2009 Workshopon Natural Language
+Processing in Biomedicine (BioNLP’09), pages 1–9.
+ACL.
+Jin-Dong Kim, Sampo Pyysalo, Tomoko Ohta, Robert
+Bossy, and Jun’ichiTsujii. 2011a. Overview of BioNLP
+Shared Task 2011. In Proceedings of the BioNLP 2011
+WorkshopCompanionVolume for Shared Task, Portland,
+Oregon, June.Associationfor ComputationalLinguistics.
+Jin-Dong Kim, Yue Wang, Toshihisa Takagi, and Akinori
+Yonezawa. 2011b. Overview of the Genia Event task in
+BioNLPSharedTask2011. In Proceedingsof the BioNLP
+2011WorkshopCompanionVolumefor Shared Task, Port-
+land, Oregon, June. Associationfor ComputationalLin-
+guistics.
+HaibinLiu, Vlado Keselj, and ChristianBlouin. 2010. Bio-
+logicalevent extractionusingsubgraphmatching. In Pro-
+ceedingsof the 4th InternationalSymposiumon Semantic
+Miningin Biomedicine(SMBM-2010), October.
+Yusuke Miyao, Kenji Sagae, Rune Saetre, Takuya Mat-
+suzaki, and Jun’ichi Tsujii. 2009. Evaluating contribu-
+tions of naturallanguageparsersto protein–proteininter-
+actionextraction. Bioinformatics, 25(3):394–400.
+Tomoko Ohta, Yuka Tateisi, and JunichiTsujii. 2005. Syn-
+tax annotationfor the geniacorpus. In Proceedingsof the
+IJCNLP2005, pages 222–227.
+Tomoko Ohta, Sampo Pyysalo, and Jun’ichi Tsujii. 2011.
+Overview of the Epigeneticsand Post-translationalMod-
+ifications (EPI) task of BioNLP Shared Task 2011. In
+Proceedings of the BioNLP 2011 Workshop Companion
+Volume for Shared Task, Portland,Oregon, June. Associ-
+ation for ComputationalLinguistics.
+Mate Ongenaert, Leander Van Neste, Tim De Meyer, Ger-
+ben Menschaert,Sofie Bekaert,and Wim Van Criekinge.
+2007. Pubmeth: a cancer methylation database combin-
+ing text-miningand expert annotation. NucleicAcids Re-
+search, pages 1–5.
+Marcello Pelillo, Kaleem Siddiqi, and Steven W. Zucker.
+1999. Matching hierarchical structures using associa-
+tion graphs. IEEE Trans. Pattern Anal. Mach. Intell.,
+21(11):1105–1120.
+M. F. Porter. 1997. An algorithmfor suffix stripping. pages
+313–316.
+Yuanyuan Tian, Richard C. Mceachin, Carlos Santos,
+David J. States, and Jignesh M. Patel. 2007. Saga: a
+subgraph matching tool for biologicalgraphs. Bioinfor-
+matics, 23(2):232–239.
+J. R. Ullmann. 1976. An algorithm for subgraph isomor-
+phism. J. ACM, 23(1):31–42.
+XifengYan, Feida Zhu, Jiawei Han, and Philip S. Yu. 2006.
+Searchingsubstructureswith superimposeddistance. In
+ICDE ’06: Proceedings of the 22nd InternationalCon-
+ference on Data Engineering, page 88, Washington,DC,
+USA. IEEE ComputerSociety.
+172
+

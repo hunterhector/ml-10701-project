@@ -1,0 +1,198 @@
+A Framework for Incorporating Alignment Information in Parsing Mark Hopkins Dept.ofComputationalLinguistics SaarlandUniversity Saarbr¨ucken,Germany mhopkins@coli.uni-sb.de Jonas Kuhn Dept.ofComputationalLinguistics SaarlandUniversity Saarbr¨ucken,Germany jonask@coli.uni-sb.de Abstract ThestandardPCFGapproachtoparsingis quitesuccessfuloncertaindomains,butis relatively inflexible in the type of feature information we can include in its probabilistic model.
+In this work, we discusspreliminaryworkindevelopinganew probabilistic parsing model that allows us to easily incorporate many different types of features, including crosslingual information.
+We show how this model can be used to build a successful parser for a small handmade gold-standard corpus of 188 sentences (in 3 languages) from the Europarlcorpus.
+1 Introduction
+Much of the current research into probabilistic parsing is founded on probabilistic contextfreegrammars(PCFGs)(Collins,1999;Charniak, 2000; Charniak, 2001).
+For instance, consider the parse tree in Figure 1.
+One way to decompose this parse tree is to view it as a sequence of applications of CFG rules.
+For this particular tree, we could view it as the application of rule “NP→NPPP,”followedbyrule“NP→DTNN,” followedbyrule“DT→that,”andsoforth.
+Hence instead of analyzing P(tree), we deal with the moremodular: P(NP → NP PP, NP → DT NN, DT→that,NN→money,PP→INNP, IN → in, NP → DT NN, DT → the, NN→market) Obviously this joint distribution is just as difficulttoassessandcomputewithas P(tree).However there exist cubic time algorithms to find the most likely parse if we assume that all CFG rule applicationsaremarginallyindependentofoneanother.
+Inother words, weneed to assume that the aboveexpressionisequivalenttothefollowing: P(NP → NP PP) · P(NP → DT NN) · P(DT → that) · P(NN → money) · P(PP → IN NP) · P(IN → in) · P(NP → DT NN) · P(DT → the) · P(NN→market) Itisstraightforward toassess theprobability of the factors of this expression from a corpus using relative frequency.
+Then using these learned probabilities, wecan findthe mostlikely parse of a given sentence using the aforementioned cubic algorithms.
+The problem, of course, with this simplification is that although it is computationally attractive, it is usually too strong of an independence assumption.
+Tomitigatethislossofcontext,without sacrificing algorithmic tractability, typically researchers annotate the nodes of the parse tree with contextual information.
+For instance, it has been found to be useful to annotate nodes with their parent labels (Johnson, 1998), as shown in Figure2.
+Inthiscase,wewouldbelearningprobabilitieslike: P(PP-NP→IN-PPNP-PP).
+The choice of which annotations to use is one of the main features that distinguish parsers based on this approach.
+Generally, this approach has proven quite effective in producing English phrase-structure grammar parsers that perform wellonthePennTreebank.
+One drawback of this approach is that it is somewhatinflexible.
+Becauseweareaddingprobabilistic context by changing the data itself, we make our data increasingly sparse as we add features.
+Thus we are constrained from adding too 9 NP NP DT that NN money PP IN in NP DT the NN market Figure1: Exampleparsetree.
+NP-TOP NP-NP DT-NP that NN-NP money PP-NP IN-PP in NP-PP DT-NP the NN-NP market Figure 2: Example parse tree with parent annotations.
+many features, because at some point we will not have enough data to sustain them.
+Hence in this approach, feature selection is not merely a matter ofincludinggoodfeatures.
+Rather,wemuststrike a delicate balance between how much context we want to include versus how much we dare to partitionourdataset.
+Thisposes aproblem whenwehavespenttime andenergytofindagoodsetoffeaturesthatwork well for a given parsing task on a given domain.
+Fora different parsing task or domain, our parser mayworkpoorly out-of-the-box, anditisnotrivialmattertoevaluatehowwemightadaptourfeaturesetforthisnewtask.
+Furthermore, ifwegain accesstoanewsourceoffeatureinformation,then it is unclear how to incorporate such information intosuchaparser.
+Namely, in this paper, weare interested in seeing how the cross-lingual information contained by sentence alignments can help the performance of a parser.
+We have a small gold-standard corpus of shallow-parsed parallel sentences (in English,French,andGerman)fromtheEuroparlcorpus.
+Because of the difficulty of testing new features using PCFG-based parsers, we propose a new probabilistic parsing framework that allows us to flexibly add features.
+The closest relative 1 2 3 4 5 1 true true false false true 2 true false false false 3 true false true 4 true true 5 true Figure3: Spanchartforexampleparsetree.
+Chart entry (i, j)=true iff span (i, j) is a constituent inthetree.
+ofour framework isthe maximum-entropy parser of Ratnaparkhi(Ratnaparkhi, 1997).
+Both frameworks are bottom-up, but while Ratnaparkhi’s views parse trees as the sequence of applications of four different types of tree construction rules, ourframeworkstrivestobesomewhatsimplerand moregeneral.
+2 The
+Probability Model TheexampleparsetreeinFigure1canalsobedecomposed in the following manner.
+First, we can representtheunlabeledtreewithaboolean-valued chart (which we will call the span chart) that assigns the value of true to a span if it is a constituentinthetree,and falseotherwise.
+The span chart forFigure1isshowninFigure3.
+To represent the labels, we simply add similar chartsforeachlabelingschemepresentinthetree.
+For a parse tree, there are typically three types of labels: words, preterminal tags, and nonterminals.
+Thusweneedthreelabelingcharts. Labeling charts for our example parse tree are depicted in Figure4.
+Notethatforwordsand preterminals, it is not really necessary to have a two-dimensional chart, but we do so here to motivate the general model.
+The general model is as follows.
+Define a labeling scheme as a set of symbols including a special symbol null (this will designate that a given span is unlabeled).
+For instance, we might define L NT = {null,NP,PP,IN,DT} to be a labeling scheme for non-terminals.
+Let L = {L 1,L 2,...L m }beasetoflabeling schemes.
+Definea model variable ofLasasymboloftheform S ij or L k ij, for positive integers i, j, k, such that j ≥ i and k ≤ m.Thedomain of model variable S ij istrue, false}(thesevariables indicate whetheragivenspanisatreeconstituent).
+Thedomain of model variable L k ij is L k (these variables indicate which label from L k is assigned to span 10 1 2 3 4 5 1 that null null null null 2 money null null null 3 in null null 4 the null 5 market 1 2 3 4 5 1 DT null null null null 2 NN null null null 3 IN null null 4 DT null 5 NN 1 2 3 4 5 1 null NP null null NP 2 null null null null 3 null null PP 4 null NP 5 null Figure 4: Labeling charts for example parse tree: thetopchartisforwordlabels,themiddlechartis forpreterminal tag labels, and the bottom chart is fornonterminal labels.
+null denotes anunlabeled span.
+i, j).
+Define a model order of L as a total ordering Ω ofthemodelvariablesofLsuchthatforall i, j, k: Ω(S ij ) < Ω(L k ij ) (i.e.
+wedecidewhethera spanisaconstituent beforeattemptingtolabelit).
+Let Ω n denote the finite subset of Ω that includes precisely the model variables of the form S ij or L k ij,wherej ≤ n.
+Givenaset L oflabeling schemes and amodel order ΩofL,apreliminarygenerativestorymight looklikethefollowing: 1.
+Chooseapositiveinteger n.
+2. In the order defined by Ω n, assign a value to every model variable of Ω n from its domain, conditioned on any previous assignmentsmade.
+Thus some model order Ω for our example might instruct us to first choose whether span (4, 5)isaconstituent, forwhichwemightsay“true,” then instruct us to choose a label for that constituent, for which we might say “NP,” and so forth.
+Thereareacoupleofproblemswiththisgenerativestory.
+Oneproblemisthatitallowsustomake structural decisions that do not result in a wellformed tree.
+For instance, we should not be permittedtoassignthevaluetruetobothvariableS 13 and S 24 . Generally, we cannot allow two model variables S ij and S kl to both be assigned true if they properly overlap, i.e. theirspansoverlapand one is not a subspan of the other.
+Weshould also ensure that the leaves and the root are considered constituents.
+Another problem is that it allows us tomakelabeling decisions thatdonotcorrespond with our chosen structure.
+It should not be possibletolabelaspanwhichisnotaconstituent.
+With this in mind, we revise our generative story.
+1. Chooseapositiveinteger n fromdistribution P 0 . 2.
+In the order defined by Ω n, process model variable x of Ω n : (a) If x = S ij,then: i.
+Automatically assign the value false if there exists a properly overlappingmodelvariable S kl such that S kl has already been assigned thevalue true.
+ii. Automatically assignthevalue true if i = j orif i =1and j = n.
+iii. Otherwise assign a value s ij to S ij from its domain, drawn from some probability distribution P S conditioned on all previous variable assignments.
+(b) If x = L k ij,then: i.
+Automatically assign thevalue null to L k ij if S ij was assigned the value false(note that this is well-defined because of way we defined model order).
+ii. Otherwise assign a value l k ij to L k ij from its domain, drawn from some probability distribution P k conditioned on all previous variable assignments.
+Defining Ω < n (x)={y ∈ Ω n |Ω(y) < Ω(x)} for x ∈ Ω n, we can decompose P(tree) into the followingexpression: 11 P 0 (n) · productdisplay S ij ∈Ω n P S (s ij |n,Ω < n (S ij )) · productdisplay L k ij ∈Ω n P k (l k ij |n,Ω < n (L k ij )) where P S and P k obey the constraints given in thegenerativestoryabove(e.g.
+P S (S ii = true)= 1,etc.) Obviously it is impractical to learn conditional distributionsovereveryconceivablehistory,soinsteadwechooseasmallset F offeaturevariables, and provide a set of functions F n that map every partialhistoryof Ω n tosomefeaturevector f ∈ F (later we will see examples of such feature functions).
+Thenwemaketheassumptionthat: P S (s ij |n,Ω < n (S ij )=P S (s ij |f) where f = F n (Ω < n (S ij )) andthat P k (l k ij |n,Ω < n (S ij )=P k (l k ij |f) where f = F n (Ω < n (L k ij )).
+In this way, our learning task is simplified to learn functions P 0 (n), P S (s ij |f),andP k (l k ij |f).
+Given a corpus of labeled trees, it is straightforwardtoextractthetraininginstancesforthesedistributionsandthenusetheseinstancestolearndistributions using one’s preferred learning method (e.g.,maximumentropymodelsordecisiontrees). For this paper, we are interested in parse trees which have three labeling schemes.
+Let L = {L word,L PT,L NT },whereL word is a labeling scheme for words, L PT is a labeling scheme for preterminals, and L NT is a labeling scheme for nonterminals.
+Wewilldefine modelorder Ω such that: 1.
+Ω(S ij ) < Ω(L word ij ) < Ω(L PT ij ) < Ω(L NT ij ).
+2. Ω(L NT ij ) < Ω(S kl )iffj−i<l−kor(j−i = l − k and i<k).
+In this work, we are not as much interested in learning a marginal distribution over parse trees, butratheraconditionaldistributionforparsetrees, given a tagged sentence (from which n is also known).
+We will assume that P word is conditionally independent of all the other model variables, given n andthe L word ij variables.
+Wewillalso assume that P pt is conditionally independent of the other model variables, given n,theL word ij variables, and the L pt ij variables.
+These assumptions allow us to express P(tree|n,L word ij,L pt ij ) as the following: productdisplay S ij ∈Ω n P S (s ij |f S ) · productdisplay L nt ij ∈Ω n P nt (l nt ij |f nt ) where f S = F n (Ω < n (S ij )) and f nt = F n (Ω < n (L nt ij )).
+Henceourlearningtaskinthispaper will be to learn the probability distributions P S (s ij |f S ) and P nt (l nt ij |f nt ), for some choice of featurefunctions F n . 3 Decoding For the PCFG parsing model, we can find argmax tree P(tree|sentence) usingacubic-time dynamic programming-based algorithm.
+By adopting a more flexible probabilistic model, we sacrifice polynomial-time guarantees.
+Nevertheless, we can still devise search algorithms that work efficiently in practice.
+For the decoding of theprobabilisticmodeloftheprevioussection,we choose a depth-first branch-and-bound approach, specifically because oftwoadvantages.
+First, this approachislinearspace.
+Second,itisanytime,i.e.
+it finds a (typically good) solution early and improvesthissolutionasthesearchprogresses.
+Thus ifonedoes not wishthespend the timetorunthe search tocompletion (and ensure optimality), one canusethisalgorithmeasilyasaheuristic.
+The search space is simple to define.
+Given a set L oflabeling schemesandamodelorder Ω of L,thesearchalgorithmsimplymakesassignments tothemodelvariables(depth-first)intheorderdefinedby Ω.
+This search space can clearly grow to be quite large, however in practice the search speed is improved drastically by using branch-and-bound backtracking.
+Namely, at any choice point in the searchspace,wefirstchoosetheleastcostchildto expand.
+In this way, we quickly obtain a greedy solution.
+Afterthatpoint,wecancontinuetokeep track of the best solution we have found so far, and if at any point we reach an internal node of our search tree with partial cost greater than the totalcost ofourbestsolution, wecan discard this node and discontinue exploration of that subtree.
+This technique can result in a significant aggregrate savings of computation time, depending on 12 EN: [ 1 [ 2 OnbehalfoftheEuropeanPeople’sParty,][ 3 I]call[ 5 foravote[ 6 infavourofthatmotion]]] FR: [ 1 [ 2 AunomduPartipopulaireeurop´een,][ 3 je]demande[ 5 l’adoption[ 6 decetter´esolution]]] DE: [ 1 [ 2 ImNamenderEurop¨aischenVolkspartei]rufe[ 3 ich][ 4 Sie]auf,[ 5 [ 6 diesemEntschließungsantrag]zuzustimmen ]] ES: [ 1 [ 2 EnnombredelGrupodelPartidoPopularEuropeo,]solicito[ 5 laaprobaci´on[ 6 delaresoluci´on]]] Figure5: Annotatedsentencetuple the nature of the cost function.
+For our limited parsing domain, it appears to perform quite well, takingfractionsofasecondtoparseeachsentence (whichareshort,withamaximumof20wordsper sentence).
+4 Experiments
+Our parsing domain is based on a “lean” phrase correspondence representation formultitextsfrom parallel corpora (i.e., tuples of sentences that are translations of each other).
+We defined an annotation scheme that focuses on translational correspondence of phrasal units that have a distinct, language-independent semantic status.
+It is a hypothesis ofourlonger-term projectthatsuchasemanticallymotivated,relativelycoarsephrasecorrespondence relation is most suitable for weakly supervisedapproachestoparsingoflargeamounts of parallel corpus data.
+Based on this lean phrase structure format, we intend to explore an alternative to the annotation projection approach to cross-linguistic bootstrapping of parsers by (Hwa etal.,2005). Theydepartfromastandardtreebank parserforEnglish,“projecting” itsanalysestoanotherlanguage using word alignments overaparallel corpus.
+Ourplanned bootstrapping approach willnotstartoutwithagivenparserforEnglish(or any other language), but use a small set of manuallyannotated seeddatafollowingtheleanphrase correspondence scheme, and then bootstrap consensus representations on large amounts of unannotated multitext data.
+At the present stage, we only present experiments for training an initial systemonasetofseeddata.
+The annotation scheme underlying in the gold standard annotation consists of (A) a bracketing for each language and (B) a correspondence relation of the constituents across languages.
+Neither the constituents nor the embedding or correspondentrelationswerelabelled.
+Theguidingprincipleforbracketing(A)isvery simple: all and only the units that clearly play the role of a semantic argument or modifier in a largerunitarebracketed.
+Thismeansthatfunction words, light verbs, “bleeched” PPs like in spite of etc.
+are included with the content-bearing elements.
+This leads to a relatively flat bracketing structure.
+Referring orquantified expressions that mayincludeadjectivesandpossessiveNPsorPPs arealsobracketedassingleconstituents(e.g.,[the president of France ]), unless the semantic relations reflected by the internal embedding are part of the predication of the sentence.
+A few more specific annotation rules were specified for cases likecoordination anddiscontinuous constituents.
+The correspondence relation (B) is guided by semantic correspondence of the bracketed units; the mapping need not preserve the tree structure.
+Neither does a constituent need to have a correspondent in all (or any) of the other languages (since the content of this constituent may be implicitinotherlanguages, orsubsumedbythecontentofanotherconstituent).
+“Semanticcorrespondence”isnotrestrictedtotruth-conditional equivalence, but is generalized to situations where two unitsjustservethesamerhetorical function inthe originaltextandthetranslation.
+Figure 5 is an annotation example.
+Note that index 4 (the audience addressed by the speaker) is realized overtly only in German (Sie ‘you’); in Spanish, index 3 is realized only in the verbal inflection(whichisnotannotated).
+Amoredetailed discussion of the annotation scheme is presented in(KuhnandJellinghaus, toappear).
+For the current parsing experiments, only the bracketing within each of three languages (English, French, German) is used; the crosslinguistic phrasecorrespondences areignored (although we intend to include them in future experiments).
+We automatically tagged the training and test data in English, French, and German withSchmid’sdecision-tree part-of-speech tagger (Schmid,1994).
+ThetrainingdataweretakenfromthesentencealignedEuroparlcorpusandconsistedof188sentences for each of the three languages, with max13 FeatureNotation Description p(language) thepreterminaltagofword x − 1 (null ifdoesnotexist) f(language) thepreterminaltagofword x l(language) thepreterminaltagofword y n(language) thepreterminaltagofword y − 1 (null ifdoesnotexist) lng thelengthofthespan(i.e.
+y − x +1) Figure6: Featuresforspan (x, y).
+E=English,F=French,G=German English Crosslingual Rec.
+Prec. FNo features features score cross p(E),f(E),l(E) none 40.3 63.6 49.4 (±3.9%) 57.1 p(F),f(F),l(F) 43.1 67.6 52.6 (±4.0%) 61.2 p(G),f(G),l(G) 45.9 66.8 54.4 (±4.0%) 69.4 p(F),f(F),l(F), 44.5 65.5 53.0 (±3.9%) 65.3 p(G),f(G),l(G) p(E),f(E),l(E),n(E) none 57.2 68.6 62.4 (±4.0%) 65.3 p(F),f(F),l(F),n(F) 56.6 71.9 63.3 (±4.0%) 75.5 p(G),f(G),l(G),n(G) 57.9 67.7 62.5 (±3.9%) 67.3 p(F),f(F),l(F),n(F), 57.9 72.1 64.2 (±4.0%) 77.6 p(G),f(G),l(G),n(G) p(E),f(E),l(E),n(E),lng none 64.8 71.2 67.9 (±4.0%) 79.6 p(F),f(F),l(F),n(F),lng 62.1 74.4 67.7 (±4.0%) 83.7 p(G),f(G),l(G),n(G),lng 61.4 78.8 69.0 (±4.1%) 83.7 p(F),f(F),l(F),n(F), 63.1 76.9 69.3 (±4.1%) 81.6 p(G),f(G),l(G),n(G),lng BIKEL 57.9 60.2 59.1 (±3.8%) 57.1 Figure7: Parsingresultsforvariousfeaturesets,andtheBikelbaseline.
+TheF-scoresareannotatedwith 95%confidenceintervals.
+imal length of 21 words in English (French: 38; German: 24)andanaveragelength of14.0words in English (French 16.8; German 13.6).
+The test data were 50 sentences for each language, picked arbitrarily with the same length restrictions.
+The training and test data were manually aligned followingtheguidelines.
+1 For
+the word alignments used as learning features,weusedGIZA++,relyingonthedefaultparameters.
+We trained the alignments on the full Europarl corpus for both directions of each languagepair.
+As a baseline system we trained Bikel’s reimplementation (Bikel, 2004) of Collins’ parser (Collins, 1999) on the gold standard (En1 A subset of 39 sentences was annotated by two people independently,leadingtoanF-Scoreinbracketingagreement between84and90forthethreelanguages.
+Sincefindingan annotationschemethatworkswellinthebootstrapping setup isanissue on ourresearch agenda, wepostpone amore detailed analysis of the annotation process until it becomes clearthataparticularschemeisindeeduseful.
+glish) training data, applying a simple additional smoothingprocedureforthemodifiereventsinordertocounteractsomeobviousdatasparsenessissues.
+2 Since
+we were attempting to learn unlabeled trees, in this experiment we only needed to learn the probabilistic model of Section 3 with no labeling schemes.
+Hence weneed only to learn the probabilitydistribution: P S (s ij |f S ) In other words, we need to learn the probability that a given span is a tree constituent, given someset offeatures ofthe words andpreterminal tagsofthesentences, aswellastheprevious span decisions we have made.
+The main decision that 2 Forthenonterminallabels,wedefinedtheleft-mostlexical daughter in each local subtree of depth 1 to project its part-of-speech category to the phrase level and introduced aspecial nonterminal label fortherarecase ofnonterminal nodesdominatingnopreterminalnode.
+14 remains,then,iswhichfeaturesettouse.
+Thefeaturesweemployareverysimple.
+Namely,forspan (i, j) we consider the preterminal tags of words i − 1, i, j,andj +1, as well as the French and German preterminal tags of the words to which these English words align.
+Finally, we also use the length of the span as a feature.
+The features considered aresummarizedinFigure6.
+To learn the conditional probability distribututions, we choose to use maximum entropy models because of their popularity and the availability of software packages.
+Specifically, we use the MEGAM package (Daum´e III, 2004) from USC/ISI.
+We did experiments for a number of different feature sets, with and without alignment features.
+Theresults(precision,recall,F-score,andthepercentageofsentenceswithnocross-bracketing) are summarized in Figure 7.
+Note that with a very simplesetoffeatures (theprevious, first,last, and next preterminal tags of the sequence), ourparser performs on par with the Bikel baseline.
+Adding the length of the sequence as a feature increases the quality of the parser to a statistically significant difference over the baseline.
+The crosslingual information provided (which is admittedly naive) does not provide a statistically significant improvement overthe vanilla set offeatures.
+The conclusion tobedrawnisnotthatcrosslingual informationdoesnothelp(suchaconclusionshould not be drawn from the meager set of crosslingual featureswehaveusedherefordemonstrationpurposes).
+Rather, the take-away point is that such information can be easily incorporated using this framework.
+5 Discussion
+Oneoftheprimaryconcernsaboutthisframework is speed, since the decoding algorithm for our probabilisticmodelisnotpolynomial-timelikethe decodingalgorithmsforPCFGparsing.
+Nevertheless, in our experiments with shallow parsed 20word sentences, time was not a factor.
+Furthermore,inourongoing research applying thisprobabilistic framework tothe task ofPenn Treebankstyle parsing, this approach appears to also be viableforthe40-wordsentences ofSections22and 23oftheWSJtreebank.
+Astrongmitigatingfactor of the theoretical intractibility is the fact that we have an anytime decoding algorithm, hence even incaseswhenwecannotrunthealgorithmtocompletion(foraguaranteed optimalsolution), thealgorithm always returns somesolution, the quality of which increases over time.
+Hence we can tell the algorithm how much time it has to compute, and it will return the best solution it can compute inthattimeframe.
+Thisworksuggeststhatonecangetagoodqualityparserforanewparsingdomainwithrelatively little effort (the features we chose are extremely simple and certainly could be improved on).
+The cross-lingual information that we used (namely, theforeignpreterminaltagsofthewordstowhich ourspanwasalignedbyGIZA)didnotgiveasignificant improvement to our parser.
+However the goalofthisworkwasnottomakedefinitivestatements about the value of crosslingual features in parsing, but rather to show a framework in which such crosslingual information could be easily incorporatedandexploited.
+Webelievewehaveprovidedthebeginningsofoneinthiswork,andwork continues on finding more complex features that will improve performance well beyond the baseline.
+Acknowledgement Theworkreported inthispaperwassupported by the Deutsche Forschungsgemeinschaft (DFG;German Research Foundation) in the Emmy Noether project PTOLEMAIOS on grammar learning from parallelcorpora.
+References DanielM.Bikel. 2004.
+Intricaciesofcollins’parsing model.
+Computational Linguistics,30(4):479–511.
+EugeneCharniak. 2000.
+Amaximumentropy-inspired parser.
+In NAACL.
+EugeneCharniak. 2001.
+Immediate-headparsingfor languagemodels.
+In ACL.
+MichaelCollins. 1999.
+Head-driven statistical models for natural language parsing.
+Ph.D.thesis,UniversityofPennsylvania.
+HalDaum´eIII. 2004.
+NotesonCGandLM-BFGSoptimizationoflogisticregression.
+Paperavailableat http://www.isi.edu/ hdaume/docs/daume04cgbfgs.ps, implementation available at http://www.isi.edu/hdaume/megam/,August.
+Rebecca Hwa, Philip Resnik, Amy Weinberg, Clara Cabezas, and Okan Kolak.
+2005. Bootstrapping parsersviasyntacticprojectionacrossparalleltexts.
+Natural Language Engineering,11(3):311–325.
+MarkJohnson. 1998.
+PCFGmodelsoflinguistictree representation.
+Computational Linguistics,24:613– 632.
+JonasKuhnandMichaelJellinghaus. toappear.
+Multilingualparalleltreebanking:aleanandflexibleapproach.
+In Proceedings of the Fifth International Conference on Language Resources and Evaluation, Genoa,Italy.
+AdwaitRatnaparkhi. 1997.
+Alinearobservedtimestatistical parser based on maximum entropy models.
+In EMNLP.
+Helmut Schmid.
+1994. Probabilistic part-of-speech taggingusingdecisiontrees.
+In International Conference on New Methods in Language Processing .
+

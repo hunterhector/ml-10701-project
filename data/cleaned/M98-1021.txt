@@ -1,0 +1,289 @@
+DESCRIPTION OF THE LTG SYSTEM USED FOR MUC-7 Andrei Mikheev #03, Claire Grover and Marc Moens HCRC Language Technology Group, University of Edinburgh, 2 Buccleuch Place, Edinburgh EH8 9LW, UK.
+mikheev@harlequin.co.uk C.Grover@ed.ac.uk M.Moens@ed.ac.uk OVERVIEW The basic building blocks in our muc system are reusable text handling tools whichwehave been developing and using for a number of years at the Language Technology Group.
+They are modular tools with stream input#2Foutput; eachtooldoesavery speci#0Cc job, but can be combined with other tools in a unix pipeline.
+Di#0Berent combinations of the same tools can thus be used in a pipeline for completing di#0Berent tasks.
+Our architecture imposes an additional constraint on the input#2Foutput streams: they should havea common syntactic format.
+For this common format wechose eXtensible Markup Language #28xml#29.
+xml is an o#0Ecial, simpli#0Ced version of Standard Generalised Markup Language #28sgml#29, simpli#0Ced to make processing easier #5B3#5D.
+Wewere involvedin the developmentofthexml standard, buildingon our expertise in the design of our own Normalised sgml #28nsl#29 and nsl tool lt nsl #5B10#5D, and our xml tool lt xml #5B11#5D.
+A detailed comparison of this sgml-oriented architecture with more traditional data-base oriented architectures can be found in #5B9#5D.
+A tool in our architecture is thus a piece of software which uses an api for all its access to xml and sgml data and performs a particular task: exploiting markup which has previously been added by other tools, removing markup, or adding new markup to the stream#28s#29 without destroying the previously added markup.
+This approach allows us to remain entirely within the sgml paradigm for corpus markup while allowing us to be very general in the design of our tools, each of which can be used for many purposes.
+Furthermore, because we can pipe data through processes, the unix operating system itself provides the natural #5Cglue" for integrating data-level applications.
+The sgml-handling api in our workbench is our lt nsl library #5B10#5D which can handle even the most complex document structures #28dtds#29.
+It allows a tool to read, change or add attribute values and character data to sgml elements and to address a particular elementinannsl or xml stream using a query language called ltquery.
+The simplest way of con#0Cguring a tool is to specify in a query where the tool should apply its processing.
+The structure of an sgml text can be seen as a tree, as illustrated in Figure 1.
+Elements in such a tree can be addressed in a way similar to unix #0Cle system pathnames.
+For instance, DOC#2FTEXT#2FP#5B0#5D will give all #0Crst paragraphs under TEXT elements which are under DOC.We can address an elementby freely combining partial descriptions, e.g. its location in the tree, its attributes, character data in the element and sub-elements contained in the element.
+The queries can also contain wildcards.
+For instance, the query.*#2FS will give all sentences anywhere in the document, at any level of embedding.
+Using the syntax of ltquery we can directly specify which parts of the stream wewant to process and which part wewant to skip, and we can tailor tool-speci#0Cc resources for this kind of targeted processing.
+#03 Now at Harlequin Ltd.
+#28Edinburgh o#0Ece#29 1 DATE TRAILER PP SS S P TEXTDOCID ...
+SLUGSTORYID PREAMBLENWORDS DOC Figure 1: Partial SGML structure of a MUC article.
+For example, wehave a programme called fsgmatch which can be used to tokenize input text according to rules speci#0Ced in certain resource grammars.
+It can be called with di#0Berent resource grammars for di#0Berent document parts.
+Here is an example pipeline using fsgmatch: #3E#3E cat text | fsgmatch -q ".*#2FDATE|NWORDS" date.gr | fsgmatch -q ".*#2FPREAMBLE" preamb.gr | fsgmatch -q ".*#2FTEXT#2FP#5B0#5D" P0.gr In this pipeline, fsgmatch takes the input text, and processes the material that has been marked up as DATE or NWORDSusing a tokenisation grammarcalled date.gr; then it processes the materialin PREAMBLE using the tokenisation grammarpreamb.gr; and then it processes the #0Crst paragraph in the TEXT section using the grammar P0.gr.
+This technique allows one to tailor resource grammars very precisely to particular parts of the text.
+For example, the reason for applying P0.gr to the #0Crst sentence of a news wire is that that sentence often contains unusual information which occurs nowhere else in the article and whichisvery useful for the muc task: in particular, if the sentence starts with capitalised words followed by &MD; the capitalised words indicate a location, e.g.
+PASADENA, Calif.
+&MD;. Wehave used our tools in di#0Berent language engineering tasks, such as information extraction in a medical domain #5B4#5D, statistical text categorisation #5B2#5D, collocation extraction for lexicography #5B1#5D, etc.
+The tools include text annotation tools #28a tokeniser, a lemmatiser, a tagger, etc.#29 as well as tools for gathering statistics and general purpose utilities.
+Combinationsof these tools provide us with the means to explore corpora and to do fast prototyping of text processing applications.
+A detailed description of the tools, their interactions and application can be found in #5B4#5D and #5B5#5D; information can also be found at our website, http:#2F#2Fwww.ltg.ed.ac.uk#2Fsoftware#2F.
+This tool infrastructure was the starting point for our muc campaign.
+LTG TOOLS IN MUC Amongst the tools used in our muc system is an existing ltg tokeniser, called lttok.Tokenisers take an input stream and divide it up into #5Cwords" or tokens, according to some agreed de#0Cnition of what a token is.
+This is not just a matter of #0Cnding white spaces between characters|for example, #5CTony Blair Jr" could be treated as a single token.
+lttok is a tokeniser which looks at the characters in the input stream and bundles them into tokens.
+The input to lttok can be sgml-marked up text, and lttok can be directed to only process characters within certain sgml elements.
+One muc-speci#0Cc adjustment to the tokenisation rules was to treat a 2 hyphenated expression as separate units rather than a single unit, since some of the ne expressions required this, e.g.
+#3CTIMEX TYPE="DATE"#3Efirst-quarter#3C#2FTIMEX#3E-charge.
+Here is an example of the use of lttok.
+cat text | muc2xml | lttok -q ".*#2FP" -mark W standard.gr The #0Crst call in this pipeline is to muc2xml, a programme which takes the muc text and maps it into valid xml.
+lttok then uses a resource grammar,standard.gr,to tokenise all the text in the P elements.
+It marks the tokens using the sgml element W.
+The output from this pipeline would look as follows: ...
+#3CW#3Esaid#3C#2FW#3E #3CW#3Ethe#3C#2FW#3E #3CW#3Edirector#3C#2FW#3E #3CW#3Eof#3C#2FW#3E #3CW#3ERussian#3C#2FW#3E #3CW#3EBear#3C#2FW#3E #3CW#3ELtd.#3C#2FW#3E #3CW#3EHe#3C#2FW#3E #3CW#3Edenied#3C#2FW#3E #3CW#3Ethis.#3C#2FW#3E #3CW#3EBut#3C#2FW#3E ...
+As the example shows, the tokeniser does not attempt to resolve whether a period is a full stop or part of an abbreviation.
+Depending on the choice of resource #0Cle for lttok, a period will either always be attached to the preceding word #28as in this example#29 or it will always be split o#0B.
+This creates an ambiguity where a sentence-#0Cnal period is also part of an abbreviation, as in the #0Crst sentence of our example.
+To resolve this ambiguitywe use a special program, ltstop, which applies a maximum entropy model pre-trained on a corpus #5B8#5D.
+To use ltstop the user must specify whether periods in the input are attached to or split o#0B fromthe preceding words; in our case, they were attached to the words, and ltstop is used with the option -split.
+With this option, ltstop will split the period from regular words and create an end-of-sentence token #3CW C="."#3E.#3C#2FW#3E; or it will leave the period with the word if it is an abbreviation; or, in the case of sentence-#0Cnal abbreviations, it will leave the period with the abbreviation and in addition create a virtual full stop #3CW C="."#3E#3C#2FW#3E Like the other ltg tools ltstop can be targeted at particular sgml elements.
+In our example, wewant to target it at #3CW#3E elements within #3CP#3E elements|the output of lttok.
+It can be used with di#0Berent maximum entropy models, trained on di#0Berenttypes of corpora.
+For our example, the full pipeline looks as follows: cat text | muc2xml | lttok -q ".*#2FP" -mark W standard.gr | ltstop -q ".*#2FP#2FW" -split fs_model.me This will generate the following output: #3CW#3Esaid#3C#2FW#3E #3CW#3Ethe#3C#2FW#3E #3CW#3Edirector#3C#2FW#3E #3CW#3Eof#3C#2FW#3E #3CW#3ERussian#3C#2FW#3E#3CW#3EBear#3C#2FW#3E #3CW#3ELtd.#3C#2FW#3E #3CW C=`.'#3E#3C#2FW#3E #3CW#3EHe#3C#2FW#3E #3CW#3Edenied#3C#2FW#3E #3CW#3Ethis#3C#2FW#3E#3CW C=`.'#3E.#3C#2FW#3E #3CW#3EBut#3C#2FW#3E...
+Note how ltstop has #5Cadded" a #0Cnal stop to the #0Crst sentence, making explicit that the period after #5CLtd" has two distinct functions.
+Another standard ltg tool we used in our muc system was our part-of-speech tagger lt pos #5B7#5D.
+lt pos is sgml-aware: it reads a stream of sgml elements speci#0Ced by the query and applies a Hidden Markov Modeling technique with estimates drawn from a trigram maximum entropy model to assign the most likely part of speech tags.
+An important feature of the tagger is an advanced module for handling unknown words #5B6#5D, which proved to be crucial for name spotting.
+Some muc-speci#0Cc extensions were added at this point in the processing chain: for capitalised words, we added information as to whether the word exists in lowercase in the lexicon #28marked as L=l#29 or whether it exists in lowercase elsewhere in the same document #28marked as L=d#29.
+We also developed a model which assigns certain #5Csemantic" tags which are particularly useful for muc processing.
+For example, words ending in -yst and -ist #28analyst, geologist#29 as well as words occurring in a special list of words 3 #28spokesman, director#29 are recognised as professions and marked as such#28S=PROF#29.
+Adjectives ending in -an or -ese whose root form occurs in a list of locations #28American#2FAmerica, Japanese#2FJapan#29 are marked as locative adjectives #28S=LOC JJ#29.
+The output of this part of speech tagging could look as follows: #3CW C=VBD#3Esaid#3C#2FW#3E #3CW C=DET#3Ethe#3C#2FW#3E #3CW C=NN S=PROF#3Edirector#3C#2FW#3E #3CW C=IN#3Eof#3C#2FW#3E #3CW C=NNP S=LOC_JJ#3ERussian#3C#2FW#3E#3CW C=NNP L=l#3EBear#3C#2FW#3E #3CW#3ELtd.#3C#2FW#3E #3CW C=`.'#3E#3C#2FW#3E We also used a number of other sgml-tools, suchassgdelmarkup which strips unwanted markup from a document, sgsed and sgtr, sgml-aware versions of the unix tools sed and tr.
+But the core tool in our muc system is fsgmatch.
+fsgmatch is an sgml transducer.
+It takes certain types of sgml elements and wraps them into larger sgml elements.
+In addition, it is also possible to use fsgmatch for character-level tokenisation, but in this paper we will only describe its functionalityat the sgml level.
+fsgmatchcan be called with di#0Berent resource grammars,e.g.
+one can develop a grammarfor recognising names of organisations.
+Like the other ltg tools, it is also possible to use fsgmatch inavery targeted way, telling it only to process sgml elements within certain other sgml elements, and to use a speci#0Cc resource grammar for that purpose.
+Piping the previous text through fsgmatch with a resource grammar for company names would result in the following: #3CW#3Esaid#3C#2FW#3E #3CW#3Ethe#3C#2FW#3E #3CW#3Edirector#3C#2FW#3E #3CW#3Eof#3C#2FW#3E #3CENAMEX TYPE="ORGANIZATION"#3E #3CW#3ERussian#3C#2FW#3E #3CW#3EBear#3C#2FW#3E #3CW#3ELtd.#3C#2FW#3E #3C#2FENAMEX#3E #3CW C=`.'#3E #3C#2FW#3E The combined functionalityoflttok and fsgmatch gives system designers many degrees of freedom.
+Suppose you wantto mapcharacter strings like#5C25th"or #5C3rd" intosgml entities.
+Youcan do this at the character level, using lttok, specifying that strings that match #5B0-9#5D+#5B -#5D?#28#28st#29|#28nd#29|#28rd#29|#28th#29#29 should be wrapped into the sgml structure #3CW C=ORD#3E.Oryou can do it at the sgml level: if your tokeniser had marked up numbers like #5C25" as #3CW C=NUM#3E then you can write a rule for fsgmatch saying that #3CW C=NUM#3E followed bya#3CW#3E element whose character data consist of th, nd, rd or st can be wrapped into an #3CW C=ORD#3E element.
+A transduction rule in fsgmatch can access and utilize any informationstated in the element attributes, check sub-elements of an element, do lexicon lookup for character data of an element, etc.
+For instance, a transduction rule can say: #5Cif there are one or more W elements #28i.e.
+words#29 with attribute C #28i.e.
+part of speech tag#29 set to NNP #28proper noun#29 followed byaWelement with character data #5CLtd.", then wrap this sequence into an ENAMEX element with attribute TYPE set to ORGANIZATION.
+Transduction rules can check left and right contexts, and they can access sub-elements of complex elements; for example, a rule can check whether the last W element under an NG element #28i.e.
+the head noun of a noun group#29 is of a particular type, and then include the whole noun group into a higher level construction.
+Element contents can be looked up in a lexicon.
+The lexicon lookup supports multi-word entries and multiple rule matches are always resolved to the longest one.
+TIMEX, NUMEX, ENAMEX Inour mucsystem,timexand numex expressions are handleddi#0Berently fromenamex expressions.
+The reason for this is that temporal and numeric expressions in English newspapers have a fairly structured appearance which can be captured by meansof grammarrules.
+We developed grammarsfor the temporal and numericexpressions we needed to capture, and also compiledlists oftemporalentities and currencies.
+The sgml transducer fsgmatch used these resources to wrap the appropriate strings with timex and numex tags.
+4 enamex expressions are more complex, and more context-dependent.
+Lists of organisations and place names, and grammars of person names, are useful resources, but need to be handled with care: context will determine whether Arthur Andersen is used as the name of a person or a company, whether Washington is a location or a person, or whether Granada is the name of a company or a location.
+At the same time, once Granada has been used as the name of a company, the author of a newspaper article will not suddenly start using it to indicate a location without giving contextual clues that such a shift in denotation has taken place.
+Because of this, we strongly believe that identi#0Ccation of supportive context is more important for the identi#0Ccation of names of places, organisations and people than are lists or grammars.
+We do use such lists, but alter them dynamically: if anywhere in the text wehave found su#0Ecient context to decide that Granada is used as the name of an organisation, it is added to our list of organisations for the further processing of that text.
+When we start processing a new text, we don't make any assumptions anymore about whether Granada is an organisation or place, until we #0Cnd supportive context for one or the other.
+To identify enamex elements we combine symbolic transduction of sgml elements with probabilistic partial matching in 5 phases: 1.
+sure-#0Cre rules 2.
+partial match1 3.
+relaxed rules 4.
+partial match2 5.
+title assignment We describe each in turn.
+ENAMEX: 1.
+Sure-#0Cre Rules The sure-#0Cre transduction rules used in the enamex task are very context oriented and they #0Cre only when a possible candidate expression is surrounded by a suggestive context.
+For example, #5CGerard Klauer" looks like a person name, but in the context #5CGerard Klauer analyst" it is the name of an organisation #28as in #5CGeneral Motors analyst"#29.
+Sure-#0Cre rules rely on known corporate designators #28Ltd., Inc., etc.#29, titles #28Mr., Dr., Sen.#29, and de#0Cnite contexts such as those in Figure 2.
+At this stage our muc system treats information from the lists as likely rather than de#0Cnite and always checks if the context is either suggestive or non-contradictive.
+For example, a likely company name with a conjunction is left untagged at this stage if the company is not listed in a list of known companies: in a sentence like #5Cthis was good news for China International Trust and Investment Corp", it is not clear at this stage whether the text deals with one or two companies, and no markup is applied.
+Similarly,the system postpones the markupof unknown organizationswhose name starts with a sentence initial common word, as in #5CSuspended Ceiling Contractors Ltd denied the charge".
+Since the sentenceinitial word has a capital letter, it could be an adjective modifying the company #5CCeiling Contractors Ltd", or it could be part of the company name, #5CSuspended Ceiling Contractors Ltd".
+Names of possible locations found in our gazetteer of place names are marked as location only if they appear with a context that is suggestive of location.
+#5CWashington", for example, can just as easily be a surname or the name of an organization.
+Only in a suggestive context, like #5Cin the Wahington area", will it be marked up as location.
+ENAMEX: 2.
+Partial Match1 After the sure-#0Cre symbolic transduction the system performs a probabilistic partial match of the entities identi#0Ced in the document.
+This is implemented as an interaction between two tools.
+The #0Crst 5 Context Rule Assign Example Xxxx+ is a?
+JJ* PROF PERS Yuri Gromov is a former director PERSON-NAME is a?
+JJ* REL PERS John White is beloved brother Xxxx+, a JJ* PROF, PERS White, a retired director, Xxxx+,? whose REL PERS Nunberg, whose stepfather Xxxx+ himself PERS White himself Xxxx+, DD+, PERS White, 33, shares of Xxxx+ ORG shares of Eagle PROF of#2Fat#2Fwith Xxxx+ ORG director of Trinity Motors in#2Fat LOC LOC in Washington Xxxx+ area LOC Beribidjan area Figure 2: Examples of sure-#0Cre transduction material for enamex.
+Xxxx+ is a sequence of capitalised words; DD is a digit; PROF is a profession #28director, manager, analyst, etc.#29; REL is a relative #28sister, nephew, etc.#29; JJ* is a sequence of zero or more adjectives; LOC is a known location; PERSON-NAME is a valid person name recognized by a name grammar.
+tool collects all named entities already identi#0Ced in the document.
+It then generates all possible partial orders of the composing words preserving their order, and marks them if found elsewhere in the text.
+For instance, if at the #0Crst stage the expression #5CLockheed Martin Production" was tagged as organization because it occurred in a context suggestive of organisations, then at the partial matching stage all instances of #5CLockheed Martin Production", #5CLockheed Martin", #5CLockheed Production", #5CMartin Production", #5CLockheed" and #5CMartin" will be marked as possible organizations.
+This markup, however, is not de#0Cnite since some of these words #28such as #5CMartin"#29 could refer to a di#0Berententity.
+This annotated stream goes to a second tool, a pre-trained maximum entropy model.
+It takes into account contextual information for named entities, such as their position in the sentence, whether these words exist in lowercase and if they were used in lowercase in the document, etc.
+These features are passed to the model as attributes of the partially matched words.
+If the model provides a positive answer for a partial match, the match is wrapped into a corresponding ENAMEX element.
+Figure 3 gives an example of this.
+...#3CW C=IN#3Eof#3CW#3E #3CW C=NNP M='+'#3ELockheed#3CW#3E #3CW C=NNP L=d M=ORGANIZATION#3EProduction#3CW#3E #3CW C=IN#3Ein#3CW#3E ...
+Figure 3: Partially matched organization name #5CLockheed Production".
+The attribute M speci#0Ces that #5CLockheed" is a part but not a terminal word of the partial match and that #5CProduction" is the terminal word and the class of the matchisORGANIZATION.
+This kind of markup allows us to pass relevant features to the decision making module without premature commitment.
+ENAMEX: 3.
+Rule Relaxation Once this has been done, the system again applies the symbolic transduction rules.
+But this time the rules havemuch more relaxed contextual constraints and extensively use the information from already existing markup and lexicons.
+For instance, the system will mark word sequences which look like person names.
+For this it uses a grammar of names: if the #0Crst capitalised word occurs in a list of #0Crst names and the following word#28s#29 are unknown capitalised words, then this string can be tagged as a PERSON.
+Here we are no longer concerned that a person name can refer to a company.
+If the name grammar had applied earlier in the process, it might erroneously have tagged #5CPhilip Morris" as a PERSON instead of an ORGANISATION.However, at this point in the chain of enamex processing, that is not a problem 6 anymore: #5CPhilip Morris" will bynow already have been identi#0Ced as an ORGANISATION by the sure-#0Cre rules or during partial matching.
+If the author of the article had also been referring to the person #5CPhilip Morris", s#2Fhe would have used explicit context to make this clear, and our muc system would have detected this.
+If there had been no supportive context so far for #5CPhilip Morris" as organisation or person, then the name grammar at this stage will tag it as a likely person, and check if there is supportive context for that hypothesis.
+At this stage the system will also attempt to resolve the #5Cand" conjunction problem noted above with #5Cthis was good news for China International Trust and Investment Corp".
+The system checks if possible parts of the conjunctions were used in the text on their own and thus are namesof di#0Berent organizations; if not, the system has no reason to assume that more than one company is being talked about.
+In a similarvein, the system resolves the attachmentofsentence initialcapitalised modi#0Cers, the problem alluded to above with the #5CSuspended Ceiling Contractors Ltd" example: if the modi#0Cer was seen with the organization name elsewhere in the text, with a capital letter and not at the start of a sentence, then the system has good evidence that the modi#0Cer is part of the company name; if the modi#0Cer does not occur anywhere else in the text with the company name, it is assumed not to be part of it.
+At this stage known organizations and locations from the lists available to the system are marked in the text, again without checking the context in which they occur.
+ENAMEX: Partial Match2 At this point, the system has exhausted its resources #28name grammar, list of locations, etc#29.
+The system then performs another partial match to annotate names like #5CWhite" when #5CJames White" had already been recognised as a person, and to annotate company names like #5CHughes" when #5CHughes Communications Ltd".
+had already been identi#0Ced as an organisation.
+As in Partial Match 1, this process of partial matching is again followed by a probabilistic assignment supported by the maximum entropy model.
+ENAMEX: Title Assignment Because titles of news wires are in capital letters, they provide little guidance for the recognition of names.
+In the #0Cnal stage of enamex processing, entities in the title are marked up, by matching or partiallymatchingthe entities found in the text, and checking against a maximum-entropymodeltrained on document titles.
+For example, in #5Cmurdoch satellite explodes on take-off" #5CMurdoch" will be tagged as a person because it partially matches #5CRupert Murdoch" elsewhere in the text.
+ENAMEX: Conclusion The table in Figure 4 shows the progress of the performance of the system through the #0Cve stages.
+Stage ORGANIZATION PERSON LOCATION Sure-#0Cre Rules R: 42 P: 98 R: 40 P: 99 R: 36 P: 96 Partial Match1 R: 75 P: 98 R: 80 P: 99 R: 69 P: 93 Relaxed Rules R: 83 P: 96 R: 90 P: 98 R: 86 P: 93 Partial Match2 R: 85 P: 96 R: 93 P: 97 R: 88 P: 93 Title Assignment R: 91 P: 95 R: 95 P: 97 R: 95 P: 93 Figure 4: Scores obtained by the system through di#0Berent stages of the analysis.
+R = recall; P = precision.
+7 As
+one would expect, the sure-#0Cre rules givevery high precision #28around 96-98#25#29,but very low recall|in other words, it doesn't #0Cnd many enamex entities, but the ones it #0Cnds are correct.
+Note that the sure#0Cre rules do not use list information much; the high precision is achieved mainly through the detection of supportive context for what are in essence unknown names of people, places and organisations.
+Recall goes up dramatically during Partial Match 1, when the knowledge obtained during the #0Crst step #28e.g.
+that this is a text about Washington the person rather than Washington the location#29 is propagated further through the text, context permitting.
+Subsequent phases of processing add gradually more and more enamex entities #28recall increases to around 90#25#29, but on occasion introduce errors #28resulting in a slight drop in precision#29.
+Our #0Cnal score for ORGANISATION,PERSON and LOCATION is given in the bottom line of Figure 4.
+WALKTHROUGH EXAMPLES #3CENAMEX TYPE="PERSON"#3EMURDOCH#3C#2FENAMEX#3E SATELLITE FOR LATIN PROGRAMMING EXPLODES ON TAKEOFF The system correctly tags #5CMurdoch" as a PERSON, despite the fact that the title is all capitalised, and there is little supportive context.
+The reason for this is that elsewhere in the text there are sentences like #5Cdealing a potential blow to Rupert Murdoch's ambitions", and the system correctly analysed #5CRupert Murdoch" as a PERSON, on the basis of its grammar of names #28see enamex: Relaxed Rules#29.
+During Partial Match 2, the partial orders of this name are generated and any occurrences of #5CRupert" and #5CMurdoch" are tagged as PERSONs #28e.g.
+in the string #5CMurdoch-led venture"#29, context permitting.
+During the Title Assignment phase, #5CMurdoch" in the title is then also tagged as PERSON, since there is no context to suggest otherwise.
+#3CENAMEX TYPE="PERSON"#3ELlennel Evangelista#3C#2FENAMEX#3E, a spokesman for #3CENAMEX TYPE="ORGANIZATION"#3EIntelsat#3C#2FENAMEX#3E, a global satellite consortium ...
+#5CLlennel Evangelista" is correctly tagged as PERSON.
+Our grammar of names would not have been able to detect this, since it didn't have #5CLlennel" as a possible Christian name; this again illustrates that it is dangerous to rely too much on resources like lists of Christian names, since these will never be complete.
+However, our muc system detected that #5CLennel Evangelista" is a person at a much earlier stage: because of the sure-#0Cre rule that in clauses like #5CXxxx, a JJ* PROFESSION for#2Fof#2Fin ORG", the string of unknown, capitalized words Xxxx refers to a PERSON.
+Using partial matching, #5CEvangelista" in #5CEvangelista said"... was also tagged as PERSON.
+#5CIntelsat" was correctly tagged as an ORGANISATION because of the context in which if appears: #5CXxxx, a JJ* consortium#2Fcompany#2F...".
+During Partial Matching, other occurrences of #5CIntelsat" are marked as ORGANISATION, e.g. in #5CIntelsat satellite".
+#3CENAMEX TYPE="ORGANIZATION"#3EGrupo Televisa#3C#2FENAMEX#3E and #3CENAMEX TYPE="ORGANIZATION"#3EGlobo#3C#2FENAMEX#3E plan to offer...
+#5CGrupo Televisa" was correctly identi#0Ced as an ORGANIZATION.
+Elsewhere the same text mentions #5C Grupo Televisa SA, the Mexican broadcaster", which is recognised as an ORGANIZATIONbecause it knows that #5CXxxx SA#2FNV#2FLtd"... are names of organisations.
+Through partial matching, #5CGrupo Televisa" without the #5CSA" is also recognised as an ORGANIZATION.
+#5CGlobo" is recognised as an ORGANIZATION because elsewhere in the text there is reasonably evidence that #5CGlobo" is the name of an organisation.
+In addition, there is a conjunction rule which prefers conjunctions of likeentities.
+8 This
+conjunction rule also worked for the string #5Cin U7ited States and Russia": #5CRussia" is in the list of locations and in a context supportive of locations; because of the typo, #5CU7ited States" was not in the list of locations.
+But because of the conjunction rule, it is correctly tagged as a LOCATION nevertheless.
+EVALUATION Our system achieved a combined Precision and Recall score of 93.39.
+This was the highest score of the participating named entity recognition systems.
+Here is a breakdown of our scores: POS ACT| COR INC MIS SPU NON| REC PRE ------------------------+------------------------+--------SUBTASK SCORES | | enamex | | person 883 872| 842 24 17 6 4| 95 97 organization 1854 1784|1692 10 152 82 31| 91 95 location 1308 1326|1239 14 55 73 21| 95 93 timex | | date 1201 1079|1063 3 135 13 61| 89 99 time 191 156| 151 4 36 1 29| 79 97 numex | | money 216 210| 204 0 12 6 11| 94 97 percent 100 103| 100 0 0 3 0| 100 97 ------------------------+------------------------+--------P&R 2P&R P&2R F-MEASURES 93.39 94.51 92.29 Figure 5: LTG Scores for the Named Entity Recognition task.
+In what follows, we will discuss our system performance in each of the Named Entity categories.
+In general, our system performed very well in all categories.
+But the reason our system outperformed other systems was due to its performance in the category ORGANIZATION where it scored signi#0Ccantly better than the next best system: 91 precision and 95 recall, whereas the next best system scored 87 precision and 89 recall.
+We attribute this to the fact that our system does not rely much on pre-established lists, but instead builds document-speci#0Cc lists on the #0Dy, lookingfor sure-#0Cre contexts to makedecisions about names of organisations, and on the use of partial orders of multi-word entities.
+This pays o#0B particularly in the case of organisations, which are often multi-word expressions, containing many common words.
+ORGANIZATION One type of error occurred when a company such as #5CGranada Group Plc" was referred to just as #5CGranada", and this word is also a known location.
+The location informationtended to override the tags resulting from partial matching, resulting in the wrong tag.
+The reason for this is that these metonymic relations do not always hold: if a text refers to an organisation called the #5CPittsburgh Pirates", and it then refers to #5CPittsburgh", it is more likely that #5CPittsburgh" is a reference to a location rather than another reference to that organisation.
+In the same vein, the system treats a reference to #5CGranada" as a location, even after reference has been made to the organisation #5CGranada Group Plc", in the absence of clear contextual clues to the contrary.
+A second type of error resulted fromwronglyresolving conjunctions in companynames,as in #3CORG#3ESmith and Ivanoff Inc.#3C#2FORG#3E As explained above, the system's strategy was to assume the conjunction 9 referred to a single organisation, unless its constituent parts occurred on its list of known companies or occurred on their own elsewhere in the text.
+In some cases, the absence of such information led to mistaggings,which are penalised quite heavily: you lose once in recall #28since the system did not recognise the name of the company#29 and twice in precision #28since the system produced two spurious names#29.
+Many spurious taggings in ORGANIZATION were caused by the fact that artefacts like newpapers or TV channels havevery similar contexts to ORGANIZATIONs, resulting in mistaggings.
+For instance, in #5Ceditor of the Paci#0Cc Report", the string #5CPaci#0Cc Report" was wrongly tagged as an ORGANISATION because of the otherwise very productive rule whichsays that Xxxx in #5CPROF of#2Fat#2Fwith Xxxx" should be tagged as an ORGANIZATION.
+The misses consisted mostlyof short expressions mentionedjust once in the text and withouta suggestive context.
+As a result, the system did not have enough information to tag these terms correctly.
+Also, there were about 40 mentions of the Ariane 4 and 5 rockets, and according to the answer keys #5CAriane" should have been tagged as organisation in each case, accounting for 40 of the 152 misses.
+PERSON The PERSON category did not present too many di#0Eculties to our system.
+The system handled a few di#0Ecult cases well when an expression #5Csounded" like a person name but in fact was not, e.g.
+#5CGerard Klauer" in #5Ca Gerard Klauer analyst"|the example discussed above.
+One article was responsible for quite a few errors: in an article about Timothy Leary's death, #5CTimothy Leary" was twice and #5CZachary Leary" seven times recognised as a PERSON; but 11 other mentions of #5CLeary" were wrongly tagged as ORGANIZATION.
+The reason for this was the phrase #5C...family members with Leary when he died".
+The system applied the rule PROFs of#2Ffor#2Fwith Xxxx+ ==#3E ORGANIZATION . The word #5Cmembers" was listed in the lexicon as a profession and this caused #5CLeary" to be wrongly tagged as ORGANIZATION.
+This accounts for 11 of the 24 incorrectly tagged PERSONs.
+Most of the 17 missing person names were one-word expressions mentioned just once in the text, and the system did not have enough information to perform a classi#0Ccation.
+LOCATION LOCATION was the most disappointing category for us.
+Just one word #28#5CColumbia"#29 whichwas tagged as location but in fact was the name of a space-shuttle was responsible for 38 of the 73 spurious assignments.
+The problem arose from sentences like #5CColumbia is to blast o#0B from NASA's Kennedy Space Center...", where we erroneously tagged #5CColumbia" as a location.
+Interestingly,we correctly did not tag #5CColumbia" in the string #5Cspace shuttle Columbia"; this was correctly recognised by the system as an artefact.
+In the Named Entity Recognition Task one does not have to mark up artefacts, but it is useful to recognise them nevertheless: using the partial matching rule, the system now also knew that #5CColumbia" was the likely name of an artefact and should not be marked up.
+Unfortunately, the text also contained the expression #5Ca satellite 13 miles from Columbia".
+This context is strongly suggestiveofLOCATION.
+That, and the fact that #5CColumbia"occurs in the list of placenames, overruled the evidence that it referred to an artefact.
+Out of the 55 misses, 30 were due to not assigning LOCATION tags to various heavenly bodies.
+TIMEX In the TIMEX category wehave relatively low recall.
+Our failure to markup expressions was sometimes due to underspeci#0Ccation in the guidelines and the training data; with the corrected answer keys our recall for times went up from 79 to 85.
+Apart from this, we also failed to recognise expressions like #5Cthe second day of the shuttle's 10-day mission", #5Cthe #0Cscal year starting Oct.
+1", etc, which need to be 10 marked as timex expressions in their entirety.
+And we did not group expressions like #5Cfrom August 1993 to July 1995" into one group but tagged them as two temporal expressions #28which gives three errors#29.
+NUMEX In the NUMEX category most of our errors came from the fact that we preferred simple constructions over more complex groupings.
+For instance, #5Cbetween $300 millionand $700 million"we didn't tag as a single numex expression, but instead tagged it as between #3CNUMEX TYPE="MONEY"#3E$300 million#3C#2FNUMEX#3E and #3CNUMEX TYPE="MONEY"#3E$700 million#3C#2FNUMEX#3E CONCLUSION One of the design features of our system which sets it apart from other systems is that it is designed fully within the sgml paradigm: the system is composed from several tools which are connected via a pipeline with data encoded in sgml.
+This allows the same tool to apply di#0Berent strategies to di#0Berent parts of the texts using di#0Berent resources.
+The tools do not convert from sgml into an internal format and back, but operate at the sgml level.
+Our system does not rely heavily on lists or gazetteers but instead treats information from such lists as #5Clikely" and concentrates on #0Cnding contexts in which such likely expressions are de#0Cnite.
+In fact, the #0Crst phase of the enamex analysis uses virtually no lists but still achieves substantial recall.
+The system is document centred.
+This means that at each stage the system makes decisions according to a con#0Cdence level that is speci#0Cc to that processing stage, and drawing on information from other parts of the document.
+The system is truly hybrid, applying symbolic rules and statistical partial matching techniques in an interleaved fashion.
+Unsurprisingly the major problem for the system were single capitalised words, mentioned just once or twice in the text and without suggestive contexts.
+In such a case the system could not apply contextual assignment, assignmentby analogy or lexical lookup.
+At the time we participated in the muc competition, our system was not particularly fast|it operated at about 8 words per second, taking around 3 hours to process the 100 articles.
+This has now considerably improved.
+Acknowledgements The work reported in this paper was supported in part by grant GR#2FL21952 #28Text Tokenisation Tool#29 from the UK Engineering and Physical Sciences Research Council.
+For help during the system building the authors wish to thank Colin Matheson of the LTG for writing a grammar for handling numerical expressions and testing the system on the WallStreet Journal, and Steve Finch of ThomsonTechnologies and Irina Nazarova of Edinburgh Parallel ComputingCenter for helping us build lexical resources for the system.
+Wewould also liketoacknowledge that this work was based on a long-standing collaborative relationship with Steve Finch who was involved in the design of many of the tools whichwe later used during the muc system development.
+References C.
+Brew and D.
+McKelvie 1996.
+#5CWord Pair Extraction for Lexicography".
+In Proceedings of NeM-LaP'96, pp 44#7B55.
+Ankara, Turkey.
+S. Finch and M.
+Moens 1995.
+#5CSISTA #0Cnal report".
+Available from: Language Technology Group, University of Edinburgh.
+E.R. Harold.
+1998. #5CXML: Extensible Markup Language.
+Structuring Complex Content for the Web".
+Foster City#2FChicago#2FNew York: IDG Books Worldwide.
+A. Mikheev and S.
+Finch 1995.
+#5CTowards a Workbench for Acquisition of Domain Knowledge from Natural Language".
+In Proceedings of the 7th Conference of the European Chapter of the Association for Computational Linguistics #28EACL'95#29, pp 194#7B201.
+Dublin. A.
+Mikheev and S.
+Finch 1997.
+#5CA Workbench for Finding Structure in Texts" In Proceedings of the Fifth Conference on Applied Natural Language Processing, pp 372#7B379.
+Washington D.C.
+A. Mikheev.
+1997 #5CAutomatic Rule Induction for Unknown Word Guessing".
+In Computational Linguistics 23 #283#29, pp 405#7B423.
+A. Mikheev.
+1997 #5CLT POS #7B the LTG part of speech tagger".
+Language Technology Group, University of Edinburgh.
+http:#2F#2Fwww.ltg.ed.ac.uk#2Fsoftware#2Fpos A.
+Mikheev. 1998 #5CFeature Lattices for Maximum Entropy Modelling" In Proceedings of the 36th Conference of the Association for Computational Linguistics, pp 848#7B854.
+Montreal, Quebec.
+D. McKelvie, C.
+Brew and H.S.
+Thompson 1998.
+#5CUsing SGML as a Basis for Data-Intensive Natural Language Processing".
+In Computers and the Humanities 35, pp 367#7B388.
+H.S. Thompson, D.
+McKelvie and S.
+Finch 1997.
+#5CThe Normalised SGML Library LT NSL version 1.5".
+Language Technology Group, University of Edinburgh.
+http:#2F#2Fwww.ltg.ed.ac.uk#2Fsoftware#2Fnsl H.S.
+Thompson, C.
+Brew, D.
+McKelvie, A.
+Mikheev and R.
+Tobin 1998.
+#5CThe XML Library LT XML version 1.0".
+Language Technology Group, University of Edinburgh. http:#2F#2Fwww.ltg.ed.ac.uk#2Fsoftware#2Fxml
+

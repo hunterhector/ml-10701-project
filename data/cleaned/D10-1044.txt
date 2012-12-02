@@ -1,0 +1,1129 @@
+Proceedingsof the 2010Conferenceon EmpiricalMethodsin Natural Language Processing, pages451–459,
+MIT, Massachusetts,USA,9-11October2010. c©2010Crown in Rightof Canada.
+Discriminative InstanceWeightingforDomainAdaptation
+inStatisticalMachineTranslation
+GeorgeFoster and CyrilGoutte and RolandKuhn
+NationalResearchCouncilCanada
+283Alexandre-Tach´e Blvd
+Gatineau,QCJ8X3X7
+first.last@nrc.gc.ca
+Abstract
+We describea new approachto SMT adapta-
+tion that weights out-of-domainphrase pairs
+accordingto their relevance to the target do-
+main, determined by both how similar to it
+they appearto be, and whetherthey belongto
+general languageor not. This extends previ-
+ous work on discriminative weightingby us-
+ing a finer granularity, focusingon the prop-
+erties of instances rather than corpus com-
+ponents, and using a simpler training proce-
+dure. We incorporateinstanceweightinginto
+a mixture-modelframework, and find that it
+yields consistent improvements over a wide
+rangeof baselines.
+1 Introduction
+Domainadaptationis a commonconcernwhen op-
+timizing empirical NLP applications. Even when
+thereistrainingdataavailableinthedomainofinter-
+est,thereisoftenadditionaldatafromotherdomains
+that could in principle be used to improve perfor-
+mance. Realizinggainsin practicecan be challeng-
+ing,however, particularlywhenthetargetdomainis
+distant from the backgrounddata. For developers
+of StatisticalMachine Translation(SMT) systems,
+an additionalcomplicationis the heterogeneousna-
+ture of SMT components (word-alignmentmodel,
+languagemodel,translationmodel,etc.),whichpre-
+cludesa singleuniversalapproachto adaptation.
+In this paper we study the problem of us-
+ing a parallel corpus from a background domain
+(OUT) to improve performance on a target do-
+main (IN) for which a smaller amount of parallel
+training material—thoughadequate for reasonable
+performance—isalso available. This is a standard
+adaptationproblemfor SMT. It is difficultwhenIN
+and OUTare dissimilar, as they are in the caseswe
+study. For simplicity, we assume that OUT is ho-
+mogeneous. The techniqueswe develop can be ex-
+tendedin a relatively straightforward mannerto the
+more general case when OUT consists of multiple
+sub-domains.
+There is a fairly large body of work on SMT
+adaptation. We introduceseveral new ideas. First,
+we aim to explicitly characterize examples from
+OUT as belongingto generallanguageor not. Pre-
+vious approaches have tried to find examples that
+are similar to the target domain. This is less ef-
+fective in our setting, where IN and OUT are dis-
+parate. The idea of distinguishingbetweengeneral
+and domain-specificexamplesis due to Daum´e and
+Marcu(2006),whousedamaximum-entropymodel
+with latentvariablesto capturethe degree of speci-
+ficity. Daum´e (2007) applies a related idea in a
+simpler way, by splitting features into general and
+domain-specificversions. This highly effective ap-
+proachis not directlyapplicableto the multinomial
+modelsusedforcoreSMTcomponents,whichhave
+no natural method for combiningsplit features, so
+we rely on an instance-weightingapproach (Jiang
+andZhai,2007)to downweightdomain-specificex-
+amplesin OUT. Withinthisframework,we usefea-
+tures intended to capture degree of generality, in-
+cludingthe outputfroman SVMclassifierthat uses
+theintersectionbetweenINandOUTaspositiveex-
+amples.
+Our second contribution is to apply instance
+451
+weighting at the level of phrase pairs. Sentence
+pairs are the natural instances for SMT, but sen-
+tences often contain a mix of domain-specificand
+general language. For instance, the sentence Sim-
+ilar improvements in haemoglobin levels were re-
+ported in the scientificliterature for other epoetins
+would likely be considereddomain-specificdespite
+the presence of general phrases like were reported
+in. Phrase-level granularitydistinguishesour work
+frompreviousworkbyMatsoukaset al (2009),who
+weightsentencesaccordingto sub-corpusandgenre
+membership.
+Finally, we make someimprovementsto baseline
+approaches.We trainlinearmixturemodelsforcon-
+ditionalphrase pair probabilitiesover IN and OUT
+so as to maximize the likelihood of an empirical
+joint phrase-pair distribution extracted from a de-
+velopmentset. This is a simpleand effective alter-
+native to setting weights discriminatively to maxi-
+mize a metricsuch as BLEU.A similarmaximum-
+likelihood approach was used by Foster and Kuhn
+(2007),but for languagemodelsonly. For compar-
+ison to information-retrieval inspired baselines, eg
+(L¨u et al., 2007), we select sentences from OUT
+using language model perplexities from IN. This
+is a straightforward techniquethat is arguably bet-
+ter suited to the adaptation task than the standard
+method of treating representative IN sentences as
+queries,thenpoolingthematchresults.
+The paperis structuredas follows. Section2 de-
+scribesourbaselinetechniquesforSMTadaptation,
+and section 3 describes the instance-weightingap-
+proach.Experimentsarepresentedinsection4. Sec-
+tion 5 covers relevant previouswork on SMTadap-
+tation,andsection6 concludes.
+2 BaselineSMTAdaptationTechniques
+Standard SMT systems have a hierarchicalparam-
+eter structure: top-level log-linearweightsare used
+to combine a small set of complex features, inter-
+pretedaslogprobabilities,manyofwhichhavetheir
+own internal parameters and objectives. The top-
+level weightsare trainedto maximizea metricsuch
+as BLEU on a small development set of approxi-
+mately1000sentencepairs. Thus,providedat least
+this amount of IN data is available—asit is in our
+setting—adaptingthese weights is straightforward.
+We focushereinsteadon adaptingthetwo mostim-
+portant features: the language model (LM), which
+estimatesthe probabilityp(w|h) of a target word w
+following an ngram h; and the translation models
+(TM) p(s|t) and p(t|s), which give the probability
+of sourcephrases translatingto target phraset, and
+viceversa. Wedonotadaptthealignmentprocedure
+for generatingthe phrasetable from which the TM
+distributionsarederived.
+2.1 SimpleBaselines
+Thenaturalbaselineapproachis toconcatenatedata
+from IN and OUT. Its success depends on the two
+domainsbeingrelativelyclose,andontheOUTcor-
+pusnotbeingsolargeastooverwhelmthecontribu-
+tionof IN.
+When OUT is large and distinct,its contribution
+can be controlledby trainingseparateIN and OUT
+models,and weightingtheir combination. An easy
+way to achieve this is to put the domain-specific
+LMs and TMs into the top-level log-linear model
+andlearnoptimalweightswithMERT (Och,2003).
+This has the potential drawback of increasing the
+numberoffeatures,whichcanmake MERTlesssta-
+ble(FosterandKuhn,2009).
+2.2 LinearCombinations
+ApartfromMERTdifficulties,aconceptualproblem
+withlog-linearcombinationis thatit multipliesfea-
+ture probabilities,essentiallyforcing different fea-
+tures to agree on high-scoringcandidates. This is
+appropriateincaseswhereitissanctionedbyBayes’
+law, such as multiplyingLM and TM probabilities,
+but for adaptationa more suitableframework is of-
+ten a mixture model in which each event may be
+generatedfromsomedomain. Thisleadsto a linear
+combinationof domain-specificprobabilities,with
+weightsin [0,1], normalizedto sumto 1.
+Linearweightsaredifficulttoincorporateintothe
+standard MERT procedure because they are “hid-
+den” within a top-level probability that represents
+the linear combination.
+1
+Following previous work
+(Foster and Kuhn, 2007), we circumvent this prob-
+lem by choosing weights to optimize corpus log-
+likelihood, which is roughly speaking the training
+criterionusedby theLMandTMthemselves.
+1
+This precludesthe use of exact line-maximizationwithin
+Powell’s algorithm(Och,2003),forinstance.
+452
+For theLM,adaptive weightsaresetas follows:
+ˆα = argmax
+α
+summationdisplay
+w,h
+˜p(w,h)log
+summationdisplay
+i
+α
+i
+p
+i
+(w|h), (1)
+whereαisa weightvectorcontaininganelementα
+i
+for each domain(just IN and OUT in our case), p
+i
+are the correspondingdomain-specificmodels, and
+˜p(w,h) is an empirical distribution from a target-
+language training corpus—weused the IN dev set
+forthis.
+Itisnotimmediatelyobvioushowtoformulatean
+equivalent to equation (1) for an adapted TM, be-
+causethereis no well-definedobjective for learning
+TMs from parallel corpora. This has led previous
+workers to adopt ad hoc linear weightingschemes
+(Finch and Sumita, 2008; Foster and Kuhn, 2007;
+L¨uetal.,2007).However,wenotethatthefinalcon-
+ditional estimates p(s|t) from a given phrase table
+maximize the likelihood of joint empirical phrase
+pair counts over a word-alignedcorpus. This sug-
+gestsa directparallelto (1):
+ˆα = argmax
+α
+summationdisplay
+s,t
+˜p(s,t)log
+summationdisplay
+i
+α
+i
+p
+i
+(s|t), (2)
+where ˜p(s,t) is a joint empirical distribution ex-
+tractedfrom the IN dev set using the standardpro-
+cedure.
+2
+An alternative form of linear combination is a
+maximuma posteriori(MAP)combination(Bacchi-
+aniet al.,2004).For theTM,thisis:
+p(s|t)=
+c
+I
+(s,t)+βp
+o
+(s|t)
+c
+I
+(t)+β, (3)
+wherec
+I
+(s,t) is the countin the IN phrasetableof
+pair (s,t), p
+o
+(s|t) is its probabilityunder the OUT
+TM,andc
+I
+(t)=
+summationtext
+s
+prime
+c
+I
+(s
+prime,t). Thisis motivatedby
+taking βp
+o
+(s|t) to be the parameters of a Dirich-
+let prior on phrase probabilities, then maximizing
+posteriorestimatesp(s|t) given the IN corpus. In-
+tuitively, it places more weight on OUT when less
+evidencefromINis available.To setβ, weusedthe
+samecriterionas forα, over a dev corpus:
+ˆ
+β = argmax
+β
+summationdisplay
+s,t
+˜p(s,t)log
+c
+I
+(s,t)+βp
+o
+(s|t)
+c
+I
+(t)+β
+.
+2
+Usingnon-adaptedIBMmodelstrainedonallavailableIN
+andOUTdata.
+TheMAPcombinationwasusedforTMprobabil-
+itiesonly, in partdueto a technicaldifficultyin for-
+mulatingcoherentcounts when using standardLM
+smoothingtechniques(KneserandNey, 1995).
+3
+2.3 SentenceSelection
+Motivated by information retrieval, a number of
+approaches choose “relevant” sentence pairs from
+OUTby matchingindividualsourcesentencesfrom
+IN (Hildebrand et al., 2005; L¨u et al., 2007), or
+individual target hypotheses (Zhao et al., 2004).
+The matchingsentencepairs are then added to the
+IN corpus, and the system is re-trained. Although
+matchingis doneat thesentencelevel,thisinforma-
+tionis subsequentlydiscardedwhenall matchesare
+pooled.
+To approximatethesebaselines,we implemented
+a verysimplesentenceselectionalgorithmin which
+parallelsentencepairsfromOUTare ranked by the
+perplexityoftheirtargethalfaccordingtotheINlan-
+guagemodel.Thenumberof top-ranked pairsto re-
+tainis chosento optimizedev-setBLEUscore.
+3 InstanceWeighting
+The sentence-selectionapproach is crude in that it
+imposes a binary distinction between useful and
+non-useful parts of OUT. Matsoukas et al (2009)
+generalizeit by learningweightson sentencepairs
+that are used when estimating relative-frequency
+phrase-pairprobabilities. The weight on each sen-
+tence is a value in [0,1] computedby a perceptron
+with Boolean features that indicate collection and
+genremembership.
+We extend the Matsoukaset al approachin sev-
+eral ways. First, we learn weights on individual
+phrase pairs rather than sentences. Intuitively, as
+suggested by the example in the introduction,this
+is the right granularity to capture domain effects.
+Second,ratherthanrelyingon a divisionof the cor-
+pusintomanually-assignedportions,weusefeatures
+intended to capture the usefulness of each phrase
+pair. Finally, we incorporatethe instance-weighting
+model into a general linear combination,and learn
+weightsandmixingparameterssimultaneously.
+3
+Bacchianiet al (2004) solve this problem by reconstitut-
+ing joint counts from smoothedconditionalestimatesand un-
+smoothedmarginals,but thisseemssomewhatunsatisfactory.
+453
+3.1 Model
+The overall adapted TM is a combination of the
+form:
+p(s|t)=α
+t
+p
+I
+(s|t) +(1−α
+t
+)p
+o
+(s|t), (4)
+where p
+I
+(s|t) is derived from the IN corpus us-
+ing relative-frequency estimates, and p
+o
+(s|t) is an
+instance-weightedmodelderivedfromtheOUTcor-
+pus. This combinationgeneralizes(2) and (3): we
+use either α
+t
+= α to obtain a fixed-weight linear
+combination,or α
+t
+= c
+I
+(t)/(c
+I
+(t)+β) to obtaina
+MAPcombination.
+We model p
+o
+(s|t) using a MAP criterion over
+weightedphrase-paircounts:
+p
+o
+(s|t)=
+c
+λ
+(s,t)+γu(s|t)
+summationtext
+s
+prime
+c
+λ
+(s
+prime,t)+γ
+(5)
+where c
+λ
+(s,t) is a modified count for pair (s,t)
+in OUT, u(s|t) is a prior distribution, and γ is a
+prior weight. The originalOUT counts c
+o
+(s,t) are
+weightedby a logisticfunctionw
+λ
+(s,t):
+c
+λ
+(s,t)=c
+o
+(s,t) w
+λ
+(s,t) (6)
+= c
+o
+(s,t) [1+exp(−
+summationdisplay
+i
+λ
+i
+f
+i
+(s,t))]
+−1,
+where each f
+i
+(s,t) is a feature intendedto charac-
+terizetheusefulnessof (s,t), weightedbyλ
+i
+.
+The mixingparametersand featureweights(col-
+lectivelyφ)areoptimizedsimultaneouslyusingdev-
+setmaximumlikelihoodas before:
+ˆ
+φ = argmax
+φ
+summationdisplay
+s,t
+˜p(s,t)logp(s|t;φ). (7)
+This is a somewhat less direct objective than used
+by Matsoukaset al, who make an iterative approxi-
+mationto expectedTER.However, it is robust, effi-
+cient,andeasyto implement.
+4
+To perform the maximization in (7), we used
+the popular L-BFGS algorithm (Liu and Nocedal,
+1989), which requiresgradientinformation. Drop-
+ping the conditioning on φ for brevity, and let-
+ting ¯c
+λ
+(s,t)=c
+λ
+(s,t)+γu(s|t), and ¯c
+λ
+(t)=
+4
+Note that the probabilitiesin (7) need only be evaluated
+over the supportof ˜p(s,t), whichis quite smallwhenthis dis-
+tributionisderivedfromadevset. Maximizing(7)isthusmuch
+fasterthana typicalMERT run.
+summationtext
+s
+prime
+¯c
+λ
+(s
+prime,t):
+∂logp(s|t)
+∂α
+t
+= k
+t
+bracketleftbigg
+p
+I
+(s|t)
+p(s|t)
+−
+p
+o
+(s|t)
+p(s|t)
+bracketrightbigg
+∂logp(s|t)
+∂γ
+=
+1−α
+t
+p(s|t)
+bracketleftbigg
+u(s|t)
+¯c
+λ
+(t)
+−
+¯c
+λ
+(s,t)
+¯c
+λ
+(t)
+2
+bracketrightbigg
+∂logp(s|t)
+∂λ
+i
+=
+1−α
+t
+p(s|t)
+bracketleftBigg
+c
+λ
+prime
+i
+(s,t)
+¯c
+λ
+(t)
+−
+¯c
+λ
+(s,t)c
+λ
+prime
+i
+(t)
+¯c
+λ
+(t)
+2
+bracketrightBigg
+where:
+k
+t
+=
+braceleftbigg
+1 fixed weight
+−c
+I
+(t)/(c
+I
+(t)+β)
+2
+MAP
+c
+λ
+prime
+i
+(s,t)=f
+i
+(s,t)(1−w
+λ
+(s,t))c
+λ
+(s,t)
+and:
+c
+λ
+prime
+i
+(t)=
+summationdisplay
+s
+prime
+c
+λ
+prime
+i
+(s
+prime,t).
+3.2 InterpretationandVariants
+To motivate weightingjoint OUT counts as in (6),
+we begin with the “ideal” objective for setting
+multinomialphraseprobabilitiesθ = {p(s|t),∀st},
+which is the likelihood with respect to the true IN
+distribution p
+ˆ
+I
+(s,t). Jiang and Zhai (2007) sug-
+gestthefollowingderivation,makinguseofthetrue
+OUTdistributionp
+ˆo
+(s,t):
+ˆ
+θ = argmax
+θ
+summationdisplay
+s,t
+p
+ˆ
+I
+(s,t)logp
+θ
+(s|t) (8)
+= argmax
+θ
+summationdisplay
+s,t
+p
+ˆ
+I
+(s,t)
+p
+ˆo
+(s,t)
+p
+ˆo
+(s,t)logp
+θ
+(s|t)
+≈ argmax
+θ
+summationdisplay
+s,t
+p
+ˆ
+I
+(s,t)
+p
+ˆo
+(s,t)
+c
+o
+(s,t)logp
+θ
+(s|t),
+where c
+o
+(s,t) are the counts from OUT, as in (6).
+Thishassolutions:
+p
+ˆ
+θ
+(s|t)=
+p
+ˆ
+I
+(s,t)
+p
+ˆo
+(s,t)
+c
+o
+(s,t)/
+summationdisplay
+s
+prime
+p
+ˆ
+I
+(s
+prime,t)
+p
+ˆo
+(s
+prime,t)
+c
+o
+(s
+prime,t),
+and from the similarityto (5), assumingγ =0, we
+see that w
+λ
+(s,t) can be interpretedas approximat-
+ing p
+ˆ
+I
+(s,t)/p
+ˆo
+(s,t). The logistic function, whose
+outputsare in [0,1], forcesp
+ˆ
+I
+(s,t) ≤ p
+ˆo
+(s,t). This
+is not unreasonablegiven the applicationto phrase
+pairsfromOUT,butitsuggeststhataninterestingal-
+ternativemightbetouseaplainlog-linearweighting
+454
+functionexp(
+summationtext
+i
+λ
+i
+f
+i
+(s,t)), withoutputsin [0,∞].
+We have notyettriedthis.
+An alternateapproximationto (8) wouldbe to let
+w
+λ
+(s,t) directlyapproximatep
+ˆ
+I
+(s,t). With the ad-
+ditionalassumptionthat(s,t)canberestrictedtothe
+supportofc
+o
+(s,t), thisisequivalenttoa “flat”alter-
+native to(6)inwhicheachnon-zeroc
+o
+(s,t) is setto
+one. Thisvariantis testedin theexperimentsbelow.
+A final alternate approach would be to combine
+weighted joint frequencies rather than conditional
+estimates, ie: c
+I
+(s,t)+w
+λ
+(s,t)c
+o
+(,s,t), suitably
+normalized.
+5
+Such an approachcould be simulated
+bya MAP-stylecombinationin whichseparateβ(t)
+valuesweremaintainedforeacht. Thiswouldmake
+the model more powerful, but at the cost of having
+to learn to downweightOUT separatelyfor each t,
+whichwe suspectwould requiremore trainingdata
+for reliableperformance.We have not exploredthis
+strategy.
+3.3 SimpleFeatures
+We used 22 features for the logistic weighting
+model,dividedintotwo groups: one intendedto re-
+flect the degree to which a phrase pair belongs to
+generallanguage,andone intendedto capturesimi-
+larityto theINdomain.
+The 14 general-language features embody
+straightforward cues: frequency, “centrality” as
+reflected in model scores, and lack of burstiness.
+They are:
+• totalnumberof tokensin thephrasepair(1);
+• OUTcorpusfrequency (1);
+• OUT-corpus frequencies of rarest source and
+targetwords(2);
+• perplexitiesforOUTIBM1models,in bothdi-
+rections(2);
+• average and minimumsource and target word
+“document frequencies” in the OUT corpus,
+using successive 100-line pseudo-documents
+6
+(4);and
+5
+We aregratefultoananonymousreviewerforpointingthis
+out.
+6
+One of our experimentalsettings lacks documentbound-
+aries,and we used this approximationin both settingsfor con-
+sistency.
+• average and minimumsource and target word
+values from the OUT corpus of the following
+statistic,intendedtoreflectdegreeofburstiness
+(highervalues indicateless bursty behaviour):
+g/(L − L/(l + 1) + epsilon1), where g is the sum
+over all sentences containingthe word of the
+distance (number of sentences) to the nearest
+sentencethat also contains the word, L is the
+total number of sentences, l is the number of
+sentencesthatcontaintheword,andepsilon1isasmall
+constant(4).
+The8 similarity-to-INfeaturesarebasedonword
+frequenciesand scoresfromvariousmodelstrained
+on theINcorpus:
+• 1gramand2gramsourceandtargetperplexities
+accordingto theINLM(4);
+7
+• source and target OOV counts with respect to
+IN(2);and
+• perplexitiesforINIBM1models,inbothdirec-
+tions(2).
+To avoid numerical problems, each feature was
+normalizedby subtractingits meanand dividingby
+its standarddeviation.
+3.4 SVMFeature
+In additionto usingthe simplefeaturesdirectly, we
+also trained an SVM classifier with these features
+to distinguish between IN and OUT phrase pairs.
+Phrasetables were extractedfrom the IN and OUT
+trainingcorpora(notthedevaswasusedforinstance
+weightingmodels),and phrasepairsin the intersec-
+tion of the IN and OUT phrasetables were used as
+positive examples,with two alternatedefinitionsof
+negative examples:
+1. Pairs from OUT that are not in IN, but whose
+sourcephraseis.
+2. Pairs from OUT that are not in IN, but whose
+sourcephraseis, and wherethe intersectionof
+INandOUTtranslationsforthatsourcephrase
+is empty.
+7
+In the caseof the Chineseexperimentsbelow, sourceLMs
+weretrainedusingtext segmentedwiththe LDCsegmenter, as
+weretheotherChinesemodelsin oursystem.
+455
+The classifier trained using the 2nd definition had
+higheraccuracy ona developmentset. We usedit to
+score all phrase pairs in the OUT table, in order to
+providea featurefortheinstance-weightingmodel.
+4 Experiments
+4.1 CorporaandSystem
+We carried out translationexperimentsin two dif-
+ferent settings. The first setting uses the Euro-
+pean Medicines Agency (EMEA) corpus (Tiede-
+mann, 2009) as IN, and the Europarl (EP) cor-
+pus (www.statmt.org/europarl) as OUT,
+for English/French translation in both directions.
+The dev and test sets were randomly chosen from
+theEMEAcorpus.Figure1showssamplesentences
+fromthesedomains,whicharewidelydivergent.
+The second setting uses the news-related sub-
+corpora for the NIST09 MT Chinese to English
+evaluation
+8
+as IN, and the remaining NIST paral-
+lelChinese/Englishcorpora(UN,HongKongLaws,
+and Hong Kong Hansard) as OUT. The dev cor-
+puswas taken fromtheNIST05evaluationset,aug-
+mented with some randomly-selectedmaterial re-
+served from the training set. The NIST06 and
+NIST08evaluationsetswereusedfortesting.(Thus
+thedomainof thedev andtestcorporamatchesIN.)
+Compared to the EMEA/EP setting, the two do-
+mainsintheNISTsettingarelesshomogeneousand
+moresimilartoeachother;thereisalsoconsiderably
+moreINtext available.
+The corporafor both settingsare summarizedin
+table1.
+corpus sentencepairs
+Europarl 1,328,360
+EMEAtrain 11,770
+EMEAdev 1,533
+EMEAtest 1,522
+NISTOUT 6,677,729
+NISTINtrain 2,103,827
+NISTINdev 1,894
+NIST06test 1,664
+NIST08test 1,357
+Table1: Corpora
+8
+www.itl.nist.gov/iad/mig//tests/mt/2009
+The reference medicine for Silapo is
+EPREX/ERYPO,which containsepoetinalfa.
+Le m´edicament de r´ef´erence de Silapo est
+EPREX/ERYPO,quicontientde l’´epo´etinealfa.
+—
+I wouldalsolike topointouttocommissionerLiika-
+nen that it is not easy to take a matterto a national
+court.
+Je voudrais pr´eciser, `a l’adresse du commissaire
+Liikanen, qu’il n’est pas ais´e de recourir aux tri-
+bunauxnationaux.
+Figure1: SentencepairsfromEMEA(top)andEuroparl
+text.
+We used a standard one-pass phrase-basedsys-
+tem (Koehn et al., 2003), with the following fea-
+tures: relative-frequency TM probabilitiesin both
+directions;a 4-gramLM with Kneser-Ney smooth-
+ing; word-displacementdistortionmodel;and word
+count. Featureweightswereset usingOch’s MERT
+algorithm (Och, 2003). The corpus was word-
+alignedusingbothHMMandIBM2models,andthe
+phrasetablewastheunionofphrasesextractedfrom
+these separatealignments,with a length limit of 7.
+It was filtered to retain the top 30 translationsfor
+eachsourcephraseusingthe TMpartof the current
+log-linearmodel.
+4.2 Results
+Table2 showsresultsforbothsettingsandallmeth-
+ods described in sections 2 and 3. The 1st block
+containsthe simplebaselinesfromsection2.1. The
+naturalbaseline(baseline) outperformsthe pure IN
+systemonly for EMEA/EPfren. Log-linearcombi-
+nation(loglin)improvesonthisinallcases,andalso
+beatsthepureINsystem.
+The2ndblockcontainstheIRsystem,whichwas
+tunedbyselectingtextinmultiplesofthesizeofthe
+EMEAtrainingcorpus,accordingto dev set perfor-
+mance. This significantlyunderperformslog-linear
+combination.
+The3rdblockcontainsthemixturebaselines.The
+linearLM(lin lm), TM(lin tm) andMAPTM(map
+tm) used with non-adaptedcounterpartsperformin
+all cases slightly worse than the log-linear combi-
+nation,whichadaptsbothLMandTMcomponents.
+However, when the linear LM is combinedwith a
+456
+method EMEA/EP NIST
+fren enfr nst06 nst08
+in 32.77 31.98 27.65 21.65
+out 20.42 17.41 19.85 15.71
+baseline 33.61 31.15 26.93 21.01
+loglin 35.94 32.62 28.09 21.85
+ir 33.75 31.91 —– —–
+linlm 35.61 31.55 28.02 21.68
+lintm 35.32 32.52 27.16 21.32
+maptm 35.15 31.99 27.20 21.17
+lm+lintm 36.42 33.49 27.83 22.03
+lm+maptm 36.28 33.31 28.05 22.11
+iw all 36.55 33.73 28.74 22.28
+iw all map 37.01 33.90 30.04 23.76
+iw all flat 36.50 33.42 28.31 22.13
+iw genmap 36.98 33.75 29.81 23.56
+iw simmap 36.82 33.68 29.66 23.53
+iw svmmap 36.79 33.67 —– —–
+Table 2: Results,for EMEA/EPtranslationinto English
+(fren) and French (enfr); and for NIST Chinese to En-
+glish translation with NIST06 and NIST08 evaluation
+sets. NumbersareBLEUscores.
+linearTM (lm+lintm) or MAP TM (lm+mapTM),
+the results are much better than a log-linear com-
+bination for the EMEA setting, and on a par for
+NIST. Thisisconsistentwiththenatureofthesetwo
+settings: log-linearcombination,which effectively
+takestheintersectionofINandOUT,doesrelatively
+betteron NIST, wherethe domainsare broaderand
+closertogether. Somewhatsurprisingly, theredonot
+appear to be large systematic differences between
+linearandMAPcombinations.
+The 4th block containsinstance-weightingmod-
+els trained on all features,used within a MAP TM
+combination, and with a linear LM mixture. The
+iw all map variant uses a non-0 γ weighton a uni-
+form prior in p
+o
+(s|t), and outperforms a version
+with γ =0(iw all) and the “flattened”variant de-
+scribed in section 3.2. Clearly, retainingthe origi-
+nal frequenciesis importantfor good performance,
+and globallysmoothingthe final weightedfrequen-
+cies is crucial. This best instance-weightingmodel
+beatstheequivalantmodelwithoutinstanceweights
+by between0.6BLEUand1.8BLEU,andbeatsthe
+log-linearbaselineby a large margin.
+The final block in table 2 shows models trained
+onfeaturesubsetsandontheSVMfeaturedescribed
+in 3.4. The general-languagefeatureshave a slight
+advantageover the similarityfeatures,and both are
+betterthantheSVMfeature.
+5 RelatedWork
+We have alreadymentionedthecloselyrelatedwork
+by Matsoukas et al (2009) on discriminative cor-
+pus weighting,and Jiang and Zhai (2007)on (non-
+discriminative) instanceweighting. It is difficult to
+directly compare the Matsoukas et al results with
+ours, since our out-of-domain corpus is homoge-
+neous; given heterogeneoustrainingdata, however,
+it would be trivial to includeMatsoukas-styleiden-
+tity features in our instance-weightingmodel. Al-
+though these authors report better gains than ours,
+they are with respectto a non-adaptedbaseline. Fi-
+nally,wenotethatJiang’sinstance-weightingframe-
+work is broaderthan we have presentedabove, en-
+compassingamongotherpossibilitiestheuseof un-
+labelledINdata,whichisapplicabletoSMTsettings
+wheresource-onlyINcorporaareavailable.
+It is also worth pointing out a connection with
+Daum´e’s (2007) work that splits each feature into
+domain-specificand generalcopies. At first glance,
+this seems only peripherally related to our work,
+sincethespecific/generaldistinctionismadeforfea-
+tures rather than instances. However, for multino-
+mialmodelslikeourLMsandTMs,thereisa oneto
+onecorrespondencebetweeninstancesandfeatures,
+eg the correspondencebetweena phrase pair (s,t)
+and its conditional multinomialprobability p(s|t).
+As mentionedabove, it is not obvious how to ap-
+ply Daum´e’s approach to multinomials, which do
+not have a mechanismfor combiningsplit features.
+Recentwork by Finkel and Manning(2009) which
+re-casts Daum´e’s approach in a hierarchicalMAP
+frameworkmaybe applicableto thisproblem.
+Moving beyond directly related work, major
+themes in SMT adaptation include the IR (Hilde-
+brand et al., 2005; L¨u et al., 2007; Zhao et al.,
+2004) and mixture (Finch and Sumita, 2008; Fos-
+terandKuhn,2007;KoehnandSchroeder, 2007;L¨u
+etal.,2007)approachesforLMsandTMsdescribed
+above, as well as methods for exploiting monolin-
+gualin-domaintext, typicallyby translatingit auto-
+maticallyandthenperformingselftraining(Bertoldi
+457
+and Federico,2009; Ueffing et al., 2007; Schwenk
+and Senellart, 2009). There has also been some
+workonadaptingthewordalignmentmodelpriorto
+phraseextraction(Civera andJuan,2007;Wu et al.,
+2005), and on dynamicallychoosinga dev set (Xu
+etal.,2007).Otherworkincludestransferringlatent
+topicdistributionsfromsourcetotargetlanguagefor
+LMadaptation,(Tamet al., 2007)andadaptingfea-
+tures at the sentencelevel to different categories of
+sentence(FinchandSumita,2008).
+6 Conclusion
+In this paper we have proposed an approach for
+instance-weightingphrasepairsinanout-of-domain
+corpusin orderto improve in-domainperformance.
+Each out-of-domainphrasepair is characterizedby
+a set of simplefeaturesintendedto reflecthow use-
+ful it will be. The features are weighted within a
+logistic model to give an overall weight that is ap-
+pliedto the phrasepair’s frequency priorto making
+MAP-smoothed relative-frequency estimates (dif-
+ferent weights are learned for each conditioning
+direction). These estimates are in turn combined
+linearly with relative-frequency estimates from an
+in-domain phrase table. Mixing, smoothing, and
+instance-featureweightsarelearnedatthesametime
+using an efficient maximum-likelihood procedure
+that relies on only a small in-domaindevelopment
+corpus.
+We obtained positive results using a very sim-
+ple phrase-basedsystemin two differentadaptation
+settings: using English/FrenchEuroparlto improve
+a performanceon a small, specializedmedical do-
+main; and using non-news portions of the NIST09
+training material to improve performance on the
+news-relatedcorpora. In both cases, the instance-
+weightingapproachimproved over a wide range of
+baselines,giving gains of over 2 BLEUpointsover
+thebestnon-adaptedbaseline,andgainsof between
+0.6 and 1.8 over an equivalent mixturemodel(with
+an identicaltrainingprocedurebut withoutinstance
+weighting).
+In future work we plan to try this approachwith
+more competitive SMT systems, and to extend in-
+stanceweightingtootherstandardSMTcomponents
+suchas the LM,lexicalphraseweights,andlexical-
+ized distortion. We will also directlycomparewith
+a baselinesimilartotheMatsoukasetalapproachin
+order to measurethe benefitfrom weightingphrase
+pairs(orngrams)ratherthanfullsentences.Finally,
+we intend to explore more sophisticatedinstance-
+weightingfeaturesfor capturingthe degree of gen-
+eralityof phrasepairs.
+References
+ACL. 2007. Proceedingsof the 45th AnnualMeetingof
+the Associationfor ComputationalLinguistics(ACL),
+Prague,CzechRepublic,June.
+Michel Bacchiani, Brian Roark, and Murat Saraclar.
+2004. Language model adaptation with MAP esti-
+mation and the perceptronalgorithm. In NAACL04
+(NAA,2004).
+Nicola Bertoldi and Marcello Federico. 2009. Do-
+mainadaptationforstatisticalmachinetranslationwith
+monolingualresources.In WMT09(WMT, 2009).
+Jorge Civera andAlfonsJuan. 2007. Domainadaptation
+in StatisticalMachineTranslationwith mixturemod-
+elling. In WMT07(WMT, 2007).
+Hal Daum´e III and DanielMarcu. 2006. DomainAdap-
+tation for StatisticalClassifiers. Journal of Artificial
+IntelligenceResearch, 26:101–126.
+HalDaum´e III. 2007. FrustratinglyEasyDomainAdap-
+tation. In ACL-07(ACL,2007).
+Andrew Finch and Eiichiro Sumita. 2008. Dynamic
+modelinterpolationforstatisticalmachinetranslation.
+In Proceedings of the ACL Workshop on Statistical
+MachineTranslation, Columbus,June.WMT.
+Jenny Rose Finkel and ChristopherD. Manning. 2009.
+HierarchicalBayesiandomainadaptation.InProceed-
+ings of the Human Language Technology Conference
+of the NorthAmericanChapterof the Associationfor
+ComputationalLinguistics (NAACL), Boulder, June.
+NAACL.
+George Foster and RolandKuhn. 2007. Mixture-model
+adaptationforSMT. In WMT07(WMT, 2007).
+George FosterandRolandKuhn. 2009. Stabilizingmin-
+imumerrorratetraining. In WMT09(WMT, 2009).
+Almut Silja Hildebrand, Matthias Eck, Stephan Vogel,
+and Alex Waibel. 2005. Adaptationof the translation
+model for statisticalmachinetranslationbased on in-
+formationretrieval. In Proceedingsof the 10thEAMT
+Conference, Budapest,May.
+Jing Jiang and ChengXiang Zhai. 2007. Instance
+Weightingfor DomainAdaptationin NLP. In ACL-
+07 (ACL,2007).
+Reinhard Kneser and Hermann Ney. 1995. Improved
+backing-off for m-gram languagemodeling. In Pro-
+ceedingsoftheInternationalConferenceonAcoustics,
+458
+Speech, and SignalProcessing(ICASSP)1995, pages
+181–184,Detroit,Michigan.IEEE.
+PhilippKoehn and Josh Schroeder. 2007. Experiments
+in domain adaptation for statistical machine transla-
+tion. In Proceedingsof the SecondWorkshopon Sta-
+tisticalMachine Translation, pages 224–227,Prague,
+CzechRepublic,June.Associationfor Computational
+Linguistics.
+Philipp Koehn, Franz Josef Och, and Daniel Marcu.
+2003. Statisticalphrase-basedtranslation.InProceed-
+ings of the Human Language Technology Conference
+of the NorthAmericanChapterof the Associationfor
+ComputationalLinguistics(NAACL), pages 127–133,
+Edmonton,May. NAACL.
+D. C. Liu and J. Nocedal. 1989. On the limited mem-
+ory methodfor large scale optimization. Mathemati-
+calProgrammingB, 45(3):503–528.
+Yajuan L¨u, Jin Huang, and Qun Liu. 2007. Improving
+StatisticalMachineTranslationPerformancebyTrain-
+ing Data Selectionand Optimization. In Proceedings
+of the 2007Conferenceon EmpiricalMethodsin Nat-
+ural Language Processing (EMNLP), Prague, Czech
+Republic.
+Spyros Matsoukas, Antti-Veikko I. Rosti, and Bing
+Zhang. 2009. Discriminative corpus weight estima-
+tion for machine translation. In Proceedings of the
+2009 Conference on Empirical Methods in Natural
+Language Processing(EMNLP), Singapore.
+NAACL. 2004. Proceedings of the Human Language
+Technology Conference of the North AmericanChap-
+ter of the Associationfor ComputationalLinguistics
+(NAACL), Boston,May.
+FranzJosefOch. 2003. Minimumerrorrate trainingfor
+statisticalmachinetranslation. In Proceedingsof the
+41thAnnualMeetingof the Associationfor Computa-
+tionalLinguistics(ACL), Sapporo,July. ACL.
+Holger Schwenk and Jean Senellart. 2009. Translation
+modeladaptationforanarabic/frenchnewstranslation
+systemby lightly-supervisedtraining. In Proceedings
+of MT SummitXII, Ottawa, Canada,September. Inter-
+nationalAssociationforMachineTranslation.
+Yik-Cheung Tam, Ian Lane, and Tanja Schultz. 2007.
+Bilingual-LSABasedLMAdaptationforSpokenLan-
+guageTranslation.In ACL-07(ACL,2007).
+Jorg Tiedemann. 2009. News from opus a collection
+of multilingualparallel corpora with tools and inter-
+faces. In N. Nicolov, K. Bontcheva, G. Angelova,
+and R. Mitkov, editors, Recent Advances in Natural
+LanguageProcessing, volumeV,pages237–248.John
+Benjamins,Amsterdam/Philadelphia.
+NicolaUeffing, GholamrezaHaffari, and AnoopSarkar.
+2007. Transductive learning for statistical machine
+translation.In ACL-07(ACL,2007).
+WMT. 2007. Proceedingsof the ACL Workshopon Sta-
+tisticalMachineTranslation, Prague,June.
+WMT. 2009. Proceedingsof the4thWorkshoponStatis-
+ticalMachineTranslation, Athens,March.
+Hua Wu, Haifeng Wang, and Zhanyi Liu. 2005.
+Alignmentmodeladaptationfordomain-specificword
+alignment. In Proceedingsof the 43th Annual Meet-
+ing of the Associationfor ComputationalLinguistics
+(ACL), AnnArbor, Michigan,July. ACL.
+JiaXu,YonggangDeng,YuqingGao,andHermannNey.
+2007. Domaindependentstatisticalmachinetransla-
+tion. In MTSummitXI, Copenhagen,September.
+Bing Zhao, Matthias Eck, and Stephan Vogel. 2004.
+Language model adaptation for statistical machine
+translationwithstructuredquerymodels. In Proceed-
+ingsoftheInternationalConferenceonComputational
+Linguistics(COLING)2004, Geneva, August.
+459
+

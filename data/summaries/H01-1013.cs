@@ -1,0 +1,2 @@
+1. INTRODUCTION Natural language dialog has been used in many areas, such as for call-center/routing application (Carpenter & Chu-Carroll 1998), email routing (Walker, Fromer & Narayanan 1998), information retrieval and database access (Androutsopoulos & Ritchie 1995), and for telephony banking (Zadrozny et al.1998). In this demonstration, we present a natural language dialog interface to online shopping.
+P98-2219

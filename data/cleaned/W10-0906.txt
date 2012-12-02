@@ -1,0 +1,733 @@
+Proceedings of the NAACL HLT 2010 First International Workshop on Formalisms and Methodology for Learning by Reading, pages 43–51,
+Los Angeles, California, June 2010. c©2010 Association for Computational Linguistics
+Open-domainCommonsenseReasoningUsingDiscourseRelationsfroma
+CorpusofWeblogStories
+MattGerber
+DepartmentofComputerScience
+MichiganStateUniversity
+gerberm2@msu.edu
+AndrewS.Gordon and KenjiSagae
+InstituteforCreativeTechnologies
+UniversityofSouthernCalifornia
+{gordon,sagae}@ict.usc.edu
+Abstract
+We present a method of extracting open-
+domain commonsense knowledge by apply-
+ingdiscourseparsingtoalargecorpusofper-
+sonal stories written by Internet authors. We
+demonstratetheuseofalinear-time,jointsyn-
+tax/discourse dependency parser for this pur-
+pose, and we show how the extracted dis-
+courserelationscanbeusedtogenerateopen-
+domain textual inferences. Our evaluations
+of the discourse parser and inference models
+show some success, but also identify a num-
+berofinterestingdirectionsforfuturework.
+1 Introduction
+The acquisition of open-domain knowledge in sup-
+port of commonsense reasoning has long been a
+bottleneck within artificial intelligence. Such rea-
+soning supports fundamental tasks such as textual
+entailment (Giampiccolo et al., 2008), automated
+question answering (Clark et al., 2008), and narra-
+tive comprehension (Graesser et al., 1994). These
+tasks,whenconductedinopendomains,requirevast
+amounts of commonsense knowledge pertaining to
+states,events,andtheircausalandtemporalrelation-
+ships. ManuallycreatedresourcessuchasFrameNet
+(Bakeretal.,1998),WordNet(Fellbaum,1998),and
+Cyc (Lenat, 1995) encode many aspects of com-
+monsense knowledge; however, coverage of causal
+andtemporalrelationshipsremainslowformanydo-
+mains.
+Gordon and Swanson (2008) argued that the
+commonsense tasks of prediction, explanation, and
+imagination (collectively called envisionment) can
+besupported byknowledge minedfrom alargecor-
+pus of personal stories written by Internet weblog
+authors.1 Gordon and Swanson (2008) identified
+three primary obstacles to such an approach. First,
+stories must be distinguished from other weblog
+content (e.g., lists, recipes, and reviews). Second,
+stories must be analyzed in order to extract the im-
+plicit commonsense knowledge that they contain.
+Third,inferencemechanismsmustbedevelopedthat
+usetheextractedknowledge toperform thecoreen-
+visionment taskslistedabove.
+In the current paper, we present an approach to
+open-domaincommonsenseinferencethataddresses
+eachofthethreeobstacles identifiedbyGordonand
+Swanson (2008). We built on the work of Gordon
+and Swanson (2009), who describe a classification-
+based approach to the task of story identification.
+The authors’ system produced a corpus of approx-
+imatelyonemillionpersonal stories,whichweused
+as a starting point. We applied efficient discourse
+parsing techniques to this corpus as a means of ex-
+tracting causal and temporal relationships. Further-
+more, we developed methods that use the extracted
+knowledge to generate textual inferences for de-
+scriptions of states and events. This work resulted
+in an end-to-end prototype system capable of gen-
+erating open-domain, commonsense inferences us-
+ing a repository of knowledge extracted from un-
+structured weblog text. We focused on identifying
+1WefollowGordonandSwanson(2009)indefiningastory
+to be a “textual discourse that describes a specific series of
+causally related events in the past, spanning a period of time
+ofminutes,hours,ordays,wheretheauthororacloseassociate
+isamongtheparticipants.”
+43
+strengths and weaknesses of the system in an effort
+toguidefuturework.
+We structure our presentation as follows: in Sec-
+tion 2, we present previous research that has inves-
+tigated the use oflarge webcorpora for natural lan-
+guage processing (NLP)tasks. InSection 3,wede-
+scribe an efficient method of automatically parsing
+weblog stories for discourse structure. InSection 4,
+we present a set of inference mechanisms that use
+the extracted discourse relations to generate open-
+domain textual inferences. Weconclude, in Section
+5, with insights into story-based envisionment that
+wehopewillguidefutureworkinthisarea.
+2 Relatedwork
+Researchers have made many attempts to use the
+massive amount of linguistic content created by
+users of the World Wide Web. Progress and chal-
+lengesinthisareahavespawnedmultipleworkshops
+(e.g.,thosedescribedbyGurevychandZesch(2009)
+and Evert et al. (2008)) that specifically target the
+use of content that is collaboratively created by In-
+ternet users. Of particular relevance to the present
+work is the weblog corpus developed by Burton et
+al. (2009), which was used for the data challenge
+portion ofthe International Conference on Weblogs
+and Social Media (ICWSM). The ICWSM weblog
+corpus (referred to here as Spinn3r) is freely avail-
+able and comprises tens of millions of weblog en-
+tries posted between August 1st, 2008 and October
+1st,2008.
+Gordon et al. (2009) describe an approach to
+knowledgeextractionovertheSpinn3rcorpususing
+techniques described by Schubert and Tong (2003).
+Inthisapproach,logicalpropositions(knownasfac-
+toids) are constructed via approximate interpreta-
+tion of syntactic analyses. As an example, the sys-
+temidentified afactoid glossed as “doors to aroom
+may be opened”. Gordon et al. (2009) found that
+the extracted factoids cover roughly half of the fac-
+toids present in the corresponding Wikipedia2 arti-
+cles. We used a subset of the Spinn3r corpus in
+our work, but focused on discourse analyses of en-
+tiretextsinstead ofsyntactic analyses ofsingle sen-
+tences. Our goal was to extract general causal and
+temporal propositions instead of the fine-grained
+2http://en.wikipedia.org
+properties expressed by many factoids extracted by
+Gordonetal.(2009).
+Clark and Harrison (2009) pursued large-scale
+extraction of knowledge from text using a syntax-
+based approach that was also inspired by the work
+of Schubert and Tong (2003). The authors showed
+how the extracted knowledge tuples can be used
+to improve syntactic parsing and textual entailment
+recognition. Bar-Haim et al. (2009) present an ef-
+ficient method of performing inference with such
+knowledge.
+Our work is also related to the work of Persing
+and Ng (2009), in which the authors developed a
+semi-supervised methodofidentifyingthecausesof
+events described in aviation safety reports. Simi-
+larly, our system extracts causal (as well as tem-
+poral) knowledge; however, it does this in an open
+domain and does not place limitations on the types
+of causes to be identified. This greatly increases
+thecomplexity oftheinference task,andourresults
+exhibit a corresponding degradation; however, our
+evaluations provideimportant insightsintothetask.
+3 Discourseparsingacorpusofstories
+Gordon and Swanson (2009) developed a super-
+vised classification-based approach for identifying
+personal stories within the Spinn3r corpus. Their
+method achieved 75% precision on the binary task
+of predicting story versus non-story on a held-out
+subset of the Spinn3r corpus. The extracted “story
+corpus” comprises 960,098 personal stories written
+by weblog users. Due to its large size and broad
+domaincoverage,thestorycorpusoffersuniqueop-
+portunities toNLPresearchers. Forexample,Swan-
+son and Gordon (2008) showed how the corpus can
+be used to support open-domain collaborative story
+writing.3
+As described by Gordon and Swanson (2008),
+storyidentificationisjustthefirststeptowardscom-
+monsense reasoning using personal stories. We ad-
+dressed the second step knowledge extraction -
+by parsing the corpus using a Rhetorical Structure
+Theory (Carlson and Marcu, 2001) parser based on
+the one described by Sagae (2009). The parser
+performs joint syntactic and discourse dependency
+3The system (called SayAnything) is available at
+http://sayanything.ict.usc.edu
+44
+parsing using a stack-based, shift-reduce algorithm
+with runtime that is linear in the input length. This
+lightweight approach is very efficient; however, it
+maynotbequiteasaccurateasmorecomplex,chart-
+based approaches (e.g., the approach of Charniak
+andJohnson (2005)forsyntacticparsing).
+We trained the discourse parser over the causal
+andtemporalrelationscontained intheRSTcorpus.
+Examplesoftheserelations areshownbelow:
+(1) [cause Packagesoftengetburiedintheload]
+[result andaredeliveredlate.]
+(2) [before ThreemonthsaftershearrivedinL.A.]
+[after shespent$120shedidn’thave.]
+The RST corpus defines many fine-grained rela-
+tions that capture causal and temporal properties.
+For example, the corpus differentiates between re-
+sultandreasonforcausationandtemporal-after and
+temporal-before for temporal order. In order to in-
+creasetheamountofavailabletrainingdata,wecol-
+lapsed all causal and temporal relations into two
+general relations causes and precedes. This step re-
+quired normalization of asymmetric relations such
+astemporal-before andtemporal-after.
+Toevaluate the discourse parser described above,
+we manually annotated 100 randomly selected we-
+blogstoriesfromthestorycorpusproduced byGor-
+don and Swanson (2009). For increased efficiency,
+welimited our annotation to the generalized causes
+and precedes relations described above. We at-
+tempted to keep our definitions of these relations
+in line with those used by RST.Following previous
+discourse annotation efforts, we annotated relations
+over clause-level discourse units, permitting rela-
+tions between adjacent sentences. In total, we an-
+notated 770instances of causes and1,009instances
+ofprecedes.
+We experimented with two versions of the RST
+parser, one trained on the fine-grained RST rela-
+tionsandtheothertrainedonthecollapsedrelations.
+At testing time, we automatically mapped the fine-
+grained relations to their corresponding causes or
+precedes relation. We computed the following ac-
+curacystatistics:
+Discoursesegmentation accuracy For each pre-
+dicted discourse unit, we located the reference
+discourse unit with the highest overlap. Accu-
+racyforthepredicted discourse unitisequalto
+thepercentage wordoverlapbetweentherefer-
+enceandpredicted discourse units.
+Argumentidentificationaccuracy For each dis-
+course unit of a predicted discourse relation,
+welocatedthereferencediscourseunitwiththe
+highest overlap. Accuracy is equal to the per-
+centageoftimesthatareferencediscourserela-
+tion (of any type) holds between the reference
+discourse units that overlap most with the pre-
+dicteddiscourse units.
+Argumentclassification accuracy For the subset
+of instances in which a reference discourse re-
+lationholdsbetweentheunitsthatoverlapmost
+with the predicted discourse units, accuracy is
+equal to the percentage of times that the pre-
+dicted discourse relation matchesthereference
+discourse relation.
+Completeaccuracy For each predicted discourse
+relation, accuracy is equal to the percentage
+word overlap with a reference discourse rela-
+tionofthesametype.
+Table 1 shows the accuracy results for the fine-
+grainedandcollapsedversionsoftheRSTdiscourse
+parser. As shown in Table 1, the collapsed version
+of the discourse parser exhibits higher overall ac-
+curacy. Both parsers predicted the causes relation
+much more often than the precedes relation, so the
+overall scores are biased toward the scores for the
+causes relation. Forcomparison,Sagae(2009)eval-
+uated a similar RST parser over the test section of
+the RST corpus, obtaining precision of 42.9% and
+recallof46.2%(F1 = 44.5%).
+In addition to the automatic evaluation described
+above, we also manually assessed the output of the
+discourse parsers. One of the authors judged the
+correctness ofeachextracteddiscourserelation, and
+we found that the fine-grained and collapsed ver-
+sions of the parser performed equally well with a
+precisionnear33%;however,throughout ourexper-
+iments, we observed more desirable discourse seg-
+mentation whenworking withthecollapsed version
+ofthediscourseparser. Thisfact,combinedwiththe
+results ofthe automatic evaluation presented above,
+45
+Fine-grained RSTparser Collapsed RSTparser
+Accuracymetric causes precedes overall causes precedes overall
+Segmentation 36.08 44.20 36.67 44.36 30.13 43.10
+Argumentidentification 25.00 33.33 25.86 26.15 23.08 25.87
+Argumentclassification 66.15 50.00 64.00 79.41 83.33 79.23
+Complete 22.20 28.88 22.68 31.26 21.21 30.37
+Table1: RSTparserevaluation. Allvaluesarepercentages.
+led us to use the collapsed version of the parser in
+allsubsequent experiments.
+Having developed and evaluated the discourse
+parser, we conducted a full discourse parse of the
+storycorpus,whichcomprisesmorethan25million
+sentences split into nearly 1million weblog entries.
+Thediscourse parser extracted 2.2million instances
+of the causes relation and 220,000 instances of the
+precedes relation. As a final step, we indexed the
+extracted discourse relations with the Lucene infor-
+mation retrieval engine.4 Each discourse unit (two
+per discourse relation) is treated as a single docu-
+ment, allowing us to query the extracted relations
+using information retrieval techniques implemented
+intheLucenetoolkit.
+4 Generatingtextualinferences
+As mentioned previously, Gordon and Swan-
+son (2008) cite three obstacles to performing com-
+monsense reasoning using weblog stories. Gordon
+and Swanson (2009) addressed the first (story col-
+lection). We addressed the second (story analysis)
+bydeveloping adiscourse parser capable ofextract-
+ing causal and temporal relations from weblog text
+(Section 3). In this section, we present a prelimi-
+nary solution to the third problem reasoning with
+theextractedknowledge.
+4.1 Inferencemethod
+Ingeneral,werequireaninferencemethodthattakes
+asinputthefollowingthings:
+1. A description of the state or event of interest.
+Thisisafree-textdescription ofanylength.
+2. Thetype of inference to perform, either causal
+ortemporal.
+4Availableathttp://lucene.apache.org
+3. Theinferencedirection,eitherforwardorback-
+ward. Forward causal inference produces the
+effects of the given state or event. Backward
+causal inference produces causes of the given
+state or event. Similarly, forward and back-
+ward temporal inferences produce subsequent
+andpreceding statesandevents,respectively.
+Asasimplebaselineapproach, weimplemented the
+following procedure. First,givenatextual input de-
+scription d, we query the extracted discourse units
+usingLucene’smodifiedversion ofthevectorspace
+model over TF-IDF term weights. This produces a
+ranked list Rd ofdiscourse units matching theinput
+description d. WethenfilterRd,removingdiscourse
+units that are not linked to other discourse units by
+thegivenrelationandinthegivendirection. Eachel-
+ementofthefiltered Rd isthuslinkedtoadiscourse
+unit that could potentially satisfy the inference re-
+quest.
+Todemonstrate,weperformforwardcausalinfer-
+enceusingthefollowinginputdescription d:
+(3) Johntraveled theworld.
+Below, we list the three top-ranked discourse units
+that matched d (left-hand side) and their associated
+consequents (right-hand side):
+1. traveling theworld→tomurder
+2. traveling from around the world to be there →
+eventhoughthiscrowdwasinternational
+3. traveledacrosstheworld→toexperience it
+In a na¨ıve way, one might simply choose the top-
+ranked clause in Rd and select its associated clause
+as the answer to the inference request; however, in
+the example above, this would incorrectly generate
+“to murder” as the effect of John’s traveling (this is
+46
+more appropriately viewed as the purpose of trav-
+eling). The other effect clauses also appear to be
+incorrect. This should not come as much of a sur-
+prise because the ranking wasgenerated soley from
+the match score between the input description and
+thecausesin Rd,whicharequiterelevant.
+One potential problem with the na¨ıve selection
+method is that it ignores information contained in
+therankedlist R′d ofclausesthatareassociatedwith
+the clauses in Rd. In our experiments, we often
+observed redundancies in R′d that captured general
+properties of the desired inference. Intuitively, con-
+tentthatissharedacrosselementsofR′d couldrepre-
+sentthecoremeaningofthedesiredinferenceresult.
+In what follows, we describe various re-rankings
+of R′d using this shared content. For each model
+described, the final inference prediction is the top-
+rankedelementof R′d.
+Centroidsimilarity To approximate the shared
+content of discourse units in R′d, we treat each
+discourseunitasavectorofTFscores. Wethen
+computetheaveragevectorandre-rankalldis-
+course units in R′d based on their cosine simi-
+laritywiththeaveragevector. Thisfavorsinfer-
+ence results that “agree” with manyalternative
+hypotheses.
+Descriptionscorescaling In this approach, we in-
+corporate the score from Rd into the centroid
+similarityscore,multiplyingthetwoandgiving
+equal weight to each. This captures the intu-
+ition that the top-ranked element of R′d should
+represent the general content of the list but
+should also be linked to an element of Rd that
+bearshigh similarity tothegivenstateorevent
+description d.
+Log-lengthscaling When working with the cen-
+troid similarity score, we often observed top-
+ranked elements of R′d that were only a few
+words in length. This was typically the case
+when components from sparse TF vectors in
+R′d matched well with components from the
+centroid vector. Ideally, we would like more
+lengthy (but not too long) descriptions. To
+achieve this, we multiplied the centroid simi-
+larityscorebythelogarithmofthewordlength
+ofthediscourse unitin R′d.
+Descriptionscore/log-length scaling In this ap-
+proach,wecombinethedescription scorescal-
+ingandlog-lengthscaling,multiplyingthecen-
+troidsimilaritybybothandgivingequalweight
+toallthreefactors.
+4.2 Evaluatingthegeneratedtextualinferences
+To evaluate the inference re-ranking models de-
+scribed above, we automatically generated for-
+ward/backward causal and temporal inferences for
+five documents (265 sentences) drawn randomly
+from the story corpus. For simplicity, we gener-
+ated an inference for each sentence in each docu-
+ment. Each inference re-ranking model is able to
+generate four textual inferences (forward/backward
+causal/temporal) for each sentence. In our experi-
+ments, we only kept the highest-scoring of the four
+inferencesgeneratedbyamodel. Oneoftheauthors
+thenmanuallyevaluatedthefinalpredictionsforcor-
+rectness. This was a subjective process, but it was
+guidedbythefollowingrequirements:
+1. The generated inference must increase the lo-
+cal coherence of the document. As described
+by Graesser et al. (1994), readers are typically
+required to make inferences about the text that
+lead to a coherent understanding thereof. We
+required the generated inferences to aid in this
+task.
+2. The generated inferences must be globally
+valid. Todemonstrate global validity, consider
+thefollowingactualoutput:
+(4) Ididn’tevenneedajacket(untilIgot
+there).
+In Example 4, the system-generated forward
+temporal inference is shown in parentheses.
+The inference makes sense given its local con-
+text; however, it is clear from the surround-
+ingdiscourse (notshown)thatajacket wasnot
+needed at any point in time (it happened to be
+a warm day). As a result, this prediction was
+taggedasincorrect.
+Table 2 presents the results of the evaluation. As
+shown in the table, the top-performing models are
+those that combine centroid similarity with one or
+bothoftheotherre-ranking heuristics.
+47
+Re-rankingmodel Inference accuracy(%)
+None 10.19
+Centroidsimilarity 12.83
+Description scorescaling 17.36
+Log-lengthscaling 12.83
+Description score/log-length scaling 16.60
+Table2: Inferencegenerationevaluationresults.
+0
+0.05
+0.1
+0.15
+0.2
+0.25
+0.3
+0.0
+5 0.1
+0.1
+5 0.2
+0.2
+5 0.3
+0.3
+5 0.4
+0.4
+5 0.5
+0.5
+5 0.6
+0.6
+5 0.7
+0.7
+5 0.8
+0.8
+5 0.9
+0.9
+5 1
+Confidence-ordered percentage of all 
+inferences
+Inf
+er
+en
+ce
+ ac
+cu
+ra
+cy None
+Centroid similarity
+Description score scaling
+Log-length scaling
+Combined scaling
+Figure 1: Inference rate versus accuracy. Values along the x-axis indicate that the top-scoring x% of all inferences
+wereevaluated. Valuesalongthey-axisindicatethepredictionaccuracy.
+Theanalysis above demonstrates therelative per-
+formanceofthemodelswhenmakinginferencesfor
+all sentences; however it is probably the case that
+manygeneratedinferencesshouldberejecteddueto
+theirlowscore. Becausetheoutputscoresofasingle
+modelcanbemeaningfullycomparedacrosspredic-
+tions, it is possible to impose a threshold on the in-
+ference generation process such that any prediction
+scoring at or below the threshold is withheld. We
+varied the prediction threshold from zero to a value
+sufficiently large that it excluded all predictions for
+a model. Doing so demonstrates the trade-off be-
+tween making a large number of textual inferences
+and making accurate textual inferences. Figure 1
+shows the effects of this variable on the re-ranking
+models. As shown in Figure 1, the highest infer-
+ence accuracy is reached by the re-ranker that com-
+bines description score and log-length scaling with
+thecentroid similarity measure. Thisaccuracyisat-
+tainedbykeeping thetop25%mostconfidentinfer-
+ences.
+5 Conclusions
+We have presented an approach to commonsense
+reasoningthatrelieson(1)theavailability ofalarge
+corpus of personal weblog stories and (2) the abil-
+ity toanalyze and perform inference withthese sto-
+ries. Ourcurrent results, although preliminary, sug-
+gestnovelandimportantareasoffutureexploration.
+Wegroupourobservations accordingtothelasttwo
+problemsidentifiedbyGordonandSwanson(2008):
+story analysis and envisioning with the analysis re-
+sults.
+5.1 Storyanalysis
+Asinother NLPtasks, weobserved significant per-
+formance degradation when moving from the train-
+ing genre (newswire) to the testing genre (Internet
+48
+weblogstories). Becauseourdiscourse parserrelies
+heavily on lexical and syntactic features for classi-
+fication, and because the distribution of the feature
+values varies widely between the two genres, the
+performance degradation is to be expected. Recent
+techniquesinparseradaptationfortheBrowncorpus
+(McCloskyetal.,2006)mightbeusefullyappliedto
+thewebloggenreaswell.
+Our supervised classification-based approach to
+discourse parsing could also be improved with ad-
+ditionaltrainingdata. Causalandtemporalrelations
+are instantiated a combined 2,840 times in the RST
+corpus, with a large majority of these being causal.
+Incontrast,thePennDiscourseTreeBank(Prasadet
+al.,2008)contains7,448traininginstancesofcausal
+relations and 2,763 training instances of temporal
+relations. This represents a significant increase in
+the amount of training data over the RSTcorpus. It
+wouldbeinformativetocompareourcurrentresults
+withthose obtained using adiscourse parser trained
+onthePennDiscourseTreeBank.
+One might also extract causal and temporal rela-
+tions using traditional semantic role analysis based
+on FrameNet (Baker et al., 1998) or PropBank
+(KingsburyandPalmer,2003). Theformerdefinesa
+number of frames related to causation and temporal
+order,androleswithinthelattercouldbemappedto
+standard thematicroles(e.g.,cause)viaSemLink.5
+5.2 Envisioningwiththeanalysisresults
+We believe commonsense reasoning based on we-
+blog stories can also be improved through more so-
+phisticated usesoftheextracted discourse relations.
+Asafirststep,itwouldbebeneficialtoexplorealter-
+nateinputdescriptions. AspresentedinSection4.2,
+wemake textual inferences at the sentence level for
+simplicity; however, it might be more reasonable to
+makeinferencesattheclauselevel,sinceclausesare
+thebasisforRSTandPennDiscourseTreeBankan-
+notation. This could result in the generation of sig-
+nificantly more inferences due to multi-clause sen-
+tences; thus,moreintelligent inference filtering will
+berequired.
+Our models use prediction scores for the tasks
+of rejecting inferences and selecting between mul-
+tiple candidate inferences (i.e., forward/backward
+5Availableathttp://verbs.colorado.edu/semlink
+causal/temporal). Instead of relying on prediction
+scores for these tasks, it might be advantageous to
+firstidentify whetherornotenvisionment should be
+performed for a clause, and, if it should, what type
+and direction of envisionment would be best. For
+example,consider thefollowingsentence:
+(5) [clause1 Johnwenttothestore][clause2
+becausehewashungry].
+Itwould bebetter -from alocal coherence perspec-
+tivetoinfer the cause ofthe second clause instead
+ofthecauseofthefirst. Thisisduetothefactthata
+causeforthefirstclauseisexplicitlystated,whereas
+acauseforthesecondclauseisnot. Inferencesmade
+aboutthefirstclause(e.g.,thatJohnwenttothestore
+because his dog was hungry), are likely to be unin-
+formative or in conflict with explicitly stated infor-
+mation.
+Example 5 raises the important issue of context,
+which we believe needs to be investigated further.
+Here, context refers to the discourse that surrounds
+the clause or sentence for which the system is at-
+tempting to generate a textual inference. The con-
+text places anumber of constraints on allowable in-
+ferences. For example, in addition to content-based
+constraints demonstrated in Example 5, the context
+limits pronoun usage, entity references, and tense.
+Violations of these constraints will reduce local co-
+herence.
+Finally, the story corpus, with its vast size, is
+likelytocontainasignificantamountofredundancy
+for common events and states. Our centroid-based
+re-ranking heuristics are inspired by this redun-
+dancy, and we expect that aggregation techniques
+such as clustering might be of some use when ap-
+plied to the corpus as a whole. Having identified
+coherentclustersofcauses,itmightbeeasiertofind
+aconsequence forapreviously unseen cause.
+In summary, we have presented preliminary re-
+search into the task of using a large, collaboratively
+constructed corpus as a commonsense knowledge
+repository. Rather than relying on hand-coded on-
+tologies and event schemas, our approach relies on
+the implicit knowledge contained in written natu-
+ral language. We have demonstrated the feasibility
+of obtaining the discourse structure of such a cor-
+pus via linear-time parsing models. Furthermore,
+49
+wehaveintroducedinferenceproceduresthatareca-
+pable of generating open-domain textual inferences
+from the extracted knowledge. Our evaluation re-
+sults suggest many opportunities for future work in
+thisarea.
+Acknowledgments
+The authors would like to thank the anonymous
+reviewers for their helpful comments and sugges-
+tions. The project or effort described here has
+been sponsored by the U.S.ArmyResearch, Devel-
+opment, and Engineering Command (RDECOM).
+Statements and opinions expressed donot necessar-
+ily reflect the position or the policy of the United
+States Government, and no official endorsement
+shouldbeinferred.
+References
+Collin Baker, Charles Fillmore, and John Lowe. 1998.
+The Berkeley FrameNet project. In Christian Boitet
+andPeteWhitelock,editors,ProceedingsoftheThirty-
+SixthAnnualMeetingoftheAssociationforComputa-
+tional Linguistics and SeventeenthInternational Con-
+ference on Computational Linguistics, pages 86–90,
+SanFrancisco,California.MorganKaufmannPublish-
+ers.
+Roy Bar-Haim, Jonathan Berant, and Ido Dagan. 2009.
+A compact forest for scalable inference over entail-
+mentandparaphraserules. InProceedingsofthe2009
+Conference on Empirical Methods in Natural Lan-
+guage Processing, pages 1056–1065, Singapore, Au-
+gust.AssociationforComputationalLinguistics.
+K. Burton, A. Java, and I. Soboroff. 2009. The icwsm
+2009spinn3rdataset. InProceedingsof the Third An-
+nualConferenceonWeblogsandSocialMedia.
+Lynn Carlson and Daniel Marcu. 2001. Discourse tag-
+gingmanual. TechnicalReportISI-TR-545,ISI,July.
+Eugene Charniak and Mark Johnson. 2005. Coarse-to-
+fine n-best parsing and maxent discriminative rerank-
+ing. In Proceedings of the 43rd Annual Meeting on
+AssociationforComputationalLinguistics.
+PeterClarkandPhilHarrison. 2009. Large-scaleextrac-
+tion and use of knowledge from text. In K-CAP ’09:
+Proceedings of the fifth international conference on
+Knowledge capture, pages 153–160, New York, NY,
+USA.ACM.
+Peter Clark, Christiane Fellbaum, Jerry R. Hobbs, Phil
+Harrison, William R. Murray, and John Thompson.
+2008. AugmentingWordNetforDeep Understanding
+ofText. InJohanBosandRodolfoDelmonte,editors,
+Semantics in Text Processing. STEP 2008 Conference
+Proceedings,volume1 of Research in Computational
+Semantics,pages45–57.CollegePublications.
+Stefan Evert, Adam Kilgarriff, and Serge Sharoff, edi-
+tors. 2008. 4thWebasCorpusWorkshopCanwebeat
+Google?
+Christiane Fellbaum. 1998. WordNet: An Electronic
+Lexical Database (Language, Speech, and Communi-
+cation). TheMITPress,May.
+Danilo Giampiccolo, Hoa Trang Dang, Bernardo
+Magnini, Ido Dagan, and Bill Dolan. 2008. The
+fourthfascalrecognizingtextualentailmentchallenge.
+InProceedingsoftheFirst Text AnalysisConference.
+Andrew Gordon and Reid Swanson. 2008. Envision-
+ingwithweblogs. InInternationalConferenceonNew
+MediaTechnology.
+Andrew Gordon and Reid Swanson. 2009. Identifying
+personalstoriesinmillionsofweblogentries. InThird
+International Conference on Weblogs and Social Me-
+dia.
+Jonathan Gordon, Benjamin Van Durme, and Lenhart
+Schubert. 2009. Weblogs as a source for extracting
+general world knowledge. In K-CAP ’09: Proceed-
+ingsofthefifthinternationalconferenceonKnowledge
+capture,pages185–186,NewYork,NY,USA.ACM.
+A. C. Graesser,M. Singer,and T.Trabasso. 1994. Con-
+structing inferences during narrative text comprehen-
+sion. PsychologicalReview,101:371–395.
+Iryna Gurevych and Torsten Zesch, editors. 2009. The
+PeoplesWebMeetsNLP:CollaborativelyConstructed
+SemanticResources.
+PaulKingsburyandMarthaPalmer. 2003. Propbank:the
+next level of treebank. In Proceedings of Treebanks
+andLexical Theories.
+Douglas B. Lenat. 1995. Cyc: a large-scale investment
+in knowledge infrastructure. Communications of the
+ACM,38(11):33–38.
+David McClosky, Eugene Charniak, and Mark Johnson.
+2006. Reranking and self-training for parser adapta-
+tion. In ACL-44: Proceedings of the 21st Interna-
+tional Conference on Computational Linguistics and
+the44thannualmeetingoftheAssociationforCompu-
+tational Linguistics, pages 337–344, Morristown, NJ,
+USA.AssociationforComputationalLinguistics.
+Isaac Persing and Vincent Ng. 2009. Semi-supervised
+cause identification from aviation safety reports. In
+Proceedings of the Joint Conference of the 47th An-
+nual Meeting of the ACL and the 4th International
+Joint Conference on Natural Language Processing of
+the AFNLP, pages 843–851, Suntec, Singapore, Au-
+gust.AssociationforComputationalLinguistics.
+Rashmi Prasad, Alan Lee, Nikhil Dinesh, Eleni Milt-
+sakaki, Geraud Campion, Aravind Joshi, and Bonnie
+50
+Webber. 2008. Penn discourse treebank version 2.0.
+LinguisticDataConsortium,February.
+KenjiSagae. 2009. Analysisofdiscoursestructurewith
+syntactic dependencies and data-driven shift-reduce
+parsing. InProceedingsofthe11thInternationalCon-
+ference on Parsing Technologies (IWPT’09), pages
+81–84, Paris, France, October. Association for Com-
+putationalLinguistics.
+Lenhart Schubert and Matthew Tong. 2003. Extract-
+ing and evaluatinggeneralworld knowledgefrom the
+brown corpus. In Proceedings of the HLT-NAACL
+2003workshop on Text meaning,pages7–13,Morris-
+town, NJ, USA. Association for Computational Lin-
+guistics.
+ReidSwansonandAndrewGordon. 2008. Sayanything:
+A massively collaborative open domain story writing
+companion. In First International Conference on In-
+teractiveDigitalStorytelling.
+51
+

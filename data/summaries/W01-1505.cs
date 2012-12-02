@@ -1,0 +1,4 @@
+The bottom bar shows which of the processors/filters is currently active (using the IStateMonitor interface described in Section 2.2). 3.2 Integration of processors Differently from the activity of creation and editing of projects, only the final part of the work involved in the integration of processors is accomplished via the SISSA graphical interface (more written in C and running under Windows: (Prodanof et al., 1998; Prodanof et al., 2000)) and the preprocessor and the parser of GEPPETTO (ITC-irst, written in Common Lisp and running under Solaris: (Ciravegna et al., 1997; Ciravegna et al., 1998)).
+W97-1503
+An example of the efforts in such a direction is GATE (a General Architecture for Text Engineering, (Cunningham et al., 1997)), which provides a software infrastructure on top of which heterogeneous NLP processing modules may be evaluated and refined individually, or may be combined into larger application systems.
+A97-1035

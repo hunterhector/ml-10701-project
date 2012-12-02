@@ -1,0 +1,4 @@
+An effort addressing the labor bottleneck is the Expedition Project at New Mexico State University where a preliminary elicitation environlnent for a computational field linguistics system has been developed (the Boas interface; see Nirenburg and Raskin 1998) A Scoring Function for MT quality Our contribution toward working beyond this plateau is to look for a way to define a scoring function for the quality of the English output such that we can use it to machine-learn a good translation grammar.
+P98-2160
+Low Density Machine Translation However, in the case of "Low Density Machine Translation" (see Nirenburg and Raskin 1998, Jones and Havrilla 1998) commercial market forces are not likely to provide significant incentives for machine translation systems for Low Density (Non-Major) languages any time soon.
+P98-2160

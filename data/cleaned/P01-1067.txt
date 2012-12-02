@@ -1,0 +1,276 @@
+A Syntax-based Statistical Translation Model Kenji Yamada and Kevin Knight Information Sciences Institute University of Southern California 4676 Admiralty Way, Suite 1001 Marina del Rey, CA 90292 a0 kyamada,knight a1 @isi.edu Abstract We present a syntax-based statistical translation model.
+Our model transforms a source-language parse tree into a target-language string by applying stochastic operations at each node.
+These operations capture linguistic differences such as word order and case marking.
+Model parameters are estimated in polynomial time using an EM algorithm.
+The model produces word alignments that are better than those produced by IBM Model 5.
+1 Introduction
+A statistical translation model (TM) is a mathematical model in which the process of humanlanguage translation is statistically modeled.
+Model parameters are automatically estimated using a corpus of translation pairs.
+TMs have been used for statistical machine translation (Berger et al., 1996), word alignment of a translation corpus (Melamed, 2000), multilingual document retrieval (Franz et al., 1999), automatic dictionary construction (Resnik and Melamed, 1997), and data preparation for word sense disambiguation programs (Brown et al., 1991).
+Developing a better TM is a fundamental issue for those applications.
+Researchers at IBM first described such a statistical TM in (Brown et al., 1988).
+Their models are based on a string-to-string noisy channel model.
+The channel converts a sequence of words in one language (such as English) into another (such as French).
+The channel operations are movements, duplications, and translations, applied to each word independently.
+The movement is conditioned only on word classes and positions in the string, and the duplication and translation are conditioned only on the word identity.
+Mathematical details are fully described in (Brown et al., 1993).
+One criticism of the IBM-style TM is that it does not model structural or syntactic aspects of the language.
+The TM was only demonstrated for a structurally similar language pair (English and French).
+It has been suspected that a language pair with very different word order such as English and Japanese would not be modeled well by these TMs.
+To incorporate structural aspects of the language, our channel model accepts a parse tree as an input, i.e., the input sentence is preprocessed by a syntactic parser.
+The channel performs operations on each node of the parse tree.
+The operations are reordering child nodes, inserting extra words at each node, and translating leaf words.
+Figure 1 shows the overview of the operations of our model.
+Note that the output of our model is a string, not a parse tree.
+Therefore, parsing is only needed on the channel input side.
+The reorder operation is intended to model translation between languages with different word orders, such as SVO-languages (English or Chinese) and SOV-languages (Japanese or Turkish).
+The word-insertion operation is intended to capture linguistic differences in specifying syntactic cases.
+E.g., English and French use structural position to specify case, while Japanese and Korean use case-marker particles.
+Wang (1998) enhanced the IBM models by introducing phrases, and Och et al.(1999) used templates to capture phrasal sequences in a sentence.
+Both also tried to incorporate structural aspects of the language, however, neither handles 1.
+Channel Input 3.
+Inserted a2a3 a4 a5 a6a7 2.
+Reordered a8 a6a9 a3 a4 a10a9 a7a5kare ha ongaku wo kiku no ga daisuki desu 5.
+Channel Output a11 a5 a12 a6a13 a5 a6 a11 a5 a9 a13 a14a3 a15 a12 a16a16 a17 a5 a9 a18 a5 a4 4.
+Translated a19a20 a21a22a23a24a20a25 a26a27a25a28a20a29a27a29a30 a31 a32a25a27a33a28a23 VB PRP VB1 VB2 VB TO TO NN VB VB2 TO a21a22a23a24a20a25 VB1 a26a27a25a28a20a29a27a29a30 VB a19a20 PRP a31 a32a25a27a33 NN a28a23 TO VB a34a35 a36a37a38 a35 a39a40a41a42 VB2 TO VB a26a27a25a28a20a29a27a29a30 a21a22a23a24a20a25 VB1 a19a20 PRP a31 a32a25a27a33 NN a28a23 TO VB a34a35 a36a37a38 a35 a39 a40a41a42 VB2 TO VB PRP NN TO VB1 a43a35 a44 a40 a37a36 a38 a35 a43 a42 a43a45a43 a42 a39 a35 a45 a41a42 a43a45 a46 a37 Figure 1: Channel Operations: Reorder, Insert, and Translate nested structures.
+Wu (1997) and Alshawi et al.(2000) showed statistical models based on syntactic structure.
+The way we handle syntactic parse trees is inspired by their work, although their approach is not to model the translation process, but to formalize a model that generates two languages at the same time.
+Our channel operations are also similar to the mechanism in Twisted Pair Grammar (Jones and Havrilla, 1998) used in their knowledge-based system.
+Following (Brown et al., 1993) and the other literature in TM, this paper only focuses the details of TM.
+Applications of our TM, such as machine translation or dictionary construction, will be described in a separate paper.
+Section 2 describes our model in detail.
+Section 3 shows experimental results.
+We conclude with Section 4, followed by an Appendix describing the training algorithm in more detail.
+2 The
+Model 2.1 An Example We first introduce our translation model with an example.
+Section 2.2 will describe the model more formally.
+We assume that an English parse tree is fed into a noisy channel and that it is translated to a Japanese sentence.1 1The parse tree is flattened to work well with the model.
+See Section 3.1 for details.
+Figure 1 shows how the channel works.
+First, child nodes on each internal node are stochastically reordered.
+A node with a47 children has a47a49a48 possible reorderings.
+The probability of taking a specific reordering is given by the model’s r-table.
+Sample model parameters are shown in Table 1.
+We assume that only the sequence of child node labels influences the reordering.
+In Figure 1, the top VB node has a child sequence PRP-VB1-VB2.
+The probability of reordering it into PRP-VB2-VB1 is 0.723 (the second row in the r-table in Table 1).
+We also reorder VB-TO into TO-VB, and TO-NN into NN-TO, so therefore the probability of the second tree in Figure 1 is a50a52a51a54a53a56a55a58a57a60a59a61a50a52a51a54a53a63a62a65a64a60a59a66a50a52a51a68a67a58a64a58a57a70a69a71a50a52a51a72a62a65a67a73a62. Next, an extra word is stochastically inserted at each node.
+A word can be inserted either to the left of the node, to the right of the node, or nowhere.
+Brown et al.(1993) assumes that there is an invisible NULL word in the input sentence and it generates output words that are distributed into random positions.
+Here, we instead decide the position on the basis of the nodes of the input parse tree.
+The insertion probability is determined by the n-table.
+For simplicity, we split the n-table into two: a table for insert positions and a table for words to be inserted (Table 1).
+The node’s label and its parent’s label are used to index the table for insert positions.
+For example, the PRP node in Figure 1 has parent VB, thus a74 a75a76 a77 a78 a74 a75a74 a74 a79 a74 a75a80 a81 a74 a74 a75a81 a82 a76 a74 a75a74 a81 a83 a74 a75a80 a78 a80 a74 a75a77 a79 a79 a74 a75a74 a74 a79 a74 a75a81 a78 a80 a74 a75a76 a74 a84 a74 a75a74 a77 a74 a74 a75a80 a81 a83 a74 a75a84 a74 a74 a74 a75a74 a74 a77 a74 a75a74 a74 a76 a74 a75a82 a74 a74 a74 a75a74 a84 a81 a74 a75a83 a74 a79 a85 a86 a87 a88 a89 a85 a86 a85 a86 a89 a90 a89 a85 a86 a87 a88 a85 a86 a87 a88 a87 a88 a91 a91a87 a88 a92 a93 a94a95 a96a97a98 a92 a93 a99 a100a101 a102 a97a98 a92 a93 a103 a104 a105 a95 a98 a106 a107 a108a109 a110 a111 a110 a112 a113 a109 a114a114a114 a114a114a114 a114a114a114 a114a114a114 a114a114a114 a115 a116 a117a116 a118 a119 a120 a119 a120 a121 a117a122 a123 a116 a124 a122 a125 a126 a74 a75a80 a83 a84 a74 a75a83 a77 a83 a74 a75a74 a84 a84 a74 a75a74 a84 a79 a74 a75a74 a82 a74 a74 a75a74 a76 a82 a74 a75a74 a81 a80 a74 a75a74 a74 a74 a76 a127 a127 a127 a127 a127 a127 a127 a127 a127 a127 a127 a127 a128 a92 a93a100a105 a129 a130 a128 a98 a124 a116 a121 a125 a126 a131 a121 a83 a75a74 a74 a74 a131 a116 a132a122 a133 a134 a135 a135 a120 a116 a120 a121 a124 a116 a125 a115 a121 a74 a75a84 a78 a80 a74 a75a74 a83 a81 a74 a75a74 a74 a78 a74 a75a74 a74 a77 a74 a75a74 a74 a77 a133 a134 a135 a135 a118 a116 a117a116 a125 a121 a131 a116 a132a122 a125 a115 a121 a120 a116 a120 a121 a74 a75a79 a76 a83 a74 a75a83 a83 a83 a74 a75a74 a78 a78 a74 a75a74 a80 a83 a74 a75a74 a80 a74 a131 a121a121 a136 a121 a131 a121 a131 a126 a74 a75a77 a77 a77 a74 a75a77 a77 a77 a74 a75a77 a77 a77 a119 a120 a123 a116 a131 a126 a120 a116 a132a126 a74 a75a84 a74 a74 a74 a75a83 a74 a74 a120 a121 a133 a134 a135 a135 a117 a119 a120 a119 a118 a119 a74 a75a80 a83 a81 a74 a75a80 a74 a79 a74 a75a83 a77 a77 a74 a75a74 a79 a81 a74 a75a74 a77 a82 a127 a127 a127 a127 a127 a127 a127 a127 a127 a127 a127 a127 a127 a127 a127 a127 a127 a127 a137a138a139 a140a141 a142 a138a142 a143 a75a75a75 a75a75a75 a144 a138a145 a141 a146 a147 a148 a149 a141 a139 a150 a151 a139 a138a152 a140 a148 a153 a89 a90 a89 a85 a86 a83 a85 a86 a80 a89 a90 a89 a85 a86 a80 a85 a86 a83 a85 a86 a83 a89 a90 a89 a85 a86 a80 a85 a86 a83 a85 a86 a80 a89 a90 a89 a85 a86 a80 a89 a90 a89 a85 a86 a83 a85 a86 a80 a85 a86 a83 a89 a90 a89 a87 a88 a91 a91 a91 a91 a87 a88 a85 a86 a87 a88 a87 a88 a85 a86 a74 a75a74 a76 a79 a74 a75a76 a80 a77 a74 a75a74 a81 a83 a74 a75a74 a77 a76 a74 a75a74 a82 a77 a74 a75a74 a80 a83 a74 a75a83 a74 a76 a74 a75a82 a84 a77 a74 a75a80 a78 a83 a74 a75a76 a79 a84 a89 a90 a89 a85 a86 a83 a85 a86 a80 a87 a88 a91 a91 a85 a86 a87 a88 a108a109 a112 a108a113 a109 a108a154a110 a155 a156 a157a108a109 a112 a108a113 a109 a108a158a112 a108a154a155 a154a110 a107 a159a112 a108a113 a109 a108 a127 a127 a127 a127 a127 a127 a127 a127 a127 r−table t−table n−table Table 1: Model Parameter Tables a160 parent=VB a161 node=PRPa162 is the conditioning index.
+Using this label pair captures, for example, the regularity of inserting case-marker particles.
+When we decide which word to insert, no conditioning variable is used.
+That is, a function word like ga is just as likely to be inserted in one place as any other.
+In Figure 1, we inserted four words (ha, no, ga and desu) to create the third tree.
+The top VB node, two TO nodes, and the NN node inserted nothing.
+Therefore, the probability of obtaining the third tree given the second tree is a163 a50a52a51a68a164a58a165a58a55a166a59a167a50a52a51a68a55a52a168a61a64a170a169a171a59 a163 a50a52a51a68a55a58a165a58a55a166a59a167a50a52a51a172a50a170a64a73a62a173a169a171a59 a163 a50a52a51a68a55a58a165a58a55a166a59a174a50a52a51a172a50a170a164a58a55a170a169a171a59 a163 a50a52a51a68a55a58a165a58a55a70a59a66a50a52a51a172a50a58a50a58a50a65a53a58a169a175a59a66a50a52a51a54a53a56a57a58a165a70a59a66a50a52a51a54a53a73a50a170a64a60a59a73a50a52a51a68a64a56a50a58a50a176a59a73a50a52a51a68a67a56a50a58a50a177a69 3.498e-9.
+Finally, we apply the translate operation to each leaf.
+We assume that this operation is dependent only on the word itself and that no context is consulted.2 The model’s t-table specifies the probability for all cases.
+Suppose we obtained the translations shown in the fourth tree of Figure 1.
+The probability of the translate operation here is a50a52a51a68a64a58a165a58a55a178a59a66a50a52a51a68a64a56a50a58a50a176a59a61a50a52a51a172a50a170a57a58a67a60a59a61a50a52a51a68a57a58a57a58a57a60a59a65a168a56a51a172a50a58a50a58a50a179a69a71a50a52a51a172a50a180a168a181a50a170a67 . The total probability of the reorder, insert and translate operations in this example is a50a52a51a72a62a65a67a73a62a49a59 3.498e-9 a59a173a50a52a51a172a50a180a168a181a50a170a67a49a69 1.828e-11.
+Note that there 2When a TM is used in machine translation, the TM’s role is to provide a list of possible translations, and a language model addresses the context.
+See (Berger et al., 1996).
+are many other combinations of such operations that yield the same Japanese sentence.
+Therefore, the probability of the Japanese sentence given the English parse tree is the sum of all these probabilities.
+We actually obtained the probability tables (Table 1) from a corpus of about two thousand pairs of English parse trees and Japanese sentences, completely automatically.
+Section 2.3 and Appendix 4 describe the training algorithm.
+2.2 Formal
+Description This section formally describes our translation model.
+To make this paper comparable to (Brown et al., 1993), we use English-French notation in this section.
+We assume that an English parse tree a182 is transformed into a French sentence a183 . Let the English parse tree a182 consist of nodes a184a170a185 a161 a184a66a186 a51a181a51a181a51a61a161 a184a66a187, and let the output French sentence consist of French words a188 a185 a161a189a188 a186 a161a181a51a181a51a181a51a63a161a189a188a73a190 . Three random variables, a191, a192, and a193 are channel operations applied to each node.
+Insertion a191 is an operation that inserts a French word just before or after the node.
+The insertion can be none, left, or right.
+Also it decides what French word to insert.
+Reorder a192 is an operation that changes the order of the children of the node.
+If a node has three children, e.g., there are a57a194a48a70a69a195a164 ways to reorder them.
+This operation applies only to non-terminal nodes in the tree.
+Translation a193 is an operation that translates a terminal English leaf word into a French word.
+This operation applies only to terminal nodes.
+Note that an English word can be translated into a French NULL word.
+The notation a196a197a69 a160a199a198 a161a201a200a202a161a204a203a205a162 stands for a set of values of a160 a191a206a161a204a192a207a161a189a193a208a162 . a196a66a209a49a69 a160a199a198 a209a210a161a201a200a65a209a211a161a204a203a212a209a199a162 is a set of values of random variables associated with a184 a209 . And a213a214a69a215a196 a185 a161a204a196 a186 a161a181a51a181a51a181a51a63a161a204a196 a187 is the set of all random variables associated with a parse tree a182a216a69 a184a58a185 a161 a184a63a186 a161a181a51a181a51a181a51a66a161 a184a61a187 . The probability of getting a French sentence a183 given an English parse tree a182 is Pa217a219a218a61a220a221a194a222a224a223 a225 a226a52a227Str a228 a226 a228a172a229a167a230a231a230a231a232a58a233 Pa217 a226 a220a221a52a222 where Stra163 a213 a163 a182a234a169a201a169 is the sequence of leaf words of a tree transformed by a213 from a182 . The probability of having a particular set of values of random variables in a parse tree is Pa217 a226 a220a221a194a222a235a223 Pa217a237a236a212a238a210a239a240a236a189a241a189a239a210a242a211a242a210a242a201a239a243a236a204a244a173a220a245a181a238a201a239a199a245a167a241a189a239a210a242a211a242a201a242a210a239a199a245a189a244a73a222 a223 a244 a246a247 a232 a238 Pa217a237a236 a247 a220a236a212a238a201a239a243a236a189a241a167a239a210a242a210a242a210a242a210a239a199a236 a247 a248 a238a201a239a249a245a61a238a211a239a199a245a167a241a167a239a210a242a210a242a210a242a210a239a249a245a167a244a63a222a250a242 This is an exact equation.
+Then, we assume that a transform operation is independent from other transform operations, and the random variables of each node are determined only by the node itself.
+So, we obtain Pa217 a226 a220a221a194a222a224a223 Pa217a237a236 a238 a239a243a236 a241 a239a210a242a211a242a210a242a210a239a243a236 a244 a220a245 a238 a239a199a245 a241 a239a210a242a211a242a210a242a210a239a199a245 a244 a222 a223 a244 a246a247 a232 a238 Pa217a237a236 a247 a220a245 a247 a222a250a242 The random variables a196a63a209a60a69 a160a199a198 a209a211a161a201a200a173a209a250a161a204a203a212a209a240a162 are assumed to be independent of each other.
+We also assume that they are dependent on particular features of the node a184 a209 . Then, Pa217a237a236 a247 a220a245 a247 a222a251a223 Pa217a237a252 a247 a239a249a253 a247 a239a199a254 a247 a220a245 a247 a222 a223 Pa217a237a252 a247 a220a245 a247 a222 Pa217a231a253 a247 a220a245 a247 a222 Pa217a219a254 a247 a220a245 a247 a222 a223 Pa217a237a252 a247 a220a255 a217a219a245 a247 a222a199a222 Pa217a231a253 a247 a220 a1 a217a219a245 a247 a222a199a222 Pa217a219a254 a247 a220a2 a217a219a245 a247 a222a199a222 a223 a3 a217a237a252 a247 a220a255 a217a219a245 a247 a222a199a222a5a4a66a217a231a253 a247 a220 a1 a217a219a245 a247 a222a199a222a7a6a210a217a219a254 a247 a220a2 a217a219a245 a247 a222a199a222 where a8, a9, and a10 are the relevant features to a191, a192, and a193, respectively.
+For example, we saw that the parent node label and the node label were used for a8, and the syntactic category sequence of children was used for a9 . The last line in the above formula introduces a change in notation, meaning that those probabilities are the model parameters a11 a163a199a198a13a12a14 a169, a15 a163 a200 a12a16 a169, and a17 a163 a203 a12a18 a169, where a14, a16, and a18 are the possible values for a8, a9, and a10, respectively.
+In summary, the probability of getting a French sentence a183 given an English parse tree a182 is Pa217a219a218a61a220a221a194a222a224a223 a225 a226a52a227Str a228 a226 a228a172a229a167a230a231a230a231a232a58a233 Pa217 a226 a220a221a52a222 a223 a225 a226a52a227Str a228 a226 a228a72a229a174a230a231a230 a232a170a233 a244 a246a247 a232 a238 a3 a217a237a252 a247 a220a255 a217a219a245 a247 a222a199a222a5a4a66a217a231a253 a247 a220 a1 a217a219a245 a247 a222a199a222a7a6a210a217a219a254 a247 a220a2 a217a219a245 a247 a222a199a222 where a221a216a223a235a245 a238 a239a199a245 a241 a239a210a242a210a242a210a242a210a239a249a245 a244 and a226 a223 a236 a238 a239a199a236 a241 a239a210a242a210a242a201a242a210a239a243a236 a244 a223 a19 a252a66a238a210a239 a253a58a238a201a239a199a254a174a238a21a20a250a239 a19 a252a174a241a189a239a199a253a63a241a189a239a199a254a201a241a22a20a250a239a210a242a210a242a210a242a201a239 a19 a252a174a244a58a239a249a253a66a244a170a239a249a254a201a244a23a20 . The model parameters a11 a163a199a198a13a12a14 a169, a15 a163 a200 a12a16 a169, and a17 a163 a203 a12a18 a169, that is, the probabilities P a163a199a198a24a12a14 a169, P a163 a200 a12a16 a169 and Pa163 a203 a12a18 a169, decide the behavior of the translation model, and these are the probabilities we want to estimate from a training corpus.
+2.3 Automatic
+Parameter Estimation To estimate the model parameters, we use the EM algorithm (Dempster et al., 1977).
+The algorithm iteratively updates the model parameters to maximize the likelihood of the training corpus.
+First, the model parameters are initialized.
+We used a uniform distribution, but it can be a distribution taken from other models.
+For each iteration, the number of events are counted and weighted by the probabilities of the events.
+The probabilities of events are calculated from the current model parameters.
+The model parameters are re-estimated based on the counts, and used for the next iteration.
+In our case, an event is a pair of a value of a random variable (such as a198, a200, or a203 ) and a feature value (such as a14, a16, or a18 ).
+A separate counter is used for each event.
+Therefore, we need the same number of counters, a25 a163a199a198 a161 a14 a169, a25 a163 a200a205a161 a16 a169, and a25 a163 a203a52a161 a18 a169, as the number of entries in the probability tables, a11 a163a199a198a13a12a14 a169, a15 a163 a200 a12a16 a169, and a17 a163 a203 a12a18 a169 . The training procedure is the following: 1.
+Initialize all probability tables: a3 a217a237a252a194a220 a14 a222, a4a63a217a231a253a65a220 a16 a222, and a6a211a217a219a254a52a220 a18 a222 . 2.
+Reset all counters: a26a167a217a237a252a63a239 a14 a222, a26a167a217a231a253a58a239 a16 a222, and a26a174a217a219a254a63a239 a18 a222 . 3.
+For each pair a19 a221a205a239 a218a27a20 in the training corpus, For all a226, such that a218a234a223 Stra217 a226 a217a237a221a194a222a199a222, a28 Let cnt = P a217 a226 a220a221a194a222a30a29a32a31 a226a52a227Str a228 a226 a228a172a229a167a230a231a230a231a232a58a233 Pa217 a226 a220a221a194a222 a28 For a33a180a223a35a34 a242a210a242a210a242a36a3, a26a174a217a237a252 a247 a239a219a255 a217a219a245 a247 a222a199a222 += cnt a26a174a217a231a253 a247 a239 a1 a217a219a245 a247 a222a199a222 += cnt a26a174a217a219a254 a247 a239a36a2 a217a219a245 a247 a222a199a222 += cnt 4.
+For each a19 a252a66a239 a14 a20, a19 a253a58a239 a16 a20, and a19 a254a63a239 a18 a20, a3a205a217a237a252a173a220 a14 a222 a223a37a26a174a217a237a252a63a239 a14 a222a30a29 a31a39a38 a26a174a217a237a252a63a239 a14 a222 a4a63a217a231a253a65a220 a16 a222 a223a37a26a174a217a231a253a58a239 a16 a222a30a29a40a31a42a41a43a26a174a217a231a253a58a239 a16 a222 a6a210a217a219a254a52a220 a18 a222a202a223a37a26a174a217a219a254a66a239 a18 a222a30a29 a31a45a44 a26a167a217a219a254a63a239 a18 a222 5.
+Repeat steps 2-4 for several iterations.
+A straightforward implementation that tries all possible combinations of parameters a160a199a198 a161a201a200a205a161a204a203a205a162, is very expensive, since there are a46 a163a47a12a198a13a12 a187 a12 a200 a12 a187 a169 possible combinations, where a12a198a24a12 and a12a200 a12 are the number of possible values for a198 and a200, respectively (a203 is uniquely decided when a198 and a200 are given for a particular a160 a182a175a161a204a183a73a162 ).
+Appendix describes an efficient implementation that estimates the probability in polynomial time.3 With this efficient implementation, it took about 50 minutes per iteration on our corpus (about two thousand pairs of English parse trees and Japanese sentences.
+See the next section).
+3 Experiment
+To experiment, we trained our model on a small English-Japanese corpus.
+To evaluate performance, we examined alignments produced by the learned model.
+For comparison, we also trained IBM Model 5 on the same corpus.
+3.1 Training
+We extracted 2121 translation sentence pairs from a Japanese-English dictionary.
+These sentences were mostly short ones.
+The average sentence length was 6.9 for English and 9.7 for Japanese.
+However, many rare words were used, which made the task difficult.
+The vocabulary size was 3463 tokens for English, and 3983 tokens for Japanese, with 2029 tokens for English and 2507 tokens for Japanese occurring only once in the corpus.
+Brill’s part-of-speech (POS) tagger (Brill, 1995) and Collins’ parser (Collins, 1999) were used to obtain parse trees for the English side of the corpus.
+The output of Collins’ parser was 3Note that the algorithm performs full EM counting, whereas the IBM models only permit counting over a subset of possible alignments.
+modified in the following way.
+First, to reduce the number of parameters in the model, each node was re-labelled with the POS of the node’s head word, and some POS labels were collapsed.
+For example, labels for different verb endings (such as VBD for -ed and VBG for -ing) were changed to the same label VB.
+There were then 30 different node labels, and 474 unique child label sequences.
+Second, a subtree was flattened if the node’s head-word was the same as the parent’s headword.
+For example, (NN1 (VB NN2)) was flattened to (NN1 VB NN2) if the VB was a head word for both NN1 and NN2.
+This flattening was motivated by various word orders in different languages.
+An English SVO structure is translated into SOV in Japanese, or into VSO in Arabic.
+These differences are easily modeled by the flattened subtree (NN1 VB NN2), rather than (NN1 (VB NN2)).
+We ran 20 iterations of the EM algorithm as described in Section 2.2.
+IBM Model 5 was sequentially bootstrapped with Model 1, an HMM Model, and Model 3 (Och and Ney, 2000).
+Each preceding model and the final Model 5 were trained with five iterations (total 20 iterations).
+3.2 Evaluation
+The training procedure resulted in the tables of estimated model parameters.
+Table 1 in Section 2.1 shows part of those parameters obtained by the training above.
+To evaluate performance, we let the models generate the most probable alignment of the training corpus (called the Viterbi alignment).
+The alignment shows how the learned model induces the internal structure of the training data.
+Figure 2 shows alignments produced by our model and IBM Model 5.
+Darker lines indicates that the particular alignment link was judged correct by humans.
+Three humans were asked to rate each alignment as okay (1.0 point), not sure (0.5 point), or wrong (0 point).
+The darkness of the lines in the figure reflects the human score.
+We obtained the average score of the first 50 sentence pairs in the corpus.
+We also counted the number of perfectly aligned sentence pairs in the 50 pairs.
+Perfect means that all alignments in a sentence pair were judged okay by all the human judges.
+he adores listening to music hypocrisy is abhorrent to them he has unusual ability in english he was ablaze with anger he adores listening to music hypocrisy is abhorrent to them he has unusual ability in english he was ablaze with anger Figure 2: Viterbi Alignments: our model (left) and IBM Model 5 (right).
+Darker lines are judged more correct by humans.
+The result was the following; Alignment Perfect ave.
+score sents Our Model 0.582 10 IBM Model 5 0.431 0 Our model got a better result compared to IBM Model 5.
+Note that there were no perfect alignments from the IBM Model.
+Errors by the IBM Model were spread out over the whole set, while our errors were localized to some sentences.
+We expect that our model will therefore be easier to improve.
+Also, localized errors are good if the TM is used for corpus preparation or filtering.
+We also measured training perplexity of the models.
+The perplexity of our model was 15.79, and that of IBM Model 5 was 9.84.
+For reference, the perplexity after 5 iterations of Model 1 was 24.01.
+Perplexity values roughly indicate the predictive power of the model.
+Generally, lower perplexity means a better model, but it might cause over-fitting to a training data.
+Since the IBM Model usually requires millions of training sentences, the lower perplexity value for the IBM Model is likely due to over-fitting.
+4 Conclusion
+We have presented a syntax-based translation model that statistically models the translation process from an English parse tree into a foreignlanguage sentence.
+The model can make use of syntactic information and performs better for language pairs with different word orders and case marking schema.
+We conducted a small-scale experiment to compare the performance with IBM Model 5, and got better alignment results.
+Appendix: An Efficient EM algorithm This appendix describes an efficient implementation of the EM algorithm for our translation model.
+This implementation uses a graph structure for a pair a160 a182 a161a204a183a73a162 . A graph node is either a major-node or a subnode.
+A major-node shows a pairing of a subtree of a182 and a substring of a183 . A subnode shows a selection of a value a160a199a198 a161a201a200a205a161a204a203a205a162 for the subtree-substring pair (Figure 3).
+Let a183a49a48a50 a69 a188 a50 a51a181a51a181a51a212a188 a50a7a51a24a52 a48a54a53 a185a56a55 be a substring of a183 from the word a188 a50 with length a57 . Note this notation is different from (Brown et al., 1993).
+A subtree a184 a209 is a subtree of a182 below the node a184 a209 . We assume that a subtree a184a58a185 is a182 . A major-node a58 a163 a184 a209 a161a204a183a59a48a50 a169 is a pair of a subtree a184 a209 and a substring a183 a48 a50 . The root of the graph is a58 a163 a184a58a185 a161a204a183a49a60 a185 a169, where a61 is the length of a183 . Each majornode connects to several a198 -subnodes a58 a163a199a198a63a62 a184 a209a210a161a204a183 a48a50 a169, showing which value of a198 is selected.
+The arc between a58 a163 a184 a209a210a161a204a183 a48a50 a169 and a58 a163a199a198a63a62 a184 a209a210a161a204a183 a48a50 a169 has weight Pa163a199a198a13a12a184 a209a240a169 . A a198 -subnode a58 a163a199a198a63a62 a184 a209 a161a204a183a49a48a50 a169 connects to a finalnode with weight Pa163 a203 a12a184 a209a243a169 if a184 a209 is a terminal node in a182 . If a184 a209 is a non-terminal node, a a198 -subnode connects to several a200 -subnodes a58 a163 a200 a62a189a198 a161 a184 a209a201a161a204a183a59a48a50 a169, showing a selection of a value a200 . The weight of the arc is Pa163 a200 a12 a184 a209a250a169 . A a200 -subnode is then connected to a64 -subnodes a58 a163 a64 a62 a200a202a161 a198 a161 a184 a209a201a161a204a183a59a48 a50 a169 . The partition variable, a64, shows a particular way of partitioning a183 a48a50 . A a64 -subnode a58 a163 a64 a62 a200a205a161 a198 a161 a184 a209a201a161a204a183 a48a50 a169 is then connected to major-nodes which correspond to the children of a184 a209 and the substring of a183a49a48a50, decided by a160a199a198 a161a201a200a205a161a47a64 a162 . A major-node can be connected from different a64 subnodes.
+The arc weights between a200 -subnodes and major-nodes are always 1.0.
+ν P ρ P pi a65 a66a67a68a69a70a71a68a72a73 a70a74a75a76a71a68a72a73 a70a74a75a76a71a68a72a73 (ρ|ε) (ν|ε) a70a74a75a76a71a68a72a73 a65 a66a67a68a69a70a71a68a72a73 Figure 3: Graph structure for efficient EM training.
+This graph structure makes it easy to obtain Pa163 a213 a12a182 a169 for a particular a213 and a31 a213a13a77Str a52 a213 a52a79a78 a55a80a55a80a81a83a82 P a163 a213 a12 a182a234a169 . A trace starting from the graph root, selecting one of the arcs from major-nodes, a198 -subnodes, and a200 -subnodes, and all the arcs from a64 -subnodes, corresponds to a particular a213, and the product of the weight on the trace corresponds to Pa163 a213 a12a182a234a169 . Note that a trace forms a tree, making branches at the a64 -subnodes.
+We define an alpha probability and a beta probability for each major-node, in analogy with the measures used in the inside-outside algorithm for probabilistic context free grammars (Baker, 1979).
+The alpha probability (outside probability) is a path probability from the graph root to the node and the side branches of the node.
+The beta probability (inside probability) is a path probability below the node.
+Figure 4 shows formulae for alphabeta probabilities.
+From these definitions, a31 a213a13a77Str a52 a213 a52a79a78 a55a80a55a84a81a83a82 P a163 a213 a12 a182 a169 a69a86a85 a163 a184a170a185 a161a204a183 a60 a185 a169 . The counts a25 a163a199a198 a161 a14 a169, a25 a163 a200a202a161 a16 a169, and a25 a163 a203a52a161 a18 a169 for each pair a160 a182 a161a204a183a73a162 are also in the figure.
+Those formulae replace the step 3 (in Section 2.3) for each training pair, and these counts are used in the step 4.
+The graph structure is generated by expanding the root node a58 a163 a184a58a185 a161a204a183a59a60a185 a169 . The beta probability for each node is first calculated bottom-up, then the alpha probability for each node is calculated topdown.
+Once the alpha and beta probabilities for each node are obtained, the counts are calculated as above and used for updating the parameters.
+The complexity of this training algorithm is a46 a163 a11a88a87 a12a198a24a12a54a12 a200 a12a54a12 a64 a12 a169 . The cube comes from the number of parse tree nodes (a11 ) and the number of possible French substrings (a11 a186 ).
+Acknowledgments This work was supported by DARPA-ITO grant N66001-00-1-9814.
+a89a23a90a22a91a93a92a36a94a95a96a90a96a92a32a95a22a97a99a98a21a100a96a92a36a100a22a101a94a101a102a79a103a105a104a98a21a97a23a102a99a90a22a91a107a106a36a97a108a92a30a95a96a90a83a97a54a98a56a98a36a102a110a109a22a111a113a112a114a56a115a30a116a99a117a110a118 a115a27a119 a109a120a101a121a43a122a21a123a124a22a125a5a126a22a98a21a97a23a98a36a102a54a90a22a91a84a97a128a127a40a92a36a129a79a98a21a97a131a130a133a132a22a98a22a134a120a91a110a121a110a109 a111a113a112a135 a119a59a136 a137 a138a140a139a128a141a21a142a54a143a144a79a145a54a146a148a147a56a149a150a108a151 a111a113a112a148a152a5a92a36a97a99a91a84a132a56a102a54a153a154a112a148a155 a119a99a119a7a156a56a157 a152a158a112a160a159a140a161a114 a119 a152a162a112a163a164a161a114 a119 a165 a150a108a166a120a139a128a167a22a168a84a169a170a171 a147 a149a138a79a151 a150a108a166a27a172a173 a150 a174 a112a135a56a175 a119a84a176 a177 a90a22a91a84a97a54a91a93a152a5a92a36a97a99a91a110a132a21a102a99a178a164a112a135 a119 a101a121a128a92a32a121a99a91a80a102a128a98a30a104a5a179a47a130a79a121a99a180a22a100a22a132a22a98a22a134a120a91a110a121 a177 a90a22a101a181a108a90a182a92a36a97a99a91a43a101a127a40a127a40a91a110a134a120a101a92a183a102a54a91a93a95a96a92a36a97a99a91a84a132a56a102a108a121a59a98a36a104a184a135a27a109a47a185a49a90a96a101a94a134a96a178a164a112a160a155 a119 a101a121a128a92a40a121a131a91a80a102a128a98a36a104a184a127a105a92a30a129a79a98a21a97a99a130a133a132a22a98a120a134a120a91a110a121 a177 a90a22a101a181a54a90a88a92a30a97a54a91a43a181a54a90a96a101a94a134a120a97a99a91a110a132 a98a36a104a59a179a27a130a79a121a131a180a22a100a96a132a22a98a120a134a120a91a110a121a186a155a21a109a164a92a30a132a47a134a24a152a5a92a30a97a54a91a84a132a21a102a153 a112a160a155 a119 a101a121a43a92a63a95a96a92a30a97a54a91a84a132a21a102a93a127a105a92a30a129a79a98a21a97a131a130a133a132a22a98a22a134a120a91a186a98a30a104a113a179a47a130a79a121a99a180a22a100a22a132a96a98a120a134a120a91a110a121a93a155a13a112a148a121a131a187a120a101a95a22a95a96a101a132a22a106a182a163a36a130a79a121a99a180a22a100a22a132a22a98a22a134a120a91a110a121a110a109a164a92a30a132a47a134a24a159a56a130a79a121a131a180a22a100a96a132a22a98a120a134a120a91a110a121 a119 a125a186a152a158a112a160a159a140a161a114 a119 a92a30a132a47a134 a152a162a112a163a164a161a114 a119 a92a30a97a54a91a162a102a54a90a22a91a107a92a36a97a54a181 a177 a91a110a101a106a21a90a21a102a108a121a59a104a97a99a98a21a127a188a152a5a92a36a97a99a91a84a132a56a102a153 a112a160a155 a119 a102a54a98a83a155a36a125 a89a23a90a22a91a43a100a47a91a80a102a108a92a40a95a22a97a99a98a21a100a96a92a36a100a22a101a94a101a102a131a103a105a101a121a23a134a22a91a80a189a96a132a22a91a110a134a182a92a21a121 a174 a112a135 a119a190a136 a174 a112a114a36a191a99a116a99a117a84a192 a193 a119 a136 a194 a152a162a112a195a184a161a114 a191 a119 a101a104a184a114 a191 a101a121a128a92a107a102a54a91a84a97a54a127a32a101a132a96a92a36a94 a196a198a197 a152a158a112a160a159a140a161a114 a191 a119 a196a200a199 a152a158a112a163a164a161a114 a191 a119 a196 a178a158a201a182a202 a174 a112a114a183a202a21a116a99a117 a192a166 a193 a166 a119 a101a104a184a114 a191 a101a121a128a92a186a132a22a98a21a132a120a130a160a102a54a91a84a97a54a127a32a101a132a96a92a36a94 a177 a90a22a91a84a97a54a91a162a114a183a202a162a101a121a158a92a32a181a108a90a22a101a94a134a63a98a36a104a140a114 a191a109a22a92a36a132a96a134a182a117 a192a166 a193 a166 a101a121a128a92a40a95a22a97a99a98a21a95a47a91a84a97a23a95a96a92a36a97a131a102a54a101a102a54a101a98a36a132a182a98a30a104a49a117 a192 a193 a125 a89a23a90a22a91a93a181a80a98a21a180a22a132a56a102a54a121a128a203a36a112a160a159a120a116a79a204 a119 a109a22a203a36a112a163a27a116a54a205 a119 a109a96a92a30a132a47a134a63a203a36a112a195a22a116a54a206 a119 a104a148a98a36a97a128a91a110a92a21a181a54a90a182a95a96a92a30a101a97a186a207a208a59a116a99a117a183a209a23a92a30a97a54a91a21a109 a203a36a112a160a159a22a116a79a204 a119a190a136 a137 a193a183a210 a192 a211a99a212a96a213a99a214a105a149a211a99a212a148a151 a173 a204 a157 a111a113a112a114a36a191a54a116a99a117a84a192 a193 a119 a152a162a112a160a159a140a161a114a36a191 a119a96a137 a199 a152a162a112a163a164a161a114a36a191 a119a96a137 a178 a165 a202 a174 a112a114 a202 a116a99a117a84a192a166 a193 a166 a119a110a176a186a215 a174 a112a114a56a115a30a116a99a117 a118 a115a59a119 a203a36a112a163a47a116a54a205 a119a190a136 a137 a193a110a210 a192 a211a99a212a96a213a108a216a158a149a211a131a212a160a151 a173 a205 a157 a111a113a112a114a36a191a99a116a99a117a84a192 a193 a119 a152a162a112a163a140a161a114a36a191 a119 a137 a197 a152a162a112a160a159a140a161a114a36a191 a119 a137 a178 a165 a202 a174 a112a114 a202 a116a99a117a84a192a166 a193 a166 a119a110a176a186a215 a174 a112a114a56a115a30a116a99a117 a118a115 a119 a203a21a112a195a96a116a99a206 a119a190a136 a137 a193a183a210 a192 a211a99a212a96a213a84a217a49a149a211a99a212a148a151 a173 a206 a157 a111a113a112a114a36a191a99a116a99a117a84a192 a193 a119a152a158a112a195a184a161a114a36a191a119a84a176a32a215 a174 a112a114a56a115a30a116a99a117 a118a115 a119 a177 a90a22a91a84a97a54a91a40a122a93a218a220a219a63a218a221a112a222a24a223a224a122 a119 a109a96a124a32a218a220a225a7a218a226a222a158a109a22a92a36a132a96a134a182a222a226a101a121a113a102a99a90a22a91a107a94a91a84a132a22a106a36a102a54a90a182a98a36a104a7a117a21a109a96a121a131a101a132a96a181a80a91a107a92a36a132a182a227a49a132a96a106a36a94a101a121a99a90 a177 a98a21a97a54a134a63a181a84a92a30a132a88a127a40a92a30a102a108a181a54a90a182a92a40a228a162a229a158a230a184a230a154a126a22a97a54a91a84a132a96a181a54a90 a177 a98a36a97a108a134a164a125 Figure 4: Formulae for alpha-beta probabilities, and the count derivation References H.
+Alshawi, S.
+Bangalore, and S.
+Douglas. 2000.
+Learning dependency translation models as collections of finite state head transducers.
+Computational Linguistics, 26(1).
+J. Baker.
+1979. Trainable grammars for speech recognition.
+In Speech Communication Papers for the 97th Meeting of the Acoustical Sciety of America.
+A. Berger, P.
+Brown, S.
+Della Pietra, V.
+Della Pietra, J.
+Gillett, J.
+Lafferty, R.
+Mercer, H.
+Printz, and L.
+Ures. 1996.
+Language Translation Apparatus and Method Using Context-Based Translation Models.
+U.S. Patent 5,510,981.
+E. Brill.
+1995. Transformation-based error-driven learning and natural language processing: A case study in part of specch tagging.
+Computational Linguistics, 21(4).
+P. Brown, J.
+Cocke, S.
+Della Pietra, F.
+Jelinek, R.
+Mercer, and P.
+Roossin. 1988.
+A statistical approach to language translation.
+In COLING-88.
+P. Brown, J.
+Cocke, S.
+Della Pietra, F.
+Jelinek, R.
+Mercer, and P.
+Roossin. 1991.
+Word-sense disambiguation using statistical methods.
+In ACL-91.
+P. Brown, S.
+Della Pietra, V.
+Della Pietra, and R.
+Mercer. 1993.
+The mathematics of statistical machine translation: Parameter estimation.
+Computational Linguistics, 19(2).
+M. Collins.
+1999. Head-Driven Statistical Models for Natural Language Parsing.
+Ph.D. thesis, University of Pennsylvania.
+A. Dempster, N.
+Laird, and D.
+Rubin. 1977.
+Maximum likelihood from incomplete data via the em algorithm.
+Royal Statistical Society Series B, 39.
+M. Franz, J.
+McCarley, and R.
+Ward. 1999.
+Ad hoc, cross-language and spoken document information retrieval at IBM.
+In TREC-8.
+D. Jones and R.
+Havrilla. 1998.
+Twisted pair grammar: Support for rapid development of machine translation for low density languages.
+In AMTA98.
+I. Melamed.
+2000. Models of translational equivalence among words.
+Computational Linguistics, 26(2).
+F. Och and H.
+Ney. 2000.
+Improved statistical alignment models.
+In ACL-2000.
+F. Och, C.
+Tillmann, and H.
+Ney. 1999.
+Improved alignment models for statistical machine translation.
+In EMNLP-99.
+P. Resnik and I.
+Melamed. 1997.
+Semi-automatic acquisition of domain-specific translation lexicons.
+In ANLP-97.
+Y. Wang.
+1998. Grammar Inference and Statistical Machine Translation.
+Ph.D. thesis, Carnegie Mellon University.
+D. Wu.
+1997. Stochastic inversion transduction grammars and bilingual parsing of parallel corpora.
+Computational Linguistics, 23(3) .
+

@@ -1,0 +1,1691 @@
+Hypothesis Selection in Machine Transliteration: A Web Mining Approach
+Jong-Hoon Oh and Hitoshi Isahara
+Computational Linguistics Group
+National Institute of Information and Communications Technology (NICT)
+3-5 Hikaridai,Seika-cho, Soraku-gun, Kyoto, 619-0289, Japan
+{rovellia,isahara}@nict.go.jp
+Abstract
+We propose a new method of selecting hy-
+potheses for machine transliteration. We
+generate a set of Chinese, Japanese, and Ko-
+rean transliteration hypotheses for a given
+English word. We then use the set of translit-
+eration hypotheses as a guide to finding rel-
+evant Web pages and mining contextual in-
+formation for the transliteration hypotheses
+from the Web page. Finally, we use the
+mined information for machine-learning al-
+gorithms including support vector machines
+and maximum entropy model designed to
+select the correct transliteration hypothesis.
+In our experiments, our proposed method
+based on Web mining consistently outper-
+formed systems based on simple Web counts
+used in previous work, regardless of the lan-
+guage.
+1 Introduction
+Machine transliteration has been a great challenge
+for cross-lingual information retrieval and machine
+translation systems. Many researchers have devel-
+oped machine transliteration systems that accept a
+source language term as input and then output its
+transliteration in a target language (Al-Onaizan and
+Knight, 2002; Goto et al., 2003; Grefenstette et al.,
+2004; Kang and Kim, 2000; Li et al., 2004; Meng et
+al., 2001; Oh and Choi, 2002; Oh et al., 2006; Qu
+and Grefenstette, 2004). Some of these have used
+the Web to select machine-generated transliteration
+hypotheses and have obtained promising results (Al-
+Onaizan and Knight, 2002; Grefenstette et al., 2004;
+Oh et al., 2006; Qu and Grefenstette, 2004). More
+precisely, they used simple Web counts, estimated as
+the number of hits (Web pages) retrieved by a Web
+search engine.
+However, there are several limitations imposed on
+the ability of Web counts to select a correct translit-
+eration hypothesis. First, the assumption that hit
+counts approximate the Web frequency of a given
+query usually introduces noise (Lapata and Keller,
+2005). Moreover, some Web search engines disre-
+gard punctuation and capitalization when matching
+search terms (Lapata and Keller, 2005). This can
+cause errors if such Web counts are relied on to se-
+lect transliteration hypotheses. Second, it is not easy
+to consider the contexts of transliteration hypothe-
+ses with Web counts because Web counts are esti-
+mated based on the number of retrieved Web pages.
+However, as our preliminary work showed (Oh et
+al., 2006), transliteration or translation pairs often
+appear as parenthetical expressions or tend to be in
+close proximity in texts; thus context can play an im-
+portant role in selecting transliteration hypotheses.
+For example, there are several Chinese, Japanese,
+and Korean (CJK) transliterations and their counter-
+parts in a parenthetical expression, as follows.
+1) kb8k88k2fk57k1f
+1
+kffk61kffk22
+2
+(Adrienne
+1
+Clarkson
+2
+)
+2) kb0kebkb3–kb9
+1
+kaakadkb7kc0–kbc
+2
+(glucose
+1
+oxidase
+2
+)
+3) k6ek1bk60k85k5ak1ak74
+1
+k36k9fka4k72k1bk02k13k07k13k5dk6a
+2
+(diphenol
+1
+oxidase
+2
+)
+Note that the subscripted numbers in all examples
+represent the correspondence between the English
+word and its CJK counterpart. These parentheti-
+cal expressions are very useful in selecting translit-
+233
+eration hypotheses because it is apparent that they
+are translation pairs or transliteration pairs. How-
+ever, we cannot fully use such information with Web
+counts.
+To address these problems, we propose a new
+method of selecting transliteration hypotheses. We
+were interested in how to mine information relevant
+to the selection of hypotheses and how to select cor-
+rect transliteration hypotheses using the mined in-
+formation. To do this, we generated a set of CJK
+transliteration hypotheses for a given English word.
+We then used the set of transliteration hypotheses
+as a guide to finding relevant Web page and min-
+ing contextual information for the transliteration hy-
+potheses from the Web page. Finally, we used
+the mined information for machine-learning algo-
+rithms including support vector machines (SVMs)
+and maximum entropy model designed to select the
+correct transliteration hypothesis.
+This paper is organized as follows. Section 2 de-
+scribes previous work based on simple Web counts.
+Section 3 describes a way of generating transliter-
+ation hypotheses. Sections 4 and 5 introduce our
+methods of Web mining and selecting transliteration
+hypotheses. Sections 6 and 7 deal with our exper-
+iments and the discussion. Conclusions are drawn
+and future work is discussed in Section 8.
+2 Related
+work
+Web counts have been used for selecting translit-
+eration hypotheses in several previous work (Al-
+Onaizan and Knight, 2002; Grefenstette et al., 2004;
+Oh et al., 2006; Qu and Grefenstette, 2004). Be-
+cause the Web counts are estimated as the number of
+hits by a Web search engine, they greatly depend on
+queries sent to a search engine. Previous work has
+used three types of queries—monolingual queries
+(MQs) (Al-Onaizan and Knight, 2002; Grefen-
+stette et al., 2004; Oh et al., 2006), bilingual
+simple queries (BSQs) (Oh et al., 2006; Qu and
+Grefenstette, 2004), and bilingual bigram queries
+(BBQs) (Oh et al., 2006). If we let S be a source
+language term and H = {h
+1,···,h
+r
+} be a set of
+machine-generated transliteration hypotheses of S,
+the three types of queries can be defined as
+MQ: h
+i
+(e.g.,kffkc9k36,כkeakf3kc8kf3, andk39kfek74k8fk32k3bk87k15k04).
+BSQ: s and h
+i
+without quotations (e.g., Clinton kff
+kc9k36 , Clinton כkeakf3kc8kf3, and Clinton k39kfek74k8fk32k3b
+k87k15k04).
+BBQ: Quoted bigrams composed of S and h
+i
+(e.g.,
+“Clinton kffkc9k36”, “Clinton כkeakf3kc8kf3”, and
+“Clintonk39kfek74k8fk32k3bk87k15k04”).
+MQ is not able to determine whether h
+i
+is a counter-
+part of S, but whether h
+i
+is a frequently used target
+term in target-language texts. BSQ retrieves Web
+pages if S and h
+i
+are present in the same document
+but it does not take the distance between S and h
+i
+into consideration. BBQ retrieves Web pages where
+“Sh
+i
+”or“h
+i
+S” are present as a bigram. The rel-
+ative order of Web counts over H makes it possible
+to select transliteration hypotheses in the previous
+work.
+3 Generating
+Transliteration Hypotheses
+Let S be an English word, P be a pronuncia-
+tion of S, and T be a target language translitera-
+tion corresponding to S. We implement English-
+to-CJK transliteration systems based on three dif-
+ferent transliteration models — a grapheme-based
+model (S → T), a phoneme-based model (S → P
+and P → T), and a correspondence-based model
+(S → P and (S,P) → T) — as described in our
+preliminary work (Oh et al., 2006). P and T are seg-
+mented into a series of sub-strings, each of which
+corresponds to a source grapheme. We can thus
+write S = s
+1,···,s
+n
+= s
+n
+1, P = p
+1,···,p
+n
+= p
+n
+1,
+and T = t
+1,···,t
+n
+= t
+n
+1, where s
+i, p
+i, and t
+i
+rep-
+resent the i
+th
+English grapheme, English phonemes
+corresponding to s
+i, and target language graphemes
+corresponding to s
+i, respectively. Given S, our
+transliteration systems generate a sequence of t
+i
+cor-
+responding to either s
+i
+(in Eq. (1)) or p
+i
+(in Eq. (2))
+or both of them (in Eq. (3)).
+Pr
+G
+(T|S)=Pr(t
+n
+1
+|s
+n
+1
+) (1)
+Pr
+P
+(T|S)=Pr(p
+n
+1
+|s
+n
+1
+)×Pr(t
+n
+1
+|p
+n
+1
+) (2)
+Pr
+C
+(T|S)=Pr(p
+n
+1
+|s
+n
+1
+)×Pr(t
+n
+1
+|s
+n
+1,p
+n
+1
+) (3)
+The maximum entropy model was used to estimate
+probabilities in Eqs. (1)–(3) (Oh et al., 2006). We
+produced the n-best transliteration hypotheses using
+a stack decoder (Schwartz and Chow, 1990). We
+234
+then created a set of transliteration hypotheses com-
+prising the n-best transliteration hypotheses.
+4 Web
+Mining
+Let S be an English word and H = {h
+1,···,h
+r
+} be
+its machine-generated set of transliteration hypothe-
+ses. We use S and H to generate queries sent to a
+search engine
+1
+to retrieve the top-100 snippets. A
+correct transliteration and its counterpart tend to be
+in close proximity on CJK Web pages. Our goal in
+Web mining was to find such Web pages and mine
+information that would help to select transliteration
+hypotheses from these pages.
+To find these Web pages, we used three kinds of
+queries, Q
+1
+=(S and h
+i
+), Q
+2
+=S, and Q
+3
+=h
+i, where
+Q
+1
+is the same as BSQ’s query and Q
+3
+is the same
+as MQ’s. The three queries usually result in different
+sets of Web pages. We categorize the retrieved Web
+pages by Q
+1, Q
+2, and Q
+3
+into W
+1, W
+2, and W
+3
+.We
+extract three kinds of features from W
+l
+as follows,
+where l =1,2,3.
+• Freq(h
+i,W
+l
+): the number of occurrences of h
+i
+in W
+l
+• DFreq
+k
+(h
+i,W
+l
+): Co-occurrence of S and h
+i
+with distance d
+k
+∈ D in the same snippet of
+W
+l
+.
+• PFreq
+k
+(h
+i,W
+l
+): Co-occurrence of S and h
+i
+as parenthetical expressions with distance d
+k
+∈
+D in the same snippet of W
+l
+. Parenthetical ex-
+pressions are detected when either S or h
+i
+is in
+parentheses.
+We define D = {d
+1,d
+2,d
+3
+} with three ranges of
+distances between S and h
+i, where d
+1
+(d<5),
+d
+2
+(5 ≤ d<10), and d
+3
+(10 ≤ d ≤ 15). We counted
+distance d with the total number of characters (or
+words)
+2
+between S and h
+i
+. Here, we can take the
+contexts of transliteration hypotheses into account
+using DFreq and PFreq; while Freq is counted
+regardless of the contexts of the transliteration hy-
+potheses.
+Figure 1 shows examples of how to calculate
+Freq, DFreq
+k, and PFreq
+k, where S = Clinton,
+1
+We used Google (http://www.google.com)
+2
+Depending on whether the languages had spacing units,
+words (for English and Korean) or characters (for Chinese and
+Japanese) were chosen to calculate d.
+美国前总统克林顿
+1
+(Bill Clinton
+1
+)日获得他生平第二座葛莱美
+奖，而为他夺得葛莱美诵读类奖的正是他的畅销回忆录《我的人
+生》(My Life)。克林顿
+2
+去年也曾获得葛莱美奖的最佳儿童诵读
+奖项，其妻希拉蕊克林顿
+3
+(Hillary Rodham Clinton
+2
+)则在1997
+年以自己的 ...
+1
+(Bill Clinton
+1
+生》(My Life)。
+2
+3
+(Hillary Rodham Clinton
+2
+)则在1997
+...
+W
+1
+: Q
+1
+=(Clinton 克林顿)
+::克林顿
+4
+（Clinton
+3
+）立竿见影帮助克
+1
+里（Kerry）::
+克
+2
+里（John Kerry）身边的选民，他们试图把未作决定的选民
+从投票站吓跑，克林顿
+5
+（Clinton
+4
+）说，他还计划于星期一在
+佛罗里达州有一个单独的选事。他g6221g16792g1114g5079g1172（Bg88g86h）的g5g13781一
+g3883g5g3363g6931g12586。 克林顿
+6
+（Clinton
+5
+）g2656克
+3
+里（Kerry） ...
+::
+4
+Clinton
+3 1
+erry）::
+2
+里（John Kerry）
+5
+Clinton
+4
+佛罗里达州有一个单独的选事。他g6221g16792g1114g5079g1172（Bg88g86h）的g5g13781一
+g3883g5g3363g6931g12586。
+6
+Clinton
+5
+）g2656
+3
+Kerry） ...
+Snippet
+1
+Snippet
+2
+Figure 1: Web corpora collected by Clinton and kff
+kc9k36
+Snippet
+1
+kffkc9k36
+1
+kffkc9k36
+2
+kffkc9k36
+3
+Clinton
+1
+14168
+Clinton
+2
+72 29 2
+Snippet
+2
+kffkc9k36
+4
+kffkc9k36
+5
+kffkc9k36
+6
+Clinton
+3
+03681
+Clinton
+4
+40 0 37
+Clinton
+5
+85 41 0
+Snippet
+2
+kff
+1
+kff
+2
+kff
+3
+Clinton
+3
+6985
+Clinton
+4
+32 29 42
+Clinton
+5
+77 74 1
+Table 1: Distance between Clinton and Chinese
+transliteration hypotheses in Fig. 1
+h
+i
+=kffkc9k36 in W
+1
+collected by Q
+1
+=(Clinton kffkc9
+k36). The subscripted numbers of Clinton and kffkc9
+k36 were used to indicate how many times they oc-
+curred in W
+1
+. In Fig. 1, kffkc9k36 occurs six times
+thus Freq(h
+i,W
+1
+)=6. Table 1 lists the dis-
+tance between Clinton andkffkc9k36within each snip-
+pet of W
+1
+. We can obtain DFreq
+1
+(h
+i,W
+1
+)=
+5. PFreq
+1
+(h
+i,W
+l
+) is calculated by detecting
+parenthetical expressions between S and h
+i
+when
+DFreq
+1
+(h
+i,W
+l
+) is counted. Because all S in
+W
+1
+(Clinton
+1
+to Clinton
+5
+) are in parentheses,
+PFreq
+1
+(h
+i,W
+1
+) is the same as DFreq
+1
+(h
+i,W
+1
+).
+We ignore Freq, DFreq
+k, and PFreq
+k
+when h
+i
+is a substring of other transliteration hypotheses be-
+cause h
+i
+usually has a higher Freq, DFreq
+k, and
+PFreq
+k
+than h
+j
+if h
+i
+is a substring of h
+j
+. Let a
+235
+set of transliteration hypotheses for S = Clinton
+be H= {h
+1
+= kffkc9k36, h
+2
+= kff}. Here, h
+2
+is a
+substring of h
+1
+. In Fig. 1, h
+2
+appears six times as
+a substring of h
+1
+and three times independently in
+Snippet
+2
+. Moreover, independently used h
+2
+(kff
+1,
+kff
+2, and kff
+3
+) and S (Clinton
+3
+and Clinton
+5
+) are
+sufficiently close to count DFreq
+k
+and PFreq
+k
+.
+Therefore, the Freq, DFreq
+k, and PFreq
+k
+of h
+1
+will be lower than those of h
+2
+if we do not take
+the substring relation between h
+1
+and h
+2
+into ac-
+count. Considering the substring relation, we ob-
+tain Freq(h
+2,W
+1
+)=3, DFreq
+1
+(h
+2,W
+1
+)=1,
+DFreq
+2
+(h
+2,W
+1
+)=2, PFreq
+1
+(h
+2,W
+1
+)=1, and
+PFreq
+2
+(h
+2,W
+1
+)=2.
+5 Hypothesis
+Selection
+We select transliteration hypotheses by ranking
+them. A set of transliteration hypotheses, H =
+{h
+1,h
+2,···,h
+r
+}, is ranked to enable a correct hy-
+pothesis to be identified. We devise a rank function,
+g(h
+i
+) in Eq. (4), that ranks a correct transliteration
+hypothesis higher and the others lower.
+g(h
+i
+):H→{R: R is ordering of h
+i
+∈H} (4)
+Let x
+i
+∈Xbe a feature vector of h
+i
+∈H, y
+i
+=
+{+1,−1} be the training label for x
+i, and TD =
+{td
+1
+=<x
+1,y
+1
+>,···,td
+z
+=<x
+z,y
+z
+>} be the
+training data for g(h
+i
+). We prepare the training data
+for g(h
+i
+) as follows.
+1. Given each English word S in the training-set,
+generate transliteration hypotheses H.
+2. Given h
+i
+∈H, assign y
+i
+by looking for S and
+h
+i
+in the training-set — y
+i
+=+1if h
+i
+is a cor-
+rect transliteration hypothesis corresponding to
+S, otherwise y
+i
+= −1.
+3. For each pair (S,h
+i
+), generate its feature vector
+x
+i
+.
+4. Construct a training data set, TD:
+•TD= TD
++
+uniontext
+TD
+−
+•TD
++
+owner td
+i
+where y
+i
+=+1
+•TD
+−
+owner td
+j
+where y
+j
+= −1
+We used two machine-learning algorithms, sup-
+port vector machines (SVMs)
+3
+and maximum en-
+tropy model
+4
+for our implementation of g(h
+i
+). The
+SVMs assign a value to each transliteration hypoth-
+esis (h
+i
+) using
+g
+SVM
+(h
+i
+)=w·x
+i
++ b (5)
+where w denotes a weight vector. Here, we use the
+predicted value of g
+SVM
+(h
+i
+) rather than the pre-
+dicted class of h
+i
+given by SVMs because our rank-
+ing function, as represented by Eq. (4), determines
+the relative ordering between h
+i
+and h
+j
+in H.A
+ranking function based on the maximum entropy
+model assigns a probability to h
+i
+using
+g
+MEM
+(h
+i
+)=Pr(y
+i
+=+1|x
+i
+) (6)
+We can finally obtain a ranked list for the given H—
+the higher the g(h
+i
+) value, the better the h
+i
+.
+5.1 Features
+We represent the feature vector, x
+i, with two types
+of features. The first is the confidence scores of h
+i
+given by Eqs. (1)–(3) and the second is Web-based
+features — Freq, DFreq
+k, and PFreq
+k
+. To nor-
+malize Freq, DFreq
+k, and PFreq
+k, we use their
+relative frequency over H as in Eqs. (7)–(9), where
+k =1,2,3 and l =1,2,3.
+RF(h
+i,W
+l
+)=
+Freq(h
+i,W
+l
+)
+summationtext
+h
+j
+∈H
+Freq(h
+j,W
+l
+)
+(7)
+RDF
+k
+(h
+i,W
+l
+)=
+DFreq
+k
+(h
+i,W
+l
+)
+summationtext
+h
+j
+∈H
+DFreq
+k
+(h
+j,W
+l
+)
+(8)
+RPF
+k
+(h
+i,W
+l
+)=
+PFreq
+k
+(h
+i,W
+l
+)
+summationtext
+h
+j
+∈H
+PFreq
+k
+(h
+j,W
+l
+)
+(9)
+Figure 2 shows how to construct feature vector
+x
+i
+from a given English word, Rachel, and its Chi-
+nese hypotheses, H, generated from our translitera-
+tion systems. We can obtain r Chinese translitera-
+tion hypotheses and classify them into positive and
+negative samples according to y
+i
+. Note that y
+i
+=+1
+if and only if h
+i
+is registered as a counterpart of S
+in the training data. The bottom of Fig. 2 shows our
+feature set representing x
+i
+. There are three confi-
+dence scores in P(h
+i
+|S) according to transliteration
+models and the three Web-based features Web(W
+1
+),
+Web(W
+2
+), and Web(W
+3
+).
+3
+SVM
+light
+(Joachims, 2002)
+4
+“Maximum Entropy Modeling Toolkit” (Zhang, 2004)
+236
+雷奇尔拉赫尔拉切尔雷赫尔雷克尔雷切尔
+h
+r
+…h
+5
+h
+4
+h
+3
+h
+2
+h
+1
+H
+-1-1-1-1-1+1
+y
+r
+…y
+5
+y
+4
+y
+3
+y
+2
+y
+1
+Y
+Rachel
+RF(h
+i,W
+1
+)
+RDF
+1
+(h
+i,W
+1
+) 
+RDF
+2
+(h
+i,W
+1
+)
+RDF
+3
+(h
+i,W
+1
+)
+RPF
+1
+(h
+i,W
+1
+) 
+RPF
+2
+(h
+i,W
+1
+)
+RPF
+3
+(h
+i,W
+1
+)
+Web (W
+1
+)
+RF(W
+3
+)
+RDF
+1
+(h
+i,W
+3
+) 
+RDF
+2
+(h
+i,W
+3
+)
+RDF
+3
+(h
+i,W
+3
+)
+RPF
+1
+(h
+i,W
+3
+) 
+RPF
+2
+(h
+i,W
+3
+)
+RPF
+3
+(h
+i,W
+3
+)
+RF(h
+i,W
+2
+)
+RDF
+1
+(h
+i,W
+2
+) 
+RDF
+2
+(h
+i,W
+2
+)
+RDF
+3
+(h
+i,W
+2
+)
+RPF
+1
+(h
+i,W
+2
+) 
+RPF
+2
+(h
+i,W
+2
+)
+RPF
+3
+(h
+i,W
+2
+)
+Pr
+G
+(h
+i
+|S) 
+Pr
+P
+(h
+i
+|S)
+Pr
+C
+(h
+i
+|S)
+Web (W
+3
+)Web (W
+2
+)Pr(h
+i
+|S)
+x
+i
+td
+1 
+∈ TD
++
+td
+2, td
+3,  td
+4, td
+5,…,td
+r
+∈ TD
+-
+x
+r
+…x
+5
+x
+4
+x
+3
+x
+2
+x
+1
+X
+Figure 2: Feature vectors
+6 Experiments
+We evaluated the effectiveness of our system in se-
+lecting CJK transliteration hypotheses. We used the
+same test set used in Li et al. (2004) (ECSet) for Chi-
+nese transliterations (Xinhua News Agency, 1992)
+and those used in Oh et al. (2006) for Japanese
+and Korean transliterations — EJSET and EK-
+SET (Breen, 2003; Nam, 1997). We divided the test
+ECSet EJSet EKSet
+Training Set 31,299 8,335 5,124
+Development Set 3,478 1,041 1,024
+Blind Test Set 2,896 1,041 1,024
+Total 37,694 10,417 7,172
+Table 2: Test data sets
+data into training, development, and blind test sets
+as in Table 2. The training set was used to train our
+three transliteration models to generate the n-best
+transliteration hypotheses
+5
+. The development set
+was used to train hypothesis selection based on sup-
+port vector machines and maximum entropy model.
+We used the blind test set for evaluation. The eval-
+uation was done in terms of word accuracy (WA).
+WA is the proportion of correct transliterations in
+the best hypothesis by a system to correct transliter-
+ations in the blind test set.
+System ECSet EJSet EKSet
+KANG00 N/A N/A 54.1
+GOTO03 N/A 54.3 N/A
+LI04 70.1 N/A N/A
+GM 69.0 61.6 59.0
+PM 56.6 54.4 56.7
+CM 69.9 65.0 65.1
+Table 3: WA of individual transliteration systems
+(%)
+6.1 Results: Web counts vs. Web mining
+We compared our transliteration system with three
+previous ones, all of which were based on a
+grapheme-based model (Goto et al., 2003; Kang and
+Kim, 2000; Li et al., 2004). LI04
+6
+is an English-
+to-Chinese transliteration system, which simultane-
+ously takes English and Chinese contexts into con-
+sideration (Li et al., 2004). KANG00 is an English-
+to-Korean transliteration system and GOTO03 is an
+English-to-Japanese one – they segment a chunk of
+English graphemes and identify the most relevant
+sequence of target graphemes corresponding to the
+chunk (Goto et al., 2003; Kang and Kim, 2000)
+7
+.
+GM, PM, and CM, which are respectively based
+on Eqs. (1)–(3), are the transliteration systems we
+used for generating transliteration hypotheses. Our
+transliteration systems showed comparable or better
+performance than the previous ones regardless of the
+language.
+We compared simple Web counts with our Web
+mining for hypothesis selection. We used the same
+set of transliteration hypotheses H then compared
+their performance in hypothesis selection with two
+measures, relative frequency and g(h
+i
+). Tables 4 and
+5 list the results. Here, “Upper bound” is a system
+that always selects the correct transliteration hypoth-
+esis if there is a correct one inH. “Upper bound” can
+5
+We set n =10for the n-best. Thus, n ≤ r ≤ 3×n where
+H = {h
+1,h
+2,···,h
+r
+}
+6
+The WA of LI04 was taken from the literature, where the
+training data were the same as the union of our training set and
+the development set while the test data were the same as in our
+test set. In other words, LI04 used more training data than ours
+did. With the same setting as LI04, our GM, PM, and CM pro-
+duced respective WAs of 70.0, 57.7, and 71.7.
+7
+We implemented KANG00 (Kang and Kim, 2000) and
+GOTO03 (Goto et al., 2003), and tested them with the same
+data as ours.
+237
+System ECSet EJSet EKSet
+WC
+MQ 16.1 40.4 34.7
+BSQ 45.8 74.0 72.4
+BBQ 34.9 78.1 79.3
+WM
+RF(W
+1
+) 62.9 78.4 77.1
+RDF(W
+1
+) 70.8 80.4 80.2
+RPF(W
+1
+) 73.5 79.7 79.4
+RF(W
+2
+) 63.5 76.2 74.8
+RDF(W
+2
+) 67.1 79.2 78.9
+RPF(W
+2
+) 69.6 79.1 78.4
+RF(W
+3
+) 37.9 53.9 55.8
+RDF(W
+3
+) 76.4 69.0 70.2
+RPF(W
+3
+) 76.8 68.3 68.7
+Upper bound 94.6 93.5 93.2
+Table 4: Web counts (WC) vs. Web mining (WM):
+hypothesis selection by relative frequency (%)
+System ECSet EJSet EKSet
+WC
+MEM
+WC
+74.7 86.1 85.6
+SVM
+WC
+74.8 86.9 86.5
+WM
+MEM
+WM
+82.0 88.2 85.8
+SVM
+WM
+83.9 88.5 86.7
+Upper bound 94.6 93.5 93.2
+Table 5: Web counts (WC) vs. Web mining (WM):
+hypothesis selection by g(h
+i
+) (%)
+also be regarded as the “Coverage” of H generated
+by our transliteration systems. MQ, BSQ, and BBQ
+in the upper section of Table 4, represent hypothesis
+selection systems based on the relative frequency of
+Web counts over H, the same measure used in Oh et
+al. (2006):
+WebCounts
+x
+(h
+i
+)
+summationtext
+h
+j
+∈H
+WebCounts
+x
+(h
+j
+)
+(10)
+where WebCounts
+x
+(h
+i
+) is a function returning
+Web counts retrieved by x ∈{MQ,BSQ,BBQ}
+RF(W
+l
+), RDF(W
+l
+), and RPF(W
+l
+) in Table 4 rep-
+resent hypothesis selection systems with their rela-
+tive frequency, where RDF(W
+l
+) and RPF(W
+l
+) use
+summationtext
+3
+k=1
+RDF
+k
+(h
+j,W
+l
+) and
+summationtext
+3
+k=1
+RPF
+k
+(h
+j,W
+l
+),
+respectively. The comparison in Table 4 shows
+which is best for selecting transliteration hy-
+potheses when each relative frequency is used
+alone. Table 5 compares Web counts with fea-
+tures mined from the Web when they are used
+as features in g(h
+i
+) — {Pr(h
+i
+|S), Web(W
+l
+)} in
+MEM
+WM
+and SVM
+WM
+(our proposed method),
+while {Pr(h
+i
+|S), WebCounts
+x
+(h
+i
+)} in MEM
+WC
+and SVM
+WC
+. Here, Web(W
+l
+) is a set of mined
+features from W
+l
+as described in Fig .2.
+叫我自己的一个人(a Man To Call My Own) 概要
+一本书的概要摘要撰写人-叫我自己的一个人(a Man To Call 
+My Own), 故事，在ranchhouse的集合，二个主演，孪生阿曼达，
+并且圣母玛丽亚是远离家和舒适。 温暖心主要的浪漫史，传说
+也是一个成长，学会和了解，...
+(a Man To Call My Own) 
+一本书的概要摘要撰写人a Man To Call 
+My Own), 故事，在ranchhouse的集合，二个主演，孪生
+并且圣母玛丽亚是远离家和舒适。
+...
+外国雕塑欣赏(4/03)－持矛者
+在古代雅典城外,有两个著名的运动场,一个叫阿加德米,一个叫
+卢基厄模。那两处运动场受到政府的保护,那里常年碧树成荫,g13523
+g14601g19150g3332。 g17g17g17 运动场阿加德米(Academy)g11013g1122g13475常g4649g5332学g7427g8975动,
+g9188g9188演g2476成名g16801g256学g19510g257g999g12228了。g17g17g17
+4/03)－持矛者,有两个著名的运动场,一个叫阿加德米,一个叫
+处运动场受到政府的保护,那里常年碧树成荫,g13523
+g14601g19150g3332。 g17g17g17 运动场阿加德米(Academy)g11013g1122g13475常g4649g5332学g7427g8975动,
+g9188g9188演g2476成名g16801g256学g19510g257g999g12228了。g17g17g17
+Snippet
+1 
+retrieved by BSQ: Aman “阿g7376”
+Snippet
+2
+retrieved by MQ: “阿加” (meaning Agard)
+克利夫德扬|Cliff De Young| 生平| 作品| 写真| EO影视频道
+少女上了瘾| The Secret Life of Zoey (TV) 发布年代：2002 导演：
+罗伯特曼德尔演员：米亚法罗, 克利夫德扬, 卡罗琳阿伦, 安德
+鲁麦卡锡, Avery Raskin. 在片中饰演：Larry Carter. 评分：4.92…
+|Cliff De Young| | | | EO
+| The Secret Life of Zoey (TV) 年代：2002 , , , , Avery Raskin. Larry Carter. 4.92…
+UNESCO. General Conference; 32nd; Election of member
+阿赫迈德·奥尔德·西迪·巴巴先生. 是. 1987--1991. 穆哈迈德·马赫
+穆德·乌尔德·韦达迪先生. 莫桑比克. (1976). 1987--1991. 路易斯·
+贝尔纳多·翁瓦纳先生. 2001--2005. 纳米比亚. 1993--1997....
+UNESCO. General Conference; 32nd; Election of member
+· · · . . 1987--1991. ·
+· · . . (1976). 1987--1991. ·
+· . 2001--2005. . 1993--1997....
+Snippet
+3
+retrieved by MQ: “罗克利夫” (meaning Rawcliffe)
+Snippet
+4
+retrieved by MQ: “奥尔德西” (meaning Aldersey)
+Figure 3: Snippets causing errors in Web counts
+The results in the tables show that our systems
+consistently outperformed systems based on Web
+counts, especially for Chinese. This was due to the
+difference between languages. Japanese and Chi-
+nese do not use spaces between words. However,
+Japanese is written using three different alphabet
+systems, called Hiragana, Katakana, and Kanji, that
+assist word segmentation. Moreover, words written
+in Katakana are usually Japanese transliterations of
+foreign words. This makes it possible for a Web
+search engine to effectively retrieve Web pages con-
+taining given Japanese transliterations. Like En-
+glish, Korean has spaces between words (or word
+phrases). As the spaces in the languages reduce am-
+biguity in segmenting words, a Web search engine
+can correctly identify Web pages containing given
+Korean transliterations. In contrast, there is a se-
+vere word-segmentation problem with Chinese that
+causes Chinese Web search engines to incorrectly
+retrieve Web pages, as shown in Fig. 3. For example,
+Snippet
+1
+is not related to “Aman” but to “a man”.
+238
+Snippet
+2
+contains a super-string of a given Chinese
+query, which corresponds to “Academy” rather than
+to “Agard”, which is the English counterpart of the
+Chinese transliterationkb8k65. Moreover, Web search
+engines ignore punctuation marks in Chinese. In
+Snippet
+3
+and Snippet
+4, “,” and “kb7” in the under-
+lined terms are disregarded, so the Web counts based
+on such Web documents are noisy. Thus, noise in
+the Chinese Web counts causes systems based on
+Web counts to produce more errors than our sys-
+tems do. Our proposed method can filter out such
+noise because our systems take punctuation marks
+and the contexts of transliterations in Web mining
+into consideration. Thus, our systems based on fea-
+tures mined from the Web were able to achieve the
+best performance. The results revealed that our sys-
+tems based on the Web-mining technique can effec-
+tively be used to select transliteration hypotheses re-
+gardless of the language.
+6.2 Contribution
+of Web corpora
+ECSet EJSet EKSet
+SVM MEM SVM MEM SVM MEM
+Base 73.3 73.8 67.0 66.1 66.0 66.4
+W
+1
+81.7 79.7 87.6 87.3 86.1 85.1
+W
+2
+80.8 79.5 86.9 86.0 83.8 82.1
+W
+3
+77.2 76.7 83.0 82.8 79.8 77.3
+W
+1+2
+83.8 82.3 88.5 87.9 86.3 85.9
+W
+1+3
+81.9 80.1 87.6 87.8 86.1 84.7
+W
+2+3
+81.4 79.8 88.0 87.7 85.1 84.3
+W
+All
+83.9 82.0 88.5 88.2 86.7 85.8
+Table 6: Contribution of Web corpora
+In Web mining, we used W
+1, W
+2, and W
+3, col-
+lected by respective queries Q
+1
+=(S and h
+i
+), Q
+2
+=S,
+and Q
+3
+=h
+i
+. To investigate their contribution, we
+tested our proposed method with different combina-
+tions of Web corpora. “Base” is a baseline system
+that only uses Pr(h
+i
+|S) as features but does not use
+features mined from the Web. We added features
+mined from different combinations of Web corpora
+to “Base” from W
+1
+to W
+All
+.
+In Table 6, we can see that W
+1, a set of Web pages
+retrieved by Q
+1, tends to give more relevant infor-
+mation than W
+2
+and W
+3, because Q
+1
+can search
+more Web pages containing both S and h
+i
+in the top-
+100 snippets if S and h
+i
+are a correct transliteration
+pair. Therefore, its performance tends to be superior
+in Table 6 if W
+1
+is used, especially for ECSet. How-
+ever, as W
+1
+occasionally retrieves few snippets, it is
+not able to provide sufficient information. Using W
+2
+or W
+3, we can address the problem. Thus, combina-
+tions of W
+1
+and others (W
+1+2, W
+1+3, W
+All
+) pro-
+vided better WAthan W
+1
+.
+7 Discussion
+Several Web mining techniques for translitera-
+tion lexicons have been developed in the last few
+years (Jiang et al., 2007; Oh and Isahara, 2006).
+The main difference between ours and those previ-
+ous ones is in the way a set of transliteration hy-
+potheses (or candidates) is created.
+Jiang et al. (2007) generated Chinese transliter-
+ations for given English words and searched the
+Web using the transliterations. They generated only
+the best transliteration hypothesis and focused on
+Web mining to select transliteration lexicons rather
+than selecting transliteration hypotheses. The best
+transliteration hypothesis was used to guide Web
+searches. Then, transliteration candidates were
+mined from the retrieved Web pages. Therefore,
+their performance greatly depended on their abil-
+ity to mine transliteration candidates from the Web.
+However, this system might create errors if it can-
+not find a correct transliteration candidate from the
+retrieved Web pages. Because of this, their sys-
+tem’s coverage and WA were relatively poor than
+ours
+8
+. However, our transliteration process was able
+to generate a set of transliteration hypotheses with
+excellent coverage and could thus achieve superior
+WA.
+Oh and Isahara (2006) searched the Web using
+given source words and mined the retrieved Web
+pages to find target-language transliteration candi-
+dates. They extracted all possible sequences of
+target-language characters from the retrieved Web
+snippets as transliteration candidates for which the
+beginnings and endings of the given source word
+8
+Since both Jiang et al.’s (2007) and ours used Chinese
+transliterations of personal names as a test set, we can indirectly
+compare our coverage and WAwith theirs (Jiang et al., 2007).
+Jiang et al. (2007) achieved a 74.5% coverage of transliteration
+candidates and 47.5% WA, while ours achieved a 94.6% cov-
+erage of transliteration hypotheses and 82.0–83.9% WA
+239
+and the extracted transliteration candidate were pho-
+netically similar. However, while this can exponen-
+tially increase the number of transliteration candi-
+dates, ours used the n-best transliteration hypothe-
+ses but still achieved excellent coverage.
+8 Conclusion
+We have described a novel approach to selecting
+transliteration hypotheses based on Web mining. We
+first generated CJK transliteration hypotheses for a
+given English word and retrieved Web pages us-
+ing the transliteration hypotheses and the given En-
+glish word as queries for a Web search engine. We
+then mined features from the retrieved Web pages
+and trained machine-learning algorithms using the
+mined features. Finally, we selected transliteration
+hypotheses by ranking them. Our experiments re-
+vealed that our proposed method worked well re-
+gardless of the language, while simple Web counts
+were not effective, especially for Chinese.
+Because our method was very effective in select-
+ing transliteration pairs, we expect that it will also
+be useful for selecting translation pairs. We plan to
+extend our method in future work to selecting trans-
+lation pairs.
+References
+Y. Al-Onaizan and Kevin Knight. 2002. Translating
+named entities using monolingual and bilingual re-
+sources. In Proc. of ACL ’02, pages 400–408.
+J. Breen. 2003. EDICT Japanese/English dictionary .le.
+The Electronic Dictionary Research and Development
+Group, Monash University. http://www.csse.
+monash.edu.au/
+˜
+jwb/edict.html.
+I. Goto, N. Kato, N. Uratani, and T. Ehara. 2003.
+Transliteration considering context information based
+on the maximum entropy method. In Proc. of MT-
+Summit IX, pages 125–132.
+Gregory Grefenstette, Yan Qu, and David A. Evans.
+2004. Mining the Web to create a language model
+for mapping between English names and phrases and
+Japanese. In Proc. of Web Intelligence, pages 110–
+116.
+Long Jiang, Ming Zhou, Lee-Feng Chien, and Cheng
+Niu. 2007. Named entity translation with Web min-
+ing and transliteration. In Proc. of IJCAI, pages 1629–
+1634.
+Thorsten Joachims. 2002. Learning to Classify Text Us-
+ing Support Vector Machines: Methods, Theory and
+Algorithms. Kluwer Academic Publishers.
+I. H. Kang and G. C. Kim. 2000. English-to-Korean
+transliteration using multiple unbounded overlapping
+phoneme chunks. In Proc. of COLING ’00, pages
+418–424.
+Mirella Lapata and Frank Keller. 2005. Web-based
+models for natural language processing. ACM Trans.
+Speech Lang. Process., 2(1):3.
+H. Li, M. Zhang, and J. Su. 2004. A joint source-channel
+model for machine transliteration. In Proc. of ACL
+’04, pages 160–167.
+H.M. Meng, Wai-Kit Lo, Berlin Chen, and K. Tang.
+2001. Generating phonetic cognates to handle named
+entities in English-Chinese cross-language spoken
+document retrieval. In Proc. of Automatic Speech
+Recognition and Understanding, 2001. ASRU ’01,
+pages 311–314.
+Y. S. Nam. 1997. Foreign dictionary. Sung An Dang.
+Jong-Hoon Oh and Key-Sun Choi. 2002. An English-
+Korean transliteration model using pronunciation and
+contextual rules. In Proc. of COLING2002, pages
+758–764.
+Jong-Hoon Oh and Hitoshi Isahara. 2006. Mining the
+Web for transliteration lexicons: Joint-validation ap-
+proach. In Web Intelligence, pages 254–261.
+Jong-Hoon Oh, Key-Sun Choi, and Hitoshi Isahara.
+2006. A comparison of different machine transliter-
+ation models. Journal of Artificial Intelligence Re-
+search (JAIR), 27:119–151.
+Yan Qu and Gregory Grefenstette. 2004. Finding ideo-
+graphic representations of Japanese names written in
+Latin script via language identification and corpus val-
+idation. In Proc. of ACL ’04, pages 183–190.
+Richard Schwartz and Yen-Lu Chow. 1990. The N-best
+algorithm: An efficient and exact procedure for finding
+the N most likely sentence hypothesis. In Procs. of
+ICASSP ’90, pages 81–84.
+Xinhua News Agency. 1992. Chinese transliteration of
+foreign personal names. The Commercial Press.
+L. Zhang. 2004. Maximum entropy model-
+ing toolkit for python and C++. http:
+//homepages.inf.ed.ac.uk/s0450736/
+software/maxent/manual.pdf.
+240
+

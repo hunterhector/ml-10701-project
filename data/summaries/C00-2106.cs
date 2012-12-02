@@ -1,0 +1,2 @@
+While previous atteml)ts to define more general parsers have only aimed at expanding the domain of the nontenninal symbols of a grammar (Pereira and Warren, 1983), this paper aims at a generalization of parsing in a difl'erent dimension, namely to include grammars with a flexible constituent sI;ructure, i.e., where tile sequence of subconstituents specified by a grammar production is not fixed.
+P83-1021

@@ -1,0 +1,185 @@
+Proceedings of the 48th Annual Meeting of the Association for Computational Linguistics, pages 296–305,
+Uppsala, Sweden, 11-16 July 2010. c©2010 Association for Computational Linguistics
+Unsupervised Ontology Induction from Text
+Hoifung Poon and Pedro Domingos
+Department of Computer Science & Engineering
+University of Washington
+hoifung,pedrod@cs.washington.edu
+Abstract
+Extracting knowledge from unstructured
+text is a long-standing goal of NLP. Al-
+though learning approaches to many of its
+subtasks have been developed (e.g., pars-
+ing, taxonomy induction, information ex-
+traction), all end-to-end solutions to date
+require heavy supervision and/or manual
+engineering, limiting their scope and scal-
+ability. We present OntoUSP, a system that
+induces and populates a probabilistic on-
+tology using only dependency-parsed text
+as input. OntoUSP builds on the USP
+unsupervised semantic parser by jointly
+forming ISA and IS-PART hierarchies of
+lambda-form clusters. The ISA hierar-
+chy allows more general knowledge to
+be learned, and the use of smoothing for
+parameter estimation. We evaluate On-
+toUSP by using it to extract a knowledge
+base from biomedical abstracts and an-
+swer questions. OntoUSP improves on
+the recall of USP by 47% and greatly
+outperforms previous state-of-the-art ap-
+proaches.
+1 Introduction
+Knowledge acquisition has been a major goal of
+NLP since its early days. We would like comput-
+ers to be able to read text and express the knowl-
+edge it contains in a formal representation, suit-
+able for answering questions and solving prob-
+lems. However, progress has been difficult. The
+earliest approaches were manual, but the sheer
+amount of coding and knowledge engineering
+needed makes them very costly and limits them to
+well-circumscribed domains. More recently, ma-
+chine learning approaches to a number of key sub-
+problems have been developed (e.g., Snow et al.(2006)), but to date there is no sufficiently auto-
+matic end-to-end solution. Most saliently, super-
+vised learning requires labeled data, which itself is
+costly and infeasible for large-scale, open-domain
+knowledge acquisition.
+Ideally, we would like to have an end-to-end un-
+supervised (or lightly supervised) solution to the
+problem of knowledge acquisition from text. The
+TextRunner system (Banko et al., 2007) can ex-
+tract a large number of ground atoms from the
+Web using only a small number of seed patterns
+as guidance, but it is unable to extract non-atomic
+formulas, and the mass of facts it extracts is un-
+structured and very noisy. The USP system (Poon
+and Domingos, 2009) can extract formulas and ap-
+pears to be fairly robust to noise. However, it is
+still limited to extractions for which there is sub-
+stantial evidence in the corpus, and in most cor-
+pora most pieces of knowledge are stated only
+once or a few times, making them very difficult to
+extract without supervision. Also, the knowledge
+extracted is simply a large set of formulas with-
+out ontological structure, and the latter is essential
+for compact representation and efficient reasoning
+(Staab and Studer, 2004).
+We propose OntoUSP (Ontological USP), a sys-
+tem that learns an ISA hierarchy over clusters of
+logical expressions, and populates it by translat-
+ing sentences to logical form. OntoUSP is en-
+coded in a few formulas of higher-order Markov
+logic (Domingos and Lowd, 2009), and can be
+viewed as extending USP with the capability to
+perform hierarchical (as opposed to flat) cluster-
+ing. This clustering is then used to perform hier-
+archical smoothing (a.k.a. shrinkage), greatly in-
+creasing the system’s capability to generalize from
+296
+sparse data.
+We begin by reviewing the necessary back-
+ground. We then present the OntoUSP Markov
+logic network and the inference and learning al-
+gorithms used with it. Finally, experiments on
+a biomedical knowledge acquisition and question
+answering task show that OntoUSP can greatly
+outperform USP and previous systems.
+2 Background
+2.1 Ontology
+Learning
+In general, ontology induction (constructing an
+ontology) and ontology population (mapping tex-
+tual expressions to concepts and relations in the
+ontology) remain difficult open problems (Staab
+and Studer, 2004). Recently, ontology learn-
+ing has attracted increasing interest in both NLP
+and semantic Web communities (Cimiano, 2006;
+Maedche, 2002), and a number of machine learn-
+ing approaches have been developed (e.g., Snow
+et al. (2006), Cimiano (2006), Suchanek et al.(2008,2009), Wu & Weld (2008)). However, they
+are still limited in several aspects. Most ap-
+proaches induce and populate a deterministic on-
+tology, which does not capture the inherent un-
+certainty among the entities and relations. Be-
+sides, many of them either bootstrap from heuris-
+tic patterns (e.g., Hearst patterns (Hearst, 1992))
+or build on existing structured or semi-structured
+knowledge bases (e.g., WordNet (Fellbaum, 1998)
+and Wikipedia1), thus are limited in coverage.
+Moreover, they often focus on inducing ontology
+over individual words rather than arbitrarily large
+meaning units (e.g., idioms, phrasal verbs, etc.).
+Most importantly, existing approaches typically
+separate ontology induction from population and
+knowledge extraction, and pursue each task in a
+standalone fashion. While computationally effi-
+cient, this is suboptimal. The resulted ontology
+is disconnected from text and requires additional
+effort to map between the two (Tsujii, 2004). In
+addition, this fails to leverage the intimate connec-
+tions between the three tasks for joint inference
+and mutual disambiguiation.
+Our approach differs from existing ones in two
+main aspects: we induce a probabilistic ontology
+from text, and we do so by jointly conducting on-
+tology induction, population, and knowledge ex-
+traction. Probabilistic modeling handles uncer-
+tainty and noise. A joint approach propagates in-
+1http : //www.wikipedia.org
+formation among the three tasks, uncovers more
+implicit information from text, and can potentially
+work well even in domains not well covered by
+existing resources like WordNet and Wikipedia.
+Furthermore, we leverage the ontology for hierar-
+chical smoothing and incorporate this smoothing
+into the induction process. This facilitates more
+accurate parameter estimation and better general-
+ization.
+Our approach can also leverage existing on-
+tologies and knowledge bases to conduct semi-
+supervised ontology induction (e.g., by incorpo-
+rating existing structures as hard constraints or pe-
+nalizing deviation from them).
+2.2 Markov
+Logic
+Combining uncertainty handling and joint infer-
+ence is the hallmark of the emerging field of statis-
+tical relational learning (a.k.a. structured predic-
+tion), where a plethora of approaches have been
+developed (Getoor and Taskar, 2007; Bakir et al.,
+2007). In this paper, we use Markov logic (Domin-
+gos and Lowd, 2009), which is the leading unify-
+ing framework, but other approaches can be used
+as well. Markov logic is a probabilistic exten-
+sion of first-order logic and can compactly specify
+probability distributions over complex relational
+domains. It has been successfully applied to un-
+supervised learning for various NLP tasks such
+as coreference resolution (Poon and Domingos,
+2008) and semantic parsing (Poon and Domingos,
+2009). A Markov logic network (MLN) is a set of
+weighted first-order clauses. Together with a set
+of constants, it defines a Markov network with one
+node per ground atom and one feature per ground
+clause. The weight of a feature is the weight of the
+first-order clause that originated it. The probabil-
+ity of a state x in such a network is given by the
+log-linear model P(x) = 1Z exp(summationtexti wini(x)),
+where Z is a normalization constant, wi is the
+weight of the ith formula, and ni is the number
+of satisfied groundings.
+2.3 Unsupervised
+Semantic Parsing
+Semantic parsing aims to obtain a complete canon-
+ical meaning representation for input sentences. It
+can be viewed as a structured prediction problem,
+where a semantic parse is formed by partitioning
+the input sentence (or a syntactic analysis such as
+a dependency tree) into meaning units and assign-
+ing each unit to the logical form representing an
+entity or relation (Figure 1). In effect, a semantic
+297
+

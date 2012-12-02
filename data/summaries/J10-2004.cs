@@ -1,0 +1,20 @@
+(2004)orChiang(2007).Ourbasicsyntax-basedsystemfallsintothissecondcategory,
+J07-2003
+2004; Zhang et al. 2006). Finally, we employ cube pruning (Chiang 2007) for further
+J07-2003
+problemisalsoelegantlyaddressedinMiandHuang(2008)indetail.Theforest-based
+D08-1022
+Mi,HaitaoandLiangHuang.2008.
+D08-1022
+Wu,Dekai.1997.Stochasticinversion
+J97-3002
+Borrowingtermsfromparsingsemirings(Goodman1999),apackedforestiscom-
+J99-4004
+Goodman,Joshua.1999.Semiringparsing.
+J99-4004
+Och,FranzandHermannNey.2004.The
+J04-4002
+includeBrownetal.(1993),Wu(1997),Alshawi,Bangalore,andDouglas(1998),Yamada
+J97-3002
+Chiang,David.2007.Hierarchical
+J07-2003

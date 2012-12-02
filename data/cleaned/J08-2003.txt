@@ -1,0 +1,2328 @@
+TreeKernelsforSemanticRoleLabeling
+AlessandroMoschitti
+∗
+UniversityofTrento
+DanielePighin
+∗∗
+UniversityofTrento
+RobertoBasili
+†
+UniversityofRome“TorVergata”
+Theavailabilityoflargescaledatasetsofmanuallyannotatedpredicate–argumentstruc-
+tureshasrecentlyfavoredtheuseofmachinelearningapproachestothedesignofautomated
+semanticrolelabeling(SRL)systems.Themainresearchinthisarearelatestothedesignchoices
+forfeaturerepresentationandforeffectivedecompositionsofthetaskindifferentlearningmodels.
+Regardingtheformerchoice,structuralpropertiesoffullsyntacticparsesarelargelyemployedas
+theyrepresentwaystoencodedifferentprinciplessuggestedbythelinkingtheorybetweensyntax
+and semantics. The latter choice relates to several learning schemes over global views of the
+parses.Forexample,re-rankingstagesoperatingoveralternativepredicate–argumentsequences
+ofthesamesentencehaveshowntobeveryeffective.
+Inthisarticle,weproposeseveralkernelfunctionstomodelparsetreepropertiesinkernel-
+basedmachines,forexample,perceptronsorsupportvectormachines.Inparticular,wedeﬁne
+differentkindsoftreekernelsasgeneralapproachestofeatureengineeringinSRL.Moreover,we
+extensivelyexperimentwithsuchkernelstoinvestigatetheircontributiontoindividualstages
+of an SRL architecture both in isolation and in combination with other traditional manually
+codedfeatures.Theresultsforboundaryrecognition,classiﬁcation,andre-rankingstagesprovide
+systematicevidenceaboutthesigniﬁcantimpactoftreekernelsontheoverallaccuracy,especially
+whentheamountoftrainingdataissmall.Asaconclusiveresult,treekernelsallowforageneral
+andeasilyportablefeatureengineeringmethodwhichisapplicabletoalargefamilyofnatural
+languageprocessingtasks.
+1.Introduction
+Much attention has recently been devoted to the design of systems for the automatic
+labelingofsemanticroles(SRL)asdeﬁnedintwoimportantprojects:FrameNet(Baker,
+Fillmore, and Lowe 1998), based on frame semantics, and PropBank (Palmer, Gildea,
+∗ DepartmentofInformationEngineeringandComputerScience,ViaSommarive,14I-38050Povo(TN).
+E-mail:moschitti@dit.unitn.it.
+∗∗ FondazioneBrunoKessler,CenterforScientiﬁcandTechnologicalResearch,DepartmentofInformation
+EngineeringandComputerScience,ViaSommarive,18I-38050Povo(TN).E-mail:pighin@itc.it.
+† DepartmentofComputerScience,SystemsandProduction,ViadelPolitecnico,1I-00133RM.
+E-mail:basili@info.uniroma2.it.
+Submissionreceived:15July2006;revisedsubmissionreceived:1May2007;acceptedforpublication:
+19June2007.
+©2008AssociationforComputationalLinguistics
+ComputationalLinguistics Volume34,Number2
+and Kingsbury 2005), inspired by Levin’s verb classes. To annotate natural language
+sentences, such systems generally require (1) the detection of the target word em-
+bodying the predicate and (2) the detection and classiﬁcation of the word sequences
+constitutingthepredicate’sarguments.
+Previous work has shown that these steps can be carried out by applying machine
+learning techniques (Carreras and M`arquez 2004, 2005; Litkowski 2004), for which the
+mostimportantfeaturesencodingpredicate–argumentrelationsarederivedfrom(shal-
+lowordeep)syntacticinformation.Theoutcomeofthisresearchbringswideempirical
+evidence in favor of the linking theories between semantics and syntax, for example,
+Jackendoff (1990). Nevertheless, as no such theory provides a sound and complete
+treatment, the choice and design of syntactic features to represent semantic structures
+requiresremarkableresearcheffortandintuition.
+For example, earlier studies on feature design for semantic role labeling were car-
+riedoutbyGildeaandJurafsky(2002)andThompson,Levy,andManning(2003).Since
+then, researchers have proposed several syntactic feature sets, where the more recent
+setsslightlyenhancedtheolderones.
+A careful analysis of such features reveals that most of them are syntactic tree
+fragments of training sentences, thus a viable way to alleviate the feature design com-
+plexityistheadoptionofsyntactictreekernels(CollinsandDuffy2002).Forexample,in
+Moschitti (2004), the predicate–argument relation is represented by means of the min-
+imal subtree that includes both of them. The similarity between two instances is eval-
+uated by a tree kernel function in terms of common substructures. Such an approach
+is in line with current research on kernels for natural language learning, for example,
+syntactic parsing re-ranking (Collins and Duffy 2002), relation extraction (Zelenko,
+Aone, and Richardella 2003), and named entity recognition (Cumby and Roth 2003;
+CulottaandSorensen2004).
+Furthermore, recent work (Haghighi, Toutanova, and Manning 2005; Punyakanok
+et al. 2005) has shown that, to achieve high labeling accuracy, joint inference should
+be applied on the whole predicate–argument structure. For this purpose, we need to
+extract features from the sentence syntactic parse tree that encodes the relationships
+governing complex semantic structures. This task is rather difﬁcult because we do
+not exactly know which syntactic clues effectively capture the relation between the
+predicateanditsarguments.Forexample,todetecttheinterestingcontext,themodeling
+of syntax-/semantics-based features should take into account linguistic aspects like
+ancestor nodes or semantic dependencies (Toutanova, Markova, and Manning 2004).
+In this scenario, the automatic feature generation/selection carried out by tree kernels
+canprovideusefulinsightsintotheunderlyinglinguisticphenomena.Otheradvantages
+comingfromtheuseoftreekernelsarethefollowing.
+First, we can implement them very quickly as the feature extractor module only
+requiresthewritingofageneralprocedureforsubtreeextraction.Incontrast,traditional
+SRLsystemsusemorethanthirtyfeatures(e.g.,Pradhan,Hacioglu,Krugleretal.2005),
+eachofwhichrequiresthewritingofadedicatedprocedure.
+Second, their combination with traditional attribute–value models produces more
+accurate systems, also when using the same machine learning algorithm in the combi-
+nation,becausethefeaturespacesareverydifferent.
+Third,wecancarryoutfeatureengineeringusingkernelcombinationsandmarking
+strategies (Moschitti et al. 2005a; Moschitti, Pighin, and Basili 2006). This allows us to
+boosttheSRLaccuracyinarelativelysimpleway.
+Next, tree kernels generate large tree fragment sets which constitute back-off
+modelsforimportantsyntacticfeatures.Usingthem,thelearningalgorithmgeneralizes
+194
+Moschitti,Pighin,andBasili TreeKernelsforSemanticRoleLabeling
+better and produces a more accurate classiﬁer, especially when the amount of training
+dataisscarce.
+Finally,oncethelearningalgorithmusingtreekernelshasconverged,wecaniden-
+tify the most important structured features of the generated model. One approach for
+such a reverse engineering process relies on the computation of the explicit feature
+space, at least for the highest-weighted features (Kudo and Matsumoto 2003). Once
+the most relevant fragments are available, they can be used to design novel effective
+attribute–value features (which in turn can be used to design more efﬁcient classiﬁers,
+e.g.,withlinearkernels)andinspirenewlinguistictheories.
+Thesepointssuggestthattreekernelsshouldalwaysbeapplied,atleastforaninitial
+study of the problem. Unfortunately, they suffer from two main limitations: (a) poor
+impact on boundary detection as, in this task, correct and incorrect arguments may
+share a large portion of the encoding trees (Moschitti 2004); and (b) more expensive
+running time and limited contribution to the overall accuracy if compared with manu-
+allyderivedfeatures(CumbyandRoth2003).Point(a)hasbeenaddressedbyMoschitti,
+Pighin,andBasili(2006)byshowingthatastrategyofmarkingrelevantparse-treenodes
+makes correct and incorrect subtrees for boundary detection quite different. Point (b)
+can be tackled by studying approaches to kernel engineering that allow for the design
+ofefﬁcientandeffectivekernels.
+In this article, we provide a comprehensive study of the use of tree kernels for se-
+manticrolelabeling.Forthispurpose,wedeﬁnetreekernelsbasedonthecomposition
+oftwodifferentfeaturefunctions:canonicalmappings,whichmapsentence-parsetrees
+in tree structures encoding semantic information, and feature extraction functions,
+which encode these trees in the actual feature space. The latter functions explode the
+canonicaltreesintoalltheirsubstructuresand,intheliterature,areusuallyreferredtoas
+treekernels.Forinstance,inCollinsandDuffy(2002),VishwanathanandSmola(2002),
+andMoschitti(2006a)differenttreekernelsextractdifferenttypesoftreefragments.
+Given the heuristic nature of canonical mappings, we studied their properties
+by experimenting with them within support vector machines and with the data set
+provided by CoNLL shared tasks (Carreras and M`arquez 2005). The results show that
+carefully engineered tree kernels always boost the accuracy of the basic systems. Most
+importantly, in complex tasks such as the re-ranking of semantic role annotations, they
+provideaneasywaytoengineernewfeatureswhichenhancethestate-of-the-artinSRL.
+In the remainder of this article, Section 2 presents traditional architectures for SRL
+and the typical features proposed in literature. Tree kernels are formally introduced
+in Section 3, and Section 4 describes our modular architecture employing support
+vectormachinesalongwithmanuallydesignedfeatures,treekernels(featureextraction
+functions),andtheircombinations.Section5presentsourstructuredfeatures(canonical
+mappings) inducing different kernels that we used for different SRL subtasks. The
+extensiveexperimentalresultsobtainedontheboundaryrecognition,roleclassiﬁcation,
+and re-ranking stages are presented in Section 6. Finally, Section 7 summarizes the
+conclusions.
+2.AutomaticShallowSemanticParsing
+The recognition of semantic structures within a sentence relies on lexical and syntactic
+informationprovidedbyearlystagesofanNLPprocess,suchaslexicalanalysis,part-of-
+speech tagging, and syntactic parsing. The complexity of the SRL task mostly depends
+on two aspects: (a) the information is generally noisy, that is, in a real-world scenario
+theaccuracy and reliability of NLPsubsystems are generally not very high; and (b) the
+195
+ComputationalLinguistics Volume34,Number2
+lack of a sound and complete linguistic or cognitive theory about the links between
+syntax and semantics does not allow an informed, deductive approach to the problem.
+Nevertheless,thelargeamountofavailablelexicalandsyntacticinformationfavorsthe
+application of inductive approaches to the SRL task, which indeed is generally treated
+asacombinationofstatisticalclassiﬁcationproblems.
+The next sections deﬁne the SRL task more precisely and summarize the most
+relevantworkcarriedouttoaddressthesetwoproblems.
+2.1ProblemDeﬁnition
+The most well-known shallow semantic theories are studied in two different projects:
+PropBank (Palmer, Gildea, and Kingsbury 2005) and FrameNet (Baker, Fillmore, and
+Lowe 1998). The former is based on a linguistic model inspired by Levin’s verb classes
+(Levin 1993), focusing on the argument structure of verbs and on the alternation pat-
+terns that describe movements of verbal arguments within a predicate structure. The
+latter refers to the application of frame semantics (Fillmore 1968) in the annotation of
+predicate–argumentstructuresbasedonframeelements(semanticroles).Thesetheories
+have been investigated in two CoNLL shared tasks (Carreras and M`arquez 2004, 2005)
+andaSenseval-3evaluation(Litkowski2004),respectively.
+Givenasentenceandapredicateword,anSRLsystemoutputsanannotationofthe
+sentenceinwhichthesequencesofwordsthatmakeuptheargumentsofthepredicate
+areproperlylabeled,forexample:
+[
+Arg0
+He]got[
+Arg1
+hismoney][
+C-V
+back]
+1
+in response to the input He got his money back. This processing requires that: (1) the
+predicates within the sentence are identiﬁed and (2) the word sequences that span the
+boundariesofeachpredicateargumentaredelimitedandassignedtheproperrolelabel.
+Theﬁrstsub-taskcanbeperformedeitherusingstatisticalmethodsorhand-crafted
+lexical and syntactic rules. In the case of verbal predicates, it is quite easy to write
+simple rules matching regular expressions built on POStags. The second task is more
+complexandisgenerallyviewedasacombinationofstatisticalclassiﬁcationproblems:
+The learning algorithms are trained to recognize the extension of predicate arguments
+andthesemanticroletheyplay.
+2.2ModelsforSemanticRoleLabeling
+An SRL model and the resulting architecture are largely inﬂuenced by the kind of data
+available for the task. As an example, a model relying on a shallow syntactic parser
+would assign roles to chunks, whereas with a full syntactic parse of the sentence it
+wouldbestraightforwardtoestablishacorrespondencebetweennodesoftheparsetree
+and semantic roles. We focused on the latter as it has been shown to be more accurate
+bytheCoNLL2005sharedtaskresults.
+According to the deep syntactic formulation, the classifying instances are pairs
+of parse-tree nodes which dominate the exact span of the predicate and the target
+argument.Suchpairsareusuallyrepresentedintermsofattribute–valuevectors,where
+1 InPropBanknotation,Arg0andArg1representthelogicalsubjectandthelogicalobjectofthetarget
+verbalpredicate,respectively.C-Vrepresentstheparticleofaphrasal-verbpredicate.
+196
+Moschitti,Pighin,andBasili TreeKernelsforSemanticRoleLabeling
+theattributesdescribepropertiesofpredicates,arguments,andthewaytheyarerelated.
+There is large agreement on an effective set of linguistic features (Gildea and Jurafsky
+2002; Pradhan, Hacioglu, Krugler, et al. 2005) that have been employed in the vast
+majorityofSRLsystems.ThemostrelevantfeaturesaresummarizedinTable1.
+Once the representation for the predicate–argument pairs is available, a multi-
+classiﬁer is used to recognize the correct node pairs, namely, nodes associated with
+correctarguments(givenapredicate),andassignthemalabel(whichisthelabelofthe
+argument). This can be achieved by training a multi-classiﬁer on n+1 classes, where
+the ﬁrst n classes correspond to the different roles and the (n+1)
+th
+is a NARG (non-
+argument)classtowhichnon-argumentnodesareassigned.
+A more efﬁcient solution consists in dividing the labeling process into two steps:
+boundarydetectionandargumentclassiﬁcation.ABoundaryClassiﬁer(BC)isabinary
+classiﬁer that recognizes the tree nodes that exactly cover a predicate argument, that
+is, that dominate all and only the words that belong to target arguments. Then, such
+nodes are classiﬁed by a Role Multi-classiﬁer (RM) that assigns to each example the
+most appropriate label. This two-step approach (Gildea and Jurafsky 2002) has the
+advantage of only applying BC on all parse-tree nodes. RM can ignore non-boundary
+nodes, resulting in a much faster classiﬁcation. Other approaches have extended this
+solution and suggested other multi-stage classiﬁcation models (e.g., Moschitti et al.2005binwhichafour-stephierarchicalSRLarchitectureisdescribed).
+After node labeling has been carried out, it is possible that the output of the argu-
+ment classiﬁer does not result in a consistent annotation, as the labeling scheme may
+notbecompatiblewiththeunderlyinglinguisticmodel.Asanexample,PropBank-style
+annotations do not allow arguments to be nested. This happens when two or more
+Table1
+StandardlinguisticfeaturesemployedbymostSRLsystems.
+FeatureName Description
+Predicate Lemmatizationofthepredicateword
+Path Syntacticpathlinkingthepredicateandanargument,
+e.g.,NN↑NP↑VP↓VBX
+Partialpath Pathfeaturelimitedtothebranchingoftheargument
+No-directionpath LikePath,butwithouttraversaldirections
+Phrasetype Syntactictypeoftheargumentnode
+Position Relativepositionoftheargumentwithrespecttothepredicate
+Voice Voiceofthepredicate,i.e.,activeorpassive
+Headword Syntacticheadoftheargumentphrase
+Verbsubcategorization Productionruleexpandingthepredicateparentnode
+Namedentities Classesofnamedentitiesthatappearintheargumentnode
+HeadwordPOSPOStagoftheargumentnodeheadword(lesssparsethan
+Headword)
+Verbclustering Typeofverb→directobjectrelation
+GoverningCategory Whetherthecandidateargumentistheverbsubjectorobject
+SyntacticFrame PositionoftheNPssurroundingthepredicate
+Verbsense Senseinformationforpolysemousverbs
+HeadwordofPP EnrichedPOSofprepositionalargumentnodes(e.g.,PP-for,PP-in)
+Firstandlastword/POSFirstandlastwordsandPOStagsofcandidateargumentphrases
+Ordinalposition Absoluteoffsetofacandidateargumentwithinaproposition
+Constituenttreedistance Distancefromthepredicatewithrespecttotheparsetree
+Constituentfeatures Descriptionoftheconstituentssurroundingtheargumentnode
+TemporalCueWords Temporalmarkerswhichareverydistinctiveofsomeroles
+197
+ComputationalLinguistics Volume34,Number2
+overlapping tree nodes, namely, one dominating the other, are classiﬁed as positive
+boundaries.
+The simplest solution relies on the application of heuristics that take into account
+the whole predicate–argument structure to remove the incorrect labels (e.g., Moschitti
+etal.2005a;TjongKimSangetal.2005).Amuchmorecomplexsolutionconsistsinthe
+application of some joint inference model to the whole predicate–argument structure,
+as in Pradhan et al. (2004). As an example, Haghighi, Toutanova, and Manning (2005)
+associateaposteriorprobabilitywitheachargumentnoderoleassignment,estimatethe
+likelihood of the alternative labeling schemes, and employ a re-ranking mechanism to
+selectthebestannotation.
+Additionally, the most accurate systems participating in CoNLL 2005 shared task
+(Pradhan, Hacioglu, Ward et al. 2005; Punyakanok et al. 2005) use different syntactic
+viewsofthesameinputsentence.ThisallowstheSRLsystemtorecoverfromsyntactic
+parser errors; for example, a prepositional phrase specifying the direct object of the
+predicate would be attached to the verb instead of the argument. This kind of error
+prevents some arguments of the proposition from being recognized, as: (1) there may
+not be a node of the parse tree dominating (all and only) the words of the correct se-
+quence;(2)abadlyattachedtreenodemayinvalidateotherargumentnodes,generating
+unexpectedoverlappingsituations.
+The manual design of features which capture important properties of complete
+predicate–argument structures (also coming from different syntactic views) is quite
+complex. Tree kernels are a valid alternative to manual design as the next section
+pointsout.
+3.TreeKernels
+Tree kernels have been applied to reduce the feature design effort in the context of
+several natural language tasks, for example, syntactic parsing re-ranking (Collins and
+Duffy 2002), relation extraction (Zelenko, Aone, and Richardella 2003), named entity
+recognition (Cumby and Roth 2003; Culotta and Sorensen 2004), and semantic role
+labeling(Moschitti2004).
+Ontheonehand,thesestudiesshowthatthekernelabilitytogeneratelargefeature
+sets is useful to quickly model new and not well understood linguistic phenomena
+in learning machines. On the other hand, they show that sometimes it is possible to
+manually design features for linear kernels that produce higher accuracy and faster
+computation time. One of the most important causes of such mixed behavior is the
+inappropriate choice of kernel functions. For example, in Moschitti, Pighin, and Basili
+(2006)andMoschitti(2006a),severalkernelshavebeendesignedandshowntoproduce
+differentimpactsonthetrainingalgorithms.
+In the next sections, we brieﬂy introduce the kernel trick and describe the subtree
+(ST) kernel devised in Vishwanathan and Smola (2002), the subset tree (SST) kernel
+deﬁned in Collins and Duffy (2002), and the partial tree (PT) kernel proposed in
+Moschitti(2006a).
+3.1KernelTrick
+The main concept underlying machine learning for classiﬁcation tasks is the automatic
+learning of classiﬁcation functions based on examples labeled with the class informa-
+tion. Such examples can be described by means of feature vectors in anndimensional
+198
+Moschitti,Pighin,andBasili TreeKernelsforSemanticRoleLabeling
+space over the real numbers, namely, Rfractur
+n
+. The learning algorithm uses space metrics
+over vectors, for example, the scalar product, to learn an abstract representation of all
+instancesbelongingtothetargetclass.
+For example, support vector machines (SVMs) are linear classiﬁers which learn a
+hyperplane f(vectorx)= vectorw×vectorx+b=0, separating positive from negative examples. vectorx is the
+feature vector representation of a classifying object o, whereas vectorw∈Rfractur
+n
+and b∈Rfracturare
+parameters learned from the data by applying theStructuralRiskMinimizationprinciple
+(Vapnik 1998). The objectois mapped to vectorxvia a feature function φ : O →Rfractur
+n, O being
+the set of the objects that we want to classify.ois categorized in the target class only if
+f(vectorx) ≥ 0.
+Thekerneltrickallowsustorewritethedecisionhyperplaneas:
+f(vectorx)=
+parenleftBig
+summationdisplay
+i=1..l
+y
+i
+α
+i
+vectorx
+i
+parenrightBig
+·vectorx+b=
+summationdisplay
+i=1..l
+y
+i
+α
+i
+vectorx
+i
+·vectorx+b=
+summationdisplay
+i=1..l
+y
+i
+α
+i
+φ(o
+i
+)·φ(o)+b=0
+wherey
+i
+is equal to 1 for positive examples and −1 for negative examples, α
+i
+∈Rfracturwith
+α
+i
+≥ 0,o
+i
+∀i∈{1,..,l}arethetraininginstancesandtheproductK(o
+i,o)=〈φ(o
+i
+)·φ(o)〉
+isthekernelfunctionassociatedwiththemapping φ.
+Note that we do not need to apply the mapping φ; we can use K(o
+i,o)directly.
+Thisallowsus,underMercer’sconditions(Shawe-TaylorandCristianini2004),todeﬁne
+abstract kernel functions which generate implicit feature spaces. A traditional example
+isgivenbythepolynomialkernel:K
+p
+(o
+1,o
+2
+)= (c+vectorx
+1
+·vectorx
+2
+)
+d,wherecisaconstantandd
+is the degree of the polynomial. This kernel generates the space of all conjunctions of
+featuregroupsuptodelements.
+Additionally,wecancarryouttwointerestingoperations:
+a114
+kernelcombinations,forexample,K
+1
++K
+2
+orK
+1
+×K
+2
+a114
+featuremappingcompositions,forexample,
+K(o
+1,o
+2
+)=〈φ(o
+1
+)·φ(o
+2
+)〉=〈φ
+B
+(φ
+A
+(o
+1
+))·φ
+B
+(φ
+A
+(o
+2
+))〉
+Kernelcombinationsareveryusefulforintegratingtheknowledgeprovidedbythe
+manually deﬁned features with the knowledge automatically obtained with structural
+kernels; feature mapping compositions are useful methods to describe diverse kernel
+classes(seeSection5).Inthisperspective,weproposetosplitthemappingφbydeﬁning
+ourtreekernelasfollows:
+a114
+CanonicalMapping, φ
+M
+(),inwhichalinguisticobject(e.g.,asyntactic
+parsetree)istransformedintoamoremeaningfulstructure(e.g.,the
+subtreecorrespondingtoaverbsubcategorizationframe).
+a114
+FeatureExtraction, φ
+S
+(),whichmapsthecanonicalstructureinallits
+fragmentsaccordingtodifferentfragmentspacesS(e.g.,ST,SST,andPT).
+For example, given the kernel K
+ST
+= φ
+ST
+(o
+1
+)·φ
+ST
+(o
+2
+), we can apply a canonical
+mapping φ
+M
+(), obtaining K
+M
+ST
+= φ
+ST
+(φ
+M
+(o
+1
+))·φ
+ST
+(φ
+M
+(o
+2
+))=
+parenleftbig
+φ
+ST
+◦φ
+M
+parenrightbig
+(o
+1
+)·
+parenleftbig
+φ
+ST
+◦
+φ
+M
+parenrightbig
+(o
+2
+), which is a noticeably different kernel, which is induced by the mapping
+parenleftbig
+φ
+ST
+◦φ
+M
+parenrightbig
+.
+199
+ComputationalLinguistics Volume34,Number2
+In the remainder of this section we start the description of our engineered kernels
+by deﬁning three different feature extraction mappings based on three different kernel
+spaces(i.e.,ST,SST,andPT).
+3.2TreeKernelSpaces
+Thekernelsthatweconsiderrepresenttreesintermsoftheirsubstructures(fragments).
+The kernel function detects if a tree subpart (common to both trees) belongs to the fea-
+turespacethatweintendtogenerate.Forthispurpose,thedesiredfragmentsneedtobe
+described. We consider three main characterizations: the subtrees (STs) (Vishwanathan
+andSmola2002),thesubsettrees(SSTs)orallsubtrees(CollinsandDuffy2002),andthe
+partialtrees(PTs)(Moschitti2006a).
+As we consider syntactic parse trees, each node with its children is associated with
+a grammar production rule, where the symbol on the left-hand side corresponds to the
+parent and the symbols on the right-hand side are associated with the children. The
+terminalsymbolsofthegrammararealwaysassociatedwithtreeleaves.
+A subtree (ST) is deﬁned as a tree rooted in any non-terminal node along with
+all its descendants. For example, Figure 1a shows the parse tree of the sentence Mary
+broughtacat together with its six STs. A subset tree (SST) is a more general structure
+because its leaves can be non-terminal symbols. For example, Figure 1(b) shows ten
+SSTs (out of 17) of the subtree in Figure 1a rooted in VP. SSTs satisfy the constraint that
+grammatical rules cannot be broken. For example, [VP [V NP]] is an SST which has
+two non-terminal symbols, V and NP, as leaves. On the contrary, [VP [V]] is not an
+SSTasitviolatestheproductionVP→VNP.IfwerelaxtheconstraintovertheSSTs,we
+obtainamoregeneralformofsubstructuresthatwecallpartialtrees(PTs).Thesecanbe
+generated by the application of partial production rules of the grammar; consequently
+[VP [V]]and[VP [NP]]arevalidPTs.ItisworthnotingthatPTsconsidertheposition
+of the children as, for example, [A [B][C][D]] and [A [D][C][B]] only share single
+children,i.e.,[A [B]],[A [C]],and[A [D]].
+Figure1cshowsthatthenumberofPTsderivedfromthesametreeasbeforeisstill
+higher (i.e., 30 PTs). These numbers provide an intuitive quantiﬁcation of the different
+degreesofinformationencodedbyeachrepresentation.
+Figure1
+Exampleof(a)ST,(b)SST,and(c)PTfragments.
+200
+Moschitti,Pighin,andBasili TreeKernelsforSemanticRoleLabeling
+3.3FeatureExtractionFunctions
+The main idea underlying tree kernels is to compute the number of common substruc-
+tures between two trees T
+1
+and T
+2
+without explicitly considering the whole fragment
+space. In the following, we report on the Subset Tree (SST) kernel proposed in Collins
+and Duffy (2002). The algorithms to efﬁciently compute it along with the ST and PT
+kernelscanbefoundinMoschitti(2006a).
+GiventwotreesT
+1
+andT
+2,let{f
+1,f
+2,..}=F bethesetofsubstructures(fragments)
+andI
+i
+(n)beequalto1iff
+i
+isrootedatnoden,0otherwise.CollinsandDuffy’skernelis
+deﬁnedas
+K(T
+1,T
+2
+)=
+summationdisplay
+n
+1
+∈N
+T
+1
+summationdisplay
+n
+2
+∈N
+T
+2
+∆(n
+1,n
+2
+)(1)
+where N
+T
+1
+and N
+T
+2
+are the sets of nodes in T
+1
+and T
+2, respectively, and ∆(n
+1,n
+2
+)=
+summationtext
+|F|
+i=1
+I
+i
+(n
+1
+)I
+i
+(n
+2
+).Thelatterisequaltothenumberofcommonfragmentsrootedinnodes
+n
+1
+andn
+2
+.∆canbecomputedasfollows:
+1. Iftheproductions(i.e.thenodeswiththeirdirectchildren)atn
+1
+andn
+2
+aredifferent,then∆(n
+1,n
+2
+)=0.
+2. Iftheproductionsatn
+1
+andn
+2
+arethesame,andn
+1
+andn
+2
+onlyhave
+leafchildren(i.e.,theyarepre-terminalsymbols),then∆(n
+1,n
+2
+)=1.
+3. Iftheproductionsatn
+1
+andn
+2
+arethesame,andn
+1
+andn
+2
+are
+notpre-terminals,then∆(n
+1,n
+2
+)=
+producttext
+nc(n
+1
+)
+j=1
+(1+∆(c
+j
+n
+1,c
+j
+n
+2
+)),where
+nc(n
+1
+)isthenumberofchildrenofn
+1
+andc
+j
+n
+isthej-thchildofn.
+Such tree kernels can be normalized and a λ factor can be added to reduce the
+weightoflargestructures(refertoCollinsandDuffy[2002]foracompletedescription).
+3.4RelatedWork
+Although the literature on SRL is extensive, there is almost no study of the use of tree
+kernelsforitssolution.Consequently,thereportedresearch ismainlybasedondiverse
+naturallanguagelearningproblemstackledbymeansoftreekernels.
+InCollinsandDuffy(2002),theSSTkernelwasexperimentedwithusingthevoted
+perceptron for the parse tree re-ranking task. A combination with the original PCFG
+model improved the syntactic parsing. Another interesting kernel for re-ranking was
+deﬁnedinToutanova,Markova,andManning(2004).Thisrepresentsparsetreesaslists
+ofpaths(leafprojectionpaths)fromleavestothetoplevelofthetree.Itisworthnoting
+thatthePTkernelincludestreefragmentsidenticaltosuchpaths.
+InKazamaandTorisawa(2005),aninterestingalgorithmthatspeedsuptheaverage
+running time is presented. This algorithm looks for node pairs in which the rooted
+subtrees share many substructures (malicious nodes) and applies a transformation to
+the trees rooted in such nodes to make the kernel computation faster. The results show
+aseveral-hundred-foldspeedincreasewithrespecttothebasicimplementation.
+201
+ComputationalLinguistics Volume34,Number2
+In Zelenko, Aone, and Richardella (2003), two kernels over syntactic shallow
+parser structures were devised for the extraction of linguistic relations, for example,
+person-afﬁliation. To measure the similarity between two nodes, the contiguous string
+kernelandthesparsestringkernelwereused.InCulottaandSorensen(2004)suchkernels
+were slightly generalized by providing a matching function for the node pairs. The
+time complexity for their computation limited the experiments to a data set of just
+200newsitems.
+In Shen, Sarkar, and Joshi (2003), a tree kernel based on lexicalized tree adjoining
+grammar (LTAG) for the parse re-ranking task was proposed. The subtrees induced by
+thiskernelarebuiltusingthesetofelementarytreesasdeﬁnedbyLTAG.
+InCumbyandRoth(2003),afeaturedescriptionlanguagewasusedtoextractstruc-
+tured features from the syntactic shallow parse trees associated with named entities.
+Their experiments on named entity categorization showed that when the description
+language selects an adequate set of tree fragments the voted perceptron algorithm
+increasesitsclassiﬁcationaccuracy.Theexplanationwasthatthecompletetreefragment
+setcontainsmanyirrelevantfeaturesandmaycauseoverﬁtting.
+In Zhang, Zhang, and Su (2006), convolution tree kernels for relation extraction
+were applied in a way similar to the one proposed in Moschitti (2004). The combina-
+tion of standard features along with several tree subparts, tailored according to their
+importanceforthetask,producedagainanimprovementonthestateoftheart.
+Such previous work, as well as that described previously, show that tree kernels
+can efﬁciently represent syntactic objects, for example, constituent parse trees, in huge
+feature spaces. The next section describes our SRL system adopting tree kernels within
+SVMs.
+4.AState-of-the-ArtArchitectureforSemanticRoleLabeling
+AmeaningfulstudyoftreekernelsforSRLcannotbecarriedoutwithoutacomparison
+with a state-of-the-art architecture: Kernel models that improve average performing
+systems are just a technical exercise whose ﬁndings would have a reduced value. A
+state-of-the-art architecture, instead, can be used as a basic system upon which tree
+kernelsshouldimprove.Becausekernelfunctionsingeneralintroduceasensibleslow-
+down with respect to the linear approach, we also have to consider efﬁciency issues.
+TheseaimsdroveusinchoosingthefollowingcomponentsforourSRLsystem:
+a114
+SVMsasourlearningalgorithm;theseprovidebothastate-of-the-art
+learningmodel(intermsofaccuracy)andthepossibilityofusing
+kernelfunctions
+a114
+atwo-stagerolelabelingmoduletoimprovelearningandclassiﬁcation
+efﬁciency;thiscomprises:
+– afeatureextractorthatcanrepresentcandidateargumentsusing
+bothlinearandstructuredfeatures
+– aboundaryclassiﬁer(BC)
+– arolemulti-classiﬁer(RM),whichisobtainedbyapplyingtheOVA
+(Onevs.All)approach
+a114
+aconﬂictresolutionmodule,thatis,asoftwarecomponentthatresolves
+inconsistenciesintheannotationsusingeitherarule-basedapproach
+oratreekernelclassiﬁer;thelatterallowsexperimentationwith
+202
+Moschitti,Pighin,andBasili TreeKernelsforSemanticRoleLabeling
+theclassiﬁcationofcompletepredicate–argumentannotationsincorrect
+andincorrectstructures
+a114
+ajointinferencere-rankingmodule,whichemploysacombinationof
+standardfeaturesandtreekernelstorankalternativecandidatelabeling
+schemesforaproposition;thismodule,asshowninGildeaandJurafsky
+(2002),Pradhanet al.(2004),andHaghighi,Toutanova,andManning
+(2005),ismandatoryinordertoachievestate-of-the-artaccuracy
+We point out that we did not use any heuristic to ﬁlter out the nodes which are
+likelytobeincorrectboundaries,forexample,asdoneinXueandPalmer(2004).Onthe
+onehand,thismakesthelearningandclassiﬁcationphasesmorecomplexbecausethey
+involve more instances. On the other hand, our results are not biased by the quality of
+theheuristics,leadingtomoremeaningfulﬁndings.
+In the remainder of this section, we describe the main functional modules of our
+architecture for SRL and introduce some basic concepts about the use of structured
+features for SRL. Speciﬁc feature engineering for the above SRL subtasks is described
+anddiscussedinSection5.
+4.1ABasicTwo-StageRoleLabelingSystem
+Given a sentence in natural language, our SRL system identiﬁes all the verb predicates
+and their respective arguments. We divide this step into three subtasks: (a) predicate
+detection, which can be carried out by simple heuristics based on part-of-speech infor-
+mation,(b)thedetectionofpredicate–argumentboundaries(i.e.,thespanoftheirwords
+in the sentence), and (c) the classiﬁcation of the argument type (e.g.,Arg0orArgMin
+PropBank).
+The standard approach to learning both the detection and the classiﬁcation of
+predicateargumentsissummarizedbythefollowingsteps:
+1. Givenasentencefromthetrainingset,generateafullsyntacticparsetree;
+2. letP andAbethesetofpredicatesandthesetofparse-treenodes(i.e.,the
+potentialarguments),respectively;
+3. foreachpair〈p,a〉∈P ×A:
+a114
+extractthefeaturerepresentation, φ(p,a),(e.g.,attribute–valuesor
+treefragments[seeSection3.1]);
+a114
+iftheleavesofthesubtreerootedinacorrespondtoalland
+onlythewordsofoneargumentofp(i.e.,aexactlycoversan
+argument),add φ(p,a)inE
++
+(positiveexamples),otherwise
+additinE
+−
+(negativeexamples).
+Forinstance,giventheexampleinFigure2(a),wewouldconsiderallthepairs〈p,a〉
+wherepis the node associated with the predicatetookandais any other tree node not
+overlapping with p. If the node a exactly covers the word sequences John or thebook,
+thenφ(p,a)isaddedtothesetE
++,otherwiseitisaddedtoE
+−,asinthecaseofthenode
+(NNbook).
+The E
++
+and E
+−
+sets are used to train the boundary classiﬁer. To train the role
+multiclassiﬁer,theelementsofE
++
+canbereorganizedaspositiveE
++
+arg
+i
+andnegativeE
+−
+arg
+i
+examples for each role type i. In this way, a binary OVA classiﬁer for each argument
+203
+ComputationalLinguistics Volume34,Number2
+Figure2
+Positive(framed)andnegative(unframed)examplesofcandidateargumentnodesforthe
+propositions(a)[
+Arg0
+John] took [
+Arg1
+thebook]andreaditstitleand(b)[
+Arg0
+John]tookthe
+bookandread [
+Arg1
+itstitle].
+ican be trained. We adopted this solution following Pradhan, Hacioglu, Krugler et al.(2005) because it is simple and effective. In the classiﬁcation phase, given an unseen
+sentence,allthepairs〈p,a〉aregeneratedandclassiﬁedbyeachindividualroleclassiﬁer
+C
+i
+.TheargumentlabelassociatedwiththemaximumamongthescoresprovidedbyC
+i
+iseventuallyselected.
+The feature extraction function φ can be implemented according to different lin-
+guistic theories and intuitions. From a technical point of view, we can use φ to map
+〈p,a〉 in feature vectors or in structures to be used in a tree kernel function. The next
+sectiondescribesourchoicesinmoredetail.
+4.2LinearandStructuredRepresentation
+Our feature extractor module and our learning algorithms are designed to cope with
+bothlinearandstructuredfeatures,usedforthedifferentstagesoftheSRLprocess.
+ThestandardfeaturesthatweadoptedareshowninTable1.Theyinclude:
+a114
+thePhraseType,PredicateWord,HeadWord,GoverningCategory,Position,
+andVoice deﬁnedinGildeaandJurafsky(2002);
+a114
+thePartialPath,NoDirectionPath,ConstituentTreeDistance,HeadWord
+POS,FirstandLastWord/POS,VerbSubcategorization,andHeadWordofthe
+NounPhraseinthePrepositionalPhraseproposedinPradhan,Hacioglu,
+Krugleretal.(2005);and
+a114
+theSyntacticFramedeﬁnedinXueandPalmer(2004).
+We indicate with structured features the basic syntactic structures extracted from
+thesentence-parsetreeortheircanonicaltransformation(seeSection3.1).Inparticular,
+we focus on the minimal spanning tree that includes the predicate along with all of its
+arguments.
+More formally, given a parse tree t,anode set spanning tree (NST) over a set of
+nodesN
+t
+={n
+1,...,n
+k
+}isapartialtreeoftthat(1)isrootedatthedeepestleveland(2)
+containsallandonlythenodesn
+i
+∈N
+t,alongwiththeirancestorsanddescendants.An
+NSTcanbebuiltasfollows.ForanychoiceofN
+t,wecallrthelowestcommonancestor
+204
+Moschitti,Pighin,andBasili TreeKernelsforSemanticRoleLabeling
+Figure3
+(a)Asentenceparsetree,thecorrectAST
+n
+sassociatedwithtwodifferentpredicates(b,c),and(d)
+acorrectAST
+1
+relative to the argument Arg1itstitleofthepredicateread.
+ofn
+1,...,n
+k
+. Then, from the set of all the descendants ofr, we remove all the nodesn
+j
+that: (1) do not belong toN
+t
+and (2) are neither ancestors nor descendants of any node
+belongingtoN
+t
+.
+Becausepredicateargumentsareassociatedwithtreenodes,wecandeﬁnethepred-
+icateargumentspanningtree(AST
+n
+)ofapredicateargumentnodesetA
+p
+={a
+1,...,a
+n
+}
+as the NST over these nodes and the predicate node, that is, the node exactly covering
+the predicate p.
+2
+An AST
+n
+corresponds to the minimal parse subtree whose leaves are
+all and only the word sequences belonging to the arguments and the predicate. For
+example, Figure 3a shows the parse tree of the sentence: Johntookthebookandreadits
+title.took
+{ARG
+0,ARG
+1
+}
+andread
+{ARG
+0,ARG
+1
+}
+aretwoAST
+n
+structuresassociatedwiththetwo
+predicatestookandread,respectively,andareshowninFigure3band3c.
+Foreachpredicate,onlyoneNSTisavalidAST
+n
+.CarefulmanipulationsofanAST
+n
+can be employed for those tasks that require a representation of the whole predicate–
+argumentstructure,forexample,overlapresolutionorpropositionre-ranking.
+It is worth noting that thepredicate–argumentfeature, or PAF in Moschitti (2004),
+is a canonical transformation of the AST
+n
+in the subtree including the predicatepand
+only one of its arguments. For the sake of uniform notation, PAF will be referred to as
+AST
+1
+(argumentspanningtree),thesubscript1stressingthefactthatthestructureonly
+encompasses one of the predicate arguments. An example AST
+1
+is shown in Figure 3d.
+ManipulationsofanAST
+1
+structurecanleadtointerestingtreekernelsforlocallearning
+tasks,suchasboundarydetectionandargumentclassiﬁcation.
+Regardless of the adopted feature space, our multiclassiﬁcation approach suffers
+from the problem of selecting both boundaries and argument roles independently of
+the whole structures. Thus, it is possible that (a) two labeled nodes refer to the same
+arguments (node overlaps) and (b) invalid role sequences are generated (e.g., Arg0,
+Arg0,Arg0,...).Next,wedescribeourapproachtosolvingsuchproblems.
+4.3ConﬂictResolution
+We call a conﬂict,orambiguity,oroverlap resolution a stage of the SRL process
+whichresolvesannotationconﬂictsthatinvalidatetheunderlyinglinguisticmodel.This
+2TheAST
+n
+ofapredicatepanditsargumentnodes{a
+1,...,a
+n
+},willalsobereferredtoasp
+{a
+1,...,a
+n
+}
+.
+205
+ComputationalLinguistics Volume34,Number2
+happens, for example, when both a node and one of its descendants are classiﬁed as
+positive boundaries, namely, they received a role label. We say that such nodes are
+overlapping as their leaf (i.e., word) sequences overlap. Because this situation is not
+allowed by the PropBank annotation deﬁnition, we need a method to select the most
+appropriate word sequence. Our system architecture can employ one of three different
+disambiguationstrategies:
+a114
+abasicsolutionwhich,giventwooverlappingnodes,randomlyselects
+onetoberemoved;
+a114
+thefollowingheuristics:
+1. Thenodecausingthemajornumberofoverlapsisremoved,for
+example,anodewhichdominatestwonodeslabeledasarguments
+2. Corearguments(i.e.,argumentsassociatedwiththe
+subcategorizationframeofthetargetverb)arealwayspreferred
+overadjuncts(i.e.,argumentsthatarenotspeciﬁctoverbsor
+verbsenses)
+3. Incasethetwopreviousrulesdonoteliminateallconﬂicts,the
+nodeslocateddeeperinthetreearediscarded;and
+a114
+atreekernel–basedoverlapresolutionstrategyconsistingofanSVM
+trainedtorecognizenon-clashingconﬁgurationsthatoftencorrespond
+tocorrectpropositions.
+Thelatterapproachconsistsof:(1)asoftwaremodulethatgeneratesallthepossiblenon-
+overlapping conﬁgurations of nodes. These are built using the output of the local node
+classiﬁers by generating all the permutations of argument nodes of a predicate and re-
+movingtheconﬁgurationsthatcontainatleastoneoverlap;(2)anSVMtrainedonsuch
+non-overlapping conﬁgurations, where the positive examples are correct predicate–
+argument structures (although eventually not complete) and negative ones are not. At
+testing time, we classify all the alternative non-clashing conﬁgurations. In case more
+than one structure is selected as correct, we choose the one associated with the highest
+SVMscore.
+ThesedisambiguationmodulescanbeinvokedaftereithertheBCortheRMclassiﬁ-
+cation.Thedifferentinformationavailableaftereachphasecanbeusedtodesigndiffer-
+entkindsoffeatures.Forexample,theknowledgeofthecandidateroleofanargument
+node can be a key issue in the design of effective conﬂict resolution methodologies, for
+example, by eliminating ArgX,ArgX,ArgX, ... sequences. These different approaches
+arediscussedinSection5.2.
+The next section describes a more advanced approach that can eliminate overlaps
+and choose the most correct annotation for a proposition among a set of alternative
+labelingschemes.
+4.4AJointModelforRe-Ranking
+The heuristics considered in the previous sections only act when a conﬂict is detected.
+In a real situation, many incorrect annotations are generated with no overlaps. To deal
+with such cases, we need a re-ranking module based on a joint BC and RM model as
+suggested in Haghighi, Toutanova, and Manning (2005). Such a model is based on (1)
+206
+Moschitti,Pighin,andBasili TreeKernelsforSemanticRoleLabeling
+analgorithmtoevaluatethemostlikelylabelingschemesforagivenpredicate,and(2)
+are-rankerthatsortsthelabelingschemesaccordingtotheircorrectness.
+Step 1 uses the probabilities associated with each possible annotation of parse tree
+nodes, hence requiring a probabilistic output from BC and RM. As the SVM learning
+algorithm produces metric values, we applied Platt’s algorithm (Platt 1999) to convert
+them into probabilities, as already proposed in Pradhan, Ward et al. (2005). These
+posterior probabilities are then combined to generate the n labelings that maximize a
+likelihood measure. Step 2 requires the training of an automatic re-ranker. This can be
+designed using a binary classiﬁer that, given two annotations, decides which one is
+more accurate. We modeled such a classiﬁer by means of three different kernels based
+onstandardfeatures,structuredfeatures,andtheircombination.
+4.4.1EvaluationoftheN-bestAnnotations. First, we converted the output of each node-
+classiﬁer into a posterior probability conditioned by its output scores (Platt 1999).
+This method uses a parametric model to ﬁt onto a sigmoid distribution the posterior
+probability P(y=1,f), where f is the output of the classiﬁer and the parameters are
+dynamically adapted to give the best probability output.
+3
+Second, we selected the n
+most likely sequences of node labelings. Given a predicate, the likelihood of a labeling
+scheme(orstate)sfortheKcandidateargumentnodesisgivenby:
+p(s)=
+K
+productdisplay
+i=1
+p
+prime
+i
+(l), p
+prime
+i
+(l)=
+braceleftbigg
+p
+i
+(l
+i
+)p
+i
+(ARG) ifl
+i
+negationslash=NARG
+(1−p
+i
+(ARG))
+2
+otherwise
+(2)
+wherep
+i
+(l) is the probability of nodeibeing assigned the labell,andp
+prime
+i
+(l)isthesame
+probability weighted by the probabilityp
+i
+(ARG) of the node being an argument. Ifl=
+NARG (not an argument) then both terms evaluate to (1−p
+i
+(ARG)) and the likelihood
+oftheNARGlabelassignmentisgivenby (1−p
+i
+(ARG))
+2
+.
+To select the n states associated with the highest probability, we cannot evaluate
+the likelihood of all possible states because they are exponential in number. In order
+to reduce the search space we (a) limit the number of possible labelings of each node
+to m and (b) avoid traversing all the states by applying a Viterbi algorithm to search
+for the most likely labeling schemes. From each state we generate the states in which
+a candidate argument is assigned different labels. This operation is bound to output at
+mostnstateswhicharegeneratedbytraversingamaximumofn×mstates.Therefore,
+in the worst case scenario the number of traversed states isV=n×m×k,kbeing the
+numberofcandidateargumentnodesinthetree.
+Duringthesearchwealsoenforceoverlapresolutionpolicies.Indeed,foranygiven
+state in which a node n
+j
+is assigned a label lnegationslash=NARG, we generate all; and only the
+statesinwhichallthenodesthataredominatedbyn
+j
+areassignedtheNARGlabel.
+4.4.2ModelinganAutomaticRe-Ranker.TheViterbialgorithmgeneratesthenmostlikely
+annotationsforthepropositionassociatedwithapredicatep.Thesecanbeusedtobuild
+annotationpairs,〈s
+i,s
+j
+〉,which,inturn,areusedtotrainabinaryclassiﬁerthatdecidesif
+3 Weactuallyimplementedthepseudo-codeproposedinLin,Lin,andWeng(2003)which,withrespect
+toPlatt’soriginalformulation,istheoreticallydemonstratedtoconvergeandavoidssomenumerical
+difﬁcultiesthatmayarise.
+207
+ComputationalLinguistics Volume34,Number2
+s
+i
+ismoreaccuratethats
+j
+.Eachcandidatepropositions
+i
+canbedescribedbyastructured
+featuret
+i
+andavectorofstandardfeaturesv
+i
+.Asawhole,anexamplee
+i
+isdescribedby
+thetuple〈t
+1
+i,t
+2
+i,v
+1
+i,v
+2
+i
+〉,wheret
+1
+i
+andv
+1
+i
+refertotheﬁrstcandidateannotation,whereast
+2
+i
+andv
+2
+i
+refertothesecondone.Givensuchdata,wecandeﬁnethefollowingre-ranking
+kernels:
+K
+tr
+(e
+1,e
+2
+) =K
+t
+(t
+1
+1,t
+1
+2
+)+K
+t
+(t
+2
+1,t
+2
+2
+)−K
+t
+(t
+1
+1,t
+2
+2
+)−K
+t
+(t
+2
+1,t
+1
+2
+)
+K
+pr
+(e
+1,e
+2
+) =K
+p
+(v
+1
+1,v
+1
+2
+)+K
+p
+(v
+2
+1,v
+2
+2
+)−K
+p
+(v
+1
+1,v
+2
+2
+)−K
+p
+(v
+2
+1,v
+1
+2
+)
+whereK
+t
+is one of the tree kernel functions deﬁned in Section 3 andK
+p
+is a polynomial
+kernel applied to the feature vectors. The ﬁnal kernel that we use is the following
+combination:
+K(e
+1,e
+2
+)=
+K
+tr
+(e
+1,e
+2
+)
+|K
+tr
+(e
+1,e
+2
+)|
++
+K
+pr
+(e
+1,e
+2
+)
+|K
+pr
+(e
+1,e
+2
+)|
+Previous sections have shown how our SRL architecture exploits tree kernel func-
+tions to a large extent. In the next section, we describe in more detail our structured
+features and the engineering methods applied for the different subtasks of the SRL
+process.
+5.StructuredFeatureEngineering
+Structured features are an effective alternative tostandardfeatures in many aspects. An
+important advantage is that the target feature space can be completely changed even
+by small modiﬁcations of the applied kernel function. This can be exploited to identify
+features relevant to learning problems lacking a clear and sound linguistic or cognitive
+justiﬁcation.
+As shown in Section 3.1, a kernel function is a scalar product φ(o
+1
+)·φ(o
+2
+), where
+φ is a mapping in an Euclidean space, and o
+1
+and o
+2
+are the target data, for example,
+parse trees. To make the engineering process easier, we decompose φ into a canonical
+mapping, φ
+M,andafeature extraction function, φ
+S, over the set of incoming parse
+trees. φ
+M
+transforms a tree into a canonical structure equivalent to an entire class of
+input parses and φ
+S
+shatters an input tree into its subparts (e.g., subtrees, subset trees,
+orpartialtreesasdescribedinSection3).Alargenumberofdifferentfeaturespacescan
+thusbeexploredbysuitablecombinations φ = φ
+S
+◦φ
+M
+ofmappings.
+Westudydifferentcanonicalmappingstocapturesyntactic/semanticaspectsuseful
+for SRL. In particular, we deﬁne structured features for the different phases of the SRL
+process, namely, boundary detection, argument classiﬁcation, conﬂict resolution, and
+propositionre-ranking.
+5.1StructuresforBoundaryDetectionandArgumentClassiﬁcation
+The AST
+1
+or PAF structures, already mentioned in Section 4.2, have shown to be very
+effective for argument classiﬁcation but not for boundary detection. The reason is that
+two nodes that encode correct and incorrect boundaries may generate very similar
+AST
+1
+s and, consequently, have many fragments in common. To solve this problem, we
+208
+Moschitti,Pighin,andBasili TreeKernelsforSemanticRoleLabeling
+Figure4
+Parsetreeoftheexampleproposition[
+Arg0
+Paul] delivers [
+Arg1
+atalkinformalstyle].
+Figure5
+(a)AST
+1,(b)AST
+m
+1,and(c)AST
+cm
+1
+structuresrelativetotheargumentArg1atalkinformalstyleof
+thepredicatedeliversoftheexampleparsetreeshowninFigure4.
+specify the node that exactly covers the target argument node by simply marking it (or
+markingallitsdescendants)withthelabelB,denotingtheboundaryproperty.
+For example, Figure 4 shows the parse tree of the sentence Paul delivers a talk in
+formalstyle, highlighting the predicate with its two arguments, that is, Arg0 and Arg1.
+Figure 5 shows the AST
+1,AST
+m
+1, and AST
+cm
+1, that is, the basic structure, the structure
+withthemarkedargumentnode,andthecompletelymarkedstructure,respectively.
+Tounderstandtheusefulnessofnode-markingstrategies,wecanexamineFigure6.
+This reports the case in which a correct and an incorrect argument node are chosen by
+alsoshowingthecorrespondingAST
+1
+andAST
+m
+1
+representations((a)and(b)).Figure6c
+shows that the number of common fragments of two AST
+1
+structures is 14. This is
+muchlargerthanthenumberofcommonAST
+m
+1
+fragments,thatis,only3substructures
+(Figure6d).
+Additionally, because the type of a target argument strongly depends on the type
+and number of the other predicate arguments
+4
+(Punyakanok et al. 2005; Toutanova,
+4 Thisistrueatleastforcorearguments.
+209
+ComputationalLinguistics Volume34,Number2
+Figure6
+(a)AST
+1
+sand(b)AST
+m
+1
+sextractedforthesametargetargumentwiththeirrespective(c,b)
+commonfragmentspaces.
+Haghighi, and Manning 2005), we should extract features from the whole predicate
+argumentstructure.Incontrast,AST
+1
+scompletelyneglecttheinformation(i.e.,thetree
+portions)relatedtonon-targetarguments.
+One way to use this further information with tree kernels is to use the minimum
+subtree that spans all the predicate–argument structures, that is, the AST
+n
+deﬁned in
+Section4.2.
+However, AST
+n
+s pose two problems. First, we cannot use them for the boundary
+detection task since we do not know the predicate–argument structure yet. We can
+derive the AST
+n
+(its approximation) from the nodes selected by a boundary classiﬁer,
+that is, the nodes that correspond to potential arguments. Such approximated AST
+n
+s
+canbeeasilyusedintheargumentclassiﬁcationstage.
+Second, an AST
+n
+is the same forall the arguments ina proposition, thus we need a
+waytodifferentiateitforeachtargetargument.Again,wecanmarkthetargetargument
+node as shown in the previous section. We refer to this subtree as a marked target
+AST
+n
+(AST
+mt
+n
+). However, for large arguments (i.e., spread over a large part of the
+sentencetree)thesubstructures’likelihoodofbeingpartofdifferentargumentsisquite
+high.
+To address this problem, we can mark all the nodes that descend from the target
+argumentnode.WerefertothisstructureasacompletelymarkedtargetAST
+n
+(AST
+cmt
+n
+).
+AST
+cmt
+n
+s may be seen as AST
+1
+s enriched with new information coming from the other
+arguments (i.e., the non-marked subtrees). Note that if we only consider the AST
+1
+subtree from a AST
+cmt
+n,weobtainAST
+cm
+1
+.
+210
+Moschitti,Pighin,andBasili TreeKernelsforSemanticRoleLabeling
+5.2StructuredFeaturesforConﬂictResolution
+This section describes structured features employed by the tree kernel–based conﬂict
+resolution module of the SRL architecture described in Section 4.3. This subtask is
+performedbymeansof:
+1. Aﬁrstannotationofpotentialargumentsusingahighrecallboundary
+classiﬁerand,eventually,theroleinformationprovidedbyarole
+multiclassiﬁer(RM).
+2. AnAST
+n
+classiﬁcationstepaimingatselecting,amongthesubstructures
+thatdonotcontainoverlaps,thosethataremorelikelytoencodethe
+correctargumentset.
+The set of argument nodes recognized by BC can be associated with a subtree of the
+correspondingsentenceparse,whichcanbeclassiﬁedusingtreekernelfunctions.These
+should evaluate whether a subtree encodes a correct predicate–argument structure or
+not.Asitencodesfeaturesfromthewholepredicate–argumentstructure,theAST
+n
+that
+weintroducedinSection4.2isastructurethatcanbeemployedforthistask.
+LetA
+p
+be the set of potential argument nodes for the predicatepoutput by BC; the
+classiﬁer examples are built as follows: (1) we look for node pairs 〈n
+1,n
+2
+〉∈A
+p
+×A
+p
+where n
+1
+is the ancestor of n
+2
+or viceversa; (2) we create two node sets A
+1
+=A−{n
+1
+}
+andA
+2
+=A−{n
+2
+} and classify the two NSTs associated withA
+1
+andA
+2
+with the tree
+kernel classiﬁer to select the most correct set of argument boundaries. This procedure
+canbegeneralizedtoasetofoverlappingnodesOwithmorethantwoelements,aswe
+simplyneedtogenerateallandonlythepermutationsofA’snodesthatdonotcontain
+overlappingpairs.
+Figure7showsaworkingexampleofsuchamulti-stageclassiﬁer.In(Figure7a),the
+BC labels as potential arguments four nodes (circled), three of which are overlapping
+Figure7
+Anoverlapsituation(a)andthecandidatesolutionsresultingfromtheemploymentofthe
+differentmarkingstrategies.
+211
+ComputationalLinguistics Volume34,Number2
+(in bold circles). The overlap resolution algorithm proposes two solutions (Figure 7b)
+of which only one is correct. In fact, according to the second solution, the preposi-
+tional phrase of the book would incorrectly be attached to the verbal predicate, that
+is, in contrast with the parse tree. The AST
+n
+classiﬁer, applied to the two NSTs,
+should detect this inconsistency and provide the correct output. Figure 7 also high-
+lights a critical problem the AST
+n
+classiﬁer has to deal with: as the two NSTs are
+perfectly identical, it is not possible to distinguish between them using only their
+fragments.
+In order to engineer novel features, we simply add the boundary information pro-
+vided by BC to the NSTs. We mark with a progressive number the phrase type cor-
+responding to an argument node, starting from the leftmost argument. We call the
+resultingstructureanordinalpredicate–argumentspanningtree(AST
+ord
+n
+).Forexample,
+in the ﬁrst NST of Figure 7c, we mark as NP-0 and NP-1 the ﬁrst and second argument
+nodes, whereas in the second NST, we have a hypothesis of three arguments on three
+nodesthatwetransformasNP-0,NP-1,andPP-2.
+Thissimplemodiﬁcationenablesthetreekerneltogeneratefeaturesusefulfordis-
+tinguishingbetweentwoidenticalparsetreesassociatedwithdifferentargumentstruc-
+tures.Forexample,fortheﬁrstNSTthefragments[NP-1 [NP PP]],[NP [DT NN]],and
+[PP [IN NP]] are generated. They no longer match with the fragments of the second
+NST[NP-0 [NP PP]],[NP-1 [DT NN]],and[PP-2 [IN NP]].
+We also experimented with another structure, the marked predicate–argument
+spanning tree (AST
+m
+n
+), in which each argument node is marked with a role label as-
+signedbyarolemulti-classiﬁer(RM).Ofcourse,thismodelrequiresaRMtoclassifyall
+thenodesrecognizedbyBCﬁrst.AnexampleAST
+m
+n
+isshowninFigure7d.
+5.3StructuresforPropositionRe-Ranking
+In Section 4.4, we presented our re-ranking mechanism, which is inspired by the joint
+inference model described in Haghighi, Toutanova, and Manning (2005). Designing
+structured features for the re-ranking classiﬁer is complex in many aspects. Unlike
+the other structures that we have discussed so far, the deﬁned mappings should:
+(1) preserve as much information as possible about the whole predicate–argument
+structure; (2) focus the learning algorithm on the whole structure; and (3) be able
+to identify those small differences that distinguish more or less accurate labeling
+schemes. Among the possible solutions that we have explored, three are especially
+interestingintermsofaccuracyimprovementorlinguisticproperties,andaredescribed
+hereinafter.
+The AST
+cm
+n
+(completely marked AST
+n, see Figure 8a) is an AST
+n
+in which each
+argument node label is enriched with the role assigned to the node by RM. The la-
+bels of the descendants of each argument node are modiﬁed accordingly, down to
+pre-terminal nodes. The AST
+cmt
+n
+is a variant of AST
+cm
+n
+in which only the target is
+marked. Marking a node descendant is meant to force substructures matching only
+among homogeneous argument types. This representation should provide rich syn-
+tactic and lexical information about the parse tree encoding the predicate–argument
+structure.
+The PAS( predicate–argument structure, see Figure 8b) is a completely different
+structure that preserves the parse subtrees associated with each argument node while
+discarding the intra-argument syntactic parse information. Indeed, the syntactic links
+between the argument nodes are represented as a dummy 1-level tree, which appears
+in any PASand therefore does not inﬂuence the evaluation of similarity between pairs
+212
+Moschitti,Pighin,andBasili TreeKernelsforSemanticRoleLabeling
+Figure8
+Differentrepresentationsofthesameproposition.
+of structures. This structure accommodates the predicate and all the arguments of an
+annotation in a sequence of seven slots.
+5
+To each slot is attached an argument label to
+which in turn is attached the subtree rooted in the argument node. The predicate is
+represented by means of a pre-terminal node labeledrelto which the lemmatization of
+the predicate word is attached as a leaf node. In general, a proposition consists of m
+arguments, withm≤ 6, wheremvaries according to the predicate and the context. To
+guarantee that predicate structures with a different number of arguments are matched
+intheSSTkernelfunction,weattachadummydescendantmarkednulltotheslotsnot
+ﬁlledbyanargument.
+The PAS
+tl
+(type-only, lemmatized PAS, see Figure 8c) is a specialization of the PAS
+that only focuses on the syntax of the predicate–argument structure, namely, the type
+andrelativepositionofeachargument,minimizingtheamountoflexicalandsyntactic
+informationderivedfromtheparsetree.ThedifferenceswiththePASarethat:(1)each
+slot is attached to a pre-terminal node representing the argument type and a terminal
+node whose label indicates the syntactic type of the argument; and (2) the predicate
+wordislemmatized.
+The next section presents the experiments used to evaluate the effectiveness of the
+proposedcanonicalstructuresinSRL.
+5 Weassumethatpredicate–argumentstructurescannotbecomposedbymorethansixarguments,which
+isgenerallytrue.
+213
+ComputationalLinguistics Volume34,Number2
+6.Experiments
+Theexperimentsaimtomeasurethecontributionandtheeffectivenessofourproposed
+kernel engineering models and of the diverse structured features that we designed
+(Section 5). From this perspective, the role of feature extraction functions is not
+fundamental because the study carried out in Moschitti (2006a) strongly suggests that
+the SST (Collins and Duffy 2002) kernel produces higher accuracy than the PT kernel
+when dealing with constituent parse trees, which are adopted in our study.
+6
+We then
+selectedtheSSTkernelanddesignedthefollowingexperiments:
+(a) A study of canonical functions based on node marking for boundary detection
+and argument classiﬁcation, that is, AST
+m
+1
+(Section 6.2). Moreover, as the standard
+features have shown to be effective, we combined them with AST
+m
+1
+based kernels on
+theboundarydetectionandclassiﬁcationtasks(Section6.2).
+(b) We varied the amount of training data to demonstrate the higher generalization
+abilityoftreekernels(Section6.3).
+(c) Giventhepromisingresultsofkernelengineering,wealsoappliedittosolveamore
+complex task, namely, conﬂict resolution in SRL annotations (see Section 6.4). As this
+involvesthecompletepredicate–argumentstructure,wecouldtestadvancedcanonical
+functionsgeneratingAST
+n,AST
+ord
+n,andAST
+m
+n
+.
+(d) Previousworkhasshownthatre-rankingisveryimportantinboostingtheaccuracy
+of SRL. Therefore, we tested advanced canonical mappings, that is, those based on
+AST
+cm
+n,PAS,andPAS
+tl,onsuchtasks(Section6.5).
+6.1GeneralSetup
+The empirical evaluations were mostly carried out within the setting deﬁned in the
+CoNLL 2005 shared task (Carreras and M`arquez 2005). As a target data set, we
+used the PropBank
+7
+and the automatic Charniak parse trees of the sentences of Penn
+TreeBank2corpus
+8
+(Marcus,Santorini,andMarcinkiewicz1993)fromtheCoNLL2005
+shared-task data.
+9
+We employed the SVM-light-TK software
+10, which encodes fast tree
+kernelevaluation(Moschitti2006b),andcombinationsbetweenmultiplefeaturevectors
+andtreesintheSVM-lightsoftware(Joachims1999).Weusedthedefaultregularization
+parameter(option-c)andλ =0.4(seeMoschitti[2004]).
+6.2TestingCanonicalFunctionsBasedonNodeMarking
+Intheseexperiments,wemeasuredtheimpactofnodemarkingstrategiesonboundary
+detection (BD) and the complete SRL task, that is, BD and role classiﬁcation (RC). We
+employed a conﬁguration of the architecture described in Section 4 and previously
+6 OfcoursethePTkernelmaybemuchmoreaccurateinprocessingPASandPAS
+tl
+becausethesearenot
+simplyconstituentparsetrees.Nevertheless,astudyofthePTkernelpotentialisbeyondthepurpose
+ofthisarticle.
+7 http://www.cis.upenn.edu/∼ace.
+8 http://www.cis.upenn.edu/∼treebank.
+9 http://www.lsi.upc.edu/∼srlconll/.
+10 http://ai-nlp.info.uniroma2.it/moschitti/.
+214
+Moschitti,Pighin,andBasili TreeKernelsforSemanticRoleLabeling
+Table2
+Numberofarguments(Arguments)andofunrecoverablearguments(Unrecoverable)dueto
+parsetreeerrorsinSections2,3,and24ofthePennTreeBank/PropBank.
+Sec. Arguments Unrecoverable
+2 198,373 454(0.23%)
+3 147,193 347(0.24%)
+24 139,454 731(0.52%)
+Table3
+ComparisonbetweendifferentmodelsonBoundaryDetectionandthecompleteSemanticRole
+Labelingtasks.Thetrainingsetisconstitutedbytheﬁrst1millioninstancesfromSections02–06
+fortheboundaryclassiﬁerandallargumentsfromSections02–21fortherolemulticlassiﬁer
+(253,129instances).TheperformanceismeasuredagainstSection24(149,140instances).
+BoundaryDetection SemanticRoleLabeling
+Kernels P RF1 P RF1
+AST
+1
+75.75% 71.68% 73.66 64.71% 61.71% 63.17
+AST
+m
+1
+77.32% 74.80% 76.04 66.58% 64.87% 65.71
+Poly 82.18% 79.19% 80.66 75.86% 72.60% 73.81
+Poly+AST
+1
+81.74% 80.71% 81.22 74.23% 73.62% 73.92
+Poly+AST
+m
+1
+81.64% 80.73% 81.18 74.36% 73.87% 74.11
+adopted in Moschitti et al. (2005b), in which the simple conﬂict resolution heuristic is
+applied. The results were derived within the CoNLL setting by means of the related
+evaluator.
+In more detail, in the BD experiments, we used the ﬁrst million instances from the
+Penn TreeBank Sections 2–6 for training
+11
+and Section 24 for testing. Our classiﬁcation
+model applied to this data replicates the results obtained in the CoNLL 2005 shared
+task, that is, the highest accuracy in BD among the systems using only one parse
+tree and one learning algorithm. For the complete SRL task, we used the previous
+BC and all the available data, that is, the sections from 2 to 21, for training the role
+multiclassiﬁer.
+It is worth mentioning that, as the automatic parse trees contain errors, some
+arguments cannot be associated with any covering node; thus we cannot extract a
+tree representation for them. In particular, Table 2 shows the number of arguments
+(column2)forsections2,3,and24aswellasthenumberofargumentsthatwecouldnot
+take into account (Unrecoverable) due to the lack of parse tree nodes exactly covering
+their word spans. Note how Section 24 of the Penn TreeBank (which is not part of the
+Charniaktrainingset)ismuchmoreaffectedbythisproblem.
+Given this setting, the impact of node marking can be measured by comparing the
+AST
+1
+andtheAST
+m
+1
+basedkernels.TheresultsarereportedintherowsAST
+1
+andAST
+m
+1
+ofTable3.Columns2,3,and4showtheirPrecision,Recall,andF1measureonBDand
+columns5,6,and7reporttheperformanceonSRL.Wenotethatmarkingtheargument
+11 Thiswasthemostexpensiveprocessintermsoftrainingtime,requiringmorethanoneweek.
+215
+ComputationalLinguistics Volume34,Number2
+nodesimpliﬁesthegeneralizationprocessasitimprovesbothtasksbyabout3.5and2.5
+absolutepercentagepoints,respectively.
+However, Row Poly shows that the polynomial kernel using state-of-the-art fea-
+tures (Moschitti et al. 2005b) outperforms AST
+m
+1
+by about 4.5 percentage points in BD
+and 8 points in the SRL task. The main reason is that the employed tree structures
+do not explicitly encode very important features like the passive voice or predicate
+position.InMoschitti(2004),theseareshowntobeveryeffectiveespeciallywhenused
+in polynomial kernels. Of course, it is possible to engineer trees including these and
+other standard features with a canonical mapping, but the aim here is to provide new
+interesting representations rather than to abide by the simple exercise of representing
+already designed features within tree kernel functions. In other words, we follow the
+idea presented in Moschitti (2004), where tree kernels were suggested as a means to
+derivenewfeaturesratherthangenerateastand-alonefeatureset.
+Rows Poly+AST
+1
+and Poly+AST
+m
+1
+investigate this possibility by presenting the
+combination ofpolynomial andtreekernels.Unfortunately,theresultsonbothBDand
+SRL do not show enough improvement to justify the use of tree kernels; for example,
+Poly+AST
+m
+1
+improves Poly by only 0.52 in BD and 0.3 in SRL. The small improvement
+is intuitively due to the use of (1) a state-of-the-art model as a baseline and (2) a very
+large amount of training data which decreases the contribution of tree features. In the
+nextsectionananalysisintermsoftrainingdatawillshedsomelightontheroleoftree
+kernelsforBDandRCinSRL.
+6.3TheRoleofTreeKernelsforBoundaryDetectionandArgumentClassiﬁcation
+The previous section has shown that if a state-of-the-art model
+12
+is adopted, then the
+tree kernel contribution is marginal. On the contrary, if a non state-of-the-art model is
+adoptedtreekernelscanplayasigniﬁcantrole.Toverifythishypothesis,wetestedthe
+polynomial kernel over the standard feature vector proposed in Gildea and Jurafsky
+(2002)obtaininganF1of67.3,whichiscomparablewiththeAST
+m
+1
+model,thatis65.71.
+Moreover, a kernel combination produced a signiﬁcant improvement of both models
+reachinganF1of70.4.
+Thus, the role of tree kernels relates to the design of features for novel linguistic
+tasks for which the optimal data representation has not yet been developed. For exam-
+ple, although SRL has been studied for many years and many effective features have
+been designed, representations for languages like Arabic are still not very well under-
+stoodandraisechallengesinthedesignofeffectivepredicate–argumentdescriptions.
+However, this hypothesis on the usefulness of tree kernels is not completely satis-
+factoryasthehugefeaturespaceproduced bythemshouldplayamoreimportantrole
+in predicate–argument representation. For example, the many fragments extracted by
+an AST
+1
+provide a very promising back-off model for the Path feature, which should
+improvethegeneralizationprocessofSVMs.
+As back-off models show their advantages when the amount of training data
+is small, we experimented with Poly, AST
+1,AST
+m
+1, Poly+AST
+1, and Poly+AST
+m
+1
+and
+12 TheadoptedmodelisthesameasusedinMoschittietal.(2005b),whichisthemostaccurateamongthe
+systemsthatuseasinglelearningmodel,asinglesourceofsyntacticinformation,andnoaccurate
+inferencemechanism.Iftreekernelsimprovedthisbasicmodeltheywouldlikelyimprovethe
+accuracyofmorecomplexsystemsaswell.
+216
+Moschitti,Pighin,andBasili TreeKernelsforSemanticRoleLabeling
+different bins of training data, starting from a very small set, namely, 10,000 instances
+(1%) to 1 million (100%) of instances. The results from the BD classiﬁers and the
+complete SRL task are very interesting and are illustrated by Figure 9. We note several
+things.
+First, Figure 9a shows that with only 1% of data (i.e., 640 arguments) as positive
+examples, the F1 on BD of the AST
+m
+1
+kernel is surprisingly about 3 percentage points
+higher than the one obtained by the polynomial kernel (Poly) (i.e., the state of the art).
+When AST
+m
+1
+is combined with Poly the improvement reaches 5 absolute percentage
+points. This suggests that tree kernels should always be used when small training data
+setsareavailable.
+Second,althoughtheperformanceofAST
+1
+ismuchlowerthanalltheothermodels,
+its combination with Poly produces results similar to Poly+AST
+m
+1, especially when
+the amount of training data increases. This, in agreement with the back-off property,
+indicatesthatthenumberoftreefragmentsismorerelevantthantheirquality.
+Third, Figure 9b shows that as we increase training data, the advantage of using
+treekernelsdecreases.Thisisratherintuitiveas(i)ingenerallessaccuratedatamachine
+learning models trained with enough data can reach the accuracy of the most accurate
+models,and(ii)ifthehypothesisthattreekernelsprovideback-offmodelsistrue,alot
+oftrainingdatamakesthemlesscritical,forexample,theprobabilityofﬁndingthePath
+featureofatestinstanceinthetrainingsetbecomeshigh.
+Figure9
+LearningcurvesforBD(aandb)andtheSRLtask(candd),where100%ofdatacorrespondsto
+1millioncandidateargumentnodesforboundarydetectionand64,000argumentnodesforrole
+classiﬁcation.
+217
+ComputationalLinguistics Volume34,Number2
+Table4
+Boundarydetectionaccuracy(F1)ongold-standardparsetreesandambiguousstructures
+employingthedifferentconﬂictresolutionmethodologiesdescribedinSection4.3.
+RND HEU AST
+ord
+n
+73.13 71.50 91.11
+Finally, Figures 9c and 9d show learning curves
+13
+similar to Figures 9a and 9b, but
+with a reduced impact of tree kernels on the Poly model. This is due to the reduced
+impact of AST
+m
+1
+on role classiﬁcation. Such ﬁndings are in agreement with the results
+in Moschitti (2004), which show that for argument classiﬁcation the SCF structure (a
+variant of the AST
+m
+n
+) is more effective. Thus a comparison between learning curves of
+PolyandSCFonRCmayshowabehaviorsimilartoPolyandAST
+m
+1
+forBD.
+6.4ConﬂictResolutionResults
+In these experiments, we are interested in (1) the evaluation of the accuracy of our
+tree kernel–based conﬂict resolution strategy and (2) studying the most appropriate
+structuredfeaturesforthetask.
+A ﬁrst evaluation was carried out over gold-standard Penn TreeBank parses and
+PropBankannotations.Wecomparedthealternativeconﬂictresolutionstrategiesimple-
+mented by our architecture (see Section 4.3), namely the random (RND), the heuristic
+(HEU), and a tree kernel–based disambiguator working with AST
+ord
+n
+structures. The
+disambiguatorswererunontheoutputofBC,thatis,withoutanyinformationaboutthe
+candidate arguments’ roles. BC was trained on Sections 2 to 7 with a high-recall linear
+kernel. We applied it to classify Sections 8 to 21 and obtained 2,988 NSTs containing at
+leastoneoverlappingnode.Thesestructuresgenerated3,624positiveNSTs(i.e.,correct
+structures)and4,461negativeNSTs(incorrectstructures)inwhichnooverlapispresent.
+We used them to train the AST
+ord
+n
+classiﬁer. The F1 measure on the boundary detection
+task was evaluated on the 385 overlapping annotations of Section 23, consisting of 642
+argumentand15,408non-argumentnodes.
+The outcome of this experiment is summarized in Table 4. We note two points.
+(1) The RND disambiguator (slightly) outperforms the HEU. This suggests that the
+heuristics that we implemented were inappropriate for solving the problem. It also
+underlines how difﬁcult it is to explicitly choose the aspects that are relevant for a
+complex,non-localtasksuchasoverlapresolution.(2)TheAST
+ord
+n
+classiﬁeroutperforms
+the other strategies by about 20 percentage points, that is, 91.11 vs. 73.13 and 71.50.
+This datum along with the previous one is a good demonstration of how tree kernels
+can be effectively exploited to describe phenomena whose relevant features are largely
+unknown or difﬁcult to represent explicitly. It should be noted that a more accurate
+baseline can be provided by using the Viterbi-style search (see Section 4.4.1). However,
+the experiments in Section 6.5 show that the heuristics produce the same accuracy (at
+leastwhenthecompletetaskiscarriedout).
+13 Notethatusingalltrainingdata,allthemodelsreachlowerF1sthantherespectivevaluesshownin
+Table3.Thishappensbecausethedatafortrainingtherolemulticlassiﬁerisrestrictedtotheﬁrst
+millioninstances,inotherwords,about64,000outofthetotal253,129arguments.
+218
+Moschitti,Pighin,andBasili TreeKernelsforSemanticRoleLabeling
+Table5
+SRLaccuracyondifferentPropBanktargetsectionsintermsofF1measureofthedifferent
+structuredfeaturesemployedforconﬂictresolution.
+Targetsection AST
+n
+AST
+ord
+n
+AST
+m
+n
+21 73.7 77.3 78.7
+23 68.9 71.2 72.1
+These experiments suggest that tree kernels are promising methods for resolving
+annotation conﬂicts; thus, we tried to also select the most representative structured
+features (i.e., AST
+n,AST
+ord
+n,orAST
+m
+n
+) when automatic parse trees are used. We trained
+BC on Sections 2–8, whereas, to achieve a very accurate argument classiﬁer, we trained
+a role multi-classiﬁer (RM) on Sections 2–21. Then, we trained the AST
+n,AST
+ord
+n,and
+AST
+m
+n
+classiﬁersontheoutputofBC.TotestBC,RM,andthetreekernelclassiﬁers,we
+rantwoevaluationsonSection23andSection21.
+14
+Table5showstheF1measureforthedifferenttreekernels(columns2,3,and4)for
+conﬂictresolutionovertheNSTsofSections21and23.Severalpointsshouldbenoted.
+(1) The general performance is much lower than that achieved on gold-standard
+trees,asshowninTable4.Thisdatumandthegapofabout6percentagepointsbetween
+Sections 21 and 23 conﬁrm the impact of parsing accuracy on the subtasks of the SRL
+process.
+(2) The ordinal numbering of arguments (AST
+ord
+n
+) and the role type information
+(AST
+m
+n
+) provide tree kernels with more meaningful fragments because they improve
+thebasicmodelbyabout4percentagepoints.
+(3) The deeper semantic information generated by the argument labels provides
+useful clues for selecting correct predicate–argument structures because the AST
+m
+n
+modelimprovesAST
+ord
+n
+performanceonbothsections.
+6.5PropositionRe-RankingResults
+In these experiments, Section 23 was used for testing our proposition re-ranking. We
+employedaBCtrainedonSections2to8,whereasRMwastrainedonSections2–12.
+15
+In
+ordertoprovideaprobabilisticinterpretationoftheSVMoutput(seeSection4.4.1),we
+evaluated each classiﬁer distribution parameter based on its output on Section 12. For
+computationalcomplexityreasons,wedecidedtoconsidertheﬁvemostlikelylabelings
+for each node and the ﬁve ﬁrst alternatives output by the Viterbi algorithm (i.e.,m=5
+andn=5).
+Withthisset-up,weevaluatedtheaccuracylowerandupperboundsofoursystem.
+As our baseline, we consider the accuracy of a re-ranker that always chooses the ﬁrst
+alternative output from the Viterbi algorithm, that is, the most likely according to the
+joint inference model. This accuracy has been measured as 75.91 F1 percentage points;
+this is practically identical to the 75.89 obtained by applying heuristics to remove
+overlapsgeneratedbyBC.
+14 AsSection21ofthePennTreeBankispartoftheCharniakparsertrainingset,theperformancederived
+onitsparsetreesrepresentsanupperboundforourclassiﬁers,i.e.,theresultsusinganearlyideal
+syntacticparserandrolemulticlassiﬁer.
+15 IntheseexperimentswedidnotusetreekernelsforBCandRMaswewantedtomeasuretheimpactof
+treekernelsonlyonthere-rankingstage.
+219
+ComputationalLinguistics Volume34,Number2
+This does not depend on the bad quality of the ﬁve top labelings. Indeed, we
+selected the best alternative produced by the Viterbi algorithm according to the gold-
+standardscore,andweobtainedanF1of84.76forn=5.Thus,thecriticalaspectresides
+in the selection of the best annotations, which should be carried out by an automatic
+re-ranker.
+Rows 2 and 3 of Table 6 show the number of distinct propositions and alternative
+annotations output by the Viterbi algorithm for each of the employed sections. In row
+3, the number of pair comparisons (i.e., the number of training/test examples for the
+classiﬁer)isshown.
+Usingthisdata,wecarriedoutacompleteSRLexperiment,whichissummarizedin
+Table7.First,wecomparedtheaccuracyoftheAST
+cm
+n,PAS,andPAS
+tl
+classiﬁerstrained
+on Section 24 (in row 3, columns 2, 3, and 4) and discovered that the latter structure
+produces a noticeable F1 improvement, namely, 78.15 vs. 76.47 and 76.77, whereas the
+accuracy gap between the PASand the AST
+cm
+n
+classiﬁers is very small, namely, 76.77
+vs. 76.47 percentage points. We selected the most interesting structured feature, that
+is, the PAS
+tl, and extended it with the local (to each argument node) standard features
+commonly employed for the boundary detection and argument classiﬁcation tasks, as
+inHaghighi,Toutanova,andManning(2005).Thisricherkernel(PAS
+tl
++STD,column5)
+was compared with the PAS
+tl
+one. The comparison was performed on two different
+training sets (rows 2 and 3): In both cases, the introduction of the standard features
+produced a performance decrement, most notably in the case of Section 12 (i.e., 82.07
+vs. 75.06). Our best re-ranking kernel (i.e., the PAS
+tl
+) was then employed in a larger
+experiment, using both Sections 12 and 24 for testing (row 4), achieving an F
+1
+measure
+of78.44.
+First,wenotethattheaccuracyoftheAST
+cm
+n
+andPASclassiﬁersisverysimilar(i.e.,
+76.77 vs. 76.47). This datum suggests that the intra-argument syntactic information is
+not critical for the re-ranking task, as including it or not in the learning algorithm does
+notleadtonoticeabledifferences.
+Second, we note that the PAS
+tl
+kernel is much more effective than those based on
+AST
+cm
+n
+and PAS, which are always outperformed. This may be due to the fact that
+Table6
+Numberofpropositions,alternativeannotations(asoutputbytheViterbialgorithm),andpair
+comparisons(i.e.,re-rankerinputexamples)forthePropBanksectionsusedfortheexperiments.
+Section12 Section23 Section24
+Propositions 4,899 5,267 3,248
+Alternatives 24,494 26,325 16,240
+Comparisons 74,650 81,162 48,582
+Table7
+Summaryofthepropositionre-rankingexperimentswithdifferenttrainingsets.
+TrainingSection AST
+cm
+n
+PASPAS
+tl
+PAS
+tl
++STD
+12 – – 78.27 77.61
+24 76.47 76.77 78.15 77.77
+12+24 – – 78.44 –
+220
+Moschitti,Pighin,andBasili TreeKernelsforSemanticRoleLabeling
+two AST
+cm
+n
+s (or PASs) always share a large number of substructures, because most
+alternative annotations tend to be very similar and the small differences among them
+only affect a small part of the encoding of syntactic information; on the other hand,
+the small amount of local parsing information encoded in the PAS
+tl
+s enables a good
+generalizationprocess.
+Finally, the introduction of the standard, local standard features in our re-ranking
+modelcausedaperformancelossofabout0.5percentagepointsonbothSections12and
+24. This fact, which is in contrast with what has been shown in Haghighi, Toutanova,
+and Manning (2005), might be the consequence of the small training sets that we
+employed.Indeed,localstandardfeaturestendtobeverysparseandtheireffectiveness
+shouldbeevaluatedagainstalargerdataset.
+7.DiscussionsandConclusions
+Thedesignofautomaticsystemsforthelabelingofsemanticrolesrequiresthesolution
+of complex problems. Among other issues, feature engineering is made difﬁcult by the
+structured nature of the data, that is, features should represent information expressed
+by automatically generated parse trees. This raises two main problems: (1) the mod-
+eling of effective features, partially solved for some subtasks in previous works, and
+(2) the implementation of the software for the extraction of a large number of such
+features.
+A system completely (or largely) based on tree kernels alleviates both problems
+as (1) kernel functions automatically generate features and (2) only a procedure for the
+extractionofsubtreesisneeded.Althoughsomeofthemanuallydesignedfeaturesseem
+to be superior to those derived with tree kernels, their combination still seems worth
+applying. Moreover, tree kernels provide a back-off model that greatly outperforms
+state-of-the-artSRLmodelswhentheamountoftrainingdataissmall.
+To demonstrate these points, we carried out a comprehensive study of the use of
+tree kernels for semantic role labeling by designing several canonical mappings. These
+correspond to the application of innovative tree kernel engineering techniques tailored
+todifferentstagesofanSRLprocess.TheexperimentswiththesemethodsandSVMson
+thedatasetprovidedbytheCoNLL2005sharedtask(CarrerasandM`arquez2005)show
+that,ﬁrst,treekernelsareavalidsupporttomanuallydesignedfeaturesformanystages
+of the SRL process. We have shown that our improved tree kernel (i.e., the one based
+onAST
+m
+1
+)highlyimprovesaccuracyinbothboundarydetectionandtheSRLtaskwhen
+the amount of training data is small (e.g., 5 absolute percentage points over a state-of-
+the-art boundary classiﬁer). In the case of argument classiﬁcation the improvement is
+lessevidentbutstillconsistent,atabout3%.
+Second, appropriately engineered tree kernels can replace standard features in
+many SRL subtasks. For example, in complex tasks such as conﬂict resolution or re-
+ranking, they provide an easy way to build new features that would be difﬁcult to
+describeexplicitly.Moregenerally,treekernelscanbeusedtocombinedifferentsources
+ofinformationforthedesignofcomplexlearningmodels.
+Third,inthespeciﬁcre-rankingtask,ourstructuredfeaturesshowanoticeableim-
+provementoverourbaseline(i.e.,about2.5percentagepoints).Thiscouldbeincreased
+considering that we have not been able to fully exploit the potential of our re-ranking
+model, whose theoretical upper bound is 6 percentage points away. Still, although we
+only used a small fraction of the available training data (i.e., only 2 sections out of 22
+were used to train the re-ranker) our system’s accuracy is in line with state-of-the-art
+systems(CarrerasandM`arquez2005)thatdonotemploytreekernels.
+221
+ComputationalLinguistics Volume34,Number2
+Finally,althoughthestudycarriedoutinthisarticleisquitecomprehensive,several
+issuesshouldbeconsideredinmoredepthinthefuture:
+(a) The tree feature extraction functions ST, SST, and PT should be studied in com-
+bination with the proposed canonical mappings. For example, as the PT kernel seems
+more suitable for the processing of dependency information, it would be interesting
+to apply it in an architecture using these kinds of syntactic parse trees (e.g., Chen
+and Rambow 2003). In particular, the combination of different extraction functions on
+differentsyntacticviewsmayleadtoverygoodresults.
+(b)Oncethesetofthemostpromisingkernelsisestablished,itwouldbeinteresting
+tousealltheavailableCoNLL2005data.Thiswouldallowustoestimatethepotential
+ofourapproachbycomparingitwithpreviousworkonafairerbasis.
+(c)Theuseoffasttreekernels(Moschitti2006a)alongwiththeproposedtreerepre-
+sentationsmakesthelearningandclassiﬁcationmuchfaster,sothattheoverallrunning
+time is comparable with polynomial kernels. However, when used with SVMs their
+running time on very large data sets (e.g., millions of instances) becomes prohibitive.
+Exploiting tree kernel–derived features in a more efﬁcient way (e.g., by selecting the
+most relevant fragments and using them in an explicit space) is thus an interesting
+line of future research. Note that such fragments would be the product of a reverse
+engineeringprocessusefultoderivelinguisticinsightsonsemanticroletheory.
+(d) As CoNLL 2005 (Punyakanok et al. 2005) has shown that multiple parse trees
+provide the most important boost to the accuracy of SRL systems, we would like to
+extendourmodeltoworkwithmultiplesyntacticviewsofeachinputsentence.
+Acknowledgments
+Thisarticleistheresultofresearchonkernel
+methodsforSemanticRoleLabelingwhich
+startedin2003andwentunderthereviewof
+severalprogramcommitteesofdifferent
+scientiﬁccommunities,fromwhichithighly
+beneﬁtted.Inthisrespect,wewouldliketo
+thankthereviewersoftheSRLspecialissue
+aswellasthoseoftheACL,CoNLL,EACL,
+ECAI,ECML,HLT-NAACL,andICML
+conferences.WeareindebtedtoSilvia
+Quarteroniforherhelpinreviewingthe
+Englishformulationofanearlierversionof
+thisarticle.
+References
+Baker,CollinF.,CharlesJ.Fillmore,and
+JohnB.Lowe.1998.TheBerkeley
+FrameNetproject.InCOLING-ACL’98:
+ProceedingsoftheConference,pages86–90,
+Montr´eal,Canada.
+Carreras,XavierandLlu´ısM`arquez.
+2004.IntroductiontotheCoNLL-2004
+sharedtask:Semanticrolelabeling.
+InHLT-NAACL2004Workshop:Eighth
+ConferenceonComputationalNatural
+LanguageLearning(CoNLL-2004),
+pages89–97,Boston,MA.
+Carreras,XavierandLlu´ısM`arquez.
+2005.IntroductiontotheCoNLL-2005
+sharedtask:Semanticrolelabeling.
+InProceedingsoftheNinthConference
+onComputationalNaturalLanguage
+Learning(CoNLL-2005),pages152–164,
+AnnArbor,MI.
+Chen,JohnandOwenRambow.2003.
+Useofdeeplinguisticfeaturesfor
+therecognitionandlabelingof
+semanticarguments.InProceedings
+ofthe2003ConferenceonEmpirical
+MethodsinNaturalLanguageProcessing,
+pages41–48,Sapporo,Japan.
+Collins,MichaelandNigelDuffy.2002.
+Newrankingalgorithmsforparsingand
+tagging:Kernelsoverdiscretestructures,
+andthevotedperceptron.InACL02,
+pages263–270,Philadelphia,PA.
+Culotta,AronandJeffreySorensen.2004.
+Dependencytreekernelsforrelation
+extraction.InACL04,pages423–429,
+Barcelona,Spain.
+Cumby,ChadandDanRoth.2003.Kernel
+methodsforrelationallearning.In
+ProceedingsofICML2003,pages107–114,
+Washington,DC.
+Fillmore,CharlesJ.1968.Thecaseforcase.In
+EmmonBachandRobertT.Harms,
+222
+Moschitti,Pighin,andBasili TreeKernelsforSemanticRoleLabeling
+editors,UniversalsinLinguisticTheory.
+Holt,Rinehart,andWinston,NewYork,
+pages1–210.
+Gildea,DanielandDanielJurafsky.2002.
+Automaticlabelingofsemanticroles.
+ComputationalLinguistics,28(3):245–288.
+Haghighi,Aria,KristinaToutanova,and
+ChristopherManning.2005.Ajointmodel
+forsemanticrolelabeling.InProceedingsof
+theNinthConferenceonComputational
+NaturalLanguageLearning(CoNLL-2005),
+pages173–176,AnnArbor,MI.
+Jackendoff,Ray.1990.SemanticStructures,
+CurrentStudiesinLinguisticsSeries.The
+MITPress,Cambridge,MA.
+Joachims,Thorsten.1999.Makinglarge-scale
+SVMlearningpractical.InB.Sch¨olkopf,
+C.Burges,andA.Smola,editors,
+AdvancesinKernelMethods—SupportVector
+Learning.MITPress,Cambridge,MA,
+pages169–184.
+Kazama,Jun’ichiandKentaroTorisawa.
+2005.Speedinguptrainingwithtree
+kernelsfornoderelationlabeling.
+InProceedingsofEMNLP2005,
+pages137–144,Toronto,Canada.
+Kudo,TakuandYujiMatsumoto.2003.Fast
+methodsforkernel-basedtextanalysis.In
+Proceedingsofthe41stAnnualMeetingofthe
+AssociationforComputationalLinguistics,
+pages24–31,Sapporo,Japan.
+Levin,Beth.1993.EnglishVerbClasses
+andAlternations.TheUniversityof
+ChicagoPress,Chicago,IL.
+Lin,H.-T.,C.-J.Lin,andR.C.Weng.2003.
+AnoteonPlatt’sprobabilisticoutputs
+forsupportvectormachines.Technical
+report,NationalTaiwanUniversity.
+Litkowski,Kenneth.2004.Senseval-3task:
+Automaticlabelingofsemanticroles.
+InSenseval-3:ThirdInternationalWorkshop
+ontheEvaluationofSystemsforthe
+SemanticAnalysisofText,pages9–12,
+Barcelona,Spain.
+Marcus,M.P.,B.Santorini,andM.A.
+Marcinkiewicz.1993.Buildingalarge
+annotatedcorpusofEnglish:ThePenn
+treebank.ComputationalLinguistics,
+19:313–330.
+Moschitti,Alessandro.2004.Astudy
+onconvolutionkernelsforshallow
+semanticparsing.InProceedingsof
+the42
+th
+ConferenceonAssociationfor
+ComputationalLinguistic(ACL-2004),
+pages335–342,Barcelona,Spain.
+Moschitti,Alessandro.2006a.Efﬁcient
+convolutionkernelsfordependency
+andconstituentsyntactictrees.
+InProceedingsofThe17thEuropean
+ConferenceonMachineLearning,
+pages318–329,Berlin,Germany.
+Moschitti,Alessandro.2006b.Makingtree
+kernelspracticalfornaturallanguage
+learning.InProceedingsof11thConference
+oftheEuropeanChapteroftheAssociationfor
+ComputationalLinguistics(EACL2006),
+pages113–120,Treato,Italy.
+Moschitti,Alessandro,Bonaventura
+Coppola,DanielePighin,andRoberto
+Basili.2005a.Engineeringofsyntactic
+featuresforshallowsemanticparsing.
+InProceedingsoftheACLWorkshopon
+FeatureEngineeringforMachineLearningin
+NaturalLanguageProcessing,pages48–56,
+AnnArbor,MI.
+Moschitti,Alessandro,Ana-MariaGiuglea,
+BonaventuraCoppola,andRoberto
+Basili.2005b.Hierarchicalsemantic
+rolelabeling.InProceedingsofthe
+NinthConferenceonComputational
+NaturalLanguageLearning(CoNLL-2005),
+pages201–204,AnnArbor,MI.
+Moschitti,Alessandro,DanielePighin,
+andRobertoBasili.2006.Treekernel
+engineeringinsemanticrolelabeling
+systems.InProceedingsoftheWorkshopon
+LearningStructuredInformationinNatural
+LanguageApplications,EACL2006,
+pages49–56,Trento,Italy.
+Palmer,Martha,DanielGildea,andPaul
+Kingsbury.2005.ThePropositionBank:
+Anannotatedcorpusofsemanticroles.
+ComputationalLinguistics,31(1):71–106.
+Platt,J.1999.Probabilisticoutputs
+forsupportvectormachinesand
+comparisontoregularizedlikelihood
+methods.InA.J.Smola,P.Bartlett,
+B.Schoelkopf,andD.Schuurmans,
+editors,AdvancesinLargeMargin
+Classiﬁers.MITPress,Cambridge,MA,
+pages61–74.
+Pradhan,Sameer,KadriHacioglu,Valerie
+Krugler,WayneWard,JamesH.Martin,
+andDanielJurafsky.2005a.Support
+vectorlearningforsemanticargument
+classiﬁcation.MachineLearning,
+60(1–3):11–39.
+Pradhan,Sameer,KadriHacioglu,Wayne
+Ward,JamesH.Martin,andDaniel
+Jurafsky.2005b.Semanticrolechunking
+combiningcomplementarysyntactic
+views.InProceedingsoftheNinthConference
+onComputationalNaturalLanguage
+Learning(CoNLL-2005),pages217–220,
+AnnArbor,MI.
+Pradhan,Sameer,WayneWard,Kadri
+Hacioglu,JamesMartin,andDaniel
+Jurafsky.2005c.Semanticrolelabeling
+223
+ComputationalLinguistics Volume34,Number2
+usingdifferentsyntacticviews.In
+Proceedingsofthe43rdAnnualMeeting
+oftheAssociationforComputational
+Linguistics(ACL’05),pages581–588,
+AnnArbor,MI.
+Pradhan,SameerS.,WayneH.Ward,
+KadriHacioglu,JamesH.Martin,and
+DanJurafsky.2004.Shallowsemantic
+parsingusingsupportvectormachines.
+InHLT-NAACL2004:MainProceedings,
+pages233–240,Boston,MA.
+Punyakanok,Vasin,PeterKoomen,
+DanRoth,andWen-tauYih.2005.
+Generalizedinferencewithmultiple
+semanticrolelabelingsystems.In
+ProceedingsoftheNinthConference
+onComputationalNaturalLanguage
+Learning(CoNLL-2005),pages181–184,
+AnnArbor,MI.
+Shawe-Taylor,JohnandNelloCristianini.
+2004.KernelMethodsforPattern
+Analysis.CambridgeUniversityPress,
+Cambridge,UK.
+Shen,Libin,AnoopSarkar,andAravindK.
+Joshi.2003.UsingLTAGbasedfeaturesin
+parsereranking.InEmpiricalMethodsfor
+NaturalLanguageProcessing(EMNLP),
+pages89–96,Sapporo,Japan.
+Thompson,CynthiaA.,RogerLevy,and
+ChristopherManning.2003.Agenerative
+modelforsemanticrolelabeling.In14th
+EuropeanConferenceonMachineLearning,
+pages397–408,Cavtat,Croatia.
+TjongKimSang,Erik,SanderCanisius,
+AntalvandenBosch,andToineBogers.
+2005.Applyingspellingerrorcorrection
+techniquesforimprovingsemantic
+rolelabelling.InProceedingsofthe
+NinthConferenceonComputational
+NaturalLanguageLearning(CoNLL-2005),
+pages229–232,AnnArbor,MI.
+Toutanova,Kristina,AriaHaghighi,and
+ChristopherManning.2005.Jointlearning
+improvessemanticrolelabeling.In
+Proceedingsofthe43rdAnnualMeeting
+oftheAssociationforComputational
+Linguistics(ACL’05),pages589–596,
+AnnArbor,MI.
+Toutanova,Kristina,PenkaMarkova,and
+ChristopherManning.2004.Theleafpath
+projectionviewofparsetrees:Exploring
+stringkernelsforHPSGparseselection.In
+ProceedingsofEMNLP2004,pages166–173,
+Barcelona,Spain.
+Vapnik,VladimirN.1998.StatisticalLearning
+Theory.JohnWileyandSons,NewYork.
+Vishwanathan,S.V.N.andA.J.Smola.
+2002.Fastkernelsonstringsandtrees.
+InProceedingsofNeuralInformation
+ProcessingSystems,pages569–576,
+Vancouver,BritishColumbia.
+Xue,NianwenandMarthaPalmer.2004.
+Calibratingfeaturesforsemanticrole
+labeling.InProceedingsofEMNLP2004,
+pages88–94,Barcelona,Spain.
+Zelenko,D.,C.Aone,andA.Richardella.
+2003.Kernelmethodsforrelation
+extraction.JournalofMachineLearning
+Research,3:1083–1106.
+Zhang,Min,JieZhang,andJianSu.2006.
+Exploringsyntacticfeaturesforrelation
+extractionusingaconvolutiontree
+kernel.InProceedingsoftheHuman
+LanguageTechnologyConferenceofthe
+NAACL,MainConference,pages288–295,
+NewYork,NY.
+224
+

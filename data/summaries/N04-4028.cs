@@ -1,0 +1,2 @@
+Other areas where confidence estimation is used include document classification (Bennett et al., 2002), where classifiers are built using meta-features of the document; speech recognition (Gunawardana et al., 1998), where the confidence of a recognized word is estimated by considering a list of commonly confused words; and machine translation (Gandrabur and Foster, 2003), where neural networks are used to learn the probability of a correct word translation using text features and knowledge of alternate translations.
+W03-0413

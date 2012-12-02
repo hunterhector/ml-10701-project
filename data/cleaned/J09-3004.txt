@@ -1,0 +1,1650 @@
+Bootstrapping Distributional Feature
+Vector Quality
+MaayanZhitomirsky-Geffet
+∗
+Bar-Ilan University
+IdoDagan
+∗∗
+Bar-Ilan University
+This article presents a novel bootstrapping approach for improving the quality of feature vector
+weighting in distributional word similarity. The method was motivated by attempts to utilize
+distributional similarity for identifying the concrete semantic relationship of lexical entailment.
+Our analysis revealed that a major reason for the rather loose semantic similarity obtained by
+distributional similarity methods is insufﬁcient quality of the word feature vectors, caused by
+deﬁcient feature weighting. This observation led to the deﬁnition of a bootstrapping scheme
+which yields improved feature weights, and hence higher quality feature vectors. The under-
+lying idea of our approach is that features which are common to similar words are also most
+characteristic for their meanings, and thus should be promoted. This idea is realized via a
+bootstrapping step applied to an initial standard approximation of the similarity space. The
+superior performance of the bootstrapping method was assessed in two different experiments,
+one based on direct human gold-standard annotation and the other based on an automatically
+created disambiguation dataset. These results are further supported by applying a novel quanti-
+tative measurement of the quality of feature weighting functions. Improved feature weighting
+also allows massive feature reduction, which indicates that the most characteristic features
+for a word are indeed concentrated at the top ranks of its vector. Finally, experiments with
+three prominent similarity measures and two feature weighting functions showed that the
+bootstrapping scheme is robust and is independent of the original functions over which it is
+applied.
+1. Introduction
+1.1 Motivation
+Distributionalwordsimilarityhaslongbeenanactiveresearcharea(Hindle1990;Ruge
+1992; Grefenstette 1994; Lee 1997; Lin 1998; Dagan, Lee, and Pereira 1999; Weeds and
+∗ Department ofInformationScience, Bar-IlanUniversity, Ramat-Gan,Israel.
+E-mail:zhitomim@mail.biu.ac.il.
+∗∗ Department ofComputerScience, Bar-IlanUniversity, Ramat-Gan,Israel. E-mail:dagan@cs.biu.ac.il.
+Submissionreceived: 6 December 2006;revised submissionreceived: 9July2008;accepted forpublication:
+21November2008.
+©2009AssociationforComputationalLinguistics
+ComputationalLinguistics Volume35,Number3
+Weir 2005). This paradigm is inspired by Harris’s distributional hypothesis (Harris
+1968), which states that semantically similar words tend to appear in similar contexts.
+Inacomputationalrealization,eachwordischaracterizedbyaweightedfeaturevector,
+wherefeaturestypicallycorrespondtootherwordsthatco-occurwiththecharacterized
+wordinthecontext.Distributionalsimilaritymeasuresquantifythedegreeofsimilarity
+between a pair of such feature vectors. It is then assumed that two words that occur
+within similar contexts, as measured by similarity of their context vectors, are indeed
+semantically similar.
+The distributional word similarity measures were often applied for two types of
+inferences. The ﬁrst type is making similarity-based generalizations for smoothing
+word co-occurrence probabilities, in applications such as language modeling and dis-
+ambiguation. For example, assume that we need to estimate the likelihood of the verb–
+objectco-occurrencepair visit–country,althoughitdidnotappearinoursamplecorpus.
+Co-occurrences of the verb visit with words that are distributionally similar to country,
+such as state, city,andregion, however, do appear in the corpus. Consequently, we
+may infer that visit–country is also a plausible expression, using some mathematical
+scheme of similarity-based generalization (Essen and Steinbiss 1992; Dagan, Marcus,
+and Markovitch 1995; Karov and Edelman 1996; Ng and Lee 1996; Ng 1997; Dagan,
+Lee, and Pereira 1999; Lee 1999; Weeds and Weir 2005). The rationale behind this
+inference is that if two words are distributionally similar then the occurrence of one
+word in some contexts indicates that the other word is also likely to occur in such
+contexts.
+A second type of semantic inference, which primarily motivated our own research,
+is meaning-preserving lexical substitution. Many NLP applications, such as question
+answering, information retrieval, information extraction, and (multi-document) sum-
+marization, need to recognize that one word can be substituted by another one in a
+given context while preserving, or entailing the original meaning. Naturally, recogniz-
+ing such substitutable lexical entailments is a prominent component within the textual
+entailment recognition paradigm, which models semantic inference as an application-
+independent task (Dagan, Glickman, and Magnini 2006). Accordingly, several textual
+entailmentsystemsdidutilizetheoutputofdistributionalsimilaritymeasurestomodel
+entailing lexical substitutions (Jijkoun and de Rijke 2005; Adams 2006; Ferrandez et al.2006; Nicholson, Stokes, and Baldwin 2006; Vanderwende, Menezes, and Snow 2006).
+In some of these papers the distributional information typically complements man-
+ual lexical resources in textual entailment systems, most notably WordNet (Fellbaum
+1998).
+Lexical substitution typically requires that the meaning of one word entails
+the meaning of the other. For instance, in question answering, the word company
+in a question can be substituted in an answer text by ﬁrm, automaker,orsubsidiary,
+whose meanings entail the meaning of company. However, as it turns out, traditional
+distributional similarity measures do not capture well such lexical substitution
+relationships, but rather capture a somewhat broader (and looser) notion of semantic
+similarity. For example, quite distant co-hyponyms such as party and company
+also come out as distributionally similar to country, due to a partial overlap of
+their semantic properties. Clearly, the meanings of these words do not entail each
+other.
+Motivated by these observations, our long-term goal is to investigate whether the
+distributionalsimilarityschememaybeimprovedtoyieldtightersemanticsimilarities,
+and eventually better approximation of lexical entailments. This article presents one
+component of this research plan, which focuses on improving the underlying semantic
+436
+Zhitomirsky-GeffetandDagan BootstrappingDistributionalFeatureVector Quality
+quality of distributional word feature vectors. The article describes the methodology,
+deﬁnitions, and analysis of our investigation and the resulting bootstrapping scheme
+for feature weighting which yielded improved empirical performance.
+1.2 Main
+Contributions and Outline
+As a starting point for our investigation, an operational deﬁnition was needed for
+evaluating the correctness of candidate pairs of similar words. Following the lexical
+substitution motivation, in Section 3weformulate the substitutable lexical entailment
+relation (or lexical entailment, for brevity), reﬁning earlier deﬁnitions in Geffet and
+Dagan (2004, 2005). Generally speaking, this relation holds for a pair of words if a
+possiblemeaningofonewordentailsameaningoftheother,andtheentailingwordcan
+substitute the entailed one in some typical contexts. Lexical entailment overlaps partly
+with traditional lexical semantic relationships, while capturing more generally the
+lexical substitution needs of applications. Empirically, high inter-annotator agreement
+was obtained when judging the output of distributional similarity measures for lexical
+entailment.
+Next,weanalyzedthetypicalbehaviorofexistingwordsimilaritymeasuresrelative
+to the lexical entailment criterion. Choosing the commonly used measure of Lin (1998)
+as a representative case, the analysis shows that quite noisy feature vectors are a major
+cause for generating rather “loose” semantic similarities. On the other hand, one may
+expect that features which seem to be most characteristic for a word’s meaning should
+receive the highest feature weights. This does not seem to be the case, however, for
+common feature weighting functions, such as Point-wise Mutual Information (Church
+and Patrick 1990; Hindle 1990).
+Followingtheseobservations,wedevelopedabootstrappingformulathatimproves
+the original feature weights (Section 4), leading to better feature vectors and better
+similarity predictions. The general idea is to promote the weights of features that are
+common for semantically similar words, since these features are likely to be most char-
+acteristicfortheword’smeaning.Thisideaisimplementedbyabootstrappingscheme,
+where the initial (and cruder) similarity measure provides an initial approximation for
+semantic word similarity. The bootstrapping method yields a high concentration of
+semantically characteristic features among the top-ranked features of the vector, which
+also allows aggressive feature reduction.
+The bootstrapping scheme was evaluated in two experimental settings, which cor-
+respond to the two types of applications for distributional similarity. First, it achieved
+signiﬁcant improvements in predicting lexical entailment as assessed by human judg-
+ments, when applied over several base similarity measures (Section 5). Additional
+analysis relative to the lexical entailment dataset revealed cleaner and more charac-
+teristic feature vectors for the bootstrapping method. To obtain a quantitative analysis
+of this behavior, we deﬁned a measure called average common-feature rank ratio.
+This measure captures the idea that a prominent feature for a word is expected to be
+prominentalsoforsemanticallysimilarwords,whilebeinglessprominentforunrelated
+words.Tothebestofourknowledgethisistheﬁrstproposedmeasurefordirectanalysis
+of the quality of feature weighting functions, without the need to employ them within
+some vector similarity measure.
+As a second evaluation, we applied the bootstrapping scheme for similarity-based
+predictionofco-occurrencelikelihoodwithinatypicalpseudo-wordsensedisambigua-
+tion experiment, obtaining substantial error reductions (Section 7). Section 8 concludes
+437
+ComputationalLinguistics Volume35,Number3
+this article, suggesting the relevance of our analysis and bootstrapping scheme for the
+general use ofdistributional feature vectors.
+1
+2. Background: Distributional Similarity Models
+This section reviews the components of the distributional similarity approach and
+speciﬁes the measures and functions that were utilized byour work.
+The Distributional Hypothesis assumes that semantically similar words appear in
+similar contexts, suggesting that semantic similarity can be detected by comparing
+contexts of words. This is the underlying principle of the vector-based distributional
+similaritymodel,whichcomprisestwophases.First,contextfeaturesforeachwordare
+constructed and assigned weights; then, the weighted feature vectors of pairs of words
+are compared by a vector similarity measure. The following two subsections review
+typical methods for each phase.
+2.1 Features
+and Weighting Functions
+In the typical computational setting, word contexts are represented by feature vectors.
+A feature represents another word (or term) w
+prime
+with which w co-occurs, and possibly
+speciﬁesalsothesyntacticrelationshipbetweenthetwowords,asinGrefenstette(1994),
+Lin (1998), and Weeds and Weir (2005). Thus, a word (or term) w is represented by
+a feature vector, where each entry in the vector corresponds to a feature f.Padoand
+Lapata (2007) demonstrate that using syntactic dependency-based features helps to
+distinguish among classes of lexical relations, which seems to be more difﬁcult when
+using “bag of words” features that are based on co-occurrence in a textwindow.
+A syntactic-based feature f for aword w is deﬁned as atriple:
+〈fw, syn rel, f role〉
+where fw is a context word (or term) that co-occurs with w under the syntactic depen-
+dencyrelationsyn rel.Thefeaturerole(f role)correspondstotheroleofthefeatureword
+fw in the syntactic dependency, being either the head (denoted h) or the modiﬁer (de-
+noted m)oftherelation.Forexample,giventhewordcompany,thefeature〈earnings, gen,
+h〉correspondstothegenitiverelationship company’s earnings,and〈investor, pcomp of, m〉
+corresponds to the prepositional complement relationship the company of the investor.
+2
+Throughout this article we use syntactic dependency relationships generated by the
+Minipar dependency parser (Lin 1993). Table 1 lists common Minipar dependency
+relations involving nouns. Minipar also identiﬁes multi-word expressions, which is
+1Apreliminaryversion ofthebootstrappingmethodwaspresented inGeffetand Dagan (2004).That
+paperpresented initialresults forthe bootstrappingscheme, when applied onlyoverLin’s measure and
+testedby themanuallyjudged datasetoflexicalentailment. Thecurrent research extends ourinitial
+resultsin many respects. Itreﬁnes the deﬁnitionoflexicalentailment; utilizesarevised testset oflarger
+scope andhigher quality,annotatedbythree assessors; extends the experiments totwoadditional
+similaritymeasures; provides comparativequalitativeandquantitativeanalysis ofthe bootstrapped
+vectors, whileemploying ourproposedaverage common-featurerankratio;andpresents an additional
+evaluationbased onapseudo-WSD task.
+2 Followingacommonpractice,weconsider the relationshipbetweenahead noun (company inthe
+example)andthe nominalcomplementofamodifying prepositionalphrase (investor) as asingle direct
+dependency relationship. Theprepositionitselfis encoded inthe dependency relationname, witha
+distinctrelationforeach preposition.
+438
+Zhitomirsky-GeffetandDagan BootstrappingDistributionalFeatureVector Quality
+Table 1
+Commongrammaticalrelationsof Miniparinvolvingnouns.
+Relation Description
+appo apposition
+comp1ﬁrst complement
+det determiner
+gen genitivemarker
+mod therelationshipbetweena wordandits adjunctmodiﬁer
+pnmod post nominalmodiﬁer
+pcomp nominalcomplement of prepositions
+post post determiner
+vrel passive verbmodiﬁerof nouns
+obj object ofverbs
+obj2 second object of ditransitiveverbs
+subj subject of verbs
+s surfacesubject
+advantageous for detecting distributional similarity for such terms. For example,
+Curran (2004) reports that multi-word expressions make up between 14–25% of the
+synonyms in a gold-standard thesaurus.
+Thus, in our representation the corpus is ﬁrst transformed to a set S of dependency
+relationship instances of the form 〈w,f 〉, where each pair corresponds to a single co-
+occurrence of w and f in the corpus. f is termed as a feature of w. Then, a word
+w is represented by a feature vector, where each entry in the vector corresponds to
+one feature f. The value of the entry is determined by a feature weighting function
+weight(w,f),whichquantiﬁesthedegreeofstatisticalassociationbetween w and f inthe
+set S. For example, some feature weighting functions are based on the logarithm of the
+word–featureco-occurrencefrequency(Ruge1992),orontheconditionalprobabilityof
+thefeaturegiventheword(Pereira,Tishby,andLee1993;Dagan,Lee,andPereira1999;
+Lee 1999).
+Probably the most widely used feature weighting function is (point-wise) Mutual
+Information (MI) (Church and Patrick 1990; Hindle 1990; Luk 1995; Lin 1998; Gauch,
+Wang, and Rachakonda 1999; Dagan 2000; Baroni and Vegnaduzzo 2004; Chklovski
+and Pantel 2004; Pantel and Ravichandran 2004; Pantel, Ravichandran, and Hovy 2004;
+Weeds, Weir, and McCarthy 2004), deﬁned by:
+weight
+MI
+(w,f)=log
+2
+P(w,f)
+P(w)P(f)
+(1)
+We calculate the MI weights by the following statistics in the space of co-occurrence
+instances S:
+weight
+MI
+(w,f)=log
+2
+count(w,f)· nrels
+count(w)· count(f)
+(2)
+where count(w,f) is the frequency of the co-occurrence pair 〈w,f 〉 in S, count(w)and
+count(f) are the independent frequencies of w and f in S,andnrels is the size of S.High
+MI weights are assumed to correspond to strong word–feature associations.
+439
+ComputationalLinguistics Volume35,Number3
+Curran and Moens (2002) argue that, generally, informative features are statis-
+tically correlated with their corresponding headword. Thus, they suggest that any
+statistical test used for collocations is a good starting point for improving feature-
+weightfunctions.Intheirexperimentsthet-test-basedmetricyieldedthebestempirical
+performance.
+However, a known weakness of MI and most of the other statistical weighting
+functions used for collocation extraction, including t-test and χ
+2, is their tendency to
+inﬂate the weights for rare features (Dunning 1993). In addition, a major property of
+lexical collocations is their “non-substitutability”, as termed in Manning and Schutze
+(1999). That is, typically neither a headword nor a modiﬁer in the collocation can be
+substituted by their synonyms or other related terms. This implies that using modiﬁers
+within strong collocations as features for a head word would provide a rather small
+amount of common features for semantically similar words. Hence, these functions
+seem less suitable for learning broader substitutability relationships, such as lexical
+entailment.
+Similarity measures that utilize MI weights showed good performance, however.
+In particular, a common practice is to ﬁlter out features by minimal frequency and
+weightthresholds.Then,aword’svectorisconstructedfromtheremaining(notﬁltered)
+features that are strongly associated with the word. These features are denoted here as
+active features.
+In the current work we use MI for data analysis, and for the evaluations of vector
+quality and word similarity performance.
+2.2 Vector
+Similarity Measures
+Once feature vectors have been constructed the similarity between two words is de-
+ﬁned by some vector similarity measure. Similarity measures which have been used
+in the cited papers include weighted Jaccard (Grefenstette 1994), Cosine (Ruge 1992),
+and various information theoretic measures, as introduced and reviewed in Lee (1997,
+1999). In the current work we experiment with the following three popular similarity
+measures.
+1. The basic Jaccard measure compares the number of common features with
+the overall number offeatures for apair ofwords. One of the weighted
+generalizations of this scheme to non-binary values replaces intersection
+with minimum weight, union with maximum weight, and set cardinality
+with summation. This measure is commonly referred to as weighted Jaccard
+(WJ)(Grefenstette 1994; Dagan, Marcus, and Markovitch 1995; Dagan
+2000; Gasperin and Vieira 2004), deﬁned as follows:
+sim
+WJ
+(w,v)=
+summationtext
+f∈F(w)∩F(v)
+min(weight(w,f),weight(v,f))
+summationtext
+f∈F(w)∪F(v)
+max(weight(w,f),weight(v,f))
+(3)
+where F(w)andF(v) are the sets of active features of the two words w
+and v. The appealing property of this measure is that itconsiders the
+association weights rather than just the number of common features.
+2. The standard Cosine measure (COS), which is popularly employed for
+information retrieval (Salton and McGill 1983) and also utilized for
+440
+Zhitomirsky-GeffetandDagan BootstrappingDistributionalFeatureVector Quality
+learning distributionally similar words (Ruge 1992; Caraballo 1999; Gauch,
+Wang,and Rachakonda 1999; Panteland Ravichandran 2004), isdeﬁned as
+follows:
+sim
+COS
+(w,v)=
+summationtext
+f
+(weight(w,f)·weight(v,f))
+√
+summationtext
+f
+(weight(w,f))
+2
+·
+√
+summationtext
+f
+(weight(v,f))
+2
+(4)
+This measure computes the cosine of the angle between the two feature
+vectors, which normalizes the vector lengths and thus avoids inﬂated
+discrimination between vectors ofsigniﬁcantly different lengths.
+3. A popular state of the art measure has been developed by Lin (1998),
+motivated byInformation Theory principles. This measure behaves quite
+similarly to the weighted Jaccard measure (Weeds, Weir, and McCarthy
+2004), and is deﬁned as follows:
+sim
+LIN
+(w,v)=
+summationtext
+f∈F(w)∩F(v)
+(weight
+MI
+(w,f)+weight
+MI
+(v,f))
+summationtext
+f∈F(w)
+weight
+MI
+(w,f)+
+summationtext
+f∈F(v)
+weight
+MI
+(v,f)
+(5)
+where F(w)andF(v) are the active features ofthe two words. Theweight
+function used originally by Lin is MI (Equation 1).
+It is interesting to note that a relatively recent work by Weeds and Weir (2005) inves-
+tigates a more generic similarity framework. Within their framework, the similarity of
+two nouns is viewed as the ability to predict the distribution of one of them based on
+thatoftheother.Theirproposedformulacombinestheprecisionandrecallofapotential
+“retrieval” of similar words based on the features of the target word. The precision of
+w’spredictionof v’sfeaturedistributionindicateshowmanyofthefeaturesoftheword
+w co-occurred with the word v. The recall of w’s prediction of v’s features indicates
+how many of the features of v co-occurred with w. Words with both high precision
+and high recall can be obtained by computing their harmonic mean, mh (or F-score),
+and a weighted arithmetic mean. However, after empirical tuning of weights for the
+arithmetic mean, Weeds and Weir’s formula practically reduces to Lin’s measure, as
+was anticipated bytheir own analysis (in Section 4of their paper).
+Consequently,wechoosetheLinmeasure(Equation5)(henceforthdenotedas LIN)
+as representative for the state of the art and utilize it for data analysis and as a starting
+point for improvement. To further explore and evaluate our new weighting scheme,
+independently of a single similarity measure, we conduct evaluations also with the
+other two similarity measures of weighted Jaccard and Cosine.
+3. Substitutable Lexical Entailment
+AsmentionedintheIntroduction,thelongtermresearchgoalwhichinspiredourwork
+is modeling meaning–entailing lexical substitution. Motivated by this goal, we
+proposed in earlier work (Geffet and Dagan 2004, 2005) a new type of lexical
+relationship which aims to capture such lexical substitution needs. Here we adopt that
+approach and formulate a reﬁned deﬁnition for this relationship, termed substitutable
+lexical entailment.Inthecontextofthecurrentarticle,utilizingaconcretetargetnotion
+of word similarity enabled us to apply direct human judgment for the “correctness”
+(relative to the deﬁned notion) of candidate word pairs suggested by distributional
+similarity. Utilizing these judgments we could analyze the behavior of alternative
+441
+ComputationalLinguistics Volume35,Number3
+distributional vector representations and, in particular, conduct error analysis for word
+pair candidates that were judged negatively.
+The discussion in the Introduction suggested that multiple text understanding
+applications need to identify term pairs whose meanings are both entailing and sub-
+stitutable. Such pairs seem to be most appropriate for lexical substitution in a meaning
+preservingscenario.Tomodelthisgoalwepresentanoperationaldeﬁnitionforalexical
+semanticrelationshipthatintegratesthetwoaspectsofentailmentandsubstitutability,
+3
+which is termed substitutable lexical entailment (or lexical entailment, for brevity).
+This relationship holds for a given directional pair of terms (w,v), saying that w entails
+v, if the following twoconditions are fulﬁlled:
+1. Word meaning entailment:the meaning of apossible sense of w implies a
+possible sense of v;
+2. Substitutability: w cansubstitutefor v insomenaturallyoccurringsentence,
+such that the meaning ofthe modiﬁed sentence would entail the meaning
+of the original one.
+To operationally assess the ﬁrst condition (by annotators) we propose considering
+the meaning of terms by existential statements of the form “there exists an instance of
+the meaning of the term w in some context” (notice that, unlike propositions, it is not
+intuitiveforannotatorstoassigntruthvaluestoterms).Forexample,theword company
+would correspond to the existential statement “there exists an instance of the concept
+company in some context.” Thus, if in some context “there is a company” (in the sense
+of “commercial organization”) then necessarily “there is a ﬁrm” in that context (in the
+corresponding sense). Therefore, we conclude that the meaning of company implies the
+meaningof ﬁrm.Ontheotherhand,“thereisan organization”doesnotnecessarilyimply
+theexistenceof company,sinceorganization mightstandforsomenon-proﬁtassociation,
+as well. Therefore, we conclude that organization does not entail company.
+To assess the second condition, the annotators need to identify some natural con-
+text in which the lexical substitution would satisfy entailment between the modiﬁed
+sentence and the original one. Practically, in our experiments presented in Section 5the
+humanassessorscouldconsultexternallexicalresourcesandtheentireWebtoobtainall
+thesensesofthewordsandpossiblesentencesforsubstitution.Wenotethatthetaskof
+identifyingthecommonsenseoftwogivenwordsisquiteeasysincetheymutuallydis-
+ambiguateeachother,andoncethecommonsenseisknownitnaturallyhelpsﬁndinga
+corresponding common context. We note that this condition is important, in particular,
+in order to eliminate cases of anaphora and co-reference in contexts, where two words
+quite different in their meaning can sometimes appear in the same contexts only due
+to the text pragmatics in a particular situation. For example, in some situations worker
+and demonstrator could be used interchangeably in text, but clearly it is a discourse co-
+reference rather than common meaning that makes the substitution possible. Instead,
+we are interested in identifying word pairs in which one word’s meaning provides
+a reference to the entailed word’s meaning. This purpose is exactly captured by the
+existential propositions ofthe ﬁrst criterion above.
+3 TheWordNetdeﬁnitionofthelexicalentailmentrelationis speciﬁed onlyforverbs and, therefore,is not
+felicitousforgeneralpurposes: Averb XentailsYifXcannot bedoneunless Yis, orhas been, done (e.g.,
+snore and sleep).
+442
+Zhitomirsky-GeffetandDagan BootstrappingDistributionalFeatureVector Quality
+As reported further in Section 5.1, we observed that assessing these two conditions
+forcandidatewordsimilaritypairswasquiteintuitiveforannotators,andyieldedgood
+cross-annotator agreement. Overall, substitutable lexical entailment captures directly
+thetypicallexicalsubstitutionscenariointextunderstandingapplications,aswellasin
+generictextualentailmentmodeling.Infact,thisrelationpartiallyoverlapswithseveral
+traditional lexical semantic relations that are known as relevant for lexical substitution,
+such as synonymy, hyponymy, and some cases of meronymy. For example, we say
+that the meaning of company is lexically entailed by the meaning of ﬁrm (synonym)
+or automaker (hyponym), while the word government entails minister (meronym) as The
+government voted for the new law entails A minister in the government voted for the new law.
+Ontheotherhand,lexicalentailmentisnotjustasupersetofotherknownrelations,
+butitisratherdesignedtoselectthosesub-casesofotherlexicalrelationsthatareneeded
+forappliedentailmentinference.Forexample,lexicalentailmentdoesnotcoverallcases
+of meronyms (e.g., division does not entail company), but only some sub-cases of part-
+wholerelationshipmentionedherein.Inaddition,someotherrelationsarealsocovered
+by lexical entailment, like ocean and water and murder and death, which do not seem to
+directly correspond to meronymy or hyponymy relations.
+Notice also that whereas lexical entailment is a directional relation that speciﬁes
+which word of the pair entails the other, the relation may hold in both directions
+for a pair of words, as is the case for synonyms. More detailed motivations for the
+substitutable lexical entailment relation and analysis of its relationship to traditional
+lexical semantic relations appear in Geffet(2006) and Geffetand Dagan (2004, 2005).
+4. Bootstrapping Feature Weights
+To gain a better understanding of distributional similarity behavior we ﬁrst analyzed
+the output of the LIN measure, as a representative case for the state of the art, and
+regarding lexical entailment as a reference evaluation criterion. We judge as correct,
+with respect to lexical entailment, those candidate pairs of the distributional similarity
+method for which entailment holds at least in one direction.
+For example, the word area is entailed by country, since the existence of country
+entailstheexistenceofarea,andthesentenceThere is no rain in subtropical countries during
+the summer periodentailsthesentence There is no rain in subtropical areas during the summer
+period. Asanother example, democracy isatypeof country inthe political sense, thus the
+existence entailment holds and also the sentence Israel is a democracy in the Middle East
+entails Israel is a country in the Middle East.
+Ontheotherhand,ouranalysisrevealedthatmanycandidatewordsimilaritypairs
+suggested by distributional similarity measures do not correspond to “tight” semantic
+relationships. In particular, many word pairs suggested by the LIN measure do not
+satisfy the lexical entailment relation, as demonstrated in Table 2.
+A deeper look at the corresponding word feature vectors reveals typical reasons
+for these lexical entailment prediction errors. Most relevant for the scope of the cur-
+rent article, in many cases highly ranked features in a word vector (when sorting the
+features by their weight) do not seem very characteristic for the word meaning. This
+is demonstrated in Table 3, which shows the top 10 features in the vector for country.
+As can be seen, some of the top features are either too speciﬁc (landlocked, airspace),
+and are thus less reliable, or too general (destination, ambition), thus not indicative and
+may co-occur with many different types of words. On the other hand, intuitively more
+characteristic features of country, like population and governor, occur further down the
+443
+ComputationalLinguistics Volume35,Number3
+Table 2
+Thetop 20most similarwordsfor country (and theirranks) inthesimilaritylist of LIN,followed
+bythenextfourwordsinthesimilaritylistthatwerejudgedasentailingatleastinonedirection.
+nation 1 *city 7 economy 13 *company 19
+region 2 territory 8 *neighbor 14 *industry 20
+state 3 area 9 *sector 15 kingdom 30
+*world 4 *town 10 *member 16 place 35
+*island 5 republic 11 *party 17 colony 41
+*province 6 *north 12 government 18 democracy 82
+Twelve out of 20 top similarities (60%) were judged as mutually non-entailing and are marked
+withanasterisk.Thesimilaritydatawasproducedas described inSection5.
+Table 3
+Thetop 10rankedfeaturesfor country produced by MI, theweightingfunctionemployedinthe
+LIN method.
+Feature weight
+MI
+Commercial bank,gen, h 8.08
+Destination,pcomp of, m 7.97
+Airspace, pcomp of, h 7.83
+Landlocked,mod, m 7.79
+Tradebalance,gen, h 7.78
+Sovereignty,pcomp of, h 7.78
+Ambition,nn, h 7.77
+Bourse,gen, h 7.72
+Politician,gen, h 7.54
+Border,pcomp of, h 7.53
+sorted feature list, at positions 461and 832. Overall, features that seem to characterize
+the word meaning well are scattered across the ranked feature list, while many non-
+indicative features receive high weights. This behavior often yields high similarity
+scores for word pairs whose semantic similarity is rather loose while missing some
+much tighter similarities.
+Furthermore, we observed that characteristic features for a word w, which should
+receive higher weights, are expected to be common for w and other words that are
+semantically similar to it. This observation suggests a computational scheme which
+wouldpromotetheweightsoffeaturesthatarecommonforsemanticallysimilarwords.
+Ofcourse,thereisaninherentcircularityinsuchascheme:todeterminewhichfeatures
+should receive high weights we need to know which words are semantically similar,
+while computing distributional semantic similarity already requires pre-determined
+feature weights.
+This kind of circularity can be approached by a bootstrapping scheme. We ﬁrst
+compute initial distributional similarity values, based on an initial feature weighting
+function. Then, to learn more accurate feature weights for a word w,wepromote
+features that characterize other words that are initially known to be similar to w.By
+the same rationale, features that do not characterize many words that are sufﬁciently
+similar to w are demoted. Even if such features happen to have a strong direct statis-
+tical association with w they would not be considered reliable, because they are not
+supported by additional words that have asimilar meaning to that of w.
+444
+Zhitomirsky-GeffetandDagan BootstrappingDistributionalFeatureVector Quality
+4.1 Bootstrapped
+Feature Weight Deﬁnition
+The bootstrapped feature weight is deﬁned as follows. First, some standard word
+similarity measure sim is computed to obtain an initial approximation of the similarity
+space.Then,wedeﬁnethe word set ofafeature f,denotedby WS(f),asthesetofwords
+forwhich f isanactivefeature.RecallfromSection2.2thatanactivefeatureisafeature
+that is strongly associated with the word, that is, its (initial) weight is higher than an
+empiricallypredeﬁnedthreshold, θ
+weight
+.Thesemantic neighborhood of w,denotedby
+N(w), is deﬁned as the set of all words v which are considered sufﬁciently similar to
+w, satisfying sim(w,v) >θ
+sim, where θ
+sim
+is a second empirically determined threshold.
+Thebootstrapped feature weight, denoted weight
+B,is then deﬁned by:
+weight
+B
+(w,f)=
+summationtext
+v∈WS(f)∩N(w)
+sim(w,v) (6)
+That is, we identify all words v that are in the semantic neighborhood of w and are also
+characterized by f,and then sum the values of their similarities to w.
+Intuitively, summing these similarity values captures simultaneously a desired
+balance between feature speciﬁcity and generality, addressing the observations in the
+beginning of this section. Some features might characterize just a single word that is
+verysimilarto w,butthenthesumofsimilaritieswillincludeasingleelement,yielding
+a relatively low weight. This is why the sum of similarities is used rather than an
+average value, which might become too high by chance when computed over just a
+single element (or very few elements). Relatively generic features, which occur with
+many words and are thus less indicative, may characterize more words within N(w)
+but then on average the similarity values of these words with w is likely to be lower,
+contributingsmallervaluestothesum.Toreceiveahighoverallweightareliablefeature
+has to characterize multiple words that are highly similar to w.
+We note that the bootstrapped weight is a sum of word similarity values rather
+than a direct function of word–feature association values, which is the more common
+approach. It thus does not depend on the exact statistical co-occurrence level between
+w and f. Instead, it depends on a more global assessment of the association between
+f and the semantic vicinity of w. We notice that the bootstrapped weight is deter-
+mined separately relative to each individual word. This differs from measures that are
+global word-independent functions of the feature, such as the feature entropy used in
+Grefenstette (1994) and the feature term strength relative to a predeﬁned class as em-
+ployed in Pekar, Krkoska, and Staab (2004) for supervised word classiﬁcation.
+4.2 Feature
+Reduction and Similarity Re-Computation
+Oncethebootstrappedweightshavebeencomputed,theiraccuracyissufﬁcienttoallow
+foraggressivefeaturereduction.Asshowninthefollowingsection,inourexperiments
+it sufﬁced to use only the top 100 features for each word in order to obtain optimal
+word similarity results, because the most informative features now receive the highest
+weights.
+Finally,similaritybetweenwordsisre-computedoverthereducedvectorsusingthe
+sim functionwith weight
+B
+replacingtheoriginalfeatureweights.Theresultingsimilarity
+measure is further referred to as sim
+B
+.
+445
+ComputationalLinguistics Volume35,Number3
+5. Evaluation by Lexical Entailment
+To test the effectiveness of the bootstrapped weighting scheme, we ﬁrst evaluated
+whether it contributes to better prediction of lexical entailment. This evaluation was
+based on gold-standard annotations determined by human judgments of the substi-
+tutable lexical entailment relation, as deﬁned in Section 3. The new similarity scheme,
+sim
+B, based on the bootstrapped weights, was ﬁrst computed using the standard LIN
+method as the initial similarity measure. The resulting similarity lists of sim
+LIN
+(the
+original LIN method) and sim
+B
+LIN
+(Bootstrapped LIN) schemes were evaluated for a sam-
+ple of nouns (Section 5.2). Then, the evaluation was extended (Section 5.3) to apply the
+bootstrapping scheme over the two additional similarity measures that were presented
+in Section 2.2, sim
+WJ
+(weighted Jaccard) and sim
+COS
+(Cosine). Along with these lexical
+entailment evaluations we also analyzed directly the quality of the bootstrapped fea-
+ture vectors, according to the average common-feature rank ratio measure, which was
+deﬁned in Section 6.
+5.1 Experimental
+Setting
+Ourexperimentswereconductedusingstatisticsfroman18milliontokensubsetofthe
+Reuters RCV1 corpus (known as Reuters Corpus, Volume 1, English Language, 1996-
+08-20 to 1997-08-19), parsed by Lin’s Minipar dependency parser (Lin 1993).
+The test set of candidate word similarity pairs was constructed for a sample of
+30randomlyselectednounswhosecorpusfrequencyexceeds500.Inourprimaryexper-
+iment we computed the top 40 most similar words for each noun by the sim
+LIN
+and by
+sim
+B
+LIN
+measures,yielding1,200pairsforeachmethod,and2,400pairsaltogether.About
+800 of these pairs were common for the two methods, therefore leaving approximately
+1,600 distinct candidate word similarity pairs. Because the lexical entailment relation is
+directional, eachcandidate pairwasduplicatedtocreatetwodirectionalpairs,yielding
+atestsetof3,200pairs.Thus,foreachpairofwords,wandv,thetwoorderedpairs(w,v)
+and (v,w)were created tobejudged separately forentailment in thespeciﬁed direction
+(whether the ﬁrst word entails the other). Consequently, a non-directional candidate
+similaritypair w,v isconsideredasacorrectentailmentifitwasassessedasanentailing
+pair at least in one direction.
+The assessors were only provided with a list of word pairs without any contextual
+information and could consult any available dictionary, WordNet, and the Web.
+The judgment criterion follows the criterion presented in Section 3. In particular,
+the judges were asked to apply the two operational conditions, existence and sub-
+stitutability in context, to each given pair. Prior to performing the ﬁnal test of the
+annotation experiment, the judges were presented with an annotated set of entailing
+and non-entailing pairs along with the existential statements and sample sentences for
+substitution, demonstrating how the two conditions could be applied in different cases
+of entailment. In addition, they had to judge a training set of several dozen pairs and
+thendiscusstheirjudgmentdecisionswitheachothertogainabetterunderstandingof
+the two criteria.
+The following example illustrates this process. Given a non-directional pair
+{company, organization} two directional pairs are created: (company, organization) and
+(organization, company). The former pair is judged as a correct entailment: the existence
+of a company entails the existence of an organization, and the meaning of the sentence:
+John works for a large company entails the meaning of the sentence with substitution:
+John works for a large organization. Hence, company lexically entails organization,butnot
+446
+Zhitomirsky-GeffetandDagan BootstrappingDistributionalFeatureVector Quality
+viceversa(asshowninSection3.3),thereforethesecondpairisjudgedasnotentailing.
+Eventually, the non-directional pair {company, organization} is considered as a correct
+entailment.
+Finally, the test set of 3,200 pairs was split into three disjoint subsets that were
+judged by three native English speaking assessors, each of whom possessed a Bach-
+elors degree in English Linguistics. For each subset a different pair of assessors was
+assigned, each person judging the entire subset. The judges were grouped into three
+different pairs (i.e., JudgeI+JudgeII, JudgeII+JudgeIII, and JudgeI+JudgeIII). Each pair
+was assigned initially to judge all the word similarities in each subset, and the third
+assessor was employed in cases of disagreement between the ﬁrst two. The majority
+vote was taken as the ﬁnal decision. Hence, each assessor had to fully annotate two
+thirds of the data and for a third subset she only had to judge the pairs for which there
+wasdisagreementbetweentheothertwojudges.Thiswasdoneinordertomeasurethe
+agreement achieved for different pairs ofannotators.
+Theoutputpairsfrombothmethodsweremixedsotheassessorscouldnotassociate
+a pair with the method that proposed it. We note that this evaluation methodology,
+in which human assessors judge the correctness of candidate pairs by some semantic
+substitutabilitycriterion,issimilartocommonevaluationmethodologiesusedforpara-
+phrase acquisition (Barzilay and McKeown 2001; Lin and Pantel 2001; Szpektor et al.2004).
+Measuring human agreement level for this task, the proportions of matching de-
+cisions were 93.5% between Judge I and Judge II, 90% for Judge I and Judge III, and
+91.2%forJudgeIIandJudgeIII.Thecorrespondingkappavaluesare0.83,0.80,and0.80,
+which is regarded as “very good agreement” (Landis and Koch 1997). It is interesting
+to note that after some discussion most of the disagreements were settled, and the few
+remaining mismatches were due to different understandings of word meanings. These
+ﬁndingsseemtohaveasimilarﬂavortothehumanagreementﬁndingsreportedforthe
+RecognizingTextualEntailmentchallenges(Bar-Haimetal.2006;Dagan,Glickman,and
+Magnini2006),inwhichentailmentwasjudgedforpairsofsentences.Infact,thekappa
+values obtained in our evaluation are substantially higher than reported for sentence-
+level textual entailment, which suggests that it is easier to make entailment judgments
+at the lexical level than at the full sentence level.
+The parameter values of the algorithms were tuned using a development set of
+similarity pairs generated for 10 additional nouns, distinct from the 30 nouns used for
+the test set. The parameters were optimized by running the algorithm systematically
+with various values across the parameter scales and judging a sample subset of the
+results. weight
+MI
+=4wasfoundastheoptimalMI threshold for active feature weights
+(featuresincludedinthefeaturevectors),yieldinga10%precisionincreaseofsim
+LIN
+and
+removing over 50% of the data relative to no feature ﬁltering. Accordingly, this value
+also serves as the θ
+weight
+threshold in the bootstrapping scheme (Section 4). As for the
+θ
+sim
+parameter, the best results on the development set were obtained for θ
+sim
+=0.04,
+θ
+sim
+=0.02, and θ
+sim
+=0.01when bootstrapping over the initial similarity measures
+LIN, WJ,andCOS, respectively.
+5.2 Evaluation
+Results for sim
+B
+LIN
+We measured the contribution of the improved feature vectors to the resulting preci-
+sion of sim
+LIN
+and sim
+B
+LIN
+in predicting lexical entailment. The results are presented in
+Table 4, where precision and error reduction values were computed for the top 20,
+30, and 40 word similarity pairs produced by each method. It can be seen that the
+447
+ComputationalLinguistics Volume35,Number3
+Table 4
+Lexical entailmentprecisionvaluesfortop-nsimilar wordsbythe Bootstrapped LIN and the
+original LIN method.
+Top-n Correct Error Rate
+Words Entailments(%) Reduction(%)
+sim
+LIN
+sim
+B
+LIN
+Top 20 52.0 57.9 12.3
+Top 30 48.2 56.2 15.4
+Top 40 41.0 49.7 14.7
+Bootstrapped LIN method outperformed the original LIN approach by 6–9 precision
+points at all top-n levels. As expected, the precision for the shorter top 20 list is higher
+for both methods, thus leaving a bitless room forimprovement.
+Overall, the Bootstrapped LIN method extracted 104 (21%) more correct similarity
+pairs than the other measure and reduced the number of errors by almost 15%. We also
+computed the relative recall, which shows the percentage of correct word similarities
+found by each method relative to the joint set of similarities that were extracted by
+both methods. The overall relative recall of the Bootstrapped LIN was quite high (94%),
+exceeding LIN’s relative recall (of 78%) by 16 percentage points. We found that the
+bootstrappedmethodcoversover90%ofthecorrectsimilaritieslearnedbytheoriginal
+method, while also identifying many additional correct pairs.
+It should be noted at this point that the current limited precision levels are deter-
+minednotjustbythequalityofthefeaturevectorsbutsigniﬁcantlybythenatureofthe
+vector comparison measure itself (i.e., the LIN formula, as well weighted Jaccard and
+Cosine as reported in Section 5.3). It was observed in other work (Geffet and Dagan
+2005) that these common types of vector comparison schemes exhibit certain ﬂaws
+in predicting lexical entailment. Our present work thus shows that the bootstrapping
+method yields a signiﬁcant improvement in feature vector quality, but future research
+is needed to investigate improved vector comparison schemes.
+An additional indication of the improved vector quality is the massive feature
+reduction allowed by having the most characteristic features concentrated at the top
+ranks of the vectors. The vectors of active features of LIN, as constructed after standard
+feature ﬁltering (Section 5.1), could be further reduced by the bootstrapped weighting
+to about one third of their size. As illustrated in Figure 1, changing the vector size
+signiﬁcantly affects the similarity results. In sim
+B
+LIN
+the best result was obtained with
+the top 100 features per word, while using less than 100 or more than 150 features
+caused a 5–10% decrease in performance. On the other hand, an attempt to cut off the
+lower ranked features of the MI weighting always resulted in a noticeable decrease in
+precision. These results show that for MI weighting many important features appear
+further down in the ranked vectors, while for the bootstrapped weighting adding too
+many features adds mostly noise, since most characteristic features are concentrated
+at the top ranks. Thus, in addition to better feature weighting, the bootstrapping step
+provides effective feature reduction, which improves vector quality and consequently
+the similarity results.
+We note that the optimal vector size we obtained conforms to previous results—
+for example, by Widdows (2003), Curran (2004), and Curran and Moens (2002)—who
+also used reduced vectors of up to 100 features as optimal for learning hyponymy and
+synonymy, respectively. In Widdows the known SVD method for dimension reduction
+448
+Zhitomirsky-GeffetandDagan BootstrappingDistributionalFeatureVector Quality
+Figure 1
+Percentageofcorrect entailmentswithinthetop40 candidatepairsof each ofthemethods,
+LIN and Bootstrapped LIN (denotedas LINB intheﬁgure),whenusingvaryingnumbersof
+top-rankedfeaturesinthefeaturevector.Thevalueof “All”correspondstothefullsizeof
+vectorsandis typicallyin therangeof 300–400 features.
+of LSA-based vectors is applied, whereas in Curran, and Curran and Moens, only
+the strongly associated verbs (direct and indirect objects of the noun) are selected as
+“canonical features” that are expected to be shared by true synonyms.
+Finally, we tried executing an additional bootstrapping iteration of weight
+B
+calcula-
+tion over the similarity results of sim
+B
+LIN
+. The resulting increase in precision was much
+smaller, of about 2%, showing that most of the potential beneﬁt is exploited in the
+ﬁrst bootstrapping iteration (which is not uncommon for natural language data). On
+the other hand, computing the bootstrapping weight twice increases computation time
+signiﬁcantly, which led us to suggest a single bootstrapping iteration as a reasonable
+cost-effectiveness tradeoff for our data.
+5.3 Evaluation
+for sim
+B
+WJ
+and sim
+B
+COS
+Tofurthervalidatethebehaviorofthebootstrappingschemeweexperimentedwithtwo
+additionalsimilaritymeasures,weightedJaccard(sim
+WJ
+)andCosine(sim
+COS
+)(described
+in Section 2.2). For each of the additional measures the experiment repeats the main
+three steps described in Section 4: Initially, the basic similarity lists are calculated for
+each of the measures using MI weighting; then, the bootstrapped weighting, weight
+B,is
+computed based on the initial similarities, yielding new word feature vectors; ﬁnally,
+the similarity values are recomputed by the same vector similarity measure using the
+new feature vectors.
+To assess the effectiveness of weight
+B
+we computed the four alternative output
+similarity lists, using the sim
+WJ
+and sim
+COS
+similarity measures, each with the weight
+MI
+449
+ComputationalLinguistics Volume35,Number3
+Table 5
+Comparativeprecisionvalues forthetop20 similaritylistsof thethreeselected similarity
+measures, with MI and Bootstrappedfeatureweightingfor each.
+Measure LIN–LIN
+B
+WJ–WJ
+B
+COS–COS
+B
+Correct Similarities(%) 52.0–57.9 51.0–54.8 46.1–50.9
+and weight
+B
+weighting functions. The four lists were judged for lexical entailment by
+three assessors, according to the same procedure described in Section 5.1. To make the
+additionalmanualevaluationaffordablewejudgedthetop20similarwordsineachlist
+for each of the 30 target nouns of Section 5.1.
+Table 5 summarizes the precision values achieved by LIN, WJ,andCOS with
+both weight
+MI
+and weight
+B
+. As shown in the table, bootstrapped weighting consistently
+contributed between 4–6 points to the accuracy of each method in the top 20 similarity
+list. We view the results as quite positive, considering that improving over top 20
+similaritiesisamuchmorechallengingtaskthanimprovingoverlongersimilaritylists,
+while the improvement was achieved only by modifying the feature vectors without
+changing the similarity measure itself (as hinted in Section 5.2). Our results are also
+compatible with previous ﬁndings in the literature (Dagan, Lee, and Pereira 1999;
+Weeds, Weir, and McCarthy 2004) that found LIN and WJ to be more accurate for
+similarity acquisition than COS. Overall, the results demonstrate that the bootstrapped
+weighting scheme consistently produces improved results.
+An interesting behavior of the bootstrapping process is that the most prominent
+featuresforagiventargetwordconvergeacrossthedifferentinitialsimilaritymeasures,
+as exempliﬁed in Table 6. In particular, although the initial similarity lists overlap only
+partly,
+4
+the overlap of the top 30 features for our 30-word sample was ranging between
+88% and 100%. This provides additional evidence that the quality of the bootstrapped
+weighting is quite similar for various initial similarity measures.
+6. Analyzing the Bootstrapped Feature Vector Quality
+In this section we provide an in-depth analysis of the bootstrapping feature weighting
+quality compared tothe state-of-the-art MI weighting function.
+6.1 Qualitative
+Observations
+The problematic feature ranking noticed at the beginning of Section 4 can be revealed
+moreobjectivelybyexaminingthecommonfeatureswhichcontributemosttotheword
+similarityscores.Tothatend,weexaminethecommonfeaturesofthetwogivenwords
+and sort them by the sum of their weights in both word vectors. Table 7 shows the top
+10commonfeaturesbythissortingforapairoftrulysimilar(lexicallyentailing)words
+(country–state), and for a pair of non-entailing words (country–party). For each common
+feature the table shows its two corresponding ranks in the feature vectors of the two
+words.
+4 Overlapratewasabout40%between COS and WJ or LIN, and 70%between WJ and LIN.Theoverlap
+wascomputedfollowingtheprocedure ofWeeds,Weir,and McCarthy(2004),disregarding the orderof
+thesimilarwordsinthe lists. Interestingly, they obtainedroughlysimilarﬁgures, of28%overlapfor COS
+and WJ,32%overlapfor COS and LIN, and 81%overlapbetween LIN and WJ.
+450
+Zhitomirsky-GeffetandDagan BootstrappingDistributionalFeatureVector Quality
+Table 6
+Top30 featuresof town bybootstrappedweightingbased on LIN, WJ,andCOS asinitial
+similarities.Thethreesets ofwordsarealmost identical,withrelativelyminorranking
+differences.
+LIN
+B
+WJ
+B
+COS
+B
+southern southern northern
+northern northern southern
+ofﬁce ofﬁce remote
+eastern ofﬁcial eastern
+remote coastal ofﬁcial
+ofﬁcial eastern based
+troop northeastern northeastern
+northeastern remote ofﬁce
+people troop coastal
+coastal people northwestern
+attack based people
+based populated attack
+populated attack troop
+northwestern home home
+base northwestern south
+home south western
+south western city
+west west populated
+western resident base
+neighboring neighboring resident
+resident house north
+plant city west
+police base neighboring
+held trip trip
+locate camp surrounding
+trip held police
+city north held
+site locate locate
+camp surrounding house
+surrounding police camp
+It can be observed in Table 7 that for both word pairs the common features are
+scattered across the pair of feature vectors, making it difﬁcult to distinguish between
+the truly similar and the non-similar pairs. We suggest, on the other hand, that the
+desired behavior of effective feature weighting is that the common features of truly
+similar words would be concentrated at the top ranks of both word vectors. In other
+words, if the two words are semantically similar then we expect them to share their
+most characteristic features, which are in turn expected to appear at the higher ranks
+of each feature vector. The common features for non-similar words are expected to be
+scattered all across each of the vectors. In fact, these expectations correspond exactly to
+the rationale behind distributional similarity measures: Such measures are designed to
+assign higher similarity scores for vector pairs that share highly weighted features.
+Comparatively,weillustratethebehaviorofthe Bootstrapped LIN methodrelativeto
+the observations regarding the original LIN method, using the same running example.
+Table 8 shows the top 10 features of country. We observe that the list now contains
+features that are intuitively quite indicative and reliable, while many too speciﬁc or
+idiomaticfeatures,andtoogeneralones,weredemoted(comparewithTable3).Table9
+showsthatmostofthetop10commonfeaturesfor country–state arenowrankedhighly
+451
+ComputationalLinguistics Volume35,Number3
+for both words. On the other hand, there are only two common features (among the
+top100features)fortheincorrectpaircountry–party,bothwithquitelowranks(compare
+withTable7),whiletherestofthecommonfeaturesforthispairdidnotpassthetop100
+cutoff.
+Consequently, Table 10 demonstrates a much more accurate similarity list for coun-
+try,wheremanyincorrect(non-entailing)wordsimilarities,likepartyandcompany,were
+demoted. Instead, additional correct similarities, like kingdom and land, were promoted
+(compare with Table 2). In this particular case all the remaining errors correspond to
+words that are related quite closely to country, denoting geographic concepts. Many of
+these errors are context dependent entailments which might be substitutable in some
+cases, but they violate the word meaning entailment condition (e.g., country–neighbor,
+country–port). Apparently, these words tend to occur in contexts that are typical for
+country in the Reuters corpus. Some errors violating the substitutability condition of
+lexical entailment were identiﬁed as well, such as industry–product. These cases are
+quite hard to differentiate from correct entailments, since the two words are usually
+closely related to each other and also share highly ranked features, because they often
+appear in similar characteristic contexts. It may therefore be difﬁcult to ﬁlter out such
+Table 7
+LIN (MI) weighting:Thetop10 commonfeaturesfor country–state and country–party,alongwith
+theircorrespondingranksineach ofthetwofeaturevectors. Thefeaturesaresorted bythesum
+of theirfeatureweightswithbothwords.
+Country–State Ranks Country–Party Ranks
+Broadcast,pcomp in, h 24 50 Brass,nn, h 64 22
+Goods,mod, h 140 16 Concluding,pcomp of, h 73 20
+Civilservant,gen, h 64 54 Representation,pcomp of, h 82 27
+Bloc,gen, h 30 77 Patriarch,pcomp of, h 128 28
+Nonaligned,mod, m 55 60 Friendly,mod, m 58 83
+Neighboring,mod, m 15 165 Expel,pcomp from, h 59 30
+Statistic,pcomp on, h 165 43 Heartland,pcomp of, h 102 23
+Border,pcomp of, h 10 247 Surprising,pcomp of, h 114 38
+Northwest,mod, h 41174 Issue, pcomp between, h 103 51
+Trip, pcomp to, h 105 34 Contravention,pcomp in, m 129 43
+Table 8
+Top 10featuresof country bytheBootstrappedfeatureweighting.
+Feature Weight
+B
+Industry,gen, h 1.21
+Airport,gen, h 1.16
+Visit, pcomp to, h 1.06
+Neighboring,mod, m 1.04
+Law,gen, h 1.02
+Economy,gen, h 1.02
+Population,gen, h 0.93
+Stockmarket,gen, h 0.92
+Governor,pcomp of, h 0.92
+Parliament,gen, h 0.91
+452
+Zhitomirsky-GeffetandDagan BootstrappingDistributionalFeatureVector Quality
+Table 9
+Bootstrappedweighting:top10commonfeaturesfor country–state and country–party alongwith
+theircorrespondingranksinthetwo(sorted)featurevectors.
+Country–State Ranks Country–Party Ranks
+Neighboring,mod, m 31Relation,pcompwith, h 1226
+Industry,gen, h 111Minister,pcomp from, h 77 49
+Impoverished,mod, m 88
+Governor,pcomp of, h 109
+Population,gen, h 616
+City,gen, h 1718
+Economy,gen, h 515
+Parliament,gen, h 1022
+Citizen,pcomp of, h 1425
+Law,gen, h 433
+Table 10
+Top20 most similarwordsfor country and theirranksinthesimilaritylist bythe Bootstrapped
+LIN measure.
+nation 1 territory 6 *province 11 zone 16
+state 2 *neighbor 7 *city 12 land 17
+*island 3 colony 8 *town 13 place 18
+region 4 *port 9 kingdom 14 economy 19
+area 5 republic 10 *district 15 *world 20
+Note that four of the incorrect similarities from Table 2 were replaced with correct entailments
+resultingin a20%increase of precision(reaching60%).
+non-substitutable similarities merely by the standard distributional similarity scheme,
+suggesting that additional mechanisms and data types would be required.
+6.2 The
+Average Common-Feature Rank Ratio
+It should be noted at this point that these observations regarding feature weight be-
+havior are based on subjective intuition of how characteristic features are for a word
+meaning, which is quite difﬁcult to assess systematically. Therefore, we next propose a
+quantitative measure for analyzing the quality offeature vector weights.
+More formally, given a pair of feature vectors for words w and v we ﬁrst deﬁne
+theiraverage common-feature rankwithrespecttothetop-ncommonfeatures,denoted
+acfr
+n,as follows:
+acfr
+n
+(w,v)=
+1
+n
+summationtext
+f∈top−n(F(w)∩F(v))
+1
+2
+[rank(w,f)+rank(v,f)]
+(7)
+where rank(w,f) is the rank of feature f in the vector of the word w when features are
+sorted by their weight, and F(w)isthesetoffeaturesinw’s vector. top-n is the set of
+top n common features to consider, where common features are sorted by the sum of
+their weights in the two word vectors (the same sorting as in Table 7). In other words,
+acfr
+n
+(w,v)istheaveragerankinthetwofeaturevectorsoftheirtop n commonfeatures.
+453
+ComputationalLinguistics Volume35,Number3
+Using this measure, we expect that a good feature weighting function would
+typically yield lower values of acfr
+n
+for truly similar words (as low ranking values
+correspondtohigherpositionsinthevectors)thanfornon-similarwords.Hence,given
+a pre-judged test set of pairs of similar and non-similar words, we deﬁne the ratio,
+acfr-ratio, between the average acfr
+n
+of the set of all the non-similar words, denoted as
+Non-Sim,andtheaverage acfr
+n
+ofthesetofalltheknownpairsofsimilarwords, Sim,to
+be an objective measure for feature weighting quality, as follows:
+acfr
+n
+− ratio =
+1
+|Non−Sim|
+summationtext
+w,v∈Non−Sim
+acfr
+n
+(w,v)
+1
+|Sim|
+summationtext
+w,v∈Sim
+acfr
+n
+(w,v)
+(8)
+As an illustration, the two word pairs in Table 7 yielded acfr
+10
+(country,state)=78
+and acfr
+10
+(country,party)=64. Both values are quite high, showing no principal differ-
+ence between the tighter lexically entailing similarity versus a pair of non-similar (or
+rather loosely related) words. This behavior indicates the deﬁciency of the MI feature
+weighting function in this case. On the other hand, the corresponding values for the
+two pairs produced by the Bootstrapped LIN method (for the features in Table 9) are
+acfr
+10
+(country,state)=12andacfr
+10
+(country,party)=41. These ﬁgures clearly reﬂect the
+desired distinction between similar and non-similar words, showing that the common
+features of the similar words are indeed concentrated at much higher ranks in the
+vectors than the common features of the non-similar words.
+In recent work on distributional similarity (Curran 2004; Weeds and Weir 2005) a
+varietyofalternativeweightingfunctionswerecompared.However,thequalityofthese
+weighting functions was evaluated only through their impact on the performance of
+a particular word similarity measure, as we did in Section 5. Our acfr-ratio measure
+providestheﬁrstattempttoanalyzethequalityofweightingfunctionsdirectly,relative
+to apre-judged word similarity set,without reference to aconcrete similarity measure.
+6.3 An
+Empirical Assessment of the acfr-ratio
+Inthissubsectionwereportanempiricalcomparisonoftheacfr-ratioobtainedfortheMI
+and BootstrappedLIN weighting functions. To that end, we have run the Minipar system
+on the full Reuters RCV1corpus, which contains 2.5 GB of English news stories, and
+thencalculatedtheMI-weightedfeaturevectors.Theoptimizedthresholdonthefeature
+weights, θ
+weight, was set to 0.2. Further, to compute the Bootstrapped LIN feature weights
+a θ
+sim
+of 0.02 was applied to the LIN similarity values. In this experiment we employed
+the full bootstrapped vectors (i.e., without applying feature reduction by the top 100
+cutoff). This was done to avoid the effect of the feature vector size on the acfr
+n
+metric,
+which tends to naturally assign higher scores to shorter vectors.
+As computing the acfr-ratio requires a pre-judged sample of candidate word simi-
+laritypairs,weutilizedtheannotatedtestsampleofcandidatepairsofwordsimilarities
+described in Section 5, which contains both entailing and non-entailing pairs.
+First, we computed the average common-feature rank scores (acfr
+n
+) (with varying
+valuesofn)forweight
+MI
+andforweight
+B
+overallthepairsinthetestsample.Interestingly,
+the mean acfr
+n
+scores for weight
+B
+range within 110–264 for n = 10...100, while the
+correspondingrangefor weight
+MI
+isbyanorderofmagnitudehigher:780–1,254,despite
+the insigniﬁcant differences in vector sizes. Therefore, we conclude that the common
+features that are relevant to establishing distributional similarity in general (regardless
+of entailment) are much more scattered across the vectors by MI weighting, while with
+bootstrapping they tend to appear at higher positions in the vectors. These ﬁgures
+454
+Zhitomirsky-GeffetandDagan BootstrappingDistributionalFeatureVector Quality
+reﬂect a desired behavior of the bootstrapping function which concentrates most of the
+prominentcommonfeaturesforallthedistributionallysimilarwords(whetherentailing
+or not) at the lower ranks of their vectors. In particular, this explains the ability of our
+method to perform a massive feature reduction as demonstrated in Section 5, and to
+produce more informative vectors, while demoting and eliminating much of the noise
+in the original vectors.
+Next, we aim to measure the discriminative power of the compared methods to
+distinguish between entailing and non-entailing pairs. To this end we calculated the
+acfr-ratio, which captures the difference in the average common feature ranks between
+entailing vs. non-entailing pairs, for both the MI-based and bootstrapped vectors.
+The obtained results are presented in Figure 2. As can be seen the acfr-ratio values
+are consistently higher for Bootstrapped LIN than for MI. That is, the bootstrapping
+method assigns much higher acfr
+n
+scores to entailing words than to non-entailing ones,
+whereas for MI the corresponding acfr
+n
+scores for entailing and non-entailing pairs are
+roughly equal. In particular, we notice that the largest gaps in acfr-ratio occur for lower
+numbers of top common features, whose weights are indeed the most important and
+inﬂuential in distributional similarity measures. Thus, these ﬁndings suggest a direct
+indication of an improved quality of the bootstrapped feature vectors.
+7. A Pseudo-Word Sense Disambiguation Evaluation
+Thelexicalentailmentevaluationreportedhereincorrespondstothelexicalsubstitution
+applicationofdistributionalsimilarity.Theothertypeofapplication,asreviewedinthe
+Introduction, is similarity-based prediction of word co-occurrence likelihood, needed
+for disambiguation applications. Comparative evaluations of distributional similarity
+methods for this type of application were commonly conducted using a pseudo-word
+sense disambiguation scheme, which is replicated here. In the next subsections we ﬁrst
+describe how distributional similarity can help improve word sense disambiguation
+(WSD). Then we describe how the pseudo-word sense disambiguation task, which
+Figure 2
+Comparisonbetween the acfr-ratio for MI and Bootstrapped LIN methods,when usingvarying
+numbersof commontop-rankedfeaturesinthewords’featurevectors.
+455
+ComputationalLinguistics Volume35,Number3
+corresponds to the general WSD setting, was used to evaluate the co-occurrence like-
+lihood predictions obtained byalternative similarity methods.
+7.1 Similarity
+Modeling for Word Sense Disambiguation
+WSD methods need to identify the correct sense of an ambiguous word in a given
+context. For example, a test instance for the verb save might be presented in the con-
+text saving Private Ryan. The disambiguation method must decide whether save in this
+particular context means rescue, preserve, keep, lay aside, or some other alternative.
+Sense recognition is typically based on context features collected from a sense-
+annotated training corpus. For example, the system might learn from the annotated
+training data that the word soldier is a typical object for the rescuing sense of save,asin:
+They saved the soldier. In this setting, distributional similarity is used to reduce the data
+sparseness problem via similarity-based generalization. The general idea is to predict
+the likelihood of unobserved word co-occurrences based on observed co-occurrences
+of distributionally similar words. For example, assume that the noun private did not
+occur as a direct object of save in the training data. Yet, some of the words that are
+distributionally similar to private,like soldier or sergeant,mighthaveoccurred with save.
+Thus, a WSD system may infer that the co-occurrence save private is more likely for the
+rescuing sense of save because private is distributionally similar to soldier, which did co-
+occurwiththissenseof save intheannotatedtrainingcorpus.Ingeneralterms,theWSD
+method estimates the co-occurrence likelihood for the target sense and a given context
+word based on training data for words that are distributionally similar to the context
+word.
+This idea of similarity-based estimation of co-occurrence likelihood was applied
+in Dagan, Marcus, and Markovitch (1995) to enhance WSD performance in machine
+translation and recently in Gliozzo, Giuliano, and Strapparava (2005), who employed a
+Latent Semantic Analysis (LSA)-based kernel function as a similarity-based represen-
+tation for WSD. Other works employed the same idea for pseudo-word sense dis-
+ambiguation, as explained in the next subsection.
+7.2 The
+Pseudo-Word Sense Disambiguation Setting
+Sense disambiguation typically requires annotated training data, created with consid-
+erable human effort. Yarowsky (1992) suggested that when using WSD as a test bed
+for comparative algorithmic evaluation it is possible to set up a pseudo-word sense
+disambiguation scheme. This scheme was later adopted in several experiments, and
+was popular for comparative evaluations of similarity-based co-occurrence likelihood
+estimation(Dagan,Lee,andPereira1999;Lee1999;WeedsandWeir2005).Wefollowed
+closely the same experimental scheme, as described subsequently.
+First,alistofpseudo-wordsisconstructedby“merging”pairsofwordsintoasingle
+pseudo word. In our experiment each pseudo-word constitutes a pair of randomly
+chosen verbs, (v,v
+prime
+), where each verb represents an alternative “sense” of the pseudo-
+word. The two verbs are chosen to have almost identical probability of occurrence,
+which avoids a word frequency bias on the co-occurrence likelihood predictions.
+Next, we consider occurrences of pairs of the form 〈n, (v, v’)〉 , where (v,v
+prime
+)isa
+pseudo-word and n is a noun representing the object of the pseudo-word. Such pairs
+are constructed from all co-occurrences of either v or v
+prime
+with the object n in the corpus.
+For example, given the pseudo-word (rescue, keep) and the verb–object co-occurrence in
+the corpus rescue–private we construct the pair 〈private, (rescue, keep)〉. Given such a test
+456
+Zhitomirsky-GeffetandDagan BootstrappingDistributionalFeatureVector Quality
+pair, the disambiguation task is to decide which of the two verbs is more likely to co-
+occur with the given object noun, aiming to recover the original verb from which this
+pairwasconstructed.Inthisexamplewewouldliketopredictthat rescue ismorelikely
+toco-occur with private as an object than keep.
+In our experiment 80% of the constructed pairs were used for training, providing
+the co-occurrence statistics for the original known verb in each pair (i.e., either 〈n, v〉
+or 〈n, v’〉). From the remaining 20% of the pairs those occurring in the training corpus
+werediscarded,leavingasatestsetonlypairswhichdonotappearinthetrainingpart.
+Thus, predicting the co-occurrence likelihood of the noun with each of the two verbs
+cannot rely on direct frequency estimation for the co-occurrences, but rather only on
+similarity-based information.
+To make the similarity-based predictions we ﬁrst compute the distributional sim-
+ilarity scores for all pairs of nouns based on the training set statistics, where the co-
+occurring verbs serve as the features in the distributional vectors of the nouns. Then,
+given a test pair 〈(v,v’), n〉 our task is to predict which of the two verbs is more likely
+to co-occur with n. This verb is thus predicted as being the original verb from which
+the pair was constructed. To this end, the noun n is substituted in turn with each of its
+k distributionally most similar nouns, n
+i, and then both of the obtained “similar” pairs
+〈n
+i,v〉 and 〈n
+i,v
+prime
+〉 are sought in the training set.
+Next,wewouldliketopredictthatthemorelikelyco-occurrencebetween〈n, v〉and
+〈n, v’〉 is the one for which more pairs of similar words were found in the training set.
+Several approaches were used in the literature to quantify this decision procedure and
+we have followed the most recent one from Weeds and Weir (2005). Each similar noun
+n
+i
+is given a vote, which is equal to the difference between the frequencies of the two
+co-occurrences (n
+i,v)and(n
+i,v
+prime
+), and which it casts to the verb with which it co-occurs
+more frequently. The votes for each of the two verbs are summed over all k similar
+nouns n
+i
+and the one with most votes wins. The winning verb is considered correct if it
+is indeed the original verb from which the pair was constructed, and a tie is recorded
+if the votes for both verbs are equal. Finally, the overall performance of the prediction
+method is calculated byits error rate:
+error =
+1
+T
+(#of incorrect choices+
+#of ties
+2
+)(9)
+where T is the number of test instances.
+In the experiment, we used the 1,000 most frequent nouns in our subset of the
+Reuters corpus (of Section 5.1). The training and test data were created as described
+herein, using the Minipar parser (Lin 1993) to produce verb–object co-occurrence pairs.
+The k=40most similar nouns for each test noun were computed by each of the three
+examined similarity measures LIN, WJ,andCOS (as in Section 5), with and without
+bootstrapping. The six similarity lists were utilized in turn for the pseudo-word sense
+disambiguation task, calculating the corresponding error rate.
+7.3 Results
+Table11shows theerrorrateimprovements afterapplyingthebootstrapped weighting
+for each of the three similarity measures. The largest error reduction, by over 15%, was
+obtainedforthe LIN method,withquitesimilarresultsfor WJ.Thisresultisbetterthan
+the one reported by Weeds and Weir (2005), who achieved about 6% error reduction
+compared to LIN.
+457
+ComputationalLinguistics Volume35,Number3
+Table 11
+Thecomparativeerrorratesof thepseudo-disambiguationtask forthethreeexaminedsimilarity
+measures, withand withoutapplyingthebootstrappedweightingforeach of them.
+Measure LIN–LIN
+B
+WJ–WJ
+B
+COS–COS
+B
+Errorrate 0.157–0.133 0.150–0.132 0.155–0.145
+This experiment shows that learning tighter semantic similarities, based on the im-
+proved bootstrapped feature vectors, correlates also with better similarity-based infer-
+enceforco-occurrencelikelihoodprediction.Furthermore,wehaveseenonceagainthat
+the bootstrapping scheme does not depend on a speciﬁc similarity measure, reducing
+the error rates for all three measures.
+8. Conclusions
+The primary contribution of this article is the proposal of a bootstrapping method
+that substantially improves the quality of distributional feature vectors, as needed for
+statistical word similarity. The main idea is that features which are common for similar
+words are also most characteristic for their meanings and thus should be promoted. In
+fact, beyond its intuitive appeal, this idea corresponds to the underlying rationale of
+the distributional similarity scheme: Semantically similar words are expected to share
+exactly those context features which are most characteristic for their meaning.
+The superior empirical performance of the resulting vectors was assessed in the
+context of the two primary applications of distributional word similarity. The ﬁrst is
+lexical substitution, which was represented in our work by a human gold standard
+for the substitutable lexical entailment relation. The second is co-occurrence likelihood
+prediction, which was assessed by the automatically computed scores of the common
+pseudo-wordsensedisambiguationevaluation.Anadditionaloutcomeoftheimproved
+feature weighting is massive feature reduction.
+Experimenting with three prominent similarity measures showed that the boot-
+strapping scheme is robust and performs well when applied over different measures.
+Notably, our experiments show that the underlying assumption behind the boot-
+strapping scheme is valid, that is, available similarity metrics do provide a reason-
+able approximation of the semantic similarity space which can be then exploited via
+bootstrapping.
+Themethodologyofourinvestigationhasyieldedseveraladditionalcontributions:
+1. Utilizing areﬁned deﬁnition ofsubstitutable lexical entailment both as an
+end goal and as an analysis vehicle for distributional similarity. It was
+shownthatthereﬁneddeﬁnitioncanbejudgeddirectlybyhumansubjects
+with very good agreement. Overall, lexical entailment is suggested as a
+useful model for lexical substitution needs in semantic-oriented
+applications.
+2. A thorough error analysis of state of the art distributional similarity
+performance was conducted. The main observation was deﬁcient quality
+of the feature vectors, which reduces the eventual quality ofsimilarity
+measures.
+458
+Zhitomirsky-GeffetandDagan BootstrappingDistributionalFeatureVector Quality
+3. Inspired by the qualitative analysis, we proposed anew analytic measure
+for feature vector quality, namely average common-feature rank ratio
+(acfr-ratio),which is based on the common ranks of the features for pairs of
+words.Thismeasureestimatestheabilityofafeatureweightingmethodto
+distinguish between pairs of similar vs. non-similar words. To the best of
+our knowledge this is the ﬁrstproposed measure for direct analysis of the
+quality of feature weighting functions, without the need to employ them
+within some vector similarity measure.
+Theabilitytoidentifythemostcharacteristicfeaturesofwordscanhaveadditionalben-
+eﬁts, beyond their impact on traditional word similarity measures (as evaluated in this
+article). A demonstration of such potential appears in Geffet and Dagan (2005), which
+presents a novel feature inclusion scheme for vector comparison. That scheme utilizes
+our bootstrapping method to identify the most characteristic features of a word and
+then tests whether these particular features co-occur also with a hypothesized entailed
+word.Theempiricalsuccessreportedinthatpaperprovidesadditionalevidenceforthe
+utilityof the bootstrapping method.
+More generally, our motivation and methodology can be extended in several di-
+rections by future work on acquiring lexical entailment or other lexical-semantic rela-
+tions. One direction is to explore better vector comparison methods that will utilize
+the improved feature weighting, as shown in Geffet and Dagan (2005). Another direc-
+tion is to integrate distributional similarity and pattern-based acquisition approaches,
+whichwereshowntoprovidelargelycomplementaryinformation(Mirkin,Dagan,and
+Geffet2006).Anadditionalpotentialistointegrateautomaticallyacquiredrelationships
+with the information found in WordNet, which seems to suffer from several serious
+limitations (Curran 2005), and typically overlaps to a rather limited extent with the
+outputofautomaticacquisitionmethods.Asaparalleldirection,futureresearchshould
+explore in detail the impact of different lexical-semantic acquisition methods on text
+understanding applications.
+Finally, our proposed bootstrapping scheme seems to have a general appeal for
+improvingfeaturevectorqualityinadditionalunsupervisedsettings.Wethushopethat
+this idea will be explored further in other NLP and machine learning contexts.
+References
+Adams,Rod.2006. Textual entailment
+throughextendedlexical overlap.In
+Proceedings of the Second PASCAL Challenges
+Workshop on Recognising Textual Entailment,
+pages68–73, Venice.
+Bar-Haim,Roy,IdoDagan,BillDolan,
+LisaFerro,DaniloGiampiccolo,Bernardo
+Magnini,and IdanSzpektor.2006. The
+second PASCAL recognisingtextual
+entailmentchallenge. In Proceedings of the
+Second PASCAL Challenges Workshop on
+Recognising Textual Entailment,pages 1–9,
+Venice.
+Baroni,Marcoand S.Vegnaduzzo. 2004.
+Identifyingsubjective adjectives through
+web-based mutualinformation.In
+Proceedings of KONVENS–04,pages 17–24,
+Vienna.
+Barzilay,Reginaand Kathleen McKeown.
+2001. Extractingparaphrasesfroma
+parallelcorpus.In Proceedings of ACL /
+EACL–01,pages50–57, Toulouse.
+Caraballo,SharonA.1999. Automatic
+constructionof ahypernym-labelednoun
+hierarchyfromtext.In Proceedings of
+ACL–99,pages 120–126, CollegePark,MD.
+Chklovski,Timothyand PatrickPantel.
+2004. VerbOcean: Miningthewebfor
+ﬁne-grainedSemanticVerbRelations. In
+Proceedings of EMNLP–04, pages33–40,
+Barcelona.
+Church,KennethW. and HanksPatrick.
+1990. Wordassociation norms,mutual
+information,and lexicography.
+Computational Linguistics,16(1):22–29.
+Curran,JamesR. 2004. From Distributional
+to Semantic Similarity. Ph.D.Thesis,
+459
+ComputationalLinguistics Volume35,Number3
+School ofInformaticsof theUniversity
+of Edinburgh,Scotland.
+Curran,James R.2005. Supersensetaggingof
+unknownnounsusingsemanticsimilarity.
+In Proceedings of ACL–2005, pages26–33,
+AnnArbor,MI.
+Curran,James R.and Marc Moens. 2002.
+Improvementsinautomaticthesaurus
+extraction.In Proceedings of the Workshop
+on Unsupervised Lexical Acquisition,
+pages 59–67, Philadelphia,PA.
+Dagan,Ido.2000. ContextualWord
+Similarity.InRob Dale,HermannMoisl,
+and HaroldSomers,editors, Handbook
+of Natural Language Processing.Marcel
+Dekker Inc,Chapter 19,pages 459–476,
+NewYork,NY.
+Dagan,Ido,OrenGlickman,andBernardo
+Magnini. 2006.ThePASCAL recognising
+textualentailmentchallenge. Lecture Notes
+in Computer Science,3944:177–190.
+Dagan,Ido,LillianLee, andFernando
+Pereira.1999. Similarity-basedmodelsof
+co-occurrence probabilities. Machine
+Learning,34(1-3):43–69.
+Dagan,Ido,ShaulMarcus,and Shaul
+Markovitch.1995. Contextual word
+similarityandestimationfromsparse
+data. Computer, Speech and Language,
+9:123–152.
+Dunning,Ted E.1993. Accuratemethodsfor
+thestatistics of surpriseand coincidence.
+Computational Linguistics,19(1):61–74.
+Essen, U.,and V. Steinbiss.1992.
+Co-occurrence smoothingforstochastic
+languagemodeling.In ICASSP–92,
+1:161–164, Piscataway, NJ.
+Fellbaum,Christiane,editor.1998. WordNet:
+An Electronic Lexical Database.MIT Press,
+Cambridge,MA.
+Ferrandez,O., R.M. Terol,R.Munoz, P.
+Martinez-Barco,and M.Palomar.2006.
+An approach based on logicformsand
+WordNet relationshipstotextual
+entailment performance.In Proceedings
+of the Second PASCAL Challenges
+Workshop on Recognising Textual Entailment,
+pages 22–26, Venice.
+Gasperin,Carolineand RenataVieira. 2004.
+Using wordsimilaritylistsfor resolving
+indirect anaphora.In Proceedings of
+ACL–04 Workshop on Reference Resolution,
+pages 40–46, Barcelona.
+Gauch,Susan, J.Wang,and S.Mahesh
+Rachakonda. 1999. Acorpusanalysis
+approachforautomaticqueryexpansion
+and itsextension tomultipledatabases.
+ACM Transactions on Information Systems
+(TOIS),17(3):250–269.
+Geffet,Maayan. 2006. Reﬁning the
+Distributional Similarity Scheme for Lexical
+Entailment. Ph.D.Thesis. School of
+ComputerScience and Engineering,
+HebrewUniversity,Jerusalem,Israel.
+Geffet,Maayan and IdoDagan.2004. Feature
+vector qualityand distributionalsimilarity.
+In Proceedings of COLING–04, Article
+number:247, Geneva.
+Geffet,Maayan and IdoDagan.2005. The
+distributionalinclusionhypothesesand
+lexical entailment.In Proceedings of
+ACL–05, pages107–114, Ann Arbor,MI.
+Gliozzo,Alﬁo,ClaudioGiuliano,andCarlo
+Strapparava.2005. Domainkernelsfor
+word sense disambiguation.In Proceedings
+of ACL–05,pages 403–410, AnnArbor,MI.
+Grefenstette,Gregory.1994. Exploration in
+Automatic Thesaurus Discovery.Kluwer
+Academic Publishers,Norwell,MA.
+Harris,ZeligS.1968. Mathematical structures
+of language.Wiley, NewJersey.
+Hindle,D.1990. Nounclassiﬁcation from
+predicate-argumentstructures.In
+Proceedings of ACL–90,pages268–275,
+Pittsburgh,PA.
+Jijkoun,Valentin and Maarten deRijke.2005.
+Recognizing textualentailment:Isword
+similarityenough?InJoaquinQuinonero
+Candela, IdoDagan, BernardoMagnini,
+and Florenced’Alche-Buc,editors, Machine
+Learning Challenges, Evaluating Predictive
+Uncertainty, Visual Object Classiﬁcation
+and Recognizing Textual Entailment, First
+PASCAL Machine Learning Challenges
+Workshop, MLCW 2005, Southampton, UK,
+Lecture Notes in Computer Science 3944,
+pages 449–460, Springer,NewYork,NY.
+Karov, Y.andS. Edelman.1996.
+Learningsimilarity-basedwordsense
+disambiguationfromsparse data.
+InE.Ejerhedand I.Dagan,editors,
+Fourth Workshop on Very Large Corpora.
+Association forComputationalLinguistics,
+Somerset,NJ,pages 42–55.
+Landis,J.R. andG. G.Koch.1997. The
+measurementsof observer agreementfor
+categorical data. Biometrics,33:159–174.
+Lee,Lillian.1997. Similarity-Based Approaches
+to Natural Language Processing.Ph.D.thesis,
+HarvardUniversity,Cambridge,MA.
+Lee,Lillian.1999.Measures ofdistributional
+similarity.In Proceedings of ACL–99,
+pages 25–32, CollegePark,MD.
+Lin,Dekang.1993. Principle-basedparsing
+withoutovergeneration.In Proceedings of
+ACL–93, pages112–120, Columbus,OH.
+Lin,Dekang.1998. Automaticretrievaland
+clusteringof similarwords.In Proceedings
+460
+Zhitomirsky-GeffetandDagan BootstrappingDistributionalFeatureVector Quality
+of COLING/ACL–98,pages768–774,
+Montreal.
+Lin,Dekangand PatrickPantel.2001.
+Discoveryof inferencerulesforquestion
+answering. Natural Language Engineering,
+7(4):343–360.
+Luk,AlphaK.1995. Statistical sense
+disambiguationwithrelativelysmall
+corporausingdictionarydeﬁnitions.
+In Proceedings of ACL–95,pages 181–188,
+Cambridge,MA.
+Manning,ChristopherD.and Hinrich
+Schutze.1999. Foundations of Statistical
+Natural Language Processing. MIT Press,
+Cambridge,MA.
+Mirkin,Shachar,IdoDagan,and Maayan
+Geffet.2006. Integratingpattern-based
+and distributionalsimilaritymethods
+forlexical entailmentacquisition.In
+Proceedings of the COLING/ACL–06 Main
+Conference Poster Sessions,pages 579–586,
+Sydney.
+Ng,H.T.1997.Exemplar-based word
+sense disambiguation:Somerecent
+improvements.In Proceedings of
+EMNLP– 97,pages 208–213,
+Providence,RI.
+Ng,H.T.andH.B.Lee. 1996.Integrating
+multipleknowledgesources to
+disambiguateword sense: An
+exemplar-based approach.In
+Proceedings of ACL–1996, pages40–47,
+SantaCruz,CA.
+Nicholson,Jeremy,NicolaStokes,and
+TimothyBaldwin.2006. Detecting
+entailmentusingan extended
+implementationof thebasic elements
+overlapmetric.In Proceedings of the
+Second PASCAL Challenges Workshop
+on Recognising Textual Entailment,
+pages122–127, Venice.
+Pado,Sebastian andMirella Lapata.2007.
+Dependency-based construction of
+semanticspace models. Computational
+Linguistics,33(2):161–199.
+Pantel,PatrickandDeepak Ravichandran.
+2004. Automaticallylabelingsemantic
+classes. In Proceedings of HLT/NAACL–04,
+pages321–328, Boston,MA.
+Pantel,Patrick,D.Ravichandran,and
+E.Hovy.2004. Towardsterascale
+knowledgeacquisition.In Proceedings of
+COLING–04,Articlenumber:771,Geneva.
+Pekar,Viktor,M.Krkoska,and S.Staab.
+2004. Featureweightingfor
+co-occurrence-based classiﬁcation
+of Words.In Proceedings of COLING–04,
+Articlenumber:799,Geneva.
+Pereira,Fernando,NaftaliTishby,and
+LillianLee.1993. Distributional
+clusteringof English words.In
+Proceedings of ACL–93,pages 183–190,
+Colombus,OH.
+Ruge,Gerda.1992. Experimentson
+linguistically-based termassociations.
+Information Processing & Management,
+28(3):317–332.
+Salton,G. andM. J.McGill. 1983.
+Introduction to Modern Information
+Retrieval.McGraw-Hill,NewYork,NY.
+Szpektor,Idan,H.Tanev,IdoDagan,and
+B.Coppola.2004.Scalingweb-based
+acquisition ofentailment relations.In
+Proceedings of EMNLP–04, pages41–48,
+Barcelona.
+Vanderwende,Lucy,ArulMenezes,andRion
+Snow.2006. Microsoft research at RTE-2:
+Syntacticcontributionsintheentailment
+task:Animplementation.In Proceedings
+of the Second PASCAL Challenges Workshop
+on Recognising Textual Entailment,
+pages27–32, Venice.
+Weeds, Julieand David Weir. 2005.
+Co-occurrenceretrieval:Aﬂexible
+frameworkforlexicaldistributional
+similarity. Computational Linguistics,
+31(4):439–476.
+Weeds,Julie,D.Weir,andD.McCarthy.
+2004. Characterizingmeasures oflexical
+distributionalsimilarity.In Proceedings
+of COLING–04,pages 1015–1021,
+Switzerland.
+Widdows,D.2003. Unsupervisedmethods
+fordevelopingtaxonomiesbycombining
+syntacticand statistical information.
+In Proceedings of HLT/NAACL 2003,
+pages197–204, Edmonton.
+Yarowsky,D.1992. Word-sense
+disambiguationusingstatistical models
+of Roget’scategories trainedon large
+corpora.In Proceedings of COLING–92,
+pages454–460, Nantes.
+461
+
+

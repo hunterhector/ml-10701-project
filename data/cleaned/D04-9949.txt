@@ -1,0 +1,205 @@
+1:205	A New Approach for English-Chinese Named Entity Alignment Donghui Feng  Information Sciences Institute University of Southern California 4676 Admiralty Way, Suite 1001 Marina Del Rey, CA, U.S.A, 90292 donghui@isi.edu Yajuan Lv  Ming Zhou   Microsoft Research Asia 5F Sigma Center, No.49 Zhichun Road, Haidian Beijing, China, 100080 {t-yjlv, mingzhou}@microsoft.com Abstract  Traditional word alignment approaches cannot come up with satisfactory results for Named Entities.
+2:205	In this paper, we propose a novel approach using a maximum entropy model for named entity alignment.
+3:205	To ease the training of the maximum entropy model, bootstrapping is used to help supervised learning.
+4:205	Unlike previous work reported in the literature, our work conducts bilingual Named Entity alignment without word segmentation for Chinese and its performance is much better than that with word segmentation.
+5:205	When compared with IBM and HMM alignment models, experimental results show that our approach outperforms IBM Model 4 and HMM significantly.
+6:205	1 Introduction This paper addresses the Named Entity (NE) alignment of a bilingual corpus, which means building an alignment between each source NE and its translation NE in the target language.
+7:205	Research has shown that Named Entities (NE) carry essential information in human language (Hobbs et al. , 1996).
+8:205	Aligning bilingual Named Entities is an effective way to extract an NE translation list and translation templates.
+9:205	For example, in the following sentence pair, aligning the NEs, [Zhi Chun road] and [ ] can produce a translation template correctly.
+10:205	 Can I get to [LN Zhi Chun road] by eight oclock?
+11:205	  [LN  ] ? In addition, NE alignment can be very useful for Statistical Machine Translation (SMT) and CrossLanguage Information Retrieval (CLIR).
+12:205	A Named Entity alignment, however, is not easy to obtain.
+13:205	It requires both Named Entity Recognition (NER) and alignment be handled correctly.
+14:205	NEs may not be well recognized, or only  The work was done while the first author was visiting Microsoft Research Asia.
+15:205	parts of them may be recognized during NER.
+16:205	When aligning bilingual NEs in different languages, we need to handle many-to-many alignments.
+17:205	And the inconsistency of NE translation and NER in different languages is also a big problem.
+18:205	Specifically, in Chinese NE processing, since Chinese is not a tokenized language, previous work (Huang et al. , 2003) normally conducts word segmentation and identifies Named Entities in turn.
+19:205	This involves several problems for Chinese NEs, such as word segmentation error, the identification of Chinese NE boundaries, and the mis-tagging of Chinese NEs.
+20:205	For example,   in Chinese is really one unit and should not be segmented as [ON   ]/.
+21:205	The errors from word segmentation and NER will propagate into NE alignment.
+22:205	In this paper, we propose a novel approach using a maximum entropy model to carry out EnglishChinese Named Entity 1 alignment.
+23:205	NEs in English are first recognized by NER tools.
+24:205	We then investigate NE translation features to identify NEs in Chinese and determine the most probable alignment.
+25:205	To ease the training of the maximum entropy model, bootstrapping is used to help supervised learning.
+26:205	On the other hand, to avoid error propagations from word segmentation and NER, we directly extract Chinese NEs and make the alignment from plain text without word segmentation.
+27:205	It is unlike previous work reported in the literature.
+28:205	Although this makes the task more difficult, it greatly reduces the chance of errors introduced by previous steps and therefore produces much better performance on our task.
+29:205	To justify our approach, we adopt traditional alignment approaches, in particular IBM Model 4 (Brown et al. , 1993) and HMM (Vogel et al. , 1996), to carry out NE alignment as our baseline systems.
+30:205	Experimental results show that in this task our approach outperforms IBM Model 4 and HMM significantly.
+31:205	Furthermore, the performance 1 We only discuss NEs of three categories: Person Name (PN), Location Name (LN), and Organization Name (ON).
+32:205	without word segmentation is much better than that with word segmentation.
+33:205	The rest of this paper is organized as follows: In section 2, we discuss related work on NE alignment.
+34:205	Section 3 gives the overall framework of NE alignment with our maximum entropy model.
+35:205	Feature functions and bootstrapping procedures are also explained in this section.
+36:205	We show experimental results and compare them with baseline systems in Section 4.
+37:205	Section 5 concludes the paper and discusses ongoing future work.
+38:205	2 Related Work Translation knowledge can be acquired via word and phrase alignment.
+39:205	So far a lot of research has been conducted in the field of machine translation and knowledge acquisition, including both statistical approaches (Cherry and Lin, 2003; Probst and Brown, 2002; Wang et al. , 2002; Och and Ney, 2000; Melamed, 2000; Vogel et al. , 1996) and symbolic approaches (Huang and Choi, 2000; Ker and Chang, 1997).
+40:205	However, these approaches do not work well on the task of NE alignment.
+41:205	Traditional approaches following IBM Models (Brown et al. , 1993) are not able to produce satisfactory results due to their inherent inability to handle many-to-many alignments.
+42:205	They only carry out the alignment between words and do not consider the case of complex phrases like some multi-word NEs.
+43:205	On the other hand, IBM Models allow at most one word in the source language to correspond to a word in the target language (Koehn et al. , 2003; Marcu, 2001).
+44:205	Therefore they can not handle many-to-many word alignments within NEs well.
+45:205	Another well-known word alignment approach, HMM (Vogel et al. , 1996), makes the alignment probabilities depend on the alignment position of the previous word.
+46:205	It does not explicitly consider many-to-many alignment either.
+47:205	Huang et al.48:205	(2003) proposed to extract Named Entity translingual equivalences based on the minimization of a linearly combined multi-feature cost.
+49:205	But they require Named Entity Recognition on both the source side and the target side.
+50:205	Moores (2003) approach is based on a sequence of cost models.
+51:205	However, this approach greatly relies on linguistic information, such as a string repeated on both sides, and clues from capital letters that are not suitable for language pairs not belonging to the same family.
+52:205	Also, there are already complete lexical compounds identified on the target side, which represent a big part of the final results.
+53:205	During the alignment, Moore does not hypothesize that translations of phrases would require splitting predetermined lexical compounds on the target set.
+54:205	These methods are not suitable for our task, since we only have NEs identified on the source side, and there is no extra knowledge from the target side.
+55:205	Considering the inherent characteristics of NE translation, we can find several features that can help NE alignment; therefore, we use a maximum entropy model to integrate these features and carry out NE alignment.
+56:205	3 NE Alignment with a Maximum Entropy Model Without relying on syntactic knowledge from either the English side or the Chinese side, we find there are several valuable features that can be used for Named Entity alignment.
+57:205	Considering the advantages of the maximum entropy model (Berger et al. , 1996) to integrate different kinds of features, we use this framework to handle our problem.
+58:205	Suppose the source English NE, e ne },,{ 21 ne eeene = consists of n English words and the candidate Chinese NE, c ne },,{ 21 mc cccne = is composed of m Chinese characters.
+59:205	Suppose also that we have M feature functions .,,1),,( Mmneneh ecm = For each feature function, we have a model parameter .,,1, Mm m = The alignment probability can be defined as follows (Och and Ney, 2002):   = = = = ' 1 ]),(exp[ ]),(exp[ )|()|( 1 ' 1 c M ne M m ecmm M m ecmm ecec neneh neneh nenepneneP    (3.1) The decision rule to choose the most probable aligned target NE of the English NE is (Och and Ney, 2002): {}       = =  = M m ecmm ne ec ne c neneh nenePen c c 1 ),(maxarg )|(maxarg  (3.2) In our approach, considering the characteristics of NE translation, we adopt 4 features: translation score, transliteration score, the source NE and target NEs co-occurrence score, and distortion score for distinguishing identical NEs in the same sentence.
+60:205	Next, we discuss these four features in detail.
+61:205	3.1 Feature Functions 3.1.1 Translation Score It is important to consider the translation probability between words in English NE and characters in Chinese NE.
+62:205	When processing Chinese sentence without segmentation, word here refers to single Chinese character.
+63:205	The translation score here is used to represent how close an NE pair is based on translation probabilities.
+64:205	Supposing the source English NE e ne consists of n English words, },{ 21 ne eeene = and the candidate Chinese NE c ne is composed of m Chinese characters, },{ 21 mc cccne =, we can get the translation score of these two bilingual NEs based on the translation probability between e i and c j :  == = m j n i ijce ecpneneS 11 )|(),( (3.3) Given a parallel corpus aligned at the sentence level, we can achieve the translation probability between each English word and each Chinese character )|( ij ecp via word alignments with IBM Model 1 (Brown et al. , 1993).
+65:205	Without word segmentation, we have to calculate every possible candidate to determine the most probable alignment, which will make the search space very large.
+66:205	Therefore, we conduct pruning upon the whole search space.
+67:205	If there is a score jump between two adjacent characters, the candidate will be discarded.
+68:205	The scores between the candidate Chinese NEs and the source English NE are calculated via this formula as the value of this feature.
+69:205	3.1.2 Transliteration Score Although in theory, translation scores can build up relations within correct NE alignments, in practice this is not always the case, due to the characteristics of the corpus.
+70:205	This is more obvious when we have sparse data.
+71:205	For example, most of the person names in Named Entities are sparsely distributed in the corpus and not repeated regularly.
+72:205	Besides that, some English NEs are translated via transliteration (Lee and Chang, 2003; Al-Onaizan and Knight, 2002; Knight and Graehl, 1997) instead of semantic translation.
+73:205	Therefore, it is fairly important to make transliteration models.
+74:205	Given an English Named Entity e, },{ 21 n eeee =, the procedure of transliterating e into a Chinese Named Entity c, },{ 21 m cccc =, can be described with Formula (3.4) (For simplicity of denotation, we here use e and c to represent English NE and Chinese NE instead of e ne and c ne ).
+75:205	)|(maxarg ecPc c = ) (3.4) According to Bayes Rule, it can be transformed to: )|(*)(maxarg cePcPc c = ) (3.5) Since there are more than 6k common-used Chinese characters, we need a very large training corpus to build the mapping directly between English words and Chinese characters.
+76:205	We adopt a romanization system, Chinese PinYin, to ease the transformation.
+77:205	Each Chinese character corresponds to a Chinese PinYin string.
+78:205	And the probability from a Chinese character to PinYin string is 1)|( crP, except for polyphonous characters.
+79:205	Thus we have: )|(*)|(*)(maxarg rePcrPcPc c = ) (3.6) Our problem is: Given both English NE and candidate Chinese NEs, finding the most probable alignment, instead of finding the most probable Chinese translation of the English NE.
+80:205	Therefore unlike previous work (Lee and Chang, 2003; Huang et al. , 2003) in English-Chinese transliteration models, we transform each candidate Chinese NE to Chinese PinYin strings and directly train a PinYin-based language model with a separate English-Chinese name list consisting of 1258 name pairs to decode the most probable PinYin string from English NE.
+81:205	To find the most probable PinYin string from English NE, we rewrite Formula (3.5) as the following: )|(*)(maxarg rePrPr r = ) (3.7) where r represents the romanization (PinYin string), },{ 21 m rrrr = . For each of the factor, we have )|()|( 1  = = m i ii rePreP (3.8) )|()|()()( 1 3 2121  =  = i m i ii rrrPrrPrPrP (3.9) where i e is an English syllable and i r is a Chinese PinYin substring.
+82:205	For example, we have English NE Richard and its candidate Chinese NE  .
+83:205	Since both the channel model and language model are PinYin based, the result of Viterbi decoding is from Ri char d to Li Cha De.
+84:205	We transform   to the PinYin string Li Cha De.
+85:205	Then we compare the similarity based on the PinYin string instead of with Chinese characters directly.
+86:205	This is because when transliterating English NEs into Chinese, it is very flexible to choose which character to simulate the pronunciation, but the PinYin string is relatively fixed.
+87:205	For every English word, there exist several ways to partition it into syllables, so here we adopt a dynamic programming algorithm to decode the English word into a Chinese PinYin sequence.
+88:205	Based on the transliteration string of the English NE and the PinYin string of the original candidate Chinese NE, we can calculate their similarity with the XDice coefficient (Brew and McKelvie, 1996).
+89:205	This is a variant of Dice coefficient which allows extended bigrams.
+90:205	An extended bigram (xbig) is formed by deleting the middle letter from any three-letter substring of the word in addition to the original bigrams.
+91:205	Suppose the transliteration string of the English NE and the PinYin string of the candidate Chinese NE are tl e and py c, respectively.
+92:205	The XDice coefficient is calculated via the following formula: )()( )()(2 ),( pytl pytl pytl cxbigsexbigs cxbigsexbigs ceXDice +  = I (3.10) Another point to note is that foreign person names and Chinese person names have different translation strategies.
+93:205	The transliteration framework above is only applied on foreign names.
+94:205	For Chinese person name translation, the surface English strings are exactly Chinese person names PinYin strings.
+95:205	To deal with the two situations, let sur e denote the surface English string, the final transliteration score is defined by taking the maximum value of the two XDice coefficients: )),(),,(max( ),( surpytlpy ecXDiceecXDice ecTl = (3.11) This formula does not differentiate foreign person names and Chinese person names, and foreign person names transliteration strings or Chinese person names PinYin strings can be handled appropriately.
+96:205	Besides this, since the English string and the PinYin string share the same character set, our approach can also work as an alternative if the transliteration decoding fails.
+97:205	For example, for the English name Cuba, the alignment to a Chinese NE should be  .
+98:205	If the transliteration decoding fails, its PinYin string, Guba, still has a very strong relation with the surface string Cuba via the XDice coefficient.
+99:205	This can make the system more powerful.
+100:205	3.1.3 Co-occurrence Score Another approach is to find the co-occurrences of source and target NEs in the whole corpus.
+101:205	If both NEs co-occur very often, there exists a big chance that they align to each other.
+102:205	The knowledge acquired from the whole corpus is an extra and valuable feature for NE alignment.
+103:205	We calculate the co-occurrence score of the source English NE and the candidate Chinese NE with the following formula:  = )(*, ),( )|( e ec ecco necount nenecount neneP (3.12) where ),( ec nenecount is the number of times c ne and e ne appear together and )(*, e necount is the number of times that e ne appears.
+104:205	This probability is a good indication for determining bilingual NE alignment.
+105:205	3.1.4 Distortion Score When translating NEs across languages, we notice that the difference of their positions is also a good indication for determining their relation, and this is a must when there are identical candidates in the target language.
+106:205	The bigger the difference is, the less probable they can be translations of each other.
+107:205	Therefore, we define the distortion score between the source English NE and the candidate Chinese NE as another feature.
+108:205	Suppose the index of the start position of the English NE is i, and the length of the English sentence is m. We then have the relative position of the source English NE m i pos e =, and the candidate Chinese NEs relative position, c pos 1,0  ce pospos . The distortion score is defined with the following formula: )(1),( ceec posposABSneneDist = (3.13) where ABS means the absolute value.
+109:205	If there are multiple identical candidate Chinese NEs at different positions in the target language, the one with the largest distortion score will win.
+110:205	3.2 Bootstrapping with the MaxEnt Model To apply the maximum entropy model for NE alignment, we process in two steps: selecting the NE candidates and training the maximum entropy model parameters.
+111:205	3.2.1 NE Candidate Selection To get an NE alignment with our maximum entropy model, we first use NLPWIN (Heidorn, 2000) to identify Named Entities in English.
+112:205	For each word in the recognized NE, we find all the possible translation characters in Chinese through the translation table acquired from IBM Model 1.
+113:205	Finally, we have all the selected characters as the seed data.
+114:205	With an open-ended window for each seed, all the possible sequences located within the window are considered as possible candidates for NE alignment.
+115:205	Their lengths range from 1 to the empirically determined length of the window.
+116:205	During the candidate selection, the pruning strategy discussed above is applied to reduce the search space.
+117:205	For example, in Figure 1, if China only has a translation probability over the threshold value with  , the two seed data are located with the index of 0 and 4.
+118:205	Supposing the length of the window to be 3, all the candidates around the seed data including  , with the length ranging from 1 to 3, are selected.
+119:205	Figure 1.
+120:205	Example of Seed Data 3.2.2 MaxEnt Parameter Training With the four feature functions defined in Section 3.1, for each identified NE in English, we calculate the feature scores of all the selected Chinese NE candidates.
+121:205	To achieve the most probable aligned Chinese NE, we use the published package YASMET 2 to conduct parameter training and re-ranking of all the NE candidates.
+122:205	YASMET requires supervised learning for the training of the maximum entropy model.
+123:205	However, it is not easy to acquire a large annotated training set.
+124:205	Here bootstrapping is used to help the process.
+125:205	Figure 2 gives the whole procedure for parameter training.
+126:205	Figure 2.
+127:205	Parameter Training 4 Experimental Results 4.1 Experimental Setup We perform experiments to investigate the performance of the above framework.
+128:205	We take the LDC Xinhua News with aligned English-Chinese sentence pairs as our corpus.
+129:205	The incremental testing strategy is to investigate the systems performance as more and more data are added into the data set.
+130:205	Initially, we take 300 2 http://www.isi.edu/~och/YASMET.html sentences as the standard testing set, and we repeatedly add 5k more sentences into the data set and process the new data.
+131:205	After iterative re-ranking, the performance of alignment models over the 300 sentence pairs is calculated.
+132:205	The learning curves are drawn from 5k through 30k sentences with the step as 5k every time.
+133:205	4.2 Baseline System A translated Chinese NE may appear at a different position from the corresponding English NE in the sentence.
+134:205	IBM Model 4 (Brown et al. , 1993) integrates a distortion probability, which is complete enough to account for this tendency.
+135:205	The HMM model (Vogel et al. , 1996) conducts word alignment with a strong tendency to preserve localization from one language to another.
+136:205	Therefore we extract NE alignments based on the results of these two models as our baseline systems.
+137:205	For the alignments of IBM Model 4 and HMM, we use the published software package, GIZA++ 3 (Och and Ney, 2003) for processing.
+138:205	Some recent research has proposed to extract phrase translations based on the results from IBM Model (Koehn et al. , 2003).
+139:205	We extract EnglishChinese NE alignments based on the results from IBM Model 4 and HMM.
+140:205	The extraction strategy takes each of the continuous aligned segments as one possible candidate, and finally the one with the highest frequency in the whole corpus wins.
+141:205	Figure 3.
+142:205	Example of Extraction Strategy Figure 3 gives an example of the extraction strategy.
+143:205	China here is aligned to either   or  .
+144:205	Finally the one with a higher frequency in the whole corpus, say,  , will be viewed as the final alignment for China.
+145:205	4.3 Results Analysis Our approach first uses NLPWIN to conduct NER.
+146:205	Suppose S is the set of identified NE with NLPWIN.
+147:205	S is the alignment set we compute with our models based on S, and T is the set consisting of all the true alignments based on S.
+148:205	We define the evaluation metrics of precision, recall, and Fscore as follows: 3 http://www.isi.edu/~och/GIZA++.html [China] hopes to further economic  [EU].
+149:205	           1.
+150:205	Set the coefficients i  as uniform distribution; 2.
+151:205	Calculate all the feature scores to get the N-best list of the Chinese NE candidates; 3.
+152:205	Candidates with their values over a given threshold are considered to be correct and put into the re-ranking training set; 4.
+153:205	Retrain the parameters i  with YASMET; 5.
+154:205	Repeat from Step 2 until i  converge, and take the current ranking as the final result.
+155:205	[China] hopes to further economic  [EU].
+156:205	           Aligned Candidates: China  China  S TS precision I = (4.1) T TS recall I = (4.2) recallprecision recallprecision scoreF +  = 2 (4.3) 4.3.1 Results without Word Segmentation Based on the testing strategies discussed in Section 4.1, we perform all the experiments on data without word segmentation and get the performance for NE alignment with IBM Model 4, the HMM model, and the maximum entropy model.
+157:205	Figure 4, 5, and 6 give the learning curves for precision, recall, and F-score, respectively, with these experiments.
+158:205	Precision Without Word Segmentation 0 0.2 0.4 0.6 0.8 1 5k 10k 15k 20k 25k 30k data size pr eci sio n IBM Model HMM MaxEnt Upper Bound Figure 4.
+159:205	Learning Curve with Precision Recall Without Word Segmentation 0 0.2 0.4 0.6 0.8 1 5k 10k 15k 20k 25k 30k data size re ca ll IBM Model HMM MaxEnt Figure 5.
+160:205	Learning Curve with Recall F-score Without Word Segmentation 0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 5k 10k 15k 20k 25k 30k data size F-score IBM Model HMM MaxEnt Figure 6.
+161:205	Learning Curve with F-score From these curves, we see that HMM generally works a little better than IBM Model 4, both for precision and for recall.
+162:205	NE alignment with the maximum entropy model greatly outperforms IBM Model 4 and HMM in precision, recall, and FScore.
+163:205	Since with this framework, we first use NLPWIN to recognize NEs in English, we have NE identification error.
+164:205	The precision of NLPWIN on our task is about 77%.
+165:205	Taking this into account, we know our precision score has actually been reduced by this rate.
+166:205	In Figure 4, this causes the upper bound of precision to be 77%.
+167:205	4.3.2 Comparison with Results with Word Segmentation To justify that our approach of NE alignment without word segmentation really reduces the error propagations from word segmentation and thereafter NER, we also perform all the experiments upon the data set with word segmentation.
+168:205	The segmented data is directly taken from published LDC Xinhua News corpus.
+169:205	precision recall F-score MaxEnt (Seg) 0.56705 0.734491 0.64 MaxEnt (Unseg) 0.636015 0.823821 0.717838 HMM (Seg) 0.281955 0.372208 0.320856 HMM (Unseg) 0.291859 0.471464 0.360531 IBM 4 (Seg) 0.223062 0.292804 0.253219 IBM 4 (Unseg) 0.251185 0.394541 0.30695 Table 1.
+170:205	Results Comparison Table 1 gives the comparison of precision, recall, and F-score for the experiments with word segmentation and without word segmentation when the size of the data set is 30k sentences.
+171:205	For HMM and IBM Model 4, performance without word segmentation is always better than with word segmentation.
+172:205	For maximum entropy model, the scores without word segmentation are always 6 to 9 percent better than those with word segmentation.
+173:205	This owes to the reduction of error propagation from word segmentation and NER.
+174:205	For example, in the following sentence pair with word segmentation, the English NE United States can no longer be correctly aligned to   .
+175:205	Since in the Chinese sentence, the incorrect segmentation takes   as one unit.
+176:205	But if we conduct alignment without word segmentation,   can be correctly aligned.
+177:205	 Greek Prime Minister Costas Simitis visits [United States] .        . Similar situations exist when HMM and IBM Model 4 are used for NE alignment.
+178:205	When compared with IBM Model 4 and HMM with word segmentation, our approach with word segmentation also has a much better performance than them.
+179:205	This demonstrates that in any case our approach outperforms IBM Model 4 and HMM significantly.
+180:205	4.3.3 Discussion Huang et al.s (2003) approach investigated transliteration cost and translation cost, based on IBM Model 1, and NE tagging cost by an NE identifier.
+181:205	In our approach, we do not have an NE tagging cost.
+182:205	We use a different type of translation and transliteration score, and add a distortion score that is important to distinguish identical NEs in the same sentence.
+183:205	Experimental results prove that in our approach the selected features that characterize NE translations from English to Chinese help much for NE alignment.
+184:205	The co-occurrence score uses the knowledge from the whole corpus to help NE alignment.
+185:205	And the transliteration score addresses the problem of data sparseness.
+186:205	For example, English person name Mostafizur Rahman only appears once in the data set.
+187:205	But with the transliteration score, we get it aligned to the Chinese NE   correctly.
+188:205	Since in ME training we use iterative bootstrapping to help supervised learning, the training data is not completely clean and brings some errors into the final results.
+189:205	But it avoids the acquisition of large annotated training set and the performance is still much better than traditional alignment models.
+190:205	The performance is also impaired by the English NER tool.
+191:205	Another possible reason for alignment errors is the inconsistency of NE translation in English and Chinese.
+192:205	For example, usually only the last name of foreigners is translated into Chinese and the first name is ignored.
+193:205	This brings some trouble for the alignment of person names.
+194:205	5 Conclusions Traditional word alignment approaches cannot come up with satisfactory results for Named Entity alignment.
+195:205	In this paper, we propose a novel approach using a maximum entropy model for NE alignment.
+196:205	To ease the training of the MaxEnt model, bootstrapping is used to help supervised learning.
+197:205	Unlike previous work reported in the literature, our work conducts bilingual Named Entity alignment without word segmentation for Chinese, and its performance is much better than with word segmentation.
+198:205	When compared with IBM and HMM alignment models, experimental results show that our approach outperforms IBM Model 4 and HMM significantly.
+199:205	Due to the inconsistency of NE translation, some NE pairs can not be aligned correctly.
+200:205	We may need some manually-generated rules to fix this.
+201:205	We also notice that NER performance over the source language can be improved using bilingual knowledge.
+202:205	These problems will be investigated in the future.
+203:205	6 Acknowledgements Thanks to Hang Li, Changning Huang, Yunbo Cao, and John Chen for their valuable comments on this work.
+204:205	Also thank Kevin Knight for his checking of the English of this paper.
+205:205	Special thanks go to Eduard Hovy for his continuous support and encouragement while the first author was visiting MSRA.
+

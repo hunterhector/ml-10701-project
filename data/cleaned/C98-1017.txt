@@ -1,0 +1,654 @@
+An Efficient Kernel for Multilingual Generation in 
+Speech-to-Speech Dialogue Translation 
+Tilman Becker and Wolfgang Finkler and Anne Kilger and Peter Poller 
+German Research Center for Artificial Intelligence (DFKI GmbH) 
+Stuhlsatzenhausweg 3 
+D 66123 Saarbriicken 
+Germany 
+becker0dfki.de, fink\]_er0dfki.de, kilger~dfki.de, pol\]_er@dfki.de 
+Abstract 
+We present core aspects of a fully implemented 
+generation component in a multilingual speech
+to-speech dialogue translation system. Its de
+sign was particularly influenced by the neces
+sity of real-time processing and usability for 
+multiple languages and domains. We devel
+oped a general kernel system comprising a mi
+croplanning and a syntactic realizer module. 
+The microplanner performs lexical and syntac
+tic choice, based on constraint-satisfaction tech
+niques. The syntactic realizer processes HPSG 
+grammars reflecting the latest; developments of 
+the underlying linguistic theory, utilizing their 
+pre-processing into the TAG formalism. The 
+declarative nature of the knowledge bases, i.e., 
+the microplanning constraints and the HPSG 
+grammars allowed an easy adaption to new do
+mains and languages. The successflfl integra
+tion of our component into the translation sys
+tem Verbmobil proved the fulfillment of the spe
+cific real-time constraints. 
+1 Introduction
+
+In this paper we present core aspects of the mul
+tilingual natural language generation compo
+nent VM-GECO 1 that has been integrated into 
+the research prototype of Verbmobil (Wahlster, 
+1993; Bub et al., 1997), a system for sponta
+neous speech-to-speech dialog translation. 
+In order to achieve multilinguality as ele
+gantly as possible we found that a clear modu
+lar separation between a language-independent 
+general kernel generator and language-specific 
+parts which consist of syntactic and lexical 
+knowledge sources was a very promising ap
+proach. Accordingly, our generation component 
+1VM-GECO is an acronym for "VerbMobil GEnera
+tion COmponents." 
+consists of one kernel generator and language
+specific knowledge sources for the languages 
+used in Verbmobil: German and English with 
+current work on Japanese. 
+Additionally, the kernel generator itself can 
+be modularized furthermore into two separate 
+components. The task of the so called rni
+croplarming component is to plan an utterance 
+oil a phraseor sentence-level (Hovy, 1996) in
+cluding word--choice (section 2). It generates an 
+annotated dependency structure which is used 
+by the syntactic generation component to re
+alize an appropriate surface string for it (sec
+tion 3). Tile main goal of this further modular
+ization is a stepwise constraining of the search
+space of alternative linguistic realizations, using 
+abstracted views on different choice criteria. 
+Multilingual generation in dialog translation 
+imposes strong requirements on the generation 
+module. A very prominent problem is the non
+welltbrmedness (incorrectness, irrelevance, and 
+inconsistency) of spontaneous input. It fbrces 
+the realization of robust generation to be able 
+to cope with erroneous and incomplete input 
+data so that the quality of the generated out
+put may vary between syntactically correct sen
+tences and semanticMly understandable utter
+ances. On the level of knowledge sources this 
+is achieved by using a highly declarative HPSG 
+grammar which very closely reflects the latest 
+developments of the underlying linguistic the
+ory (Pollard and Sag, 1994) and covers phe
+nomena of spoken language. This HPSG is 
+compiled into a 'rAC~ grammar in an ofltine 
+pre-processing step (Kasper et al., 1995) which 
+keeps tile declarative nature of the grammar in
+tact (section 3). 
+Maybe the most important requirement on 
+the generation module of a si)eech-to-speech 
+translation system is real-time processing. The 
+110 
+almve mentioned fi;atures of VM-GECO con
+tribute to the ei\[icieney of the generation com
+ponent. The TAG-formalism is well known for 
+the existence of ef\[icient syntactic generation al
+gorithms (Kilger and Finkler, 1995). 
+In general, all knowledge sources of all mod
+ules are declarative. The main advantage is 
+that this allows for at: easier adaptation of the 
+generation component to other domains, lan
+guages and semantic representation languages 
+besides the easier extendability of the current 
+system. The feasibility of the language adap
+tation was proved in the Verbmobil project it
+self where the (originally English) generator was 
+recently exten(led to cover German and is cur
+rently adapted fbr Japanese. The adaptation 
+to ~mother domain and also to another specifi
+cation language for intermediate structures was 
+shown in another translation project which uses 
+in contrast to Verbmobil an interlingua based 
+approach (section 4.1). 
+2 The
+Microplanner 
+A generation system for target language utter
+ances in an approach to speech-to speech trans
+lation has to wort: on inl)ut elements represent
+ing intermediate results of recognition, analy
+sis, and transfer components. In that setting, 
+several of the tasks of a complete natural lan
+guage generation system such as selection and 
+organization of the contents to t)e expressed are 
+outside of the control of our generator. They 
+have been decided by the hum~m user of the 
+translation system or they have been negoti
+ated and computed by a transfer component. 
+Nevertheh'ss, there remain a number of different 
+10ut highly interrelated sub:asks of the genera
+:ion process where decisions have to be made 
+in order to determine and realize the trans
+lation result to t)e sent to a speech synthesis 
+component. 'l'he diverse subtasks -often col
+lectively denoted as microplanning (cf. (Level:, 
+1989; Hovy, 1996)) comprise the planning 
+of a rough structure of the target language ut
+terance, the determination of sentence borders, 
+~enten(:e type, topicalization, theme-rheme or
+ganization of sentential :1::its, focus control, uti
+lization of nonfinalized, or infinitival style, as 
+well as triggering the generation of anaphora 
+and lexical choice. In addition, they have to 
+address the probh,m of (:xpressiMlity of the se
+lected contents in a text realization eomt)on(,nt , 
+i.e., bridging the generation gap (see (Meteer, 1990)). 
+The input to our microplanning component 
+consists of semantic representations encoded in 
+a minimal recursive structure following a vari
+ant of UDRT. Each individual indicated by 
+some input utterance is formally represented by 
+a discourse referent. Inforlnation about the in
+dividual is encoded within the DI/.S-conditions. 
+Relations between descriptions of different dis
+course referents lead to a hierarchical seinantic 
+structure (see Figure 1 for a graphical represen
+tation of fragments of an example input to the 
+generator). Discourse referents are depicted as 
+boxes headed by individual names i,~; conditions 
+are illustrated within those boxes. 
+\[\] 
+  
+I I I / 
+~ltl I demonstrative {i3 It2 htl} J 
+Figure \]: Example Input to the Generator 
+Beside,~ these input terms from the transfer 
+component, the generator may access knowl
+edge about the dialogue a(:t, the dialogue his
+tory as well as some prosodic information of the 
+tlser~s utterance. 
+The output of the microplanner is a sentence 
+plan that serves as input for the syntactic real
+ization component. It describes a dependency 
+tree over lexical items annotated with syntac
+tic, semantic, attd pragmatic information which 
+is relevant to produce an acceptable utterance 
+and guide the speech synthesis component. 
+2.1 Design
+of the Mieroplanning Kernel 
+An important design principle of our generator 
+is the demand to cope with nmltidirectional de
+pendencies among decisions of the diw',rse sub
+tasks of microplanning without preferring one 
+111 
+order of decisions over others. E.g., the choice 
+of an interrogative sentence requires an (at least 
+elliptical) verbal phrase as a major constituent 
+of the sentence; nominalization or the choice 
+of passive voice depends on the result of word 
+choice, etc. Therefore, we conceived microplan
+ning as a constraint-satisfaction problem (Ku
+mar, 1992) representing undirected relations be
+tween variables. Thereby, variables are created 
+for elements in the input to the generator. They 
+are connected by means of weighted constraints. 
+The domains of the variables correspond to ab
+stractions of possible alternatives for syntactic 
+realizations of the semantic elements including 
+sets of specifications of lexical items and syntac
+tic features. A solution of the constraint system 
+is a globally consistent instantiation of the vari
+ables and is guaranteed to be a valid input for 
+the syntactic generation module. Since there 
+might be locally optimal mappings that lead to 
+contradiction on a global level, the microplan
+ner generally uses these weighted constraints to 
+direct a backtracking or propagation process. 
+One the one hand, the advantages of utiliz
+ing a constraint systeni lie in the declarativ
+ity of the knowledge sources allowing fbr an 
+easier adaptation of the system to other do
+mains and languages. We benefited from this 
+design decision and realized microplanning for 
+English and German by means of merely estab
+lishing new rule sets for lexical and syntactic 
+choice. The core engine for constraint process
+ink was reused without modification. On the 
+other hand, having defined a suitable represen
+tation of the problem to be solved, a constraint 
+based approach also establishes a testbcd for 
+examining the pros and cons of different eval
+uation methods, including backtracking, con
+straint t)ropagation, heuristics for tile order of 
+the instantiation of variable values, to name a 
+few means of dealing with competition among 
+alternatives and to find a solution. 
+The microplanner makes use of the minimal 
+recursive structure of its semantic input term 
+(see Fig. 1) by triggering activities by bundles of 
+conditions, discourse referents, and holes repre
+senting underspecified scope relations in the in
+put. These three input categories are reflected 
+by different microplanning rule sets that are ap
+plied conjointly during the process of microplan
+ning. The rules are represented as pattern
+condition-action triples. A pattern is to be 
+matched with part of the input, a condition 
+describes additional context-dependent require
+ments to be fulfilled by the input, and the ac
+tion part describes a bundle of syntactic features 
+realizing lexical entities and their relations to 
+complements and modifiers. 
+A microplanning rule for the combination of 
+the semantic predicates WORK~.CCEPTABLE, ARG3, 
+and PERSPECTIVE which get realized as a finite 
+verb, i.e., representing a 3:1 mapping of se
+mantic predicates to a syntactic specification is 
+shown in Figure 2. 
+; standard finite verb with 2 complements 
+(WORK ACCEPTABLE (L I) ARG3 (L I I2) ;; pattern 
+PERSPECTIVE (L1 I I3)) 
+(Shot ($sem-match N0M (L I))) ;; condition 
+(WORK_ACCEPTABLE (CAT V) ;; action 
+(HEAD (OR SUIT_Vi SUIT_V2)) (FGRM ordinary) 
+(TENSE $get-tense I) (VOICE $get-voice I)) 
+(12 (GENDER (NOT MAS FEM))) 
+(REGENT-DEP-FUNC WORK ACCEPTABLE 12 AGENT) 
+(REGENT-DEP-FUNC WORK ACCEPTABLE 13 PATIENT) 
+(KEY KEY-V) ) ,; nominalized form ... 
+Figure 2: Example Microplanning Content Rule 
+In tile condition part of tile verbal mapping 
+the existence of a NUM-condition within the se
+mantic input infornlation is tested. If; would 
+forbid the verbal fbrm by demanding a nomi
+nalized form. The action part describes the re
+sult of lexical selection (the lemma "suit") plus 
+generic flmctions for computing relevant syntac
+tic features like tense and voice. I2 which stands 
+for tile hAG3 of WORK_ACCEPTABLE, defined by a 
+database of linking -information as the semantic 
+agent is characterized as neither allowing gen
+der masc(uline) nor fem(inine) for preventing 
+"he suits" in the sense of "he is okay". En
+tries starting with KEY define identifiers used for 
+computing the preference value of a microplan
+ning rule with respect to the given situation. 
+In an additional database, KEYs are associated 
+with weights for predefined situation character
+isties such as time pressure, or register. The 
+microplanning content rules are not directly en
+tered by a rule writer but are compiled off-line 
+from several knowledge sources tor lexical choice 
+rules, rules for syntactic decisions and linking 
+rules, thereby filtering out contradictory combi
+nations without requMng on line mntime. 
+Regarding the sets of alternatives that result 
+112 
+from the application of the microplanning rules, 
+the most direct way of re~flizing a constraint 
+net seems to be the definition of one wu:iable 
+tbr each condition, discourse re~hrent, and hole, 
+leading to a wu'iable net as shown in Figure 3. 
+F L3 ....... I 
+f 1 _1\[ \] 
+.... E _ \[ 
+Figure 3: Variable Net for Microplanning 
+For our task, it; is not enough to defiue bi
+nary matching constraints between each pair 
+of variables that purely test the compatibility 
+of the described syntactic features. Seine syn
+tactic specifications may contain identifications 
+of further entities, e.g., discourse referents and 
+syntactic idcntitiers which influence the result 
+of the COml)atilfilit:y test between a t)air of vari
+al)le, s referring to these, identifiers. Thus, the 
+constraint net is not easily subdivided into sub
+nets that can be efficiently evaluated. The large 
+number of comt)inations of alternative values is 
+handled by known means for CSP such as unit
+ing wtriables with 1-value domains and apply
+ing mat('hing mechanisms to their values, coln
+tmtation of 2-consistency by matching value 
+pairs and tiltering out inconsistent ()lies, storing 
+and reusing kllowle(tge about binary incotnt)at
+ibility and pertbrming intelligent backtracking. 
+The result of the constraint solving process 
+tbr the input shown in Fig. 1 is given in Fig. 4. 
+L21 -QUEST 
+(intendon wh-question) ~clause 
+(real hs) (cat utt-par) >d 
+L5-WORK_ACCEPTABLE 
+temp specj / (mood it,dic.) N ~ // 
+agm~t/(voice active) ~ .. .~tecnp spo¢ t:/ / .... \~t,o,t x. • 
+i (heaa (or suit w \ ~ L6-TEMP_LOC / su#2)) x,zj 
+(head whenl) / Oe,.wf, t.) L10-PRON L15-TEMP LOC 
+(wh-focu~ t) / (cat v) (pers 2u) (head then_adv) 
+(cat adv) ~" (cat flpron) (cat adv) 
+t.13-PRON (m~m sg) 
+(pers 3) 
+(cat pprot¢) 
+(hum sg) 
+Figure 4: Microt)lanning l/.esult tbr the Exalnple 
+3 The
+Realizer 
+Tile syntactic realizer 2 proceeds from the lni
+croplanning result as shown in Figure 5. It pro
+duces a derived phrase structure fronl which the 
+outtmt string is read off. The realizer is based 
+on a fltlly lexicalized granunar in the sense that 
+every lcxical item selects for a finite set of possi
+ble phrase structures (called elementary trees). 
+hl tlarticular, we us(; a Feature-Based Lexical
+ized Trec.-A(tjoining Gralnmar (FI:I-UFAG, see 
+(Vijay-Shanker and Joshi, 1988; Schabes et al., 
+1!}88)) that is derived fl'om all IIPSG grammar 
+(see section 4 for seine more details). The el
+I ementary trees (see Figure 9) can be seen as 
+nlaxinlal partial t)rojectiQns. A deriw~tion of an 
+utterance is constructed by combining appro
+priate eleanentary trees with the two elementary 
+TAG operations of adjunction and substitution. 
+For each node (i.e., lexical item) in the de
+pendency tree, the tree selection phase deter
+mines the set of relevant TAG trees. A tirst 
+tree retrieval step maps every object of the, 
+dependency tree into a set of applical)le ele
+mentary TAG trees. The main tree selection 
+phase uses information fl'om the mi(;roplanller 
+output to fllrther refine the set; of retrieved 
+trees. The combination phase tinds a success
+N1 combination of trees to build a (derived) 
+phrase structure tree. The final inflection phase 
+uses the intbrmation in the feature structures 
+of the leaves (i.e., the words) to apply appro
+priate morphological functions. An initial pre
+processing phase is needed to accommodate the 
+handling of auxiliaries whMl are not determined 
+in microl)lalming. They are derived fi'om the 
+tense, aspect and sentence nlood infbrmation as 
+supplied by mieroplanning. 
+Figure 5: Steps of the syntactic generator. 
+The two (:ore phases are the tree selection and 
+UA more detailed description is contained in (Becker, 
+1998). 
+113 
+the combination phase. The tree selection is 
+driven by the HPSG instance or word class that 
+is supplied by the microplanner. It is mapped to 
+a lexical type by a lexicon that is automatically 
+compiled from the HPSG grammar. The lexi
+cal types are then mapped to a tree family, i.e., 
+a set of elementary TAG trees representing all 
+possible minimally complete phrase structures 
+that can be build from the instance. The ad
+ditional information in the dependency tree is 
+then used to add further feature values to the 
+trees. This additional inibrmation acts as a fil
+ter for selecting appropriate trees in two stages: 
+Some values are incompatible with values al
+ready present in the trees. These trees (:an 
+therefore be filtered immediately from the set. 
+E.g., a syntactic structure for an imperative 
+clause is marked as such by a feature and can 
+be discarded if a declarative sentence is to be 
+generated. Additional features can prevent the 
+combination with other trees during the combi
+nation phase. This is the case, e.g., with agree
+ment features. 
+The combination phase completely belongs to 
+the core machinery. It can be exchanged with 
+more efiqcient algorithms without change of the 
+grammar or lexicon. It explores the search space 
+of all possible combinations of trees from the 
+candidate sets for each lexical item (instance). 
+Since there is sufficient intbrmation available 
+from the microplanner result and from the trees, 
+a well-guided best-first search strategy can be 
+employed in the current system. 
+As part of the tree selection phase, based on 
+the rich annotation of the input structure, the 
+tree sets are sorted locally such that preferred 
+trees are tested first. Then a modified back
+tracking algorithm traverses the dependency 
+tree in a bottom-up fashion a. At each node and 
+for each subtree in the dependency tree, a can
+didate for the phrase structure of the subtree 
+is constructed. Then all possible adjunction or 
+substitution sites are coinputed, possibly sorted 
+(e.g., allowing for preferences in word order) and 
+the best candidate for a combined phrase struc
+ture is returned. Since the combination of two 
+partial phrase structures by adjunction or sub
+stitution might fail due to incompatible feature 
+structures, a backtracking algorithm must be 
+aThe algorithm stores intermediate results with a 
+memoization technique. 
+used. A partial t)hrase structure tbr a subtree of 
+the dependency is finally checked for complete
+hess. These tests include tile unifiability of all 
+top and bottom feature structures and the satis
+faction of all other constraints (e.g., obligatory 
+adjunctions or open substitution nodes) since 
+no fllrther adjunctions or substitutions will oc
+cur in this subtree. 
+The necessity of a spoken dialog translation 
+system to robustly produce outt)ut calls for 
+some relaxations in these tests. E.g., 'obliga
+tory' arguments may be missing in the utter
+ance. This can be caused by ellipsis in sentences 
+such as "Ok, we postpone. " or by false segmen
+tations in the analysis such as segmenting "Wir 
+sollten (we should) das Treffen verschieben (the 
+meeting postpone)." into two segments "Wit" 
+sollterf' and "das Treffen versehieben". In order 
+to generate "postpone the meeting" for the sec
+ond segment, the tests in the syntactic genera
+tor must accept a phrase with a missing subject 
+if no other complete phrase (:an be generated. 
+Figure 6 shows a combination of the tree 
+retrieval and the tree selection phases. In 
+the tree retrieval phase for L5-WORK~,CCEPTABLE, 
+first the HEAD information is used to determine 
+the lexical types of the possible realizations 
+SUIT_VI and SUIT_V2, namely NVA~IP_TRANS_LE 
+and MV_EXPL_PREP_TRANS_LE respectively 4. These 
+types are then mapped to the.ir respective sets of 
+elementary trees, a total of 25 trees. In the tree 
+selection phase, this number is reduced to six. 
+For example, the tree MV_NP_TRANS_I_E.2 in 
+Figure 9 has a feature CA-MODE with the value 
+IMPERATIVE. Now, the microplanner output 
+for the root entity LGVI contains the informa
+tion (INTENTION WH-QUESTION). The INTENTION 
+information is unified with all appropriate CL
+MODE features, which in this case fails. There
+fore the tree MV_NP_TRANS_LE.2 is discarded 
+in the tree selection phase. 
+The combination phase uses the best-first 
+bottom-up algorithm described above to deter
+mine one suitable tree for every entity and also 
+a target node in the tree that is selected for the 
+governing entity. For the above example, the 
+selected trees and their combination nodes are 
+4MV-NP-TRANS_LE is an abbreviation for "Main Verb, 
+NP object, TRANSitive Lexical Entry" used in sentences 
+like "Monday suits me." 
+114 
+traverse for: L5-WORK_ACCEPTABLE 
+returned MV_NP_TRANS_LE 
+returned MV EXPL PREP_TRANS LE 
+total: 6 trees 
+traverse for: LI3-PRON 
+returned PERS_PKO LE 
+total: l tree 
+traverse for: LIO-PKON 
+returned PERSPROLE 
+total: I tree 
+traverse for: L6-TEMPLOC 
+returned WII_ADVERB_WORD_LE 
+total: 2 trees 
+traverse for: LI5-TEMP LOC 
+returned NP_ADV_WORD_LE 
+total: 5 trees 
+traverse for: LGVI 
+returned WILL_AUX POS_LE 
+total: 2 trees 
+Figure 6: 
+selection 
+shown in 
+An excerpt fronl the tree retrieval and 
+1)base. 
+Figure 7 5 . 
+"" S/ADV ", ", ADV ~ $/ADV ,' V VP/ADV VP VP 
+ADV V NP $ , " NP P $ / NP V V 
+L6 -TEHP LOC LGV1 bl 3pRON LS-BUIT L10-PRON LIS-TEMP LOC 
+Figm'e 7: i h(, trees finally selected for the enti
+ties of the example sentence. 
+Figure 8 shows tile final phrase structure for 
+t, lle examt)le. The intlection fllnetion selects 
+the base tbrm of "suit" according to the BSE 
+value of the VFORM fe,~lJ;lll'e and correctly uses 
+"will." Infbrnmtion about tile sentence mode 
+WH-QUESTION can be used to annotate tile re
+sulting string for the speech-synttiesis module. 
+4 Results
+
+Our apt)roach to separate a generation mo(t
+ule into a language-independent kernel and 
+language specific knowledge sources has been 
+suecessflilly implemented in a dialogue trans
+lation systeln. Furthermore, tile mentioned 
+adaptability to other generation tasks has also 
+t)een proved by an adaptation of the generation 
+moduh; to a new application (tomMn and also to 
+a eomt)letely different semantic representation 
+~Note that the node labels shown in Figures 7 and 8 
+are only a concession to readal)ility. Tile TAG require
+ment that in an auxiliary tree the foot node must have 
+t:he sanie category label as the root node is fulfilled. 
+S 
+ADV S/AOV 
+when V VP/ADV 
+I V NP 
+VP 
+.,ill it VP AOV I 
+V NP then 
+I I 
+w~it you 
+Figure 8: The final phrase structure for "Whc~n 
+will it suit you thcnf" 
+MV HPfrRANS_LE I MV NP_TRAN~ LE2 MV NP TRANS .LE3 MV NP TRANS LE 4 
+VP S S 
+....... 0=<% 
+MV_NP TRAN5 LE MV NP_TRANS LE MV NP TRANS L£ 
+Figure 9: Some of the trees fbr transitive verbs. 
+They are compiled from the corresponding lex
+ical type MV_NP_TRANS_kE as defined in the 
+ItPSG grammar, qSees 3 and 4 differ only with 
+respect to their feature structures which arc not 
+shown in this figm'e. 
+language by adapting tile microplanning knowl
+edge sources to the new fbrmalism. 
+VM GECO is flflly implemented (in Common 
+Lisp) and integrated into tile speechto speech 
+translation system Verbmobil fl)r two output 
+languages, English and German. Tile adapta~ 
+tion to Japanese generation will be performed in 
+the current project phase. Our experience fronl 
+adding German makes us confident that this 
+can be done straighttbrwardly by creating the 
+approt)riate knowledge sources without modi
+fications of the kernel generator. To give the 
+reader a more detailed impression of the im
+plementation of the generation component we 
+present some characteristic data of the English 
+generator. The numbers for the German sys
+tem, especially for lexicon and processing time, 
+are similar. 
+The underlying English grammar is a lexical
+ized TAG which consists of 2844 trees. These 
+trees were transfbrmed during an ottline i)re
+processing step fronl 2961 HPSG lexieal ell
+tries of the linguistically well motivated En
+glish HPSG grammar written at CSLI. On 
+the other hand the microplanner's knowledge 
+sources consist of 2730 partially pre-processed 
+nfieroplanning rules which are utilized in an in
+115 
+tegrated handling of structural and lexical de
+cisions based on constraint propagation. The 
+microplanning rules are of course especially 
+adapted to the underlying semantic represen
+tation formalism. Furthermore, the underlying 
+lexicon covers the word list that has been con
+structed from a large corpus of the application 
+domain of the Verbmobil system, i.e., negotia
+tion dialogues in spontaneous speech. 
+The TAG grammar resulting from the com
+pilation step allows for highly efficient lexically 
+driven robust syntactic generation mainly con
+sisting of tree adjoinings, substitutions, and fea
+ture unifications. The average overall genera
+tion time per sentence (up to length 24) is 0.7 
+seconds on a SUN ULTI/.A-1 machine, 68 % of 
+the runtime are needed for the microplanning 
+while the remaining 32 % of the runtime are 
+needed for syntactic generation. 
+4.1 Reusing
+the Kernel 
+Beside the usability for multiple languages in 
+Verbmobil our kernel generation component has 
+also proven its adaptability to a very differ
+ent semantic representation language (system
+atically and terminologically) in another still 
+ongoing multilingual (currently 12 languages) 
+translation project. The project utilizes an 
+interlingua-based approach to semantic rep
+resentations of utterances. The goal of this 
+project is to overcome the international lan
+guage barrier which is exemplarily realized by a 
+large corpus improvement of the transparency of 
+consisting of international law texts. Our part 
+in this project is the realization and implemen
+tation of the German generation component. 
+Because of our language-independent core gen
+erator the adaptation of the generation compo
+nent to this semantic representation decreased 
+to the adaptation of the strnctural and lexi
+cal knowledge bases of the microplanning com
+ponent and appropriate domain-specific exten
+sions on the lexicon of the syntactic generator. 
+With an average sentence length of 15 words 
+the average runtime per sentence on a SUN 
+ULTRA-2 is less than 0.5 seconds. Currently, 
+even the longest sentence (40 words) needs un
+der 2 seconds rm~time. 
+Within Verbmobil, the generation component 
+will also be used for text generation when pro
+ducing protocols as described in (Alexandersson 
+and Poller, 1998). 
+
+References 
+
+J. Alexandersson and P. Poller. 1998. Towards multilingual protocol generation for spontaneous speech dialogues. In 9th INLGW, Niagara-on-the-lake, Canada. 
+
+T. Becket. 1998. Fully lexicalized head driven syntactic generation. In 9th INLGW. Niagara-on-the-lake, Canada. 
+
+Th. Bub, W. Wahlster, and A. Waibel. 1997. Verbmobih The combination of deep and shallow processing for spontaneous speech translation. In Proceedings of ICASSP '97. 
+
+E. Ho W. 1996. An overview of automated natural language generation. In X. Huang, editor, Proc. of the Intl. Symposium on NL Generation and the Processing of the Chinese Language, INP(C)-96, Shanghai, China. 
+
+R. Kasper, B. Kiefer, K. Netter, and K. Vijay-Shanker. 1995. Compilation of HPSG to TAG. In 33rd A CL, Cambridge, Mass. 
+
+A. Kilger and W. Finkler. 1995. Incremental generation for real-time applications. Research Report RR 95-11, DFKI GmbH, Saarbr{icken, Germany, July. 
+
+V. Kumar. 1992. Algorithms for constraint satisfaction problems: A survey. AI Magazine, 13(1):32--44. 
+
+W.J.M. Levelt. 1989. Speaking: From Intention to Articulation. The MIT Press, Cambridge, MA. 
+
+M.W. Meteer. 1990. The "Generation Gap" The Problem of Expressibility in Text Planning. Ph.D. thesis, Amherst, MA. BBN Report No. 7347. 
+
+C. Pollard and I. A. Sag. 1994. Head-Driven Phrase Structure Grammar. Studies in Contemporary Linguistics. University of Chicago Press, Chicago. 
+
+Y. Schabes, A. Abeilld, and A. K. Joshi. 1988. Parsing strategies with 'lexicalized' grammars: Application to tree adjoining grammars. In COLING-88, pages 578-583, Budapest, Hungary. 
+
+K. Vijay-Shanker and A. K. Joshi. 1988. Feature structure based tree adjoining grammars. In COLING-88, pages 714-719, Budapest, ttungary. 
+
+W. Wahlster. 1993. Verbmobih Translation of face-to face dialoges. In MT Summit IV, Kobe, Japan. 
+

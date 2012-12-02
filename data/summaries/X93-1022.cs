@@ -1,0 +1,6 @@
+We know from our earlier work in the domain of terrorism that coreference resolution can be reasonably well-managed on the basis of hand-coded heuristics \[Lehnert et al.1992b\]. But this type of solution does not port across domains and therefore represents a significant system development bottleneck.
+M92-1021 M92-1038
+The system under evaluation here is based on language processing components that have demonstrated strong performance capabilities in previous evaluations \[Lehnert et al.1992a\]. Having demonstrated the general viability of these techniques, we are now concentrating on the practicality of our technology by creating trainable system components to replace handcoded d~t~ and manually-engineered software.
+M92-1021 M92-1038
+We employ a hybrid system architecture that combines selective concept extraction \[Lehnert 1991\] technologies developed at UMass with trainable classifier technologies developed at Hughes \[Dolan et al.1991\]. Our Tipster system incorporates seven trainable language components to handle (1) lexical recognition and partof-speech tagging, (2) knowledge of semantic/syntactic interactions, (3) semantic feature tagging, (4) noun phrase analysis, (5) limited coreference resolution, (6) domain object recognition, and (7) relational link recognition.
+M91-1024

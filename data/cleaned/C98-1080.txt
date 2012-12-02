@@ -1,0 +1,674 @@
+Using Decision Trees to Construct a Practical Parser 
+Masahiko Haruno* Satoshi Shirai t Yoshifumi Ooyamai 
+mh aruno({i'ldl).at.r.co.jt) sld rai'(i'cs\]al).k(~cl.n|,t.co.jl) ooyal na.(.~}csla I).kccl.nl, t..co.j p 
+* A'I'I{ lhtma.n In retina.lion I'roccssing Research Laboratories 
+9_9 llikaridai, S '~d~a.-cho, Soraku-gun, Kyol;o 619-02, Japan 
+*NTT Communication Science l,aboratories 
+2-4 ltika.ridai, S Aka-(ho, Soraku-gun, Kyoto 619-02, 3apan. 
+Abstract 
+This l)al)er describes novel and practical .lal)anesc 
+parsers that uses decision trees, l"irst, we COl> 
+struct a single, decision tree to estimate modifica-
+lion probabilities; how one phrase tends t.o modify 
+another. Next, we introduce a boosting algorithm 
+in which several decision t.rees are COllst.ructed and 
+then combined for probalfility estiinat.ion. 'lThe two 
+constructed parsers are evalua.ted I)y using the El)t{ 
+.Japanese annotated corpus. The single-tree method 
+outperforlns the conventional Japanese stochastic 
+reel.hods by 4%. Moreover, the boosting version is 
+shown to h;we significant adwmtages; 1 ) better pars
+ing accuracy than ils single-tree counl.erparl for any 
+alnoullt o\[" training data and 2) no over-titling 1o 
+data. for va.rious iterations. 
+1 Introduction
+
+Conventional parsers with practical levels of per for 
+mance require a number of sophisticated rules that. 
+haw" to be hand-crafted by human linguists. It is 
+time-consuming and cumbersome to mainl.ahl tltese 
+rules for two reasons. 
+* The rules are specific to the application domain. 
+* Specific rules handling collocat.ional expressions 
+create side effects. Such rules often deteriorate 
+the overall performance of the parser. 
+q'he stochastic approach, on the other hand, has 
+the potential to overcome these difficulties. Because 
+il induces stochastic rules to maximize ow~'ra.ll per
+\['onnance against t.raining data, it. llOf Ollly adapts 
+to any application domain but also may avoid ow>r
+fitting to the data. In the late 80s and early 90s, lhe 
+induction and parameter estimation of l)robabilis 
+tie context, free grammars (PCF(',s) from corpora 
+were intensively studied, la;ecause these grammars 
+comprise only nonterminal and part-of-speech tag 
+symbols, their performances were not enough to be 
+used in practical applications (Charniak, 1993). A 
+broa.der range of information, in lmrticular lexical in
+forinatiolq was tbund to be essential in disambiguat
+ing the syntactic structures of real-world sentences. 
+SI'ATTEt{ (Magerman, 1995) augmented the pure 
+I'(:I"G by introducing a. mnnl)er of lexical at.tributes. 
+The parser controlled applications of each rule by us
+ing the lexical constraints induced by decision tree 
+algorithnl (Quinlan, 1993). rFhe SI)N\]'TEt{ parser 
+attained 87% accuracy and first made stochastic 
+parsers a practical choice. The other type of high
+precision parser, which is based on dependency ana\[
+5'sis was introduced by Collins (Collins, 1996). l)e
+pendency a.mdysis first, segments a sentence into syn
+tactically meaningful sequences of words and then 
+considers the modificatioll of each segment. Collins" 
+parser computes the likelihood that each segment 
+modifies the other (2 term relation) by using large 
+corpora. These moditication probabilities are con
+ditioned by head words of two S{"glnelltS, distance 
+between the two segments and otlmr syntactic %a
+tures. Although these two parsers have showll silni
+lar performance, the keys of their success are slight ly 
+diflk~renl.. SPA'\[.'TER parser perforlnanee greatly de
+pelldS on the feat.tire sehection ability of the decision 
+tree algorithm rather than its linguistic representa
+tion. On t, he other hand, dependency analysis plays 
+an essential role in Collins' parser for elficienlly ex
+tracting inK)rmation from corpora. 
+In lifts i)al)er, we (lescribe practical .\]apanes(" de
+pendency parsers that uses decisio11, trees, in the 
+.lal)anese language, dependency analysis has I)ecn 
+showll to \])e powerful because seglllellI (bullselsll) 
+order in a sentence is relal:ively free compared to 
+l!',uropean languages. Japanese dependency parsers 
+generally proceed in three steps. 
+l. ,qeglnent a sentence into a sequence of t)unsetsu. 
+2. Prel)are a modification matrix, each value of 
+which rel)resents how one \])/illSet.Sll is likely to 
+modify another. 
+3. Find optimal modifications in a sentence by a 
+dynanfic progranmfing technique. 
+The most diIficult part is the second; how to con
+struct a. sophisticated lnodifieation matrix. With 
+conventiolml ,\]apanese parsers, the linguist nmst 
+classify the tmnset.su and select appropriate fealures 
+to compute modificatioll values. The parsers thus 
+suffer from application domain diversity and t.he side 
+effects of specific rules. 
+50.5 
+Stochastic dependency parsers like Collins', on the 
+other hand, define a set of attributes for condition
+lug the modification probabilities. Tile parsers con
+sider all of the attributes regardless of bunsetsu type. 
+These methods can encompass only a small number 
+of features if the probabilities are to be precisely 
+evaluated from finite number of data. Our decision 
+tree method constructs a more sophisticated modi
+fication matrix. It. automatically selects a sufficient 
+number of significant attributes according to bun
+setsu type. We can use arbitrary numbers of the 
+attributes which potentially increase parsing accu
+racy. 
+Natural languages are full of exceptional and collo
+cational expressions. It is ditfieult for machine learn
+ing algorithms, as well as human linguists, to judge 
+whether a specific rule is relevant in terms of over
+all performance. To tackle this problem, we test 
+the mixture of sequentially generated decision trees. 
+Specifically, we use the Ada-Boost algorithm (Ere
+und and Schapire, 1996) which iterat.ively performs 
+two procedures: 1. construct a decision tree based 
+on the current data distribution and 2. updating 
+the distribution by focusing on data that are not 
+well predicted by the constructed tree. The final 
+modification probabilities are computed by mixing 
+all the decision trees according to their performance. 
+The sequential decision trees gradually change from 
+broad coverage to specific exceptional trees that can
+not be captured by a single general tree. In other 
+words, the method incorporates not only general ex
+pressions but also infi'equent specific ones. 
+The rest of the paper is constructed as follows. 
+Section 2 summarizes dependency analysis for the 
+Japanese language. Section 3 explains our decision 
+tree models that compute modification probabili
+ties. Section 4 then presents experimental results 
+obtained by using EDR Japanese annotated corpora. 
+Finally, section 5 concludes the paper. 
+2 Dependency
+Analysis in Japanese 
+Language 
+This section overviews dependency analysis ill the 
+Japanese language. Tile parser generally performs 
+the following three steps. 
+1. Segment a sentence into a sequence of bunsetsu. 
+2. Prepare modification matrix each value of which 
+represents how one bunsetsu is likely to modify 
+the other. 
+3. Find optimal modifications in a sentence by a 
+dynamic programming technique. 
+Because there are no explicit delimiters between 
+words in Japanese, input sentences are first, word 
+segmented, part-of-speech tagged, and then chunked 
+into a sequence of bunsetsus. Tile first step yields, 
+for the following example, the sequence of bunsetsu 
+displayed below. The parenthesis in tile Japanese 
+expressions represent the internal structures of the 
+bunsetsu (word segmentations). 
+Example: tl~g H (D/Y)i\[Z~P)r'(D-J"~ ~ 4o 7~"7 4 > ~'~/v/'~ 
+((~H)(e))) ((Y;k-)(l:))((~)(©)) 
+kinou-no yuugata-ni ki~u'o-t~o 
+yesterda~NO et,enit~y-NI neighbor-No 
+((~k S )(~),)) (( v 4 > )(~)) ((~):/~)(tZ) 
+kodom(>ga wain-wo r~omu+ta 
+childrcr~-GA wine-WO drit~k+PAST 
+The second step of parsing is t.o construct a modifi
+cation matrix whose values represent the likelihood 
+that one bunsetsu modifies another in a sentence. 
+In the Japanese language, we usually make two as
+sumptions: 
+1. Every bunsetsu except, the last. one modifies 
+only one posterior bunsetsu. 
+2. No modification crosses t.o other modifications 
+in a sentence. 
+Table 1 illustrates a modification matrix for the 
+example sentence. In the matrix, co\]unms and rows 
+represent anterior and posterior bunsetsus, respec
+tively. For example, the frst bunsetsu 'kinouno" 
+modifies the second 'yuugala-7~i'with score 0.70 and 
+the third 'kil~jo-~o'with score 0.07. The aim of this 
+paper is to generate a modification matrix by using 
+decision trees. 
+kmou-no 
+yu~gala, nt 0.70 yu~ga~a-n, 
+klnjo-no 0.07 0.10 L'lnjo-no 
+kodorno.ga 0.10 0.10 0.70 kodoHio*ga 
+~l, ain-wo 0,10 O.10 0.20 0.0.5 ~'a~T~-u,o 
+71orllu-oa 003 0.'70 O.IO 0.95 I O0 
+'/Fable 1: Modification Matrix for Sample Sentence 
+The final step of parsing optimizes the entire de
+pendency structure by using the values in the mod
+ification matrix. 
+Before going into our model, we introduce the no
+tations that will be used in the model. Let. ,5' be 
+the input sentence. S comprises a bunsetsu set. B of 
+length m ({< b~,f~ >,...,< b,,,f,, >)) in which 
+bi and J'i represent the ith bunsetsu and its features, 
+respectively. We define D t.o be a modification set; D 
+= {mod(l),-..,mod(,nl)} in which rood(i)indi
+cates tim number of busetsu modified by the ith bun
+setsu. Because of the first assumption, the length of 
+D is always m1. Using these notations, the result 
+of the third step for the example call be given as D 
+= {2, 6, 4, 6, 6} as displayed in Figure 1. 
+3 Decision
+Trees for Dependency 
+Analysis 
+3.1 Stochastic
+Model and Decision Trees 
+Tile stochastic dependency parser assigns the most 
+pla.usible modification set Da~s¢ to a sentence 5" in 
+506 
+1 
+kin0u-n0 yuugat 
+3 4 
+ni kinj n0 k0d0m ga _ll 
+5 
+ ain-w0 n0mu.t 
+Figure 1: Modification Set for Sample Sentence 
+terms of the training da.ta distribution. 
+Db., = P(Z)IS) = P(Z)IB) 
+By assuming the independence of modifica
+tions, P(DIH) can be transformed as follows. 
+P(yeslbi, bj , f ~ ,..., f ,, ) means the probability that 
+a pair of bunsetsu bi and bj haw" a modification rela
+tion. Note that each modification is constrained by 
+all features{f~,...,fm} in a sentence despite of the 
+assumption of independence.tNe use decision trees 
+to dynamically select appropriate features for each 
+combination of bunsetsus fi'om {f~ ,..., f,,, }. 
+f'(1)\[l,) = 1-I l'( g , bs , f , , . . . , f ,, ) 
+l,et us first consider tit(.' single tree case. The 
+lraining data for the decision tree comprise any un
+ordered combination of two bunsetsu in a sentence. 
+Features used for learning are the linguistic informa
+tion associated with the two bunsetsu. The next sec
+tion will explain these features in detail. The class 
+set for learning has binary values yes and no which 
+delineate whether the data (the two bunstsu) has 
+a moditication relation or not. In this setting, the 
+decision tree algorithm automatically and consecu
+tively selects the significant Datures for discriminat
+ing modify/non-modify relations. 
+We slightly changed C4.5 (Quinlan, 1993) pro
+grants to be able to extract class Dequen
+des at every' node in the decision tree be
+cause our task is regression rather than classi
+fication. 13y using the class distribution, we 
+conllmte the prol)ability l'oT(yeslbi , bj, J'~ ,..., f ,n) 
+which is the Laplace estimate of empirical likeli
+hood that bi modifies bj in the constructed deci
+sion tree DT. Note that it. is necessary to nor
+malize PDW(yeslbi,bj,f,,...,fm) to approximate 
+P(yes\[bi,bj,f~,...,fm ). By considering all can
+didates posterior to hi, P(yeslbi, bj, f~,..., fro) is 
+computed using a heulistic rule (1). It is of course 
+reasonable to normalize class frequencies instead of 
+the probabilit.y PoT(yeslbi, bj, , f ~ , . . . , fro). Equa
+tion (1) tends to emphasize long distance dependen
+cies more than is true for frequency-I)ased normal
+ization. 
+P(ycslbi ,bj, f~,..., f,,,) ~_ 
+PDT(yeslbi, bj, f ~ , . . . , f ,, ) (1) 
+k >i"' P DT(yeslbi, bj , f ~ ,..., f m ) 
+Let us extend the above to use a set of decision 
+trees. As brietty mentioned in Section 1, a number 
+of infrequent and exceptional expressions appear in 
+any natural language phenomena; they deteriorate 
+the overall performance of apl)lication systems. It 
+is also difficult for automated learning systems to 
+detect and handle these expressions because excep
+tional expressions are placed in the same class as 
+frequent ones. To tackle this ditficulty, we gener
+ate a set of decision trees by adaboost (Freund and 
+Schapire, 1996) algorithm illustrated in Tabh-. 2. The 
+algorithm first sets the weights to 1 for all exam
+pies (2 in Table 2) and repeats the following two 
+procedures T times (3 in Table 2). 
+1. A decision tree is constructed by using the cur
+rent weight vector ((a) in Table 2) 
+2. Example data are then I)arsed by using the tree 
+and tim weights of correctly handled examples 
+are reduced ((b),(c)in Table 2) 
+1. 
+3. 
+Inlmt: sequence of N examples < c,, w, >, ..., < 
+eN, WN > in which ei ~1.11(| Wz represent. ~11 exalKlple 
+and its weigld, respectively. 
+Initialize the weight vector w, =1 for i = 1 ...... ~,r 
+Do for t = I,'2,...,T 
+(a) Call C.t.5 providing it wilh |he weight vcclor 
+w,s attd Construct a modification l)robability 
+set, ht 
+(b) Let. Error be a set of examples that are not 
+ident.itied by ht 
+Compute the pseudo error rate of ht: 
+(t -~E iCE,.,.o,.Wi/ E i=aN wi 
+iI'{t > }, then abort loop 
+l~e t 
+(c) For examples correctly predicted by h t, update 
+the weights vector to be wi = II'i/~t 
+4. Output a fill~tl probability set.: 
+hf E ,=, 7 ~ /Jr z'''~l t=..loY~t ) = ,'( 
+Table 2: Combiniug 1)ecisiou Trees by Ada-boost 
+Algorithm 
+Tile final l)rol)ability set h j is then comfmted 
+by mixing T trees according to their perfor
+mance (4 in Table 2). Using h r instead of 
+PoT(yes\[be, bj, f,,..., f,,,), in equation (1) goner
+ates a boosting version of the dependency parser. 
+3.2 Linguistic
+Feature Types Used for 
+Learning 
+This section explains the concrete feature setting we 
+used for learning. The feature set mainly focuses on 
+507 
+1 lexical information of head word 
+2 part-of-speech of head word 
+3 type of bunsetsu 
+4 punctuation 
+5 parentlmses 
+Table 3: Linguistic Feature Types Used for Learning 
+6 distance between two bunsetsu 
+7 particle 'wa' between two bunsetsu 
+8 punctuation between two bunsetsu 
+Feature Type Values 
+gJ~ga=\], }~lJ\].J. N0a,\]lt.~f~m)l-;a,\]. ~itja.jfl~-,t.\]. ~',.l#\]ft~,*al{mij~,~\], g.~.\]'I~gj,;}ll)fi.~:,~i'. 
+&~', & 6, ~P'l~, ta', f~'$~, t.¢~., ~'~'L, fd~.~Ll~, ~\]fiG, t,.~' fdG, ~'GC¢:2, ta'~l, 
+**'\]J)', fa'/~', ::, fa, a), tO.g, {~*, l.*~),;),--., lt~', ~t:, ~t:t*-, ~\[-~, ~a, 6 L<{/, 
+6,,% 6¢1a), ~-., <'b, .t..1:5, .t:!, &, ab, ~. ~t~£.l.}. 0:.&:, t,~,f~l, '~,M.\]. l£V.. ,El). 
+-~fl:. Ale,, IlU~I, Ira4, ¢g,~¢~,4, tRI'~, q,, ~jtd.{~l,tsj. l'~iI\[,~Ja.I. ~/~,'0J, ~,{hllja4, ,i.l:fllfi/g\]aaJ, 
+non, a:~."L, t,JfL 
+non, ', q, , 1, I, \[, ',. l, ', ",, ,, , l,l,\], I 
+7 
+8 0, 1 
+"graph dBt" 
+A(o), B(l-4), c(>,5) 
+O, 1 
+Table 4: Values for Each Feature Type 
+84 
+8.35 
+83 
+82 5 
+82 
+Two Bunsetsu ~ Others 
+sooo loo0o lsooo 20000 25o0o aoooo asooo 4o0oo 45o00 soooo Number ol Training Data 
+Figure 2: Learning Curve of Single-Tree Parser 
+the two bunsetsu constituting each data. Tile class 
+set consists of binary values which delineate whether 
+a sample (the two bunsetsu) have a modification re
+lation or not.. We use 1"3 features for the task, 10 di
+rectly fi'om the 2 bunsetsu under consideration and 
+3 for other bunsetu information as SUlnmarized in 
+'Fable 3. 
+Each bunsetsu (anterior and posterior) has the 5 
+features: No.1 to No.5 in Table 3. Features No.6 
+to No.8 are \]'elated to bunsetsu pairs. Both No.1 
+and No.2 concern the head word of the bunsetsu. 
+No.1 takes values of frequent words or thesaurus cat
+egories (NLRI, 1964). No.2, on tile other hand, takes 
+values of part-of-speech tags. No.3 deals with bun
+setsu types which consist of functional word chunks 
+or the part-of-speech tags that dominate the bun
+setsu's syntactic characteristics. No.4 and No.5 are 
+binary features and correspond to punctuation and 
+parentheses, respectively. No.6 represents how many 
+bunsetsus exist, between the two bunsetsus. Possible 
+values are A(0), B(0--4) and C(>_5). No.7 deals with 
+t.he post-positional particle 'wa' which greatly inttu
+ences the long distance dependency of subject-verb 
+modifications. Finally, No.8 addresses the punct.ua
+t.ion between the two bunsetsu. The detailed values 
+of each feature type are summarized in Table 4. 
+4 Experimental
+Results 
+We evaluated the proposed parser using the EDR 
+Japanese annotated corpus (EDR, 1995). The ex
+periment consisted of two parts. One evaluated tim 
+single-tree parser and the other the boosting coun
+t.erpart. In the rest of this section, parsing accuracy 
+refers only to precision; how many of the system's 
+output are correct in t.erms of the annotated corpus. 
+We do not show recall because we assume every bun
+setsu modifies only one posterior bunsetsu. The fea
+tures used for learning were non head-word features, 
+(i.e., type 2 to 8 in Table 3). Section 4.1.4 investi
+gates lexical information of head words such as fi'e
+quent words and thesaurus categories. Before going 
+into details of the experimental results, we summa
+rize here how training and test data were selected. 
+1. Afl.er all sentences ill the EDR corpus 
+were word-segmented and part-of-speech 
+tagged (Matsumoto and others, 1996), they 
+were then chunked into a sequence of bunsetsu. 
+2. All bunsetsu pairs were compared with EI)R 
+bracketing annotation (correct. segmentations 
+508 
+Confidence Level 25(/o 50% 75% ~3 .) ~('~, 
+Parsing Accm'acy 82.01% 83.43% 83.52% 83.35% 
+Table 5: Number of Training Sentences v.s. Parsing Accuracy 
+Number of Training Sentences 3000 6000 10000 20000 30000 
+~2.0~ ~, 82.70% '83.52% 84.(}7% 8,1.27% Parsing Accuracy ~' -(' 
+50000 
+8,t .33% 
+Table 6: Pruning Confidence Lewd v.s.Parsing Accuracy 
+and modifications). If a sentence conlairied a 
+pair inconsistent with the EDR annotation, the 
+sentence was removed from the data. 
+3. All data exanfined (total nuniber of sell
+t.enees::207802, total unlllber of }.)till
+setsu:1790920) were divided into 20 files. 
+The training data were same number of first 
+sentences of the 20 files according to the 
+training data size. Test dai.a (10000 sentences) 
+were the 2501th to 3000th sentences of each 
+lile. 
+4.1 Sillgle
+Tree Experiments 
+lit the single tree experiments, we evaluated tile fol
+lowing 4 properties of the new dependency parser. 
+• Tree pruning and parsing accuracy 
+• Nulnber of training data and parsing accuracy 
+• S'ignificance of featin'es other than tlead-word 
+Lexical lnforniatiou 
+• Significance of llead-word l,exical hlfornlation 
+4.1.1 Prunillg
+an(1 Parsing Aeouraey 
+Table 5 sutinnarizes the parsing accuracy with var
+ious confidence levels of pruning. The number of 
+t.raining sentences was 10000. 
+In C4.5 programs, a larger value of confidence 
+means weaker pruning and 25% is commonly used in 
+various donlaius (Quinlan, 1993). Our experintental 
+results show that 75% pruning attains the best per
+forlnance, i.e. weaker prnuing than usual. In the 
+reniaining single tree experinients, we used the 75% 
+confidence level. Although strong l)runing treats in
+fl:equent data as noise, parsing involves many ex
+ceptional and infrequent modifications as mentioned 
+befbre. Our restllt means ttiat only intbrmation in
+chided in small numbers of samples are useful for 
+disambigua.ting the syntactic structure of sentences. 
+4:.1.2 The amount of Training Data and 
+Parsing Accuracy 
+Table 6 and Figure 2 show how the number of train
+ing sentences infhienees parsing accuracy for the 
+same 10000 test sentences. They ilhlstrate the for 
+lowing two characteristics of the learning curve. 
+1. 'file parsing accuracy rapidly rises up to 30000 
+sentences and converges at a.round 50000 sen
+t, enees. 
+2. The maxinlunl parsing accuracy is 84.33% at 
+50000 training sentences. 
+We will discuss the nlaxinmm accuracy of 84.33%. 
+Compared to recent stochastic Fnglish parsers that 
+yield 86 to 87(/o accuracy (Collins, 1996; Mager
+man, 1995), 84.33% seems unsatisfactory at. the first 
+glance. The main reason behind this lies in the dig 
+ference between the two corpora used: Pelm Tree
+bank (Marcus et al., 1993) and El)If corpus (EI)F{,, 
+1995). l'enn Treebank(Marcus et M., 1993) was also 
+used to induce part-of-sl)eech (POS) taggers because 
+the corpus contains very precise and det.ailed POS 
+markers as well as bracket annotations. In addition, 
+h;nglish parsers incorporate the. syntactic tags that 
+are contained in the corpns. The EDI{ corpus, oil t.he 
+other haud, contains only coarse POS tags. We used 
+another d apanese POS tagger (M atsnmoto and oth
+ers, 1996) to make use of well-grained information 
+for disanibiguating syntactic structures. Only the 
+bracket information in the EDI{ corpus was consid
+ered. We conjecture that the difference between the 
+parsing accuracies is due to the difference of the cor
+pus infonnation. (Fujio and Matsunioto, 1997) con
+structed an El)l~-based dependency parser by using 
+a simila.r method t.o Collins' (Collins, 19!)6). The 
+parser attained 80.48% accuracy. Although thier 
+training and Zest. sent.enees are not exactly same as 
+ours, the restllt seems to SUl)port our conjecture on 
+the data difference between EDR and Penn Tree
+bank. 
+4.1.3 Significance
+of Non Head-Word 
+Features 
+We will now summarize the significance of each non 
+head-word feature introduced in Section 3. The in
+fluence of the lexieal information of head words will 
+be discussed in the next section. Table 7 ilhlslrates 
+how the parsing accuracy is reduced when each fea
+ture is removed. The mnnber of training setttences 
+was 10000. In the table, ant and post. represent the 
+anterior and the posl.erior bnnsetsu, respectiwdy. 
+Table 7 clearly denlonstrates that. the ll\]OSl signifi
+509 
+Feature 
+ant POS of head 
+ant bunsetsu type 
+ant punctuation 
+ant parentheses 
+post POS of head 
+post bunsetsu type 
+Accuracy Decrease \]\[ Feature 
+-0.07% post punctuation 
++9.34% post parentheses 
++1.15% distance between two blul.setsus 
+=1=0.00% punctuation between two bunsetsus 
++2.13% 'wa' between two bunsetsus 
++0.52% 
+Accuracy Decrease 
++1.62% 
++0.00% 
++5.21% 
++0.o1% 
++1.79% 
+Table 7: Decrease of Parsing Accuracy When Each Attribute Removed 
+Head Word Information 
+Parsing Accuracy 
+I 100 words 200 words Level 1 Level 2 \] 
+83.34% 82.68% 82.51% 81.67% I 
+Table 8: Head Word Information v.s. Parsing Accuracy 
+cant features are anterior bunsetsu type and distance 
+betweell the two bunsetsu. This result may partially 
+support an often used heuristic; bunsetsu modifica
+tion should be as short range as possible, provided 
+the modification is syntactically possible. In partic
+ular, we need to concentrate on the types of bunsetsu 
+to attain a higher level of accuracy. Most features 
+contribute, to some extent, to the parsing perfor
+mance. In our experiment, information on paren
+theses has no effect, Oil the performance. The reason 
+may be that EDR contains only a small number of 
+parentheses. One exception in our features is an
+t.erior POS of head. We currently hypothesize that 
+this drop of accuracy arises from two reasons. 
+* In mauy cases, the POS of head word can be 
+determined from bunsetsu type. 
+• Our POS tagger sometimes assigns verbs for 
+verb-derived nouns. 
+4.1.4 Significance
+of Head-words Lexical 
+Intbrlnation 
+\Ve focused Oil the head-word feature by testing the 
+following 4 lexical sources. The first and the second 
+are the 100 and 200 most frequent words, respec
+tively. The third and the fourth are derived fl:om a 
+broadly used Japanese thesaurus, Word IAst by Se
+mantic Principles (NLRI, 1964). Level 1 and Level 2 
+classify" words into 15 and 67 categories, respectively. 
+1. 100 most Frequent words 
+2. 200 most Frequent words 
+3. \Vord List. Level 1 
+4. Word List Level 2 
+Table 8 displays the parsing accuracy when each 
+head word inforlnation was used in addition to the 
+previous features. The number of training sentences 
+was 10000. In all cases, the performance was worse 
+than 83.52% which was attained without head word 
+lexical information. More surprisingly, more head 
+word information yielded worse performance. From 
+this result, it. may be safely said, at. least for the 
+Japanese language, that we cannot expect lexical in
+forrnation t.o always improve the performance. Fur
+ther investigation of other thesaurus and cluster
+ing (Charniak, 1997) techniques is necessary to fully 
+understalld the influence of lexical information. 
+4.2 Boosting
+Experiments 
+This section reports experimental results on the 
+boosting version of our parser. In all experiments, 
+pruning confidence levels were set. to 55%. Table 9 
+and Figure 3 show the parsing accuracy when the 
+nulnber of training examples was increased. Because 
+the number of iterations in each data set. changed be
+tween 5 and 8, we will show the accuracy by combin
+ing the first 5 decision trees. In Figure 3, the dotted 
+line plots the learning of the single tree case (identi
+cal to Figure 2) for reader's convenience. The char
+acteristics of the boosting version can be SUlmna
+rized as follows compared to the single tree version. 
+* The learning curve rises more rapidly with a 
+small number of examples. It is surprising that 
+the boosting version with 10000 sentences per
+forms better than the single tree version with 
+50000 sentences. 
+. The boosting version significantly outperforms 
+the single tree counterpart, for any number of 
+sentences although they use the same features 
+for learning. 
+Next, we discuss how the number of iterations in
+fluences the parsing accuracy. Table 10 shows the 
+parsing accuracy for various iteration numbers when 
+50000 sentences were used as training data. The re
+suits have two characteristics. 
+. Parsing accuracy rose up rapidly at the second 
+iteration. 
+• No over-fitting to data was seen although the 
+performance of each generated tree fell around 
+30% at the final stage of iteration. 
+510 
+\[ Nmnber of Training Sentences 3000 6000 10000 20000 30000 50000 \] 
+Parsing Accuracy 83.10% 84.03% 84.44% 84.74% 84.91% 85.03% / 
+Ta.l>le 9: Number of Training Sentences v.s. Parsing Accuracy 
+\[ Number of Iteration 1 2 3 4 5 85.03¢{, Parsing Aceuraey 84.32% 84.93% 84.89% 84.86% ". c, 
+Table 10: Number of Iteration v.s. Parsing Accuracy 
+5 Conclusion
+
+We have described a new Japanese dependency 
+parser that uses decision trc~,s. First, we introduced 
+the single tree parser to clarify the basic character
+istics of our method. The experimental results show 
+that it. outperforms conventional stochastic parsers 
+by 4%. Next, the boosting version of our parser w~s 
+introduced, rFhe promising results of the boosting 
+parser can be smmnarized as follows. 
+• The boosting version outperforms the single
+tree counterpart regardless of training data 
+anlollnt. 
+* No data over-titling was seen when the number 
+of iterations changed. 
+We now plan to contitme otlr research ill two direc
+tions. One is to make our parser available to a broad 
+range of researchers and to use their feedback to re
+vise the features for learning. Second, we will apply 
+our method to other languages, say English. Al
+though we have focused on the Japanese language, 
+it is st.raightforward to modify our parser to work 
+with other languages. 
+85 
+84 b 
+81 
+83 5 
+83 
+825 
+82 
+-b~ost.,O am" 
+"..,{lie d.~" .... 
+++ 
+.... ....... 
+// + ......... ," 
+5OO0 i0000 150:30 20o00 250¢K} 30(!.30 350{i0 4000~ .15000 50000 
+Number el qr ,ainlt,g t)am 
+Proc. 15th National Conference on Artificial h+
+lelligcnce, pages 598 603. 
+Michael Collins. 1996. A New Statistical Parser 
+based on bigram lexical dependencies. In Proc. 
+34th Annual Meeling of Association for Compu
+tational Linguistics, pages 184-191. 
+Japan Electronic I)ictionary Reseaech Institute Ltd. 
+EDR, 1995. 1he EDR Electlvnic Dictionary Tech
+nical Guide. 
+Yoav Freund and l~obert Schapire. 1996. A 
+decision-theoretic generalization of on-line learn
+ing and an application to boosting. 
+M. Fujio and Y. Matsumoto. 1997. Japanese de
+pendency structure analysis based on statistics. 
+In SIGNL NLI17-12, pages 83-90. (in Jal)anese ). 
+David M. Magerman. 1995. Statistical Decision
+Tree Models for Parsing. In Proe.3(h'd Annual 
+Meeting of AssociatioT+ for Compulational Lin
+guistics, pages 276-283. 
+Mitchell Marcus, Beatrice Santorini, and Mary Ann 
+Marcinkiewicz. 1993. Buihling a large mmot.ated 
+corpus of English: The Penn Treebald{. Compu
+lalional Linguistics, 19(2):313 330, June. 
+Y. Matsumoto el al. 1996. Japanese Morphological 
+Analyzer Chasen2.0 User's Manual. 
+NLRI. 1964. Word List by S~manlie Principles. 
+Syuei Syuppml. (in Japanese). 
+J.Ross Quinlan. 1993. C/+.5 Programs for Machine 
+Learning. Morgan Kauflnann Publishers. 
+Figure 3: l,earning C.urve of Boost.itlg Parser 
+
+References 
+
+l';ugen( Charniak. 1993. Slalislical Language Learnin(I. The MIT Press. 
+
+Eugene Charniak. 1997. Statistical Parsing with a ('ontext-free C, ranunar and Word Statistics. In 511 
+

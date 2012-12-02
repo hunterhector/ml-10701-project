@@ -1,0 +1,4 @@
+1 AutoPat, APTrans, AutoRead, computer systems for authoring, translation and improving readability of paten claims, correspondingly (Sheremetyeva, 2003) 2 Related work A vast amount of research in the field of electronic dictionaries concentrate on data unification, representation, organization and management with the major focus on multilingual dictionaries as, for example, in (Wong, 2000; Boitet et al.,2002). Multilingual electronic dictionaries often include a database of cross-referenced unilingual dictionaries with the use of interlingua such as ontology (Onyshkevich and Nirenburg, 1994)) or a pivotal language (Boitet et al.,cf.). The architecture of such dictionaries normally include a lexical database and a set of tools for data management, visualisers, editors, defaulters, etc.
+W02-1705 W03-2008
+C.Boitet, M.Mangeot-Lerebours and G.Sérasset. 2002.
+W02-1705

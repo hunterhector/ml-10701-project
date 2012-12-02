@@ -1,0 +1,2022 @@
+AnEmpiricalStudy of Corpus-Based
+ResponseAutomationMethodsforan
+E-mail-BasedHelp-DeskDomain
+YuvalMarom
+∗
+Monash University
+IngridZukerman
+∗∗
+Monash University
+This article presents an investigation of corpus-based methods for the automation of help-desk
+e-mail responses. Speciﬁcally, we investigate this problem along two operational dimensions:
+(1)information-gathering technique, and (2)granularity of the information. We consider two
+information-gathering techniques (retrieval and prediction)applied to information represented
+at two levels of granularity (document-level and sentence-level). Document-level methods corre-
+spond to the reuse of an existing response e-mail to address new requests. Sentence-level methods
+correspond to applying extractive multi-document summarization techniques to collate units of
+information from more than one e-mail. Evaluation of the performance of the different methods
+shows that in combination they are able to successfully automate the generation of responses
+for a substantial portion of e-mail requests in our corpus. We also investigate a meta-selection
+process that learns to choose one method to address a new inquiry e-mail, thus providing a uniﬁed
+response automation solution.
+1. Introduction
+E-mail inquiries sent to help desks often “revolve around a small set of common ques-
+tionsandissues.”
+1
+Thismeansthathelp-deskoperatorsspendmostoftheirtimedealing
+withproblemsthathavebeenpreviouslyaddressed.Further,asigniﬁcantproportionof
+help-desk responses contain a low level of technical content, addressing, for example,
+inquiries sent to the wrong group, or requests containing insufﬁcient detail about the
+customer’s problem. Organizations and clients would beneﬁt if an automated process
+was employed to deal with the easier problems, and the efforts of human operators
+were focused on difﬁcult, atypical problems.
+However, even the automation of responses to the “easy” problems is a difﬁcult
+task. Although such inquiries revolve around a relatively small set of issues, speciﬁc
+∗ FacultyofInformationTechnology,Monash University, WellingtonRoad,Clayton,Victoria3800,
+Australia.CurrentlyemployedatPaciﬁcBrands Services Group,Building 10,658Church St,Richmond,
+Victoria3121,Australia.E-mail:yuvalmarom@gmail.com.
+∗∗ FacultyofInformationTechnology,Monash University, WellingtonRoad,Clayton,Victoria3800,
+Australia.E-mail:Ingrid.Zukerman@infotech.monash.edu.au.
+1 http://customercare.telephonyonline.com/ar/telecom next generation customer.
+Submissionreceived: 7 November2007;revised submissionreceived: 20March2009;accepted forpublication:
+3June 2009.
+©2009AssociationforComputationalLinguistics
+ComputationalLinguistics Volume35,Number4
+circumstancescanmakeeachinquiryunique,andhencecaremustbetakentocompose
+a response that does not confuse, irritate, or mislead the customer. It is therefore no
+surprise that early attempts at response automation were knowledge-driven (Barr and
+Tessler 1995; Watson 1997; Delic and Lahaix 1998). These systems were carefully de-
+signedtoproducerelevantandcorrectresponses,butrequiredsigniﬁcanthumaninput
+and maintenance (Delicand Lahaix 1998).
+In recent times, such knowledge-intensive approaches to content delivery have
+been largely superseded by data-intensive, statistical approaches. An outcome of the
+recent proliferation of statistical approaches, in particular in recommender systems
+and search engines, is that people have become accustomed to responses that are not
+precisely tailored to their queries. This indicates that help-desk customers may have
+also become more tolerant of inaccurate or incomplete automatically generated replies,
+provided these replies are still relevant to their problem, and so long as the customers
+can follow up with a request for human-generated responses if necessary. Despite this,
+to date, there has been little work on corpus-based approaches to help-desk response
+automation (notable exceptions are Carmel, Shtalhaim, and Soffer 2000; Lapalme and
+Kosseim 2003; Bickel and Scheffer 2004; Malik, Subramaniam, and Kaushik 2007). A
+major factor limiting this work is the dearth of corpora—help-desk e-mails tend to be
+proprietary and are subject to privacy issues. Further, this application lacks the kind of
+benchmark data sets that are used in question-answering and text summarization.
+2
+In this article, we report on our experiments with corpus-based techniques for the
+automation of help-desk responses. Our study is based on a large corpus of request–
+response e-mail dialogues between customers and operators at Hewlett-Packard. Ob-
+servations from this corpus have led us to consider several methods that implement
+different types of corpus-based strategies. Speciﬁcally, we have investigated two types
+of methods (retrieval and prediction) applied at two levels of granularity (document
+andsentence).Inthisarticle,wepresentthesemethodsandcomparetheirperformance.
+Akeyissueinthegenerationofhelp-deskresponsesistheabilitytodeterminewhenan
+automaticallygeneratedresponseforaparticularquerycanbesenttoauser,andwhen
+the query should be passed to an operator. In Section 3, we employ method-speciﬁc,
+empirically determined, applicability thresholds to make this decision; in Section 6,
+we propose a meta-level process for selecting a response-generation method, which
+obviates the need for these thresholds.
+The rest of the article is organized as follows. In the next section, we discuss
+properties of the help-desk domain. In Section 3, we describe our response-generation
+methods. An automatic evaluation of these methods is presented in Section 4, and a
+smalluser-basedevaluationinSection5.InSection6,wedescribethemeta-levelprocess
+which learns to select between the different methods, and evaluate its performance in
+Section7.RelatedworkisdiscussedinSection8,andconcludingremarksarepresented
+in Section 9.
+2. The Help-Desk Domain
+The help-desk domain offers interesting challenges to response automation in that, on
+one hand, responses are generalized to ﬁt standard solutions, and on the other hand,
+responsesaretailoredtotheinitiatingrequestinordertomeetspeciﬁccustomerneeds.
+2 http://trec.nist.gov/pubs/trec15/t15 proceedings.html and
+http://www-nlpir.nist.gov/projects/duc/data.html.
+598
+Marom andZukerman EmpiricalStudyofResponse AutomationMethods
+Figure1
+Sampleresponses fromour corpus:(a) mixed generic–speciﬁc, (b)speciﬁc, and (c)generic.
+For example, the ﬁrst sentence of the response in Figure 1(a) is tailored to the user’s
+request, whereas the rest of the response is generic, and may be used when replying
+to other queries.
+3
+In addition to responses that contain such a mixture of speciﬁc and
+genericinformation,thereareinquiriesthatwarrantveryspeciﬁcorcompletelygeneric
+responses, as seen in Figures 1(b) and 1(c), respectively.
+A distinctive feature of the help-desk domain is that help-desk e-mail responses
+containahighlevelofrepetitionandredundancy.Thismaybeattributedtocommonal-
+ities in customer issues combined with the provision of in-house manuals to help-desk
+operators. These manuals connect particular topics with standard response templates,
+prescribe a particular presentation style, and even suggest speciﬁc responses to certain
+queries.Forexample,Figure2showstworatherdifferentresponsee-mailswhichshare
+a sentence (italicized). Thus, having access to these manuals would enable us to easily
+identify prescribed sentences. More importantly, it would enable us to determine the
+context in which these sentences are used, which in turn would allow us to postulate
+additional response sentences. An interesting avenue of investigation would involve
+adapting our approach to help-desk situations where such manuals are accessible.
+3 The
+examples shownin thisarticlearereproduced verbatimfromthecorpus (except forURLs andphone
+numbers whichhave beendisguised byus), and some have user oroperatorerrors.
+599
+ComputationalLinguistics Volume35,Number4
+If you are able to see the Internet then it sounds like it is working, you may want to get in
+touch with your IT department to see if you need to make any changes to your settings to
+getittowork. Try performing a soft reset by pressing the stylus pen in the small hole on the bottom
+left hand side of the Ipaq and then release.
+I would recommend doing a soft reset by pressing the stylus pen in the small hole on the left hand
+side of the Ipaq and then release. Then charge the unit overnight to make sure it has been long
+enough and then see what happens. If the battery is not charging then the unit will need to
+be sent in forrepair.
+Figure2
+Sampleresponses thatshare asentence.
+Despite the high degree of repetition in help-desk responses, the speciﬁc issues
+raised by different customers imply that the responses sent to these customers contain
+varying degrees of overlap (rather than being identical). Hence, providing a response
+for a new request may involve reusing an existing response in its entirety, putting
+together parts of responses that match individual components of the request, or com-
+posing a completely new response. This suggests that different response-generation
+strategies may be suitable, depending on the content of the initiating request and how
+well it matches previous requests or responses. In our work, we focus on the ﬁrst two
+of these situations, where either complete existing responses or parts of responses are
+reused to address anew request.
+TheexampleinFigure1(b)illustratesasituationwherespeciﬁcwordsintherequest
+(docking station and install) are also mentioned in the response. This situation suggests
+a response-automation approach that follows the document retrieval paradigm (Salton
+and McGill 1983), where a new request is matched with existing response documents
+(e-mails). However, speciﬁc words in the request do not always match a response well,
+and sometimes do not match a response at all, as demonstrated by the examples in
+Figures 1(a) and 1(c), respectively.
+Sometimes requests match each other quite well, suggesting an approach where a
+new request is matched with an old one, and the corresponding response is reused.
+However, analysis of our corpus shows that this does not occur very often, because
+unlike response e-mails, request e-mails exhibit a high language variability: There are
+many customers who write these e-mails, and they differ in their background, level
+of expertise, and pattern of language usage. Further, there are many requests that raise
+multipleissues,hencematchinganewrequeste-mailinitsentiretyisoftennotpossible.
+In situations where requests do not match existing responses or other requests,
+it may be possible instead to ﬁnd correlations between requests and responses. For
+example, the generic portion of the response in Figure 1(a), and the entire response
+in Figure 1(c), may be repeated for many different kinds of requests. If repeated sufﬁ-
+ciently,entireresponsesorpartsofresponseswillbestronglycorrelatedwithparticular
+combinations of request words, such as send, battery and replace in Figure 1(a), and
+ﬁrewall, ip,andnetwork in Figure 1(c).
+3. Response-Generation Methods
+Thepropertiesofthehelp-deskdomainoutlinedintheprevioussectionhavemotivated
+us to study the response-automation task along two dimensions. The ﬁrst dimension
+pertains to the strategy applied to determine the information in a response, and the
+600
+Marom andZukerman EmpiricalStudyofResponse AutomationMethods
+second dimension pertains to the granularity of the information. We implemented two
+alternative strategies. The ﬁrst is a retrieval strategy that attempts to match a new
+request with previous requests and responses, and the second is a prediction strategy
+thatlooksforcorrelationsbetweenrequestsandresponsesinordertopredictaresponse
+for a new request. For both types of strategies, we considered two levels of granularity
+for aunit of information: document and sentence.
+We implemented four methods according to the two alternatives for each dimen-
+sion: Document Retrieval, Document Prediction, Sentence Retrieval,andSentence
+Prediction. We also implemented a ﬁfth method for addressing situations such as the
+example shown in Figure 1(a), which warrant a mixed response that has both a generic
+componentandacomponenttailoredtotheuser’srequest.Thisisahybridprediction–
+retrievalmethodimplementedatthesentencelevel:SentencePrediction–RetrievalHy-
+brid. TheseﬁvemethodsaresummarizedinTable2(Section3.3). Theimplementation
+of these methods relies on the judicious selection of thresholds for different aspects of
+the processes in question. In principle, machine learning techniques could be used to
+determine optimal threshold values. However, owing to practical considerations, we
+selected these values by trial and error. Table 3 shows the range of values we tried for
+these thresholds, and the values we selected (Section 3.3).
+3.1Document-Level Methods
+A document-level method attempts to reuse an existing response document (e-mail)
+in its entirety. Unlike sentence-based methods that attempt to put together portions of
+differentresponses(Section3.2),adocument-levelapproachavoidsissuespertainingto
+the coherence and completeness of a response, as a response composed by a help-desk
+operator is likely to be both coherent and complete. Therefore, if a particular request
+can be addressed with a single existing response document, then a document reuse
+approachwouldbepreferred.Animportantcapabilityofaresponse-generationsystem
+is to be able to determine when such an approach is appropriate, and when there is
+insufﬁcient evidence to reuse a complete response document.
+As stated herein, we studied two document-based methods: Document Retrieval
+andDocument Prediction.
+3.1.1 Document
+Retrieval (Doc-Ret). This method follows a traditional Information Re-
+trieval paradigm (Salton and McGill 1983), where aquery is represented by the content
+terms it contains, and the system retrieves from the corpus a set of documents that
+best match this query. In our case, the query is a new request e-mail to be addressed
+by the system, and we have considered three views of the documents in the corpus:
+(1) previous response e-mails, (2) previous request e-mails, or (3) previous request–
+responsepairs.Theﬁrstalternativecorrespondstothemoretraditionalviewofretrieval
+as applied in question-answering tasks, where the terms in the question are matched
+to those in the answer documents. We consider the second alternative in order to
+address situations such as the example in Figure 1(c), where a request might not match
+a particular response, but it may match another request, yielding the response to that
+request.Thethirdalternativeaddressessituationswhereanewrequestmatchespartof
+another request and part ofits response.
+We use cosine similarity (between a request e-mail and each document in the
+corpus) to determine a retrieval score, and pick the document with the highest score.
+The similarity is calculated using a bag-of-lemmas representation with TF.IDF (term-
+frequency-inverse-documentfrequency)weightings(SaltonandMcGill1983),butinthe
+601
+ComputationalLinguistics Volume35,Number4
+request-to-responseoptionweuse TF=1,asityieldsthebestresults. Wepositthatthis
+happensbecausearesponsetoarequestdoesnotnecessarilycontainmultipleinstances
+ofrequestterms.Hence,whatisimportantwhenmatchingarequesttoaresponseisthe
+numberof(signiﬁcant)termsincommon,ratherthantheirfrequency.Incontrast,when
+matchingarequesttoarequest,orarequesttoarequest–responsepair,termfrequency
+would be more indicative of the goodness of the match, as the document also has a
+request component.
+We consider retrieval to be successful only if the similarity score is higher than
+an applicability threshold, which is currently set empirically (Table 3). If retrieval is
+successful, then the response associated with the retrieved document is reused to reply
+tothe user’s request.
+We carried out a preliminary experiment in order to compare the three variants
+of the Doc-Ret method. The evaluation is performed by considering each request
+e-mail in turn, removing it and its response from the corpus, carrying out the retrieval
+process, and then comparing the retrieved response with the actual response (if
+there are several similar responses in the corpus, an appropriate response can still
+be retrieved). The results of this experiment are shown in Table 1. The ﬁrst column
+shows which document retrieval variant is being evaluated. The second column shows
+the proportion of requests for which one or more documents were retrieved (using
+our applicability threshold). We see that matching on requests yields more retrieved
+documents than matching on responses, and that matching on request–response
+pairs yields even more retrieved documents. For the cases where retrieval took place,
+we used F-score (van Rijsbergen 1979; Salton and McGill 1983) to determine the
+similarity between the response from the top-ranked document and the real response
+(the formulas for F-score and its contributing factors, recall and precision, appear in
+Section 4.2). The third column in Table 1shows the proportion of requests for which
+this similarity is non-zero. Again, the third variant (matching on request–response
+pairs) retrieves the highest proportion ofresponses that bear some similarity tothereal
+responses. The fourth column shows the average similarity between the top retrieved
+response and the real response for the cases where retrieval took place. Here too the
+third variant yields the best similarity score (0.52).
+From this preliminary experiment it appears that the third document retrieval
+variant is superior. Hence, we use this variant as the Doc-Ret method in subsequent
+experiments.
+3.1.2 Document
+Prediction (Doc-Pred). The Doc-Ret method may fail in situations where
+the presence or absence of some terms in the requests triggers a generic template
+response.Forinstance,intheexampleinFigure1(c),giventhetermsﬁrewallandCP-2W,
+Table1
+Comparison between thethreedocument retrievalvariants.
+Match type Percent Percentretrieved Averagesimilarity
+retrievals docs withsim > 0 forretrieveddocs
+request to response 11% 11% 0.40
+request to request 37% 26% 0.50
+request to request–response 43% 32% 0.52
+602
+Marom andZukerman EmpiricalStudyofResponse AutomationMethods
+wewouldliketoretrievethegeneratedresponse.However,theﬁrstDoc-Retalternative
+would fail, as the response has no common terms with the request. The other two Doc-
+Ret alternatives would fail if different requests in the corpus mention different issues
+aboutthesetwoterms,andthusnosinglerequestorrequest–responsedocumentinthe
+corpus would yield agood match with anew request that mentions these terms.
+In order to handle such cases, we offer a predictive approach, which is guided by
+correlationsbetweenterms,ratherthanmatches.Inprinciplewecouldlookfordirectcor-
+relationsbetweenrequesttermsandresponseterms.However,sincewehaveobserved
+strong regularities in the responses at the document level, we decided to reduce the
+dimensionalityoftheproblembyabstractingtheresponsedocumentsandthenlooking
+for correlations at this higher level. This approach did not seem proﬁtable for request
+e-mails,whichunlikeresponses,haveahighlanguagevariability.Hence,wekeeptheir
+representation at alow level of abstraction (bag-of-lemmas).
+The idea behind the Doc-Pred method is similar to Bickel and Scheffer’s (2004):
+Response documents are grouped into clusters, one of these clusters is predicted for
+a new request on the basis of the request’s features, and the response that is most
+representative of the predicted cluster (closest to the centroid) is selected. In our case,
+the clustering is performed by the program Snob, which implements mixture model-
+ing combined with model selection based on the Minimum Message Length (MML)
+criterion (Wallace and Boulton 1968; Wallace 2005). We chose this program because the
+numberofclustersdoesnothavetobespeciﬁedinadvance,anditreturnsaprobabilistic
+interpretation for its clusters (this interpretation is used by the Sent-Pred method,
+Section 3.2.2). The input to Snob is a set of binary vectors, one vector per response
+document. The values of a vector correspond to the presence or absence of each (lem-
+matized) corpus word in the document in question (after removing stop-words and
+words with very low frequency).
+4
+The predictive model is a Decision Graph (Oliver
+1993), which, like Snob, is based on the MML principle. The Decision Graph is trained
+on unigram and bigram lemmas in the request as input features,
+5
+and the identiﬁer
+of the response cluster that contains the actual response for the request as the target
+feature. The model predicts which response cluster is most suitable for a given re-
+quest, and returns the probability that this prediction is correct. This probability is
+our indicator of whether the Doc-Pred method can address a new request. As for the
+Doc-Ret method, an applicability threshold for this parameter is currently determined
+empirically (Table 3).
+3.2Sentence-Level Methods
+Thedocument-levelmethodspresentedintheprevioussectionaredesignedtoaddress
+situations where requests are sufﬁciently speciﬁc to strongly match a previous request
+or response e-mail (Doc-Ret), or requests contain terms that are predictive of complete
+template response e-mails (Doc-Pred).
+4 Weused
+abinaryrepresentation, ratherthan arepresentationbased on TF.IDF scores, because important
+domain-relatedwords,such as monitor and network, areactuallyquitefrequent. Thus, theirlow TF.IDF
+score mayhave an adverse inﬂuence onclustering performance. Nonetheless, inthe future,itmaybe
+worthinvestigating a TF.IDF-basedrepresentation.
+5 Signiﬁcantbigramsare obtainedusing the n-gram statisticspackage NSP(Banerjee and Pedersen 2003),
+which offersstatisticaltests to decidewhether to acceptorreject thenullhypothesis regarding abigram
+(thatitisnotacollocation).
+603
+ComputationalLinguistics Volume35,Number4
+As discussed in Section 2, there are situations that cannot be addressed by a
+document-levelapproach,becauserequestsonlypredictormatch portions ofresponses.
+An alternative approach is to look for promising sentences from one or more previous
+responses, and collate them into a new response. This task can be cast as extractive
+multi-document summarization. Unlike a document reuse approach, sentence-level
+approaches need to consider issues of discourse coherence in order to ensure that the
+extractedcombinationofsentencesiscoherentoratleastunderstandable. Inourwork,
+we gather sets of sentences, and assume (but do not employ) existing approaches for
+theirorganization(Goldsteinetal.2000;Barzilay,Elhadad,andMcKeown2001;Barzilay
+and McKeown 2005).
+Theappealofasentence-levelapproachisthatitsupportsthegenerationofa“com-
+bination response” in situations where there is insufﬁcient evidence for a single docu-
+ment containing a full response, but there is enough evidence for parts of responses.
+Although such a combined response is generally less satisfactory than a full response,
+the information included in it may address a user’s problem or point the user in the
+right direction. As argued in the Introduction, when it comes to obtaining information
+quickly on-line, this option may be preferable to having to wait for a human-generated
+response. In contrast, the document-level approach is an all-or-nothing approach: If
+there is insufﬁcient evidence for a complete response, then no automated response is
+generated.
+3.2.1 Sentence
+Retrieval (Sent-Ret). As we saw in Section 2 (Figure 1(b)), there are situa-
+tions where the terms in response sentences match well the terms in request sentences.
+To address these situations, we consider the Sent-Ret method, which employs retrieval
+techniques as for the Doc-Ret method, but at the sentence level.
+There are two main differences between Sent-Ret and Doc-Ret: (1) in Sent-Ret we
+look for response sentences that match individual request sentences, rather than entire
+documents; and (2) in Sent-Ret we perform recall-based retrieval, rather than retrieval
+based on cosine-similarity, where the request sentence is the reference document for
+the recalled terms. The second difference is a result of the ﬁrst, as a good candidate for
+sentence retrieval contains terms that appear in a request sentence, but is also likely to
+contain additional terms that expand on the matching terms (Figure 1(b)). Thus, recall
+iscalculatedforeachresponsesentencewithrespecttoeachrequestsentenceasfollows
+(since TF=1yielded the best result for the request–response option in Doc-Ret, we also
+use it for Sent-Ret).
+recall=
+sum of TF.IDFof lemmas in request sentence & response sentence
+sum of TF.IDFof lemmas in request sentence
+(1)
+We retain the response sentences whose recall exceeds an empirically determined ap-
+plicability threshold (Table 3), and produce a response if at least one sentence was
+retained.
+3.2.2 Sentence
+Prediction (Sent-Pred). AsfortheDoc-Predmethod,theSent-Predmethod
+starts by abstracting the responses. It clusters response sentences using the same
+604
+Marom andZukerman EmpiricalStudyofResponse AutomationMethods
+Figure3
+Aﬁctitiousexamplethat demonstratestheSent-Predand Sent-Hybridmethods.
+clustering program (Snob) and bag-of-lemmas representation as Doc-Pred.
+6
+Unlike the
+Doc-Predmethod,whereonlyasingleresponseclusterispredicted(resultinginasingle
+response document being selected), the Sent-Pred method may predict several promis-
+ingSentenceClusters(SCs).Aresponseisthencomposedbyextractingsentencesfrom
+the predicted SCs.
+To illustrate these ideas, consider the ﬁctitious example in Figure 3, which shows
+three small SCs (in practice SCs can have tens and even hundreds of sentences). The
+thick arrows correspond to high-conﬁdence predictions, while the thin arrows corre-
+spond to sentence selections. The other components of the diagram demonstrate the
+workingsoftheSent-Hybridmethod(Section3.2.3).Inthisexample,threeoftherequest
+terms, repair, faulty and monitor,resultinaconﬁdentpredictionoftwoSCs: SC
+1
+and SC
+2
+.
+The sentences in SC
+1
+are identical, so we can arbitrarily select a sentence for inclusion
+in the generated response. The sentences in SC
+2
+are similar but not identical, hence we
+arelessconﬁdentinarbitrarilyselectingasentencefrom SC
+2, andmayselectmorethan
+one sentence (see the subsequent discussion on removing redundant sentences).
+We use a Support Vector Machine (SVM) with a Radial Basis Function kernel to
+predictSCsfromusers’requests.
+7
+AseparateSVMistrainedforeachSC,withunigram
+andbigramlemmasinarequestasinputfeatures,andabinarytargetfeaturespecifying
+whether the SC contains a sentence from the response to this request. During the
+6 ForSent-Pred wealso experimentedwithgrammaticaland sentence-based syntactic features, such as
+numberofsyntactic phrases, grammaticalmood,and grammaticalperson (Maromand Zukerman2006),
+butthesimple binarybag-of-lemmasrepresentationyielded similarresults.
+7 Weemployedthe
+LIBSVM package (Chang and Lin 2001).
+605
+ComputationalLinguistics Volume35,Number4
+prediction stage, the SVMs predict zero or more SCs for each request, as shown in
+Figure 3. We then apply the following steps.
+1. Calculate the scores of the sentences in the predicted SCs.
+2. Remove redundant sentences fromcohesive SCs; these are SCs which
+contain similar sentences.
+3. Calculate the conﬁdence of the generated response.
+Calculatingthescoreofasentence.Thescoreofeachsentence s
+j
+iscalculatedusingthe
+following formula.
+Score(s
+j
+)=
+m
+summationdisplay
+i=1
+Pr(SC
+i
+)×Pr(s
+j
+|SC
+i
+)(2)
+where m is the number of SCs, Pr(s
+j
+|SC
+i
+) is the probability that s
+j
+appears in SC
+i
+(obtained from Snob), and Pr(SC
+i
+)is approximated as follows.
+8
+Pr(SC
+i
+)=
+braceleftbigg
+Precision(SC
+i
+)ifSC
+i
+is very cohesive and predicted withhigh probability
+0 otherwise
+(3)
+where
+a114
+Precision(SC
+i
+) is deﬁned as follows.
+Precision(SC
+i
+)=
+#oftimesSC
+i
+was correctly predicted
+#oftimesSC
+i
+was predicted
+(4)
+This measure, which reﬂects the reliability of an SVM that was trained
+to predict SC
+i, is obtained byperforming 10-fold cross-validation on the
+performance of this SVM for the training data.
+a114
+An SC iscohesive ifthe sentences in it are similar to each other. This
+means that it is possible toobtain a sentence that represents the cluster
+adequately (thisis not the case for an uncohesive SC).Thecohesion of
+an SCis calculated as follows.
+Cohesion(SC)=
+1
+N
+N
+summationdisplay
+k=1
+[Pr(w
+k
+∈ SC) ≤ α ∨ Pr(w
+k
+∈ SC) ≥ 1−α ](5)
+where N is the number ofcontent lemmas under consideration;
+Pr(w
+k
+∈ SC) is the probability that (lemmatized) word w
+k
+appears in
+8 Wetriedseveral
+alternativesforrepresenting Pr(SC
+i
+). The bestresults wereobtainedwithEquation(3).
+606
+Marom andZukerman EmpiricalStudyofResponse AutomationMethods
+the SC(thisprobability isobtained from the centroid
+9
+);and α is an
+empirically determined threshold that establishes an upper and lower
+bound for this probability (Table 3). For values of α close to zero,
+Equation (5) behaves like entropy, in the sense that it favors extreme
+probabilities. Itimplements the ideathat acohesive group ofsentences
+should agree strongly on both the words that appear in these sentences
+and the words that are omitted. For example, the italicized sentences in
+Figure2belongtoanSCwithcohesion0.93,whereastheopeningresponse
+sentence in Figure 1(b) belongs to an SC that contains diverse sentences
+(about the Rompaq power management) and has cohesion 0.7. We employ
+an empirically determined SC-cohesion threshold (Table 3)to determine
+whether an SC is sufﬁciently cohesive for redundant sentences to be safely
+removed from it.
+a114
+Ahigh-probabilityprediction is one where for the request in question, the
+SVM has predicted the SC with aprobability that exceeds an empirically
+determined threshold (Table 3).
+To illustrate the distinction between prediction probability and SVM reliability
+(precision), let us return to the request in Figure 3. SC
+1
+is predicted with high prob-
+ability for this request, because SC
+1
+includes sentences from responses to many other
+requests that contain the words repair and faulty. The word monitor also contributes
+to this high prediction probability, but not as strongly as repair and faulty.Thisis
+because SC
+1
+includessentencesfromresponseswhoserequestsmentiondifferentfaulty
+products, for example, monitor, printer,ornotebook. However, if there are more cases of
+faulty monitors in the corpus than other faulty products, then requests about repairing
+monitors will have a higher prediction probability than requests about repairing other
+products. In contrast to prediction probability, SVM reliability reﬂects its overall per-
+formance (on the training data), and is independent of particular requests. Thus, the
+SVM for SC
+1
+has a higher reliability than that for SC
+3, because it is easier for an SVM
+to learn when SC
+1
+is appropriate (predominantly from the presence of the words faulty
+and repair).
+In order to ensure the relevance of the generated replies, we have placed tight
+restrictions on prediction probability and cluster cohesion (Table 3), which cause the
+Sent-Predmethod tooften return partial responses.
+Removing redundant sentences. After calculating the raw score of each sentence,
+we use a modiﬁed version of the Adaptive Greedy Algorithm by Filatova and
+Hatzivassiloglou (2004) to penalize redundant sentences in cohesive clusters. This is
+done by decrementing the score of a sentence that belongs to an SC for which there is a
+higher or equal scoring sentence (if there are several highest-scoring sentences, we re-
+tainonesentenceasareferencesentence—i.e.,itsscoreisnotdecremented).Speciﬁcally,
+givenasentence s
+k
+incluster SC
+l
+whichcontainsasentencewithahigherorequalscore,
+thecontributionof SC
+l
+toScore(s
+k
+)(=Pr(SC
+l
+)×Pr(s
+k
+|SC
+l
+))issubtractedfromScore(s
+k
+).
+After applying these penalties, we retain only the sentences whose adjusted score is
+greater than zero (for ahighly cohesive cluster, typically only one sentence remains).
+9 Foreach
+featureinthe input(i.e., lemmatizedwords),the centroidofthe cluster containsa
+frequency-based estimateofthe probabilitythatan itemwiththis featurevalueappears in thiscluster.
+607
+ComputationalLinguistics Volume35,Number4
+Calculating the conﬁdence of an automated response. The calculation of sentence
+scoresdescribedpreviouslydetermineswhichsentencesshouldbeincludedinanauto-
+maticallygenerated response.Inordertodecidewhetherthisresponse shouldbeused,
+weneedanoverallmeasureoftheconﬁdenceinit.Ourconﬁdencemeasureaggregates
+intoasinglenumberthevaluesoftheattributesusedtoassignascoretotheindividual
+sentences in aresponse, as follows.
+Conﬁdence=
+#of usable SCs
+#of possible SCs
+(6)
+where
+a114
+usable SCs are those that satisfy the cohesion and prediction probability
+thresholds mentioned for sentence scoring, and also satisfya further
+threshold for SC precision (Table 3).
+a114
+possible SCs are those that satisfy aminimum prediction probability
+threshold (Table 3).
+This measure combines our conﬁdence in the SCs selected to generate response sen-
+tences with the completeness of the resultant response. Conﬁdence is represented by
+the thresholds employed to select suitable SCs; and completeness is represented by the
+ratioofthenumberofSCsthatweredeemedsuitable,andthenumberofSCsthatcould
+possibly be used to generate a response. These are SCs whose prediction probability is
+greater than 0 (i.e., there is some evidence in the corpus for their use in the generation
+of a response sentence for the current request). We also use a minimal applicability
+threshold of 0 for the conﬁdence measure (Table 3). This threshold reﬂects our notion
+that a partial response, even aresponse with one sentence, may still be useful.
+3.2.3 Sentence
+Prediction–Retrieval Hybrid (Sent-Hybrid). As seen in cluster SC
+2
+in Fig-
+ure 3, it is possible for an SC to be strongly predicted without it being sufﬁciently
+cohesive for a conﬁdent selection of a representative sentence. However, sometimes
+the ambiguity can be resolved through cues in the request. In this example, one of the
+sentencesin SC
+2
+matchestherequesttermsbetterthantheothersentences,asitcontains
+theword monitor.Inordertocapturesuchsituations,wecombinepredictionconﬁdence
+withretrievalscoretoguidesentenceselection(asforSent-Pred,weusearecallmeasure
+with TF=1; the values for the thresholds mentioned herein appear in Table 3).
+a114
+For highly cohesive SCs predicted with high conﬁdence, we select
+representative sentences as described in Section 3.2.2.
+a114
+For SCs with medium cohesion that were predicted with high conﬁdence,
+we attempt to match the candidate response sentences with the request
+sentences. We can use aliberal (low) recall threshold here, because the
+high prediction conﬁdence guarantees that the sentences in the cluster
+are suitable for the request, so there is no need for aconservative (high)
+recall threshold. The role of retrieval in this situation is to select the
+sentence whose content terms best match the request, regardless of how
+good the match is. For instance, in the example in Figure 3, the sentence in
+SC
+2
+that best matches the request only matches on one word (monitor),but
+this is sufﬁcient to distinguish the winning sentence from the other
+sentences in SC
+2
+.
+608
+Marom andZukerman EmpiricalStudyofResponse AutomationMethods
+a114
+For uncohesive clusters or clusters predicted with low conﬁdence, we can
+rely only on retrieval. Now we must use a more conservative recall
+threshold to ensure that only sentences that are agood match for the
+request sentences are included in the response. SC
+3
+in Figure 3 is an
+example of an SCfor which there is insufﬁcient evidence to form strong
+correlations between it and request terms. However, one ofits sentences is
+avery good match for the second sentence in the request. In fact, all the
+content lemmas in that request sentence are matched, resulting in aperfect
+recall score of1.0 (the non-matching words are stop words), which means
+that this response sentence is likely to be informative.
+Once we have a set of candidate response sentences that satisfy the appropriate
+recall thresholds, we remove redundant sentences as follows. Redundant sentences are
+removed from cohesive clusters as described in Section 3.2.2; for SCs with medium
+cohesion, we retain the sentence with the highest recall;
+10
+and for uncohesive SCs, we
+retain all the sentences. The rationale for this policy is that the sentences in an SC with
+mediumcohesionaresufﬁcientlysimilartoeachother,sotheselectionofmorethanone
+sentence may introduce redundancy. In contrast, sentences that belong to uncohesive
+SCs are deemed sufﬁciently dissimilar to each other, so we can select all the sentences
+that satisfy the recall criterion.
+As for Sent-Pred, the Sent-Hybrid method produces a response if it can return
+at least one response sentence. This happens when (a) the conﬁdence in the highly
+cohesive SCs exceeds an applicability threshold; or (b) the conﬁdence in one of the SCs
+with medium or low cohesion exceeds an applicability threshold, and the number of
+sentences retrieved for this SC exceeds an applicability threshold. As for Sent-Pred,
+conﬁdence is calculated using Equation (6). Both applicability thresholds (conﬁdence
+and number of retrieved sentences) are set to 0(Table 3).
+3.3Summary
+The focus of our work is on the general applicability of the different response automa-
+tion methods, rather than on comparing the performance of particular implementa-
+tion techniques. Hence, throughout the course of this project, the different methods
+had minor implementational variations, which do not affect the overall insights of
+this research. Speciﬁcally, we used Decision Graphs (Oliver 1993) for Doc-Pred, and
+SVMs (Vapnik 1998) for Sent-Pred.
+11
+Additionally, we used unigrams for clustering
+documentsandsentences,andunigramsandbigramsforpredictingdocumentclusters
+and sentence clusters (Sections 3.1.2 and 3.2.2). Because this variation was uniformly
+implemented for both approaches, it does not affect their relative performance. These
+methodological variations are summarized in Table 2.
+As indicated at the beginning of this section, the implementation of these meth-
+ods requires the selection of different thresholds, which are subjective and application
+dependent. Table 3 summarizes the thresholds required for the different methods, the
+10 Wealso
+experimentedwiththe retentionofsentences withhigh F-scores and withdifferentweights for
+recallandprecision. Our resultswere insensitive to these variations.
+11 This
+change oftechnique had apracticalmotivation:Asseen in Section3.2.2, we generated many
+predictivemodels forsentence clusters. This process couldbeautomatedwithSVMs, butwouldhave to
+bedone manuallyifDecision Graphs hadbeen used.
+609
+ComputationalLinguistics Volume35,Number4
+Table2
+Summaryof theresponse-generationmethods.
+Method Implementation Features
+Doc-Ret Cosine similarity bagof lemmas(TF.IDF)
+Doc-Pred Clustering:Snob bagof lemmas(binary)
+Classiﬁcation: Decision Graphs lemmaunigramsand
+bigrams(binary)
+Sent-Ret Recall bag of lemmas(TF.IDF)
+Sent-Pred Clustering:Snob bagof lemmas(binary)
+Classiﬁcation: SVMs lemmaunigramsand
+bigrams(binary)
+Sent-Hybrid Combinesentence prediction
+withsentence retrieval
+rangeofvaluesweconsidered,andthevaluesweselected.Theapplicabilitythresholds
+are boldfaced, and those learned by the meta learning process (Section 6) are indicated
+in the rightmost column (Sent-Ret is not considered by this process owing to its poor
+performance; see Section 4).
+Table3
+Thresholdsforthedifferentresponse-generationmethods.
+Method Threshold Range Selected Learned
+tried value
+Doc-Ret cosinesimilarityscore 0.1–0.7 0.2 YES
+Doc-Pred predictionprobability 0.6–0.9 0.7 YES
+Sent-Ret recall score 0.4–0.9 0.6 N/A
+Sent-Pred conﬁdence 0YES
+SCinclusion(Equation(3))
+SC predictionprobability 0.1–0.9 0.5
+SC cohesion 0.7–1.0 0.9
+probabilityof alemmainSC
+(α,Equation(5)) 0.01–0.05 0.01
+conﬁdence(Equation(6))
+SC precision 0.7–0.9 0.7
+SC minimumpredictionprobability 0.1–0.2 0.1
+Sent-Hybrid conﬁdence 0YES
+numberofsentences
+SCinclusion
+SC predictionprobability 0.1–0.9 0.5
+SC highcohesion 0.7–1.0 0.95
+SC mediumcohesion 0.6–0.8 0.75
+sentence recall score
+liberal 0.2–0.4 0.4
+conservative 0.4–0.9 0.6
+conﬁdence(Equation(6))
+SC precision 0.7–0.9 0.7
+SC minimumpredictionprobability 0.1–0.2 0.1
+610
+Marom andZukerman EmpiricalStudyofResponse AutomationMethods
+4. AutomaticEvaluation of Individual Methods
+In this section, we offer a comparative evaluation of the response automation methods
+presentedinSection3,wherewemeasuretheabilityofthedifferentmethodstoaddress
+the requests in the corpus. We ﬁrst describe the data used in our experiments, followed
+bythe experimental set-up and results.
+4.1The Corpus
+Our initial corpus consisted of 30,000 e-mail dialogues between customers and help-
+desk operators at Hewlett-Packard. The dialogues deal with a variety of user requests,
+which include requests for technical assistance, inquiries about products, and queries
+about how to return faulty products or parts. To focus our work on simple dialogues,
+we extracted a sub-corpus that satisﬁes two conditions:
+1. Thedialogues contain exactly two turns: arequest e-mail followed by a
+response e-mail. These dialogues represent situations where arequest can
+be resolved with asingle response.
+2. Theresponse e-mails are reasonably concise (15 lines at most). This
+restriction is based on the observation that longer responses are quite
+complex—they often address multiple issues or have astrong temporal
+structure (i.e.,asequence of steps).
+Theresultantsub-corpusconsistedof6,659dialogues,whichdealwithawiderange
+of topics. We were hoping to account for signiﬁcant differences between groups of
+dialogues on the basis of their topic. In addition, there was a practical motivation to
+break up this large sub-corpus into smaller chunks for ease of handling. We therefore
+appliedSnobtoautomaticallyclusterthesub-corpusintoseparatetopic-baseddatasets.
+The clustering, which was done using as input the lemmas in the subject line of the
+users’ e-mails, produced 51data sets, some of which were quite small (11data sets had
+less than 25 dialogues). Because Snob returns the signiﬁcant terms in each cluster, we
+mergedthesmallerdatasetsmanuallyaccordingtotheseterms—aprocessthatyielded
+15 data sets in total, each data set containing between 135 and 1,236 e-mail dialogues.
+Owing to the time limitations of the project, the procedures described in this article
+were applied to 8 of the 15 data sets, which contain a total of 4,904 dialogues (73.6% of
+the sub-corpus, and 16.3% of the original corpus). These data sets, which were chosen
+on the basis of their coverage of the corpus, are described in Table 4,
+12
+together with a
+qualitative overview of our results, which are discussed in Section 4.3.
+Itisworthnotingthattheremaybefactorsotherthantopicthatdistinguishbetween
+dialogues,andcausedifferencesintheperformanceofresponsegenerationmethodsfor
+differenttypesofdialogues.However,thesefactorsarenotreadilyapparentuponinitial
+analysis.Topic-basedclustering,whichisreadilyapparent,isareasonablestartingpoint
+for distinguishing between different data sets. The analysis presented in Section 4.3
+considersotherfeaturesthatcharacterizethedatasetsandthebehavioroftheresponse
+generation methods.
+12 The
+topicsoftheomitteddatasets were:servers, laptopsspecializing inEVO notebooks,desktops, and
+miscellaneous.
+611
+ComputationalLinguistics Volume35,Number4
+Table4
+Details ofthedatasets includedinourexperiments,and overviewof resultsper dataset.
+Data Topic Sub-category # of Best method (coverage/
+set no. dialogues performance)
+Retrieval Prediction
+1hand helds general 268 Doc-Ret (lo/lo) NONE
+2 hand helds DGmodels 1,160 Doc-Ret (med/lo) SENTENCE(med/hi)
+3 productreplacement 1,236 Doc-Ret (lo/hi) ALL(hi/hi)
+4 laptops Armadamodels 561Doc-Ret (med/lo) NONE
+5 laptops general 305 Doc-Ret (med/lo) SENTENCE(lo/hi)
+6 laptops merged(7clusters) 632 Doc-Ret (med/lo) NONE
+7 desktops merged(7clusters) 389 Doc-Ret (med/lo) Sent-Pred(lo/hi)
+8 misc. merged(10clusters) 353 Doc-Ret (med/lo) Sent-Hybrid(med/lo)
+TOTAL 4,904
+4.2Experimental Set-Up
+Our experimental set-up is designed to evaluate the ability of the different response-
+generation methods to address unseen request e-mails. In particular, we want to deter-
+mine the applicability of our methods to different situations, namely, whether different
+requests are addressed only by some methods, or whether there is a signiﬁcant overlap
+between the methods.
+Our evaluation is performed by measuring the quality of the generated responses.
+Quality is a subjective measure, which is best judged by the users of the system (i.e.,
+the help-desk customers or operators). In Section 5, we discuss the difﬁculties asso-
+ciated with such user studies, and describe a human-based evaluation we conducted
+for a small subset of the responses generated by our system (Marom and Zukerman
+2007b). However, our more comprehensive evaluation is an automatic one that treats
+the responses generated by the help-desk operators as model responses, and performs
+text-based comparisons between the model responses and the automatically generated
+ones.
+We employ 10-fold cross-validation, where we split each data set in the corpus
+into 10 test sets, each comprising 10% of the e-mail dialogues; the remaining 90% of
+the dialogues constitute the training set. For each of the cross-validation folds, the
+responses generated for the requests in the test split are compared against the actual
+responsesgeneratedbyhelp-deskoperatorsfortheserequests. Althoughthismethodof
+assessment is less informative than human-based evaluations, it enables us to evaluate
+theperformanceofoursystemwithsubstantialamountsofdata,andproducerepresen-
+tative results for a large corpus such as ours.
+We use two measures from Information Retrieval to determine the quality of an
+automatically generated response: precision and F-score (van Rijsbergen 1979; Salton
+and McGill 1983). Precision measures how much of the information in an automati-
+cally generated response is correct (i.e., appears in the model response), and F-score
+measures the overall similarity between the automatically generated response and
+the model response. F-score is the harmonic mean of precision and recall, which
+measures how much of the information in the model response appears in the gener-
+ated response. We consider precision separately because it does not penalize missing
+612
+Marom andZukerman EmpiricalStudyofResponse AutomationMethods
+information, enabling us to better assess our sentence-based methods. Precision, recall,
+and F-score are calculated as follows using a word-by-word comparison (stop-words
+are excluded).
+13
+Precision=
+#words in both model response and automated response
+# of words in automated response
+(7)
+Recall=
+#words in both model response and automated response
+# of words in model response
+(8)
+F-score=
+2×Precision×Recall
+Precision+Recall
+(9)
+These measures are applied to responses generated after the thresholds in Table 3
+have been used to determine the applicability or coverage of each response-generation
+method. Recall that the sentence-based methods can generate partial responses, many
+of which contain only one obvious and non-informative sentence, such as Thank you
+for contacting HP and Thank You, Mike, HP eServices. We have manually excluded such
+responses from the calculation of coverage, in order to prevent these responses from
+artiﬁcially improving this metric for the sentence-based methods. This was done by
+visuallyinspectingthesentenceclusterscreatedbySnobforthesemethods,andremov-
+ing clusters composed of non-informative sentences such as the above (between four
+and six clusters were removed from each data set in this manner). Once a response is
+deemed to cover a request, then the full response (including these sentences) is used to
+calculateitsquality.Thishasasmallimpactontheresultsofourevaluation,asatypical
+response includes two such sentences (opening and closing), and the average length of
+aresponse is 8.11 sentences.
+4.3Results
+Figure 4 shows the coverage, average precision, and average F-score of each response-
+generation method per data set, where the averages are computed only for requests
+that are covered by the method in question. For example, the average precision of the
+Doc-Ret method for data set no. 2, 0.39, is calculated over the 59% of the data set that
+was covered by this method. Table 4 shows data set descriptions and sizes, together
+with an overview of the best retrieval-based and prediction-based method for each
+data set (SENTENCE refers to both Sent-Pred and Sent-Hybrid). The best method was
+selectedmanuallyonthebasisoftheresultsinFigure4.Tothiseffect,weconsideredthe
+methods whose coverage exceeds some minimum (e.g., 10%), and chose the method(s)
+which could adequately answer the largest number of queries in the data set (based
+on coverage combined with F-score and precision). Table 5 presents the coverage and
+unique/best coverage of each method (the percentage of queries covered only by this
+method or for which this method produces a better reply than other methods), and the
+average and standard deviation of the precision and F-score obtained by each method
+(calculated over the requests that are covered).
+13 Wealsoemployedsequence-basedmeasuresusingtheROUGEtoolset(LinandHovy2003),withsimilar
+results tothose obtainedwiththe word-by-wordmeasures.
+613
+ComputationalLinguistics Volume35,Number4
+Figure4
+Performanceof thedifferentmethodsfor each dataset:(a) coverage,(b) F-score,and
+(c) precision.
+614
+Marom andZukerman EmpiricalStudyofResponse AutomationMethods
+Table5
+Coverage,uniqueness,precision,and F-scorefortheresponse-generation methods.
+Method Coverage Unique Avg.(St dev.)
+orbest Precision F-score
+Doc-Ret 43% 22% 0.37 (0.34) 0.35 (0.33)
+Doc-Pred 29% 3% 0.82 (0.21) 0.82 (0.24)
+Sent-Ret 9% 0% 0.19 (0.19) 0.12 (0.11)
+Sent-Pred 34% 5% 0.94 (0.13) 0.78 (0.18)
+Sent-Hybrid 43% 10% 0.81 (0.29) 0.66 (0.25)
+Combined 72% 0.80 (0.25) 0.50 (0.33)
+As seen in Figure 4 and Tables 4 and 5, there is great variability in coverage
+and performance of the different methods for the different data sets (this result was
+conﬁrmed with an ANOVA statistical test). Our results support the following speciﬁc
+observations.
+a114
+All prediction methods perform well for data set no. 3 (product
+replacement). Thevast majority of the requests in this data set, which
+comprises 18% of the corpus, ask for a return shipping label to be mailed
+to the customer, so that he or she can return afaulty product. Although
+these requests often contain detailed product descriptions, the responses
+rarely refer to the actual products, and often contain the generic response
+shown in Figure 5. Thus, the prediction methods are well suited for this
+data set,as the mention of ashipping label is astrong predictor of a
+generic response, either in its entirety (as done by Doc-Pred) or broken up
+intoindividual sentences (as done bySent-Predor Sent-Hybrid). The
+generation of complete responses byDoc-Pred explains its slightly higher
+F-score but lower precision compared to Sent-Pred, as acomplete response
+may include sentences that are not appropriate for the situation at hand.
+Also note that Doc-Ret has a much lower coverage than the prediction
+methods for data set no. 3, because each request has precise information
+about the actual product, so anew request can neither match an old
+request (about a different product) nor can it match the generic response.
+a114
+No method performs well for data sets no. 1(hand-helds general),
+4(laptops general), and 6(laptops merged). Although Doc-Ret has some
+applicability to these data sets, it has low performance for all of them. This
+indicates that these data sets do not contain sufﬁcient recurring cases for
+Doc-Ret to perform well, nor do theycontain sufﬁcient request–response
+pairs that support the generation of predictive patterns.
+a114
+Sent-Ret performs poorly on all data sets. We postulate that this happens
+because the important terms in a request and a response are spread across
+Your request for a return airbill has been received and has been sent for processing. Your
+replacement airbillwillbe sent toyouviaemailwithin24 hours.
+Figure5
+Asampleresponsefromtheproductreplacement dataset (dataset no.3).
+615
+ComputationalLinguistics Volume35,Number4
+several sentences in the respective documents. Hence, the match between
+individual response and request sentences paints only apartial (and
+inaccurate) picture, and the aggregation of matching response sentences
+does not add up to an appropriate response.
+a114
+Overall, there is atension between coverage and performance, whereby
+higher coverage yields lower performance, and lower coverage results in
+higher performance. This tension can be observed for the sentence-based
+prediction methods with respect to datasets no. 2(hand-held DGmodels),
+5(laptops general), 7(desktops merged), and 8 (miscellaneous merged);
+for Doc-Pred with respect todata sets no. 2and 5(Doc-Predisnot
+applicable to data sets no. 7and 8); and for Doc-Ret for most data sets
+(nos. 1and 4–8). This suggests that our applicability thresholds may need
+further adjustments in order to strike abetter balance between coverage
+and performance (Table 3).
+Let us now examine our results separately for each of the four response-generation
+methods that perform well.
+Doc-Ret.AsseeninTable5,Doc-Retuniquelyaddresses22%oftherequests. However,
+the performance of this method is quite variable (high standard deviation), which may
+be due to an overly liberal setting of the applicability threshold (which results in both
+poor and good responses being generated, hence the high variability). Nevertheless,
+there are some cases where this method uniquely addresses requests quite well. This
+happens in situations such as that in Figure 1(b), where the initiating request is sufﬁ-
+cientlysimilartootherrequestswiththesameresponse.Incontrast,Doc-Retwouldnot
+work well for a request such as that in Figure 1(a), which is quite detailed and speciﬁc,
+and hence unlikely to match any other request–response document.
+Doc-Pred. Only about a tenth of the requests covered by Doc-Pred are uniquely ad-
+dressed by this method, but the generated responses are of a fairly high quality, with
+an average precision and F-score of 0.82. As indicated previously, the higher F-score
+and lower precision of Doc-Pred (compared to Sent-Pred) may be explained by the
+fact that the complete responses produced by the Doc-Pred method sometimes contain
+speciﬁcsentences thatare inappropriate forthecurrent situation. Therather large stan-
+dard deviation for F-score and precision suggests that Doc-Pred exhibits a somewhat
+inconsistent behavior. This may be explained by Figure 4, which shows that Doc-Pred
+performs very well on data set no. 3 (product replacement), but not so well on the
+others (Doc-Pred also has good F-score and precision scores for data set no. 2, but poor
+coverage).
+Sent-Pred.IncontrasttoDoc-Pred,Sent-Predcanﬁndregularitiesatthesub-document
+level,andgeneratepartialresponses,whichtypicallyomitinappropriatesentencesthat
+maybeincludedbyDoc-Pred.Asaresult,theresponsesgeneratedbySent-Predhavea
+consistentlyhighprecision(average0.94,standarddeviation0.13),butthiscanbeatthe
+expense of recall, which explains the lower F-score (compared to Doc-Pred). Overall,
+theSent-Predmethodoutperformstheothermethodsin5%ofthecases,whereiteither
+uniquely addresses requests, or produces responses with a higher F-score than those
+generatedbyothermethods.AsanexampleofsituationswhereSent-Predoutperforms
+all other methods, consider Figure 1(a), where Sent-Pred outputs the response shown
+616
+Marom andZukerman EmpiricalStudyofResponse AutomationMethods
+Figure6
+Exampleshowinganappropriateresponse generatedbytheSent-Hybridmethod(bottom)that
+differsfromthemodelresponse.
+in this example, but without the ﬁrst sentence. In other words, the generic portion
+of the response is conﬁdently produced, and the speciﬁc portion is left out due to
+insufﬁcient evidence. This example shows the beneﬁt of a partial response: Although
+the response does not actually answer the user’s speciﬁc question (which would be
+difﬁcult to automate due to the complex nature of the request), it can potentially save
+the user valuable time by referring him or her to the appropriate repair service.
+Sent-Hybrid. The Sent-Hybrid method extends the Sent-Pred method by performing
+sentence retrieval. Sent-Hybrid’s higher coverage is achieved by the retrieval compo-
+nent,whichdisambiguatesbetweengroupsofcandidatesentences,thusenablingmore
+sentences to be included in a generated response. However, this is at the expense of
+precision. Although retrieval selects sentences that match closely a given request, these
+sentences can differ from the “selections” made by a human operator in the model
+response. Precision (and hence F-score) penalizes such sentences, even when they are
+more appropriate than those in the model response. For instance, consider the example
+at the top of Figure 6. The response is quite generic, and is used almost identically
+for several other requests. The Sent-Hybrid method produces a very similar response,
+shown in the text at the bottom of Figure 6. Only the ﬁrst sentence differs from the ﬁrst
+sentence in the model response (the different parts have been italicized). The sentence
+selected by the Sent-Hybrid method, which matches more request words than the ﬁrst
+sentence in the model response, was chosen from a sentence cluster with medium
+cohesion (Section 3.2.3), which contains sentences that describe different reasons for
+setting up a repair (the matching word is screen). The rather high standard deviation
+in the precision (and hence F-score) for Sent-Hybrid may be due to these kinds of
+situations. Nonetheless, this method outperforms the other methods in about 10% of
+the cases, where it either uniquely addresses requests, or produces responses with a
+higher F-score than those generated byother methods.
+All the methods combined. The bottom row of Table 5 shows that all the methods
+together have a coverage of 72%, which means that at least one of the methods can
+produce a non-empty and non-trivial response for 72% of the requests. The combined
+F-score and precision averages are calculated on the basis of the best-performing
+methodforeachrequest.Atﬁrstglance,usingthebestmethod mayappear toolenient,
+617
+ComputationalLinguistics Volume35,Number4
+asinpractice,wecannotalwaysautomaticallyselectthismethodinadvance.However,
+these averages also suffer from the fact that in many cases only the Doc-Ret method is
+applicable, but its performance is poor. As mentioned previously, this tension between
+coverageandperformancemaybeattributedtoourempiricallydeterminedapplicabil-
+itythresholds (Section 3).
+4.4 Summary
+We have investigated the suitability of different response generation methods for the
+help-desk task. These methods, which vary signiﬁcantly in their approach to response
+automation, cover awide range of situations that arise in a help-desk corpus.
+Ideally, we would like to explain our results in terms of features of the data sets, so
+thatusersofoursystemcanselectasinglebestresponse-generationmethodonthebasis
+of these features. However, with the exception of data set no. 3, no clear set of features
+presentsitselftosupportsuchaselection.Further,asseeninTable4,superﬁcialfeatures
+ofthedatasets,suchastopicandsize,arenotsufﬁcienttocharacterizetheapplicability
+and performance of the different methods. These results indicate that (1) there are
+deeper features of data sets that must be considered in order to select a single suitable
+technique; or (2) the selection of a technique does not depend on features of the data
+set itself, but on the spread of situations in the data set. That is, the applicability and
+performanceofaresponse-generationmethoddependsonthespeciﬁcsofthesituation,
+anddifferentdatasetscontainadifferentspreadofsituations.Thissecondconjectureis
+supported by the results in Figure 4 and Table 5, which indicate that different methods
+have pockets of unique applicability in each data set. Of course, this still begs the
+question of why different data sets have different spreads of situations. Unfortunately,
+wedonothaveananswertothisquestion,andcircumventitbyusingthemeta-learning
+technique described in Section 6, which has the added beneﬁt of obviating the problem
+of selecting applicability thresholds.
+However, if one wishes to select a response-generation method without meta-
+learning, the following considerations can be applied.
+a114
+Predictive methods are suitable for situations where there are relatively
+few responses for many, varied requests. That is, the responses generalize
+common answers to avariety of problems. Speciﬁcally, Doc-Pred is
+suitable when this observation applies to complete answers, as is the case
+fordatasetno.3,whilesentencepredictionmethodsareappropriatewhen
+parts of replies generalize common answers to avariety ofproblems.
+Because the sentence-based prediction methods outperform Doc-Pred for
+all data sets except no. 3(where the three prediction methods perform
+similarly), we recommend the sentence-based methods. Among these, we
+prefer Sent-Pred due to its high and consistent precision and F-score,
+pending afurther investigation of Sent-Hybrid.
+a114
+Doc-Ret applies to situations where there are speciﬁc problems which
+warrant aspeciﬁc complete answer.
+5. User-Based Evaluation of Individual Methods
+The size of our corpus necessitates an automatic evaluation in order to produce mean-
+ingfulresults,especiallybecausewearecomparingseveralmethodsunderanumberof
+618
+Marom andZukerman EmpiricalStudyofResponse AutomationMethods
+experimental settings. Although our automatic evaluation has yielded useful insights,
+ithas two main limitations.
+a114
+As we saw in Section 4.3 (Figure 6), appropriate responses are sometimes
+penalized when theydo not match precisely the model response.
+However, it is often the case that there is not one single appropriate
+response to aquery, and even ahelp-desk operator may respond to the
+same question in different ways on different occasions.
+a114
+Therelationship between the results obtained bythe automatic evaluation
+ofthe responses generated byour system and people’s assessments of
+these responses is unclear, in particular for partial responses.
+These limitations reinforce the notion that automated responses should be assessed on
+their own merit, rather than with respect to some model response.
+In Marom and Zukerman (2007a) we identiﬁed several systems that resemble ours
+in that they provide answers to queries. These systems addressed the evaluation issue
+as follows.
+a114
+Onlyqualitative observations of the responses were reported (no formal
+evaluation was performed) (Lapalme and Kosseim 2003; Roy and
+Subramaniam 2006).
+a114
+Onlyan automatic evaluation was performed, which relied on having
+model responses (Berger and Mittal 2000; Berger et al. 2000).
+a114
+A user study was performed, but it was either very small compared to the
+corpus (Carmel, Shtalhaim, and Soffer 2000; Jijkoun and de Rijke 2005), or
+the corpus itself was signiﬁcantly smaller than ours (Feng et al. 2006;
+Leuski et al. 2006). The representativeness of the sample size was not
+discussed in anyof these studies.
+There are signiﬁcant practical difﬁculties associated withconducting theuser stud-
+ies needed to produce meaningful results for our system. Firstly, the size of our corpus
+and the number of parameters and settings that we need to test mean that in order for
+a user study to be representative, a fairly large sample involving several hundreds of
+request–response pairs would have to be used. Further, user-based evaluations of the
+output produced by our system require the subjects to read relatively long request–
+response e-mails, which quickly becomes tedious.
+In order to address these limitations in a practical way, we conducted a small user
+study where we asked four judges (graduate students from the Faculty of Informa-
+tion Technology at Monash University) to assess the responses generated by our sys-
+tem (Marom and Zukerman 2007a). Our judges were instructed to position themselves
+as help-desk customers who know that they are receiving an automated response,
+and that such a response is likely to arrive quicker than a response composed by an
+operator. Ouruserstudyassessedtheresponse-generationmethodsfromthefollowing
+perspectives,whichyieldinformationthatisbeyondtheF-scoreandprecisionmeasures
+obtained in the automatic evaluation.
+a114
+Informativeness: Is there anything useful in the response that would
+make it a good automatic response, given that otherwise the customer has
+619
+ComputationalLinguistics Volume35,Number4
+to wait for ahuman-generated response? We used ascale from0 to 3,
+where 0corresponds to “not at all informative” and 3corresponds to
+“very informative.”
+a114
+Missing information:Is any crucial information itemmissing? Y/N.
+a114
+Misleading information: Is there any misleading information? Y/N. We
+asked the judges to consider only information that might misguide the
+customer, and ignore information that is so irrelevant that itwould be
+ignored bya customer who knows that the response is automated (for
+example, receiving an answer for aprinter, when the request was for a
+laptop).
+a114
+Compare tomodel response: How does the generated response compare
+with the model response? Worse/Same/Better. This is asummary
+question that rates a“customer’s” overall impression of aresponse.
+5.1 Experimental
+Set-Up
+We had two speciﬁc goals for this evaluation. First, we wanted to compare document-
+level versus sentence-level methods. Second, we wanted to evaluate cases where
+only the sentence-level methods can produce a response, and establish whether such
+responses, which are often partial, provide a good alternative to a non-response. We
+therefore presented two evaluation sets to each judge.
+1. The ﬁrst set contained responses generated byDoc-Pred and Sent-Hybrid.
+These two methods obtained similar precision values in the automatic
+evaluation (Table 5),so we wanted to compare how they would fare with
+our judges.
+2. The second set contained responses generated bySent-Pred and
+Sent-Hybrid for requests for which Doc-Pred could not produce a
+response. The added beneﬁt of this evaluation set is that itenables us to
+examine the individual contribution of the sentence retrieval component.
+Eachevaluationsetcontained80cases,randomlyselectedfromthecorpusinproportion
+tothesizeofeachdataset,whereacasecontainedarequeste-mail,themodelresponse,
+andtheresponsesgeneratedbythetwomethodsbeingcompared.Eachjudgewasgiven
+20 of these cases, and was asked to assess the generated responses on the four criteria
+listed previously.
+14
+Wemaximizedthecoverageofthisstudybyallocatingdifferentcasestoeachjudge,
+thus avoiding a situation where a particularly good or bad set of cases is evaluated
+by all judges. In addition, we tried to ensure that the sets of cases shown to the
+judges were of similar quality, so that the judges’ assessments would be comparable.
+Because the judges do not evaluate the same cases, we could not employ standard
+inter-annotator agreement measures (Carletta 1996). However, it is still necessary to
+14 Weasked
+thejudges toleave aquestionunanswered ifthey feltthey didnothave the technical
+knowledgeto make ajudgment, butthis didnotoccur.
+620
+Marom andZukerman EmpiricalStudyofResponse AutomationMethods
+have some measure of agreement, and control for bias from speciﬁc judges or speciﬁc
+cases.Thiswasdonebyperformingpairwisesigniﬁcancetesting,treatingthedatafrom
+two judges as independent samples (we used the Wilcoxon Rank-Sum Test for equal
+medians). We conducted this signiﬁcance test separately for each method and each
+of the four criteria, and eliminated the data from a particular judge if he or she had
+a signiﬁcant disagreement with other judges. This happened with one of the judges,
+who was signiﬁcantly more lenient than the others on the Sent-Pred method for the
+ﬁrst, second, and fourth criteria, and with another judge, who was signiﬁcantly more
+stringent on the Sent-Hybrid method for the third criterion.
+5.2Results
+Figure 7 shows the results for the four criteria. The left-hand side of the ﬁgure pertains
+tothe ﬁrst evaluation set, and the right-hand side tothe second set.
+The left-hand side of Figure 7(a) shows that when both Doc-Pred and Sent-Hybrid
+areapplicable,theformerisgenerallypreferred,rarelyreceivingazeroinformativeness
+judgment. Because the two methods are evaluated for the same set of cases, we can
+perform a paired signiﬁcance test for differences between them. Using a Wilcoxon
+signedranktestforazeromediandifference,weobtainap-valuelessmuch 0.01,indicatingthat
+the differences in judgments between the two methods are statistically signiﬁcant. The
+Figure7
+Results ofthehuman studyfortheevaluation of generatedresponses.
+621
+ComputationalLinguistics Volume35,Number4
+right-handsideofFigure7(a),whichcomparesthetwosentence-basedmethods,shows
+thattheredonotappeartobesigniﬁcantdifferencesbetweenoursubjects’assessmentof
+these methods. This result is conﬁrmed by the paired signiﬁcance test, which produces
+a p-value of 0.13.
+As shown in Figure 7(b), the results for the missing-information and misleading-
+information criteria also favor the Doc-Pred method. The responses produced by
+Doc-Pred were judged to have signiﬁcantly less missing information than those gen-
+erated by Sent-Hybrid (the paired signiﬁcance test produces a p-value lessmuch 0.01). The
+responses produced by Doc-Pred were also judged to have less misleading informa-
+tion than those generated by Sent-Hybrid, but the paired differences between the two
+methods are not statistically signiﬁcant (the p-value is 0.125). The second evaluation
+set was judged to have missing information in approximately 55% of the cases for
+both sentence-level methods (the p-value is 0.11, indicating an insigniﬁcant difference
+betweenthesemethods).Thishighproportionofmissinginformationisinlinewiththe
+relatively low F-scores obtained in the automatic evaluation (Table 5), as missing infor-
+mation results in low recall and hence a lower F-score. The results for the misleading-
+information criterion also indicate no signiﬁcant difference between the sentence-level
+methods (the p-value is 1). The low proportion of misleading information is in line
+withthehighprecisionvaluesobtainedintheautomaticevaluation(Table5)—whereas
+responses with a high precision may be incomplete, they generally contain correct
+information.
+The left-hand side of Figure 7(c) shows that Doc-Pred receives more “same”
+than “worse” judgments, although the opposite is true for Sent-Hybrid, and that both
+Doc-PredandSent-Hybridreceiveasmallproportionof“better”judgments.Thepaired
+signiﬁcancetestproducesap-valuelessmuch 0.01,conﬁrmingthatthesedifferencesaresignif-
+icant. The right-hand side of Figure 7(c) shows smaller differences between Sent-Pred
+and Sent-Hybrid, and indeed the p-value for the paired differences is 0.27. Notice that
+Sent-Pred does not receive any“better” judgments, whereas Sent-Hybrid does.
+5.3 Summary
+The results of this study show that responses provided by document-level methods
+were preferred to responses provided by sentence-level methods, but when document-
+level methods cannot be used, the sentence-level methods provide a good alternative.
+Additionally, although our trial subjects showed a slight preference for the output
+produced by the Sent-Hybrid method compared to Sent-Pred, this preference was not
+statistically signiﬁcant.
+Although these results conﬁrm those obtained by the automatic evaluation (Sec-
+tion 4), the result regarding the Sent-Hybrid method is somewhat disappointing. This
+is because we hoped that our trial subjects would prefer Sent-Hybrid to Sent-Pred, as
+the former is designed to better tailor a response to a request. However, we cannot
+determine from this result whether indeed there is no difference between the sentence-
+basedmethods,orwhethersuchadifferencesimplycouldnotbeobservedfromourtest
+sample of at most 80 cases, which constitutes 1.8% of the corpus used in our automatic
+evaluation (as indicated previously, it would be quite difﬁcult to conduct user studies
+with a much larger dataset).
+This outcome reinforces the previously mentioned problems associated with con-
+ducting meaningful user studies for a large corpus such as ours. These problems are
+exacerbated by our proportional data-selection policy, which is necessary to make the
+622
+Marom andZukerman EmpiricalStudyofResponse AutomationMethods
+testsetrepresentativeofthecorpus,butincreasesthedifﬁcultyofdrawingspeciﬁccon-
+clusions, for example, determining whether a particular method is favored for speciﬁc
+data sets.
+6. Meta-Learning
+In Section 4, we employed empirically determined applicability thresholds to cir-
+cumscribe the coverage of the different response-generation methods. However, as
+shown by our results, these thresholds were sometimes sub-optimal. In this section,
+we describe a meta-level process which can automatically select a response-generation
+method to address anew request without using such thresholds.
+A common way to combine different models consists of selecting the model that is
+mostconﬁdentregardingitsdecision(Burke2002).However,inourcase,theindividual
+conﬁdence(applicability)measuresemployedbyourresponse-generation methodsare
+not comparable (e.g., the retrieval score in Doc-Ret is different in nature from the pre-
+diction probability in Doc-Pred). Hence, prior to selecting the most conﬁdent method,
+we need to ﬁnd a way to compare the different measures of conﬁdence. Because the
+performancesofthedifferentmethodsarecomparable,wedothisbyestablishingalink
+between conﬁdence and performance. In other words, our meta-level process learns
+to predict the performance of the different methods from their conﬁdence levels on
+the basis of previous experience. These predictions enable our system to recommend
+a particular method for handling a new (unseen) request (Marom, Zukerman, and
+Japkowicz 2007).
+Following Lekakos and Giaglis (2007), one approach for achieving this objective
+consists of applying supervised learning, where a winning method is selected for each
+case in the training set, all the training cases are labeled accordingly, and then the
+system is trained to predict a winner for unseen cases. However, in our situation, there
+is not always one single winner (two methods can perform similarly well for a given
+request), and there are different ways to pick winners (for example, based on F-score
+or precision). Therefore, such an approach would require the utilization of subjective
+heuristicsforcreatinglabels,whichwouldsigniﬁcantlyinﬂuencewhatisbeinglearned.
+Instead,weadoptanunsupervisedapproachthatﬁndspatternsinthedata—conﬁdence
+values coupled with performance scores (Section 6.1)—and then attempts to ﬁt unseen
+data to these patterns (Section 6.2). Heuristics are still needed in order to decide which
+response-generation methodtoapplytoanunseencase,buttheyareappliedonlyafter
+the learning is complete (Section 6.3). In other words, the subjective process of setting
+performancecriteria(whichshouldbeconductedbytheorganizationrunningthehelp-
+desk) does not inﬂuence the machine learning process.
+6.1Training
+Wetrainthesystembyclusteringthe“experiences”oftheresponse-generationmethods
+in addressing requests, where each experience is characterized by the value of the
+conﬁdence measure employed by a method and its subsequent performance, reﬂected
+by precision and recall (Equations (7) and (8), respectively). We then use the program
+Snob (Wallace and Boulton 1968; Wallace 2005) to cluster these experiences. Figure 8(a)
+is a projection of the centroids of the clusters produced by Snob into the three most
+signiﬁcant dimensions discovered by Principal Component Analysis (PCA)—these di-
+mensions account for 95% of the variation in the data. The bottom part of Figure 8(b)
+623
+ComputationalLinguistics Volume35,Number4
+Figure8
+Clusters ofresponse-generationmethodsobtained fromthetrainingset:(a) dimensions
+producedbyPCAand (b) sampleclusters.
+showsthe(unprojected)centroidvaluesofthreeoftheclusters(thetoppartoftheﬁgure
+will be discussed subsequently).
+15
+These clusters were chosen because they illustrate
+clearly three situations ofinterest.
+a114
+Single winner –Cluster 8shows acase where asingle strategy is clearly
+preferred. In this case the winner is Doc-Ret. Its precision and recall values
+in this cluster are 0.91and 0.76, respectively.
+a114
+No winner –Cluster 11 shows acase where none of the methods do well.
+Theyall yield precision and recall values of 0.
+a114
+Multiplewinners–In Cluster 16, both Doc-Pred and Sent-Predare
+competitive, yielding precision and recall values of (0.90, 0.89) and (0.97,
+0.78), respectively. A decision between the two methods depends on
+whether we favor precision or recall, as discussed subsequently.
+6.2Prediction
+We test the system with an unseen set of requests, which we feed to each response-
+generation method. Each method then outputs a value for its conﬁdence measure. We
+do not know in advance how each method will perform—this information is missing,
+and we predict it on the basis of the clusters obtained from the training set. Our
+prediction of how well the different methods will perform on an unseen case is based
+on(1)howwelltheunseencaseﬁtseachoftheclustersand(2)theaverageperformance
+values in each cluster as indicated by its centroid.
+15 TheSent-Retmethodwasexcludedfromourexperimentsduetoitspoorperformanceinthecomparative
+study describedin Section4.
+624
+Marom andZukerman EmpiricalStudyofResponse AutomationMethods
+The top part of Figure 8(b) shows an example of an unseen case whose conﬁdence
+values are most similar to those in the centroid of Cluster 16. In this case, the selection
+of a method depends on whether we favor recall or precision, as Doc-Pred has a
+higher recall than Sent-Pred, but Sent-Pred has a higher precision. Now, Cluster 15
+(not labeled in Figure 8(a)) contains similar conﬁdence values to those of Cluster 16,
+but its (precision, recall) values for Doc-Pred and Sent-Pred are (0.76, 0.66) and (0.84,
+0.67) respectively. If Cluster 15 had the strongest match with the unseen case, then
+Sent-Predwouldhavebeenchosen,regardlessofanypreferencesforprecisionorrecall.
+However, it is not clear that the best policy consists of simply choosing the method
+suggested by the best-matching cluster. This is particularly the case when an unseen
+example has a reasonably good match with more than one cluster (e.g., Clusters 15
+and 16).
+The prediction step is implemented using Snob, which is able to accept data with
+missing values. For each unseen data point x (with missing performance values), Snob
+calculates Pr(c
+i
+|x), the posterior probability of each cluster c
+i
+given this data point.
+These probabilities indicate how well an unseen case matches each of the clusters. For
+example, for the unseen case in Figure 8(b), Snob may assign posterior probabilities
+of 0.5 and 0.3 to Clusters 16 and 15, respectively (and lower probabilities to weaker-
+matching clusters, such as Cluster 8).
+16
+We utilize these probabilities in two alternative ways for estimating the per-
+formance of each response-generation method: Max, which considers only the best-
+matching cluster (i.e., that with the highest posterior probability); and Weighted,
+whichconsidersallclusters,weightedbytheirposteriorprobabilities.Thesetechniques
+are used to calculate the estimated precision (hatwidep
+k
+) and estimated recall (hatwider
+k
+)ofeach
+response-generationmethod method
+k
+∈{Doc-Ret,Doc-Pred,Sent-Pred,Sent-Hybrid}as
+follows.
+a114
+Max:
+hatwidep
+k
+= p
+(i
+∗
+)
+k
+and hatwider
+k
+= r
+(i
+∗
+)
+k,fori
+∗
+=argmax
+i=1,...,N
+Pr(c
+i
+|x) (10)
+where p
+(i)
+k
+and r
+(i)
+k
+are the precision and recall components, respectively, for
+method
+k
+in the centroid of cluster i,andN is the number of clusters.
+a114
+Weighted:
+hatwidep
+k
+=
+N
+summationdisplay
+i=1
+Pr(c
+i
+|x)× p
+(i)
+k
+and hatwider
+k
+=
+N
+summationdisplay
+i=1
+Pr(c
+i
+|x)× r
+(i)
+k
+(11)
+6.3Method Selection
+In order to select a method for a given request, we need to combine our estimates
+of precision and recall into an overall estimate of performance, and then choose the
+method with the best estimated performance. The standard approach for combining
+precisionandrecallistocomputetheirharmonicmean,F-score,aswehavedoneinour
+16 In
+principle, wecouldhave used aclassiﬁcationmethodtopredictclusters fromthevalues ofthe
+conﬁdence measures forunseen cases. Wepositthatthiswouldnothave asigniﬁcant effectonthe
+results, in particularforMML-basedclassiﬁcationtechniques, such as Decision Graphs (Oliver1993).
+625
+ComputationalLinguistics Volume35,Number4
+comparativeevaluationinSection4.However,inordertoaccommodatedifferentlevels
+of preference towards precision or recall, as discussed herein, we use the following
+weighted F-score calculation (van Rijsbergen 1979).
+F-score=
+braceleftBig
+w
+Precision
++
+1− w
+Recall
+bracerightBig
+−1
+(12)
+where w is a weight between 0 and 1given to precision. When w =0.5 we have the
+standard usage of F-score (Equation (9)), and for w > 0.5, we have a preference for
+high precision. For example, for w =0.5, the precision and recall values of Cluster 16
+(Figure8(b))translatetoF-scoresof0.895and0.865forDoc-PredandSent-Pred,respec-
+tively, leading to a choice of Doc-Pred. In contrast, for w =0.75, the respective F-scores
+are 0.897 and 0.914, leading to achoice of Sent-Pred.
+7. Evaluation ofMeta-Learning
+We evaluate the meta-learning system by looking at the quality of the response pro-
+duced by the method selected by this system, where, as done in Section 4, quality
+is measured using F-score and precision. However, here we employ 5-fold cross-
+validation (instead of 10-fold) to ensure that we get a good spread of selected methods
+in each testing split. This is particularly important when only a few methods dominate
+foradata set.
+7.1 Experimental
+Set-Up
+In our evaluation, we compare the alternative approaches for estimating performance
+(Equations (10) and (11)), and consider the effect of favoring precision when selecting a
+method via the weighted F-score calculation (Equation (12)). To perform these compar-
+isons we employ the following conﬁgurations.
+a114
+Max50: Use the argmax alternative for estimating performance
+(Equation (10)), and w =0.5 in Equation 12.
+a114
+Max75: As Max50, but with w =0.75.
+a114
+Weighted50: Use the weighted alternative for estimating performance
+(Equation (11)), and w =0.5 in Equation (12).
+a114
+Weighted75: As Weighted50, but with w =0.75.
+We also devised the following baselines to help ground our results.
+a114
+Random: Select between the methods randomly.
+a114
+Gold50: Select between the methods based on their actual performance (as
+opposed to their estimated performance), using w =0.5 in Equation (12).
+a114
+Gold75: As Gold50, but with w =0.75.
+As we saw from Cluster 11 in Figure 8(b), the estimated performance can be low
+for all the response-generation methods. Therefore, we also test these conﬁgurations in
+626
+Marom andZukerman EmpiricalStudyofResponse AutomationMethods
+Table6
+PrecisionandF-score forthemeta-learningmethodsaveraged over thecorpus.
+Allcases Cases withprecision ≥ 0.8
+Precision F-score Precision F-score Coverage
+Avg. (Stdev) Avg.(Stdev) Avg. (Stdev) Avg.(Stdev) Avg.
+(actual precision ≥ 0.8)
+Random 0.558 (0.37) 0.376(0.33) 0.955 (0.06) 0.696(0.25) 37.6%
+Gold50 0.725 (0.26) 0.548(0.30) 0.934 (0.06) 0.732(0.26) 53.0%
+Gold75 0.781(0.25) 0.537(0.29) 0.952 (0.06) 0.689(0.26) 60.6%
+(estimatedprecision≥ 0.8)
+Max50 0.704 (0.28) 0.507(0.31) 0.844 (0.22) 0.648(0.30) 56.7%
+Max75 0.768 (0.27) 0.498(0.28) 0.911 (0.17) 0.629(0.27) 56.7%
+Weighted50 0.727 (0.27) 0.512(0.30) 0.874 (0.18) 0.649(0.29) 57.1%
+Weighted75 0.776 (0.26) 0.499(0.28) 0.919 (0.16) 0.626(0.27) 57.1%
+a practical setting where the system has the choice of not selecting any method if the
+estimated performance of all the methods is poor. We envisage that a practical system
+would behave in this manner, in the sense that a request for which none of the existing
+methods can produce an appropriate response would be passed to an operator. As
+mentioned in Section 4.2, we consider precision to be an important practical criterion
+because it does not penalize partial but correct responses. Therefore, we “implement”
+our practical system by selecting only responses whose estimated precision is above
+0.8.Forthesetestswealsoreportoncoverage,thatis,thepercentageofcaseswherethis
+condition is met. Note that the baselines do not have an estimated precision because
+they do not use meta-learning. However, for completeness, we implement the practical
+system for them as well, with a threshold of 0.8 on actual precision.
+7.2Results
+Table 6 shows the results of our tests averaged over all the cases in the corpus (with
+standarddeviationsinparentheses).Theleft-handsidecorrespondstothesettingwhere
+thesystemalwaysselectsaresponse-generationmethod,andtheright-handsidecorre-
+sponds to the setting where a method is selected only if its precision equals or exceeds
+0.8 (this is an estimated precision for the Max and Weighted conﬁgurations, and an
+actual precision for the Gold and Random baselines).
+Let us ﬁrst consider the left-hand side of Table 6. As expected, the Random base-
+line has the worst performance. The Gold baselines outperform their corresponding
+meta-learning counterparts (except for the precision of Weighted50), but the differ-
+ences in precision are not statistically signiﬁcant between the Gold and the Weighted
+conﬁgurations (using a t-test with a 1% signiﬁcance level). Comparing the correspond-
+ing Weighted and Max conﬁgurations, the former is superior, but this is statistically
+signiﬁcant only for the difference in precision values between Weighted50 and Max50.
+ComparingastandardF-scorecalculationwithaprecision-favoringcalculation(w =0.5
+versus w =0.75 in Equation (12)), as expected, precision is signiﬁcantly higher for the
+latter in all testing conﬁgurations (p < 0.01). This increase in precision is at the expense
+ofa reduced F-score, but the increase is larger than the reduction.
+627
+ComputationalLinguistics Volume35,Number4
+Figure9
+Proportionof methodsselected bymeta-learningwiththeWeighted50 and Weighted75
+conﬁgurationsfor eachdataset.
+Now,intheright-handsideofTable6,weseethattheRandomconﬁgurationhasthe
+best precision and the second-best F-score,
+17
+but its coverage is quite low (only 37.6%).
+In contrast, the meta-learning conﬁgurations cover a proportion of the requests that
+is comparable to the coverage of the Gold baselines (approximately 57%), and all the
+results are substantially improved; as expected, all the precision values are high, and
+also more consistent than before (they have a lower standard deviation). These results
+are quite impressive for the meta-learning conﬁgurations, as their selection between
+methods is based on estimated precision, as opposed to the baselines, whose selections
+are based on actual precision, which is not available in practice. Comparing the corre-
+sponding Weighted and Max conﬁgurations, there are no signiﬁcant differences in F-
+score,butWeightedoutperformsMaxonprecision(thedifferencebetweenWeighted75
+and Max75 produces a p-value of 0.035). Finally, comparing w =0.5withw =0.75 for
+both Weighted and Max, as for the All-cases results, the increase in precision is larger
+than the reduction in F-score (p < 0.01).
+Now that we have evaluated the ability of the meta-level process to select between
+response-generation methods, let us inspect what happens for each data set. We saw
+in Section 4 that the various methods differ in their applicability to the different data
+sets (Figure 4). Hence, we would expect the meta-level process to select between the
+methods differently for each data set. Figure 9 shows the method-selection proportions
+foreachdatasetfortheWeighted50andWeighted75conﬁgurations,usingthepractical
+setting where the system can choose not to select any method. What is immediately
+notableisthatnomethodisselectedfortwoofthedatasets(nos.4and6).Thisfollows
+fromthepoorperformanceofallthemethodsforthesedatasets(Figures4(b)and4(c)).
+At ﬁrst glance, it appears that the selection of the Sent-Pred method for data set no. 1
+contradicts the results in Figure 4, which shows a low coverage of Sent-Pred for this
+dataset.However,thisselectionisjustiﬁedbythefactthatthemeta-learningprocedure
+17 Thisseemingly
+goodperformancerepresents the average precisionand resultantF-score ofallthe
+responses withactualprecision≥ 0.8,and is nottheresult ofthe applicationofaselection strategy.
+628
+Marom andZukerman EmpiricalStudyofResponse AutomationMethods
+selects methods based on their historical performance (precision and recall), without
+ﬁltering on applicability threshold (which is the basis for coverage). Figure 9 also
+highlights the impact of favoring precision on the selection of the Sent-Pred method
+instead of Doc-Pred. This effect is most dramatic for data set no. 3, but it can also be
+observed for data sets no. 2and 5.
+Overall, Sent-Pred dominates for most data sets (except data set no. 3 under the
+Weighted50 conﬁguration, and data set no. 8). Also notable is the fact that Sent-Hybrid
+is selected only for data set no. 7. We postulate that this happens because data set
+no. 7 merges several sub-topics, and has different versions of similar responses, where
+each version has a generic component combined with a request-speciﬁc component
+(this feature is not shared by the other merged data sets no. 6 and 8). Sent-Pred is not
+conﬁdent enough to select one of these speciﬁc components, whereas Sent-Hybrid is.
+This ability to select a speciﬁc response is demonstrated in Figure 10, which shows
+a request from data set no. 7 and its automated response. This response belongs to a
+medium-cohesion cluster which contains responses that share the generic segment up
+to regarding, but the rest of the response refers speciﬁcally to terms in the request.
+7.3Summary
+Themeta-learning results may be summarized as follows.
+a114
+Themeta-learning system signiﬁcantly outperforms the random selection
+baseline, and is competitive with the gold baseline.
+a114
+TheWeighted option for estimating performance (Equation (11)) is
+preferable tothe Max option (Equation (10)),as it isbetter able tohandle
+the uncertainty that arises when aparticular method has a wide range of
+precision and recall values.
+a114
+A precision-favoring approach is recommended, as the resultant increase
+in precision (reﬂecting a higher proportion of correct information) is larger
+than the reduction in F-score.
+a114
+Overall, Doc-Predand Sent-Predwere the preferred methods, with
+Sent-Pred clearly dominating for the Weighted75 conﬁguration.
+Sent-Hybrid was selected often for data set no. 7, and Doc-Ret was the
+only method selected, albeit seldom, for data set no. 8.
+a114
+Because the system can estimate performance prior to producing a
+response, itis able to opt for a non-response rather than risk producing a
+bad one. Thedecision ofwhat is abad response should be made bythe
+organization usingthesystem.Withthestringent criterionwehavechosen
+(precision≥ 0.8), the system yields agood performance for approximately
+57% of the requests.
+Figure10
+Exampleshowinganappropriateresponse generatedbytheSent-Hybridmethod.
+629
+ComputationalLinguistics Volume35,Number4
+8. Related Research
+The automation of help-desk responses has been previously tackled using mainly
+knowledge-intensive paradigms, such as expert systems (Barr and Tessler 1995) and
+case-based reasoning (Watson 1997). Such technologies require signiﬁcant human in-
+put, and are difﬁcult to create and maintain (Delic and Lahaix 1998). In contrast, the
+techniques examined in this article are corpus-based and data-driven. The process of
+composingaplannedresponseforanewrequestisinformedbyprobabilisticandlexical
+properties of the requests and responses in the corpus.
+There are very few reported attempts at corpus-based automation of help-desk
+responses (Carmel, Shtalhaim, and Soffer 2000; Lapalme and Kosseim 2003; Bickel and
+Scheffer 2004; Malik, Subramaniam, and Kaushik 2007).
+eResponder, the system developed by Carmel, Shtalhaim, and Soffer (2000), re-
+trievesalistofrequest–responsepairsandpresentsarankedlistofresponsestotheuser.
+If the user is unsatisﬁed with this list, an operator is asked to generate a new response.
+The operator is assisted in this task by the retrieval results: The system highlights the
+request-relevant sentences in the ranked responses. However, there is no attempt to
+automatically generate a single response.
+Bickel and Scheffer (2004) compared the performance of document retrieval and
+document prediction for generating help-desk responses. Their retrieval technique,
+which is similar to our request-to-request Doc-Ret method, matches user questions to
+thequestionsinadatabaseofquestion–answerpairs.Theirpredictionmethod,whichis
+similartoDoc-Pred,isbasedonclusteringtheresponsesinthecorpusintosemantically
+equivalent answers, and then training a classiﬁer to match a query with one of these
+classes.Thegeneratedresponseistheanswerthatisclosesttothecentroidofthecluster.
+Bickel and Scheffer’s results are consistent with ours, in the sense that the performance
+oftheDoc-RetmethodissigniﬁcantlyworsethanthatofDoc-Pred.However,itisworth
+noting that their corpus is signiﬁcantly smaller than ours (805 question–answer pairs),
+their questions seem to be much simpler and shorter than those in our corpus, and the
+replies shorter and more homogeneous.
+Malik,Subramaniam,andKaushik(2007)developedasystemthatbuildsquestion–
+answer pairs from help-center e-mails, and then maps new questions to existing ques-
+tions in order to retrieve an answer. This part of their approach resembles our Doc-Ret
+method, but instead of retrieving entire response documents, they retrieve individual
+sentences. In addition, rather than including actual response sentences in a reply, their
+systemmatchesresponsesentencestopre-existingtemplatesandreturnsthetemplates.
+LapalmeandKosseim(2003)investigatedthreeapproachestotheautomaticgener-
+ationofresponsee-mails:textclassiﬁcation,case-basedreasoning,andquestionanswer-
+ing. Text classiﬁcation was used to group request e-mails into broad categories, some
+of which, such as requests for ﬁnancial reports, can be automatically addressed. The
+question-answering approach and the retrieval component of the case-based reasoning
+approach were data driven, using word-level matches. However, the personalization
+component of the case-based reasoning approach was rule-based (e.g., rules were ap-
+plied to substitute names of individuals and companies in texts).
+Withrespecttothesesystems,thecontributionofourworkliesintheconsideration
+ofdifferentkindsofcorpus-basedapproaches(namely,retrievalandprediction)applied
+at different levels of granularity (namely, document and sentence).
+Two applications that, like help-desk, deal with question–answer pairs are: sum-
+marization of e-mail threads (Dalli, Xia, and Wilks 2004; Shrestha and McKeown 2004),
+and answer extraction in FAQs (Frequently Asked Questions) (Berger and Mittal 2000;
+630
+Marom andZukerman EmpiricalStudyofResponse AutomationMethods
+Berger et al. 2000; Jijkoun and de Rijke 2005; Soricut and Brill 2006). An important
+difference between these applications and help-desk is that help-desk request e-mails
+are not simple queries. In fact, some e-mails do not contain any queries at all, and even
+if they do, it is not always straightforward to distinguish the queries from the text that
+provides background information. Therefore, the generation of a help-desk response
+needs to consider a request e-mail in its entirety, and ensure that there is sufﬁcient
+evidence to match the request with aresponse or parts of responses.
+In e-mail-thread summarization, Dalli, Xia, and Wilks (2004) applied a procedural
+approach where they recognized named entities and performed anaphora resolution
+priortoapplyingrankingmetricstoselectsentencesforinclusioninathreadsummary.
+However,theirapproachdoesnotspeciﬁcallyaddressthequestion–answeraspectofan
+e-mailthread,potentiallyomittingimportantinformation.Thisproblemwasaddressed
+by Shrestha and McKeown (2004), who performed supervised learning in order to
+match questions with answers in e-mail threads, as a ﬁrst step in the summarization
+of such threads. A signiﬁcant difference between our approach and theirs is in our
+use of unsupervised learning, which is necessitated by the size of our data set. Also,
+ShresthaandMcKeownusedhigh-levelfeaturesformachinelearning,aswellasword-
+basedfeatures.AsindicatedinSection3.2.2,ourSent-Predexperimentswithhigh-level
+features (speciﬁcally syntactic features) did not improve our results. Finally, Shrestha
+and McKeown used paragraphs as a unit of information—an approach we tried late
+in our project with encouraging results. This suggests that there are situations where
+one can generalize a response that is longer than a sentence but shorter than a whole
+document. Unfortunately, we could not pursue this avenue of research owing to time
+limitations.
+InFAQs,BergerandMittal(2000)employedasentenceretrievalapproachbasedon
+a language model where the entire response to an FAQ is considered a sentence, and
+the questions and answers are embedded in an FAQ document. They complemented
+this approach with machine learning techniques that automatically learn the weights
+of different retrieval models. Berger et al. (2000) compared two retrieval approaches
+(TF.IDF and query expansion) and two predictive approaches (statistical translation
+and latent variable models). Jijkoun and de Rijke (2005) compared different variants of
+retrievaltechniques.SoricutandBrill(2006)comparedapredictiveapproach(statistical
+translation), a retrieval approach based on a language-model, and a hybrid approach
+which combines statistical chunking and traditional retrieval. Two signiﬁcant differ-
+ences between help-desk and FAQs are the following.
+a114
+Theresponses in the help-desk corpus are personalized, which means
+that on one hand, we must abstract from themsufﬁciently to obtain
+meaningful regularities, and on the other hand, we must be careful not
+to abstract away speciﬁc information that addresses particular issues.
+a114
+Help-desk responses have much more repetition than FAQs, because
+the corpus is made up ofindividual dialogues, rather than typical
+request–response pairs. This motivates the use of multi-document
+summarization techniques, rather than question-answering approaches,
+to extract individual answers.
+These issues also differentiate the help-desk application from other types of question-
+answering applications, speciﬁcally those found in the ﬁeld of restricted domain ques-
+tion answering (Moll´a and Vicedo 2007).
+631
+ComputationalLinguistics Volume35,Number4
+Inadditiontothedifferentresponse-generationmethods,wehaveproposedameta-
+level strategy to combine them. This kind of meta-learning is referred to as stacking by
+theDataMiningcommunity(WittenandFrank2000).LekakosandGiaglis(2007)imple-
+mented a supervised version of this approach for a recommender system, as opposed
+toourunsupervisedversion.Theyalsoproposedtwomajorcategoriesofmeta-learning
+approaches for recommender systems, merging and ensemble, each subdivided into
+themorespeciﬁcsubclassessuggestedbyBurke(2002)asfollows.Themergingcategory
+corresponds to techniques where the individual methods affect each other in differ-
+ent ways (this category encompasses Burke’s feature combination, cascade, feature
+augmentation,andmeta-level sub-categories). The ensemble category corresponds to
+techniques where the predictions of the individual methods are combined to produce
+a ﬁnal prediction (this category encompasses Burke’s weighted, switching,andmixed
+sub-categories).
+Our system falls into the ensemble category, because it combines the results of
+the various methods into a single outcome. More speciﬁcally, it belongs to Burke’s
+switching sub-category, where a single method is selected on a case-by-case basis. A
+similarapproachistakeninRotaruandLitman’s(2005)readingcomprehensionsystem,
+but their system does not perform any learning. Instead it uses a voting mechanism
+to select the answer given by the majority of methods. The question answering system
+developed by Chu-Carroll et al. (2003) belongs to the merging category of approaches,
+where the output of an individual method can be used as input to a different method
+(this corresponds to Burke’s cascade sub-category). Because the results of all the
+methods are comparable, no learning is required: At each stage of the “cascade of
+methods,” the method that performs best is selected. In contrast to these two systems,
+our system employs methods that are not comparable, because they use different
+metrics. Therefore, we need to learn fromexperience when to use each method.
+9. Conclusion
+Despite its theoretical importance and commercial impact, the generation of e-mail-
+based help-desk responses has received scant attention to date. In this article, we
+have investigated complementary corpus-based, information-gathering methods for
+automatically addressing help-desk requests. Our results show that a large corpus of
+request–response e-mail pairs supports the automation of a signiﬁcant portion of the
+help-desktaskwithdata-driventechniquesthatreuseresponsesorpartsthereof.These
+techniques are particularly suitable for repetitive, non-technical issues, allowing help-
+desk operators to focus on more challenging, technical requests.
+Our results also show that different methods are applicable to different situations
+thatariseinthehelp-deskdomain,andthattheperformanceofdifferentmethodsvaries
+for different data sets. This suggests that there must be an underlying relationship
+between methods and features of data sets that needs to be accounted for (Section 4.3).
+Additionally, our results yield insights regarding the following issues.
+a114
+Retrieval versus prediction – Some situations warrant a retrieval
+approach, whereas others require apredictive approach. Theformer
+applies when the content ofa request matches previous cases in the
+corpus. The latter applies when requests and responses do not match on
+content, but correlations exist between afew predictive words in arequest
+and aresponse, which is often generic in these cases. A hybrid
+prediction–retrieval approach was also investigated. Our hybrid method
+632
+Marom andZukerman EmpiricalStudyofResponse AutomationMethods
+extracts generalizations at the sentence level, and employs aretrieval
+component that tailors the selection of sentences to the speciﬁc issues
+raisedinarequeste-mail.Althoughthisappearstobeasensibleapproach,
+the results of our evaluation are not conclusive, and further investigation
+is required.
+a114
+Levels of granularity–Although simple document-level reuse methods
+are sufﬁcient in many cases, more complex sentence-level reuse methods,
+which involve extractive multi-document summarization, provide a viable
+alternative when a complete response document cannot be reused. This
+happens when there is insufﬁcient evidence for the reuse ofsuch a
+document, but there is enough evidence for a partial response.
+Wehavealsoperformedasmalluserstudy,whichhighlightedissuesregardingthe
+evaluation of a large corpus such as ours. Despite its modest size, our user study was
+useful,asitprovidedasubjectiveevaluationofthemethodsconsidered,andlinkedthe
+results of our automatic evaluation with these subjective assessments.
+Our work also provides a uniﬁed solution to help-desk response automation via
+the meta-learning component. Although our comparative investigation demonstrates
+the applicability of the different methods, the meta-learning component provides a
+way to automatically select a method. We have offered an unsupervised approach that
+learnswhichisthemostpromisingmethodbasedonpreviousexperience.Itdoessoby
+learningtherelationshipbetweenthevalueoftheconﬁdence(applicability)measureof
+eachmethodanditssubsequentperformance.Thiseliminatestheneedtosetsubjective
+thresholdsontheseconﬁdencevalues,andinsteadtransferssubjectivedecision-making
+to a more intuitive part of the system, namely, the actual performance of the methods,
+measured by the quality of the generated responses. In this way, help-desk managers
+can decide how strict the system should be, for example, on the precision of responses.
+We are encouraged by the fact that we have achieved a reasonable level of per-
+formance using only a simple, low-level bag-of-words representation. One avenue for
+future research is to investigate more sophisticated representations, such as incorpo-
+rating word-based similarity metrics into the bag-of-words representation, employing
+query expansion during retrieval, and taking into account syntactic features during
+retrieval and prediction (recall that we incorporated grammatical and sentence-based
+syntactic features into the Sent-Pred method without signiﬁcantly affecting perfor-
+mance, Section 3).
+Another avenue for future research is the investigation of intermediate levels of
+granularity, such as paragraphs. Ideally there should be a mechanism that determines
+dynamically the most suitable level of granularity for capturing the regularities in a
+collection of e-mails. An information-theoretic approach, such as the MML crite-
+rion (Wallace and Boulton 1968; Wallace 2005), may be a promising way to address this
+problem.
+Acknowledgments
+Thisresearchwassupportedinpartbygrant
+LP0347470fromtheAustralianResearch
+Council andbyan endowmentfrom
+Hewlett-Packard.Theauthorsalsothank
+Hewlett-Packardfortheextensive
+anonymizedhelp-deskdata,Nathalie
+Japkowiczfor heradvice onthe
+meta-learningportionsofthiswork,andthe
+anonymousreviewersfortheir insightful
+comments.
+References
+Banerjee,S.and T.Pedersen.2003.The
+design,implementation,anduse of
+633
+ComputationalLinguistics Volume35,Number4
+theNgram StatisticsPackage. In
+CICLing 2003 – Proceedings of the Fourth
+International Conference on Intelligent Text
+Processing and Computational Linguistics,
+pages 370–381, Mexico City.Mexico.
+Barr,A. andS. Tessler. 1995.Expertsystems:
+A technologybeforeitstime. AI Expert,
+available at www.stanford.edu/group/
+scip/avsgt/expertsystems/aiexpert.html.
+Barzilay,R.,N.Elhadad,andK.R.McKeown.
+2001. Sentence orderinginmultidocument
+summarization.In HLT01 – Proceedings of
+the First Human Language Technology
+Conference,pages1–7, San Diego,CA.
+Barzilay,R. andK. R.McKeown. 2005.
+Sentence fusionformultidocumentnews
+summarization. Computational Linguistics,
+31(3):297–328.
+Berger,A.,R. Caruana,D.Cohn,D.Freitag,
+and V. Mittal.2000. Bridgingthelexical
+chasm: Statistical approachesto
+answer-ﬁnding.In SIGIR’00 – Proceedings
+of the 23rd Annual International ACM
+International Conference on Research and
+Development in Information Retrieval,
+pages 192–199, Athens.
+Berger,A.and V. Mittal.2000.Query-
+relevant summarizationusingFAQs.
+In ACL2000 – Proceedings of the 38th
+Annual Meeting of the Association for
+Computational Linguistics,pages294–301,
+HongKong.
+Bickel,S.and T.Scheffer.2004. Learning
+from message pairsfor automaticemail
+answering.In ECML04–Proceedingsofthe
+European Conference on Machine Learning,
+pages 87–98, Pisa.
+Burke,R. 2002. Hybridrecommender
+systems. User Modeling and User-Adapted
+Interaction,12(4):331–370.
+Carletta,J.1996. Assessing agreement on
+classiﬁcation tasks: TheKappastatistic.
+Computational Linguistics,22(2):249–254.
+Carmel,D.,M. Shtalhaim,and A.Soffer.
+2000. eResponder: Electronicquestion
+responder.In CoopIS’02 – Proceedings
+of the 7th International Conference on
+Cooperative Information Systems,
+pages 150–161, Eilat.
+Chang,C. C.and C. J.Lin,2001. LIBSVM: A
+Library for Support Vector Machines.
+Softwareavailableat http://www.csie
+.ntu.edu.tw/∼cjlin/libsvm.
+Chu-Carroll,J.,K. Czuba,J.M. Prager,and
+A. Ittycheriah.2003.Inquestion
+answering,twoheadsarebetter than
+one. In HLT-NAACL 2003 – Proceedings
+of the 2003 Language Technology
+Conference,pages24–31, Edmonton.
+Dalli,A., Y.Xia,and Y.Wilks. 2004.Adaptive
+informationmanagement:FASiL email
+summarizationsystem. In COLING’04 –
+Proceedings of the 20th International
+Conference on Computational Linguistics,
+pages 23–27, Geneva.
+Delic, K.A.and D.Lahaix.1998.
+Knowledgeharvesting,articulation,and
+delivery. The Hewlett-Packard Journal,
+May:74–81.
+Feng,D.,E.Shaw, J.Kim,andE.Hovy.
+2006. An intelligentdiscussion-bot
+for answeringstudent queriesin
+threaded discussions. In IUI’06 –
+Proceedings of the 11th International
+Conference on Intelligent User Interfaces,
+pages 171–177, Sydney.
+Filatova,E.andV. Hatzivassiloglou.2004.
+Event-based extractivesummarization.
+In Proceedings of the ACL’04 Workshop
+on Summarization,pages 104–111,
+Barcelona.
+Goldstein,J.,V. Mittal,J.Carbonell,and
+M. Kantrowitz.2000. Multi-document
+summarizationbysentence extraction.
+In Proceedings of the ANLP/NAACL 2000
+Workshop on Automatic Summarization,
+pages 40–48, Seattle,WA.
+Jijkoun,V.and M. deRijke. 2005.
+Retrievinganswers fromfrequently
+asked questionspages ontheWeb. In
+CIKM’05 – Proceedings of the ACM 14th
+Conference on Information and Knowledge
+Management, pages76–83, Bremen.
+Lapalme,G.and L.Kosseim. 2003.Mercure:
+Towardsanautomatice-mailfollow-up
+system. IEEE Computational Intelligence
+Bulletin,2(1):14–18.
+Lekakos, G.and G.M.Giaglis. 2007. A
+hybridapproachforimproving
+predictiveaccuracyof collaborative
+ﬁlteringalgorithms. User Modeling
+and User-Adapted Interaction,
+17(1):5–40.
+Leuski,A.,R.Patel,D.Traum,and
+B.Kennedy. 2006.Buildingeffective
+question answeringcharacters.In
+Proceedings of the 7th SIGdial Workshop on
+Discourse and Dialogue,pages 18–27,
+Sydney.
+Lin,C.Y.and E.H.Hovy.2003. Automatic
+evaluationof summariesusingn-gram
+co-occurrence statistics. In HLT-NAACL
+2003 – Proceedings of the 2003 Language
+Technology Conference,pages71–78,
+Edmonton.
+Malik, R.,L.V. Subramaniam,and
+S. Kaushik.2007. Automatically
+selecting answer templatestorespondto
+634
+Marom andZukerman EmpiricalStudyofResponse AutomationMethods
+customer emails.In IJCAI’07 – Proceedings
+of the 20th International Joint Conference on
+Artiﬁcial Intelligence,pages1659–1664,
+Hyderabad.
+Marom,Y.andI.Zukerman.2006.
+Automatinghelp-deskresponses:
+Acomparativestudyof
+information-gatheringapproaches.
+In Proceedings of the COLING-ACL
+Workshop on Task-Focused Summarization
+and Question Answering,pages40–47,
+Sydney.
+Marom,Y.andI.Zukerman.2007a.
+Evaluationof alarge-scaleemail response
+system.In Proceedings of the IJCAI’07
+Workshop on Knowledge and Reasoning in
+Practical Dialogue Systems,pages 28–33,
+Hyderabad.
+Marom,Y.andI.Zukerman.2007b.A
+predictiveapproach tohelp-deskresponse
+generation.In IJCAI’07 – Proceedings of the
+20th International Joint Conference on
+Artiﬁcial Intelligence,pages1665–1670,
+Hyderabad.
+Marom,Y.,I.Zukerman,and N.Japkowicz.
+2007. Ameta-learningapproachfor
+selectingbetween response automation
+strategiesin ahelp-deskdomain.In
+AAAI-07 – Proceedings of the 22nd
+Conference on Artiﬁcial Intelligence,
+pages907–912, Vancouver.
+Moll´a,D.and J.L.Vicedo. 2007.Question
+answeringinrestricted domains:An
+overview. Computational Linguistics,
+33(1):41–61.
+Oliver,J.J.1993. Decision graphs—an
+extension of decision trees. In Proceedings
+of the 4th International Workshop on Artiﬁcial
+Intelligence and Statistics,pages343–350,
+FortLauderdale,FL.
+Rotaru,M. and D.J.Litman.2005.
+Improvingquestionansweringfor
+readingcomprehension testsby
+combiningmultiplesystems.In Proceedings
+of the AAAI 2005 Workshop on Question
+Answering in Restricted Domains,
+pages46–50, Pittsburgh,PA.
+Roy, S.andL.V. Subramaniam.2006.
+Automaticgenerationofdomain
+modelsforcall-centersfrom noisy
+transcriptions.In COLING-ACL’06 –
+Proceedings of the 21st International
+Conference on Computational Linguistics and
+44th Annual Meeting of the Association for
+Computational Linguistics,pages 737–744,
+Sydney.
+Salton,G. andM. J.McGill. 1983. An
+Introduction to Modern Information
+Retrieval.McGraw Hill,New York.
+Shrestha,L.and K. R.McKeown. 2004.
+Detection of question-answerpairsin
+email conversations.In COLING’04 –
+Proceedings of the 20th International
+Conference on Computational Linguistics,
+pages889–895, Geneva.
+Soricut,R. andE.Brill.2006. Automatic
+question answeringusingtheWeb:
+Beyondthefactoid. Information Retrieval,
+9(2):191–206.
+van Rijsbergen,C. J.1979. Information
+Retrieval.Buttersworth,London.
+Vapnik,V. N.1998. Statistical Learning Theory.
+Wiley-Interscience,NewYork.
+Wallace, C.S. 2005. Statistical and Inductive
+Inference by Minimum Message Length.
+Springer,Berlin.
+Wallace, C.S. andD. M.Boulton.1968. An
+informationmeasureforclassiﬁcation. The
+Computer Journal,11(2):185–194.
+Watson,I.1997. Applying Case-Based
+Reasoning: Techniques for Enterprise
+Systems.MorganKaufmannPublishers,
+San Mateo, CA.
+Witten,I.H.andE.Frank.2000. Data Mining:
+Practical Machine Learning Tools and
+Techniques with Java Implementations.
+Morgan KaufmannPublishers,San
+Francisco,CA.
+635
+
+

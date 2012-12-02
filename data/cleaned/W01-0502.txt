@@ -1,0 +1,373 @@
+A Sequential Model for Multi-Class Classificationa0 Yair Even-Zohar Dan Roth Department of Computer Science University of Illinois at Urbana-Champaign a1 evenzoha,danr a2 @uiuc.edu Abstract Many classification problems require decisions among a large number of competing classes.
+These tasks, however, are not handled well by general purpose learning methods and are usually addressed in an ad-hoc fashion.
+We suggest a general approach – a sequential learning model that utilizes classifiers to sequentially restrict the number of competing classes while maintaining, with high probability, the presence of the true outcome in the candidates set.
+Some theoretical and computational properties of the model are discussed and we argue that these are important in NLP-like domains.
+The advantages of the model are illustrated in an experiment in partof-speech tagging.
+1 Introduction
+A large number of important natural language inferences can be viewed as problems of resolving ambiguity, either semantic or syntactic, based on properties of the surrounding context.
+These, in turn, can all be viewed as classification problems in which the goal is to select a class label from among a collection of candidates.
+Examples include part-of speech tagging, word-sense disambiguation, accent restoration, word choice selection in machine translation, context-sensitive spelling correction, word selection in speech recognition and identifying discourse markers.
+Machine learning methods have become the most popular technique in a variety of classification problems of these sort, and have shown significant success.
+A partial list consists of Bayesian classifiers (Gale et al., 1993), decision lists (Yarowsky, 1994), Bayesian hybrids (Golding, 1995), HMMs (Charniak, 1993), inductive logic methods (Zelle and Mooney, 1996), memorya3 This research is supported by NSF grants IIS-9801638, IIS0085836 and SBR-987345.
+based methods (Zavrel et al., 1997), linear classifiers (Roth, 1998; Roth, 1999) and transformationbased learning (Brill, 1995).
+In many of these classification problems a significant source of difficulty is the fact that the number of candidates is very large – all words in words selection problems, all possible tags in tagging problems etc.
+Since general purpose learning algorithms do not handle these multi-class classification problems well (see below), most of the studies do not address the whole problem; rather, a small set of candidates (typically two) is first selected, and the classifier is trained to choose among these.
+While this approach is important in that it allows the research community to develop better learning methods and evaluate them in a range of applications, it is important to realize that an important stage is missing.
+This could be significant when the classification methods are to be embedded as part of a higher level NLP tasks such as machine translation or information extraction, where the small set of candidates the classifier can handle may not be fixed and could be hard to determine.
+In this work we develop a general approach to the study of multi-class classifiers.
+We suggest a sequential learning model that utilizes (almost) general purpose classifiers to sequentially restrict the number of competing classes while maintaining, with high probability, the presence of the true outcome in the candidate set.
+In our paradigm the sought after classifier has to choose a single class label (or a small set of labels) from among a large set of labels.
+It works by sequentially applying simpler classifiers, each of which outputs a probability distribution over the candidate labels.
+These distributions are multiplied and thresholded, resulting in that each classifier in the sequence needs to deal with a (significantly) smaller number of the candidate labels than the previous classifier.
+The classifiers in the sequence are selected to be simple in the sense that they typically work only on part of the feature space where the decomposition of feature space is done so as to achieve statistical independence.
+Simple classifier are used since they are more likely to be accurate; they are chosen so that, with high probability (w.h.p.), they have one sided error, and therefore the presence of the true label in the candidate set is maintained.
+The order of the sequence is determined so as to maximize the rate of decreasing the size of the candidate labels set.
+Beyond increased accuracy on multi-class classification problems, our scheme improves the computation time of these problems several orders of magnitude, relative to other standard schemes.
+In this work we describe the approach, discuss an experiment done in the context of part-of-speech (pos) tagging, and provide some theoretical justifications to the approach.
+Sec. 2 provides some background on approaches to multi-class classification in machine learning and in NLP.
+In Sec.
+3 we describe the sequential model proposed here and in Sec.
+4 we describe an experiment the exhibits some of its advantages.
+Some theoretical justifications are outlined in Sec.
+5. 2 Multi-Class Classification Several works within the machine learning community have attempted to develop general approaches to multi-class classification.
+One of the most promising approaches is that of error correcting output codes (Dietterich and Bakiri, 1995); however, this approach has not been able to handle well a large number of classes (over 10 or 15, say) and its use for most large scale NLP applications is therefore questionable.
+Statistician have studied several schemes such as learning a single classifier for each of the class labels (one vs.
+all) or learning a discriminator for each pair of class labels, and discussed their relative merits(Hastie and Tibshirani, 1998).
+Although it has been argued that the latter should provide better results than others, experimental results have been mixed (Allwein et al., 2000) and in some cases, more involved schemes, e.g., learning a classifier for each set of three class labels (and deciding on the prediction in a tournament like fashion) were shown to perform better (Teow and Loe, 2000).
+Moreover, none of these methods seem to be computationally plausible for large scale problems, since the number of classifiers one needs to train is, at least, quadratic in the number of class labels.
+Within NLP, several learning works have already addressed the problem of multi-class classification.
+In (Kudoh and Matsumoto, 2000) the methods of “all pairs” was used to learn phrase annotations for shallow parsing.
+More than a4a6a5a7a5 different classifiers where used in this task, making it infeasible as a general solution.
+All other cases we know of, have taken into account some properties of the domain and, in fact, several of the works can be viewed as instantiations of the sequential model we formalize here, albeit done in an ad-hoc fashion.
+In speech recognition, a sequential model is used to process speech signal.
+Abstracting away some details, the first classifier used is a speech signal analyzer; it assigns a positive probability only to some of the words (using Levenshtein distance (Levenshtein, 1966) or somewhat more sophisticated techniques (Levinson et al., 1990)).
+These words are then assigned probabilities using a different contextual classifier e.g., a language model, and then, (as done in most current speech recognizers) an additional sentence level classifier uses the outcome of the word classifiers in a word lattice to choose the most likely sentence.
+Several word prediction tasks make decisions in a sequential way as well.
+In spell correction confusion sets are created using a classifier that takes as input the word transcription and outputs a positive probability for potential words.
+In conventional spellers, the output of this classifier is then given to the user who selects the intended word.
+In context sensitive spelling correction (Golding and Roth, 1999; Mangu and Brill, 1997) an additional classifier is then utilized to predict among words that are supported by the first classifier, using contextual and lexical information of the surrounding words.
+In all studies done so far, however, the first classifier – the confusion sets – were constructed manually by the researchers.
+Other word predictions tasks have also constructed manually the list of confusion sets (Lee and Pereira, 1999; Dagan et al., 1999; Lee, 1999) and justifications where given as to why this is a reasonable way to construct it.
+(Even-Zohar and Roth, 2000) present a similar task in which the confusion sets generation was automated.
+Their study also quantified experimentally the advantage in using early classifiers to restrict the size of the confusion set.
+Many other NLP tasks, such as pos tagging, name entity recognition and shallow parsing require multi-class classifiers.
+In several of these cases the number of classes could be very large (e.g., pos tagging in some languages, pos tagging when a finer proper noun tag is used).
+The sequential model suggested here is a natural solution.
+3 The
+Sequential Model We study the problem of learning a multi-class classifier, a8a10a9a12a11 a13 a14 where a11 a15a17a16a18a5a20a19a22a21a18a23a22a24, a14 a25 a16a27a26a27a28a22a19a30a29a31a29a31a29a32a19a33a26a35a34a36a23 and a37 is typically large, on the order of a21a22a5a39a38a41a40a42a21a22a5a39a43. We address this problem using the Sequential Model (SM) in which simpler classifiers are sequentially used to filter subsets of a14 out of consideration.
+The sequential model is formally defined as a a44 tuple: a45a47a46 a25a48a16a49a16a22a11a51a50a52a23a53a19a54a14a36a19a47a55a56a19a57a16a6a8 a50 a23a58a19a59a16a18a60 a50 a23a61a23a53a19 where a62 a11 a25a64a63a54a65 a50a31a66 a28 a11 a50 is a decomposition of the domain (not necessarily disjoint; it could be that a67a69a68 a19a70a11 a50 a25a71a11 ).
+a62 a14 is the set of class labels.
+a62 a55a72a25a73a16a75a74a53a28a22a19a33a74 a38 a19a30a29a31a29a31a29a32a19a33a74 a65 a23 determines the order in which the classifiers are learned and evaluated.
+For convenience we denote a8a7a28a76a25a77a8a18a78a33a79a75a19a80a8 a38 a25 a8a18a78a82a81a27a19a30a29a22a29a22a29 a62 a16a6a8 a50 a23 a65 a28 is the set of classifiers used by the model, a8 a50 a9a84a83a85a11 a50 a19a80a4a87a86 a88a54a86a90a89a57a13a92a91a93a5a87a19a75a21a95a94a52a86 a88a54a86 . a62 a16a18a60 a50 a23a27a65 a28 is a set of constant thresholds.
+Given a96a98a97a99a11 a50 and a set a14 a50a85a100 a28 of class labels, the a68 th classifier outputs a probability distribution1 a101 a50 a25 a83a32a102 a50 a83a103a26a27a28a18a104 a96a105a89a106a19a30a29a31a29a31a29a32a19a107a102 a50 a83a108a26a106a34a109a104 a96a110a89a82a89 over labels in a14 (where a102 a50 a83a108a26a53a104 a96a110a89 is the probability assigned to class a26 by a8 a50 ), and a101 a50 satisfies that if a26a112a111a97a113a14 a50a85a100 a28 then a102 a50 a83a108a26a53a104 a96a110a89a47a25a114a5 . The set of remaining candidates after the a68 th classification stage is determined by a101 a50 and a60 a50 : a14 a50 a25a48a16a27a26a49a97a115a14a116a104a102 a50 a83a103a26a58a104 a96a105a89a118a117a119a60 a50 a23a53a29 The sequential process can be viewed as a multiplication of distributions.
+(Hinton, 2000) argues that a product of distributions (or, “experts”, PoE) 1The output of many classifiers can be viewed, after appropriate normalization, as a confidence measure that can be used as our a120a87a121 . is an efficient way to make decisions in cases where several different constrains play a role, and is advantageous over additive models.
+In fact, due to the thresholding step, our model can be viewed as a selective PoE.
+The thresholding ensures that the SM has the following monotonicity property: a16a27a26a49a97a115a14a116a104a52a102 a50 a83a108a26a53a104 a96a110a89a118a117a119a60 a50 a23a41a15a51a16a27a26a122a97a115a14a116a104a123a102 a50a85a100 a28a75a83a103a26a58a104 a96a105a89a118a117a119a60 a50a85a100 a28a35a23 that is, as we evaluate the classifiers sequentially, smaller or equal (size) confusion sets are considered.
+A desirable design goal for the SM is that, w.h.p., the classifiers have one sided error (even at the price of rejecting fewer classes).
+That is, if a26a35a124 is the true target 2, then we would like to have that a102 a50 a83a108a26a106a124a95a104 a96a105a89a125a117a126a60 a50 . The rest of this paper presents a concrete instantiation of the SM, and then provides a theoretical analysis of some of its properties (Sec.
+5). This work does not address the question of acquiring SM i.e., learning a16a18a60 a50 a23a58a19a95a55 . 4 Example: POS Tagging This section describes a two part experiment of pos tagging in which we compare, under identical conditions, two classification models: A SM and a single classifier.
+Both are provided with the same input features and the only difference between them is the model structure.
+In the first part, the comparison is done in the context of assigning pos tags to unknown words – those words which were not presented during training and therefore the learner has no baseline knowledge about possible POS they may take.
+This experiment emphasizes the advantage of using the SM during evaluation in terms of accuracy.
+The second part is done in the context of pos tagging of known words.
+It compares processing time as well as accuracy of assigning pos tags to known words (that is, the classifier utilizes knowledge about possible POS tags the target word may take).
+This part exhibits a large reduction in training time using the SM over the more common one-vs-all method while the accuracy of the two methods is almost identical.
+Two types of features – lexical features and contextual features may be used when learning how to tag words for pos.
+Contextual features capture the information in the surrounding context and the word lemma while the lexical features capture the morphology of the unknown word.3 Several is2We use the terms class and target interchangeably.
+3Lexical features are used only when tagging unknown words.
+sues make the pos tagging problem a natural problem to study within the SM.
+(i) A relatively large number of classes (about 50).
+(ii) A natural decomposition of the feature space to contextual and lexical features.
+(iii) Lexical knowledge (for unknown words) and the word lemma (for known words) provide, w.h.p, one sided error (Mikheev, 1997).
+4.1 The
+Tagger Classifiers The domain in our experiment is defined using the following set of features, all of which are computed relative to the target word a127 a50 . Contextual Features (as in (Brill, 1995; Roth and Zelenko, 1998)): Let a128 a50a85a100 a28a22a19a75a83a85a128 a50a31a129 a28a80a89 be the tags of the word preceding, (following) the target word, respectively.
+1. a128 a50a130a100 a28 . 2.
+a128 a50a32a129 a28 . 3.
+a128 a50a130a100 a38 . 4.
+a128 a50a32a129 a38 . 5.
+a128 a50a130a100 a28a80a131a122a128 a50a31a129 a28 . 6.
+a128 a50a130a100 a38 a131a122a128 a50a85a100 a28 . 7.
+a128 a50a32a129 a28a80a131a122a128 a50a31a129 a38 . 8.
+Baseline tag for word a127 a50 . In case a127 a50 is an unknown word, the baseline is proper singular noun “NNP” for capitalized words and common singular noun “NN” otherwise.
+(This feature is introduced only in some of the experiments.) 9.The target word a127 a50 . Lexical Features: Let a132a133a19a82a134a118a19a136a135 be any three characters observed in the examples.
+10. Target word is capitalized.
+11. a127 a50 ends with a132 and length(a127 a50 a89a133a117a119a137 . 12.
+a127 a50 ends with a134a138a132 and length(a127 a50 a89a139a117a76a140 . 13.
+a127 a50 ends with a135a69a134a138a132 and length(a127 a50 a89a133a117a71a44 . In the following experiment, the SM used for unknown words makes use of three different classifiers a8a7a28a75a19a80a8 a38 and a8a27a141 or a8a84a142 a141, defined as follows: a8a7a28a133a25 : a classifier based on the lexical feature a143a144a21a22a5 . a8 a38 a25 : a classifier based on lexical features a143a144a21a7a21a6a40a145a21a22a137 a8a27a141a146a25 : a classifier based on contextual features a143a144a21a6a40 a147 . a8a84a142 a141 a25 : a classifier based on all the features, a143a144a21a87a40a116a21a22a137 . The SM is compared with a single classifier – either a8a27a141 or a8a84a142 a141 . Notice that a8a84a142 a141 is a single classifier that uses the same information as used by the SM.
+Fig 1 Figure 1: POS Tagging of Unknown Word using Contextual and Lexical features in a Sequential Model.
+The input for capitalized classifier has 2 values and therefore 2 ways to create confusion sets.
+There are at most a137a149a148 a38a70a150 a129 a28a107a151 a129 a43a33a152 different inputs for the suffix classifier (26 character + 10 digits + 5 other symbols), therefore suffix may emit up to a137 a148 a38a82a150 a129 a28a107a151 a129 a43a82a152 confusion sets.
+illustrates the SM that was used in the experiments.
+All the classifiers in the sequential model, as well as the single classifier, use the SNoW learning architecture (Roth, 1998) with the Winnow update rule.
+SNoW (Sparse Network of Winnows) is a multi-class classifier that is specifically tailored for learning in domains in which the potential number of features taking part in decisions is very large, but in which decisions actually depend on a small number of those features.
+SNoW works by learning a sparse network of linear functions over a pre-defined or incrementally learned feature space.
+SNoW has already been used successfully on several tasks in natural language processing (Roth, 1998; Roth and Zelenko, 1998; Golding and Roth, 1999; Punyakanok and Roth, 2001).
+Specifically, for each class label SNoW learns a function a8a27a153a154a9a155a11a156a13 a91 a5a20a19a75a21a95a94 that maps a feature based representation a96 of the input instance to a number a157 a153a22a83a85a96a110a89a133a97a158a91a93a5a87a19a75a21a35a94 which can be interpreted as the probability of a26 being the class label corresponding to a96 . At prediction time, given a96a51a97a144a11, SNoW outputs a45a47a159 a74a39a160a161a83a85a96a110a89a47a25a71a37 a157 a96 a153 a16 a157 a153 a83a108a96a105a89a95a23a58a29 (1) All functions – in our case, a44a39a5 target nodes are used, one for each pos tag – reside over the same feature space, but can be thought of as autonomous functions (networks).
+That is, a given example is treated autonomously by each target subnetwork; an example labeled a128 is considered as a positive example for the function learned for a128 and as a negative example for the rest of the functions (target nodes).
+The network is sparse in that a target node need not be connected to all nodes in the input layer.
+For example, it is not connected to input nodes (features) that were never active with it in the same sentence.
+Although SNoW is used with a44a39a5 different targets, the SM utilizes by determining the confusion set dynamically.
+That is, in evaluation (prediction), the maximum in Eq.
+1 is taken only over the currently applicable confusion set.
+Moreover, in training, a given example is used to train only target networks that are in the currently applicable confusion set.
+That is, an example that is positive for target a128, is viewed as positive for this target (if it is in the confusion set), and as negative for the other targets in the confusion set.
+All other targets do not see this example.
+The case of POS tagging of known words is handled in a similar way.
+In this case, all possible tags are known.
+In training, we record, for each word a127 a50, all pos tags with which it was tagged in the training corpus.
+During evaluation, whenever word a127 a50 occurs, it is tagged with one of these pos tags.
+That is, in evaluation, the confusion set consists only of those tags observed with the target word in training, and the maximum in Eq.
+1 is taken only over these.
+This is always the case when using a8a27a141 (or a8a84a142 a141 ), both in the SM and as a single classifier.
+In training, though, for the sake of this experiment, we treat a8 a141 (a8a84a142 a141 ) differently depending on whether it is trained for the SM or as a single classifier.
+When trained as a single classifier (e.g., (Roth and Zelenko, 1998)), a8a27a141 uses each a128 -tagged example as a positive example for a128 and a negative example for all other tags.
+On the other hand, the SM classifier is trained on a a128 -tagged example of word a127, by using it as a positive example for a128 and a negative example only for the effective confusion set.
+That is, those pos tags which have been observed as tags of a127 in the training corpus.
+4.2 Experimental
+Results The data for the experiments was extracted from the Penn Treebank WSJ and Brown corpora.
+The training corpus consists of a4a87a19a70a140a53a5a39a5a20a19a80a5a39a5a7a5 words.
+The test corpus consists of a4a6a162a7a5a87a19a80a5a7a5a39a5 words of which a44a149a19a82a140a84a21a75a4 are unknown words (that is, they do not occur in the training corpus.
+(Numbers (the pos “CD”), are not included among the unknown words).
+POS Tagging of Unknown Words a8a27a141 a8a27a141 + baseline baseline a162a87a29a164a163 a163a155a21a6a29a164a162 a163a7a5a87a29a164a162 Table 1: POS tagging of unknown words using contextual features (accuracy in percent).
+a8a18a141 is a classifier that uses only contextual features, a8a27a141 + baseline is the same classifier with the addition of the baseline feature (“NNP” or “NN”).
+Table 1 summarizes the results of the experiments with a single classifier that uses only contextual features.
+Notice that adding the baseline POS significantly improves the results but not much is gained over the baseline.
+The reason is that the baseline feature is almost perfect (a147 a140a155a29a93a140a53a165 ) in the training data.
+For that reason, in the next experiments we do not use the baseline at all, since it could hide the phenomenon addressed.
+(In practice, one might want to use a more sophisticated baseline, as in (Dermatas and Kokkinakis, 1995).) a8a27a141 a8a69a142 a141 SM(a8a58a28a30a19a95a8 a38 a19a80a8a18a141 ) SM(a8a7a28a22a19a80a8 a38 a19a95a8a84a142 a141 ) a162a20a29a164a163 a44a6a163a20a29a31a21 a163a7a44a87a29a164a166 a166a39a137a87a29a164a5 Table 2: POS tagging of unknown words using contextual and lexical Features (accuracy in percent).
+a8a27a141 is based only on contextual features, a8a84a142 a141 is based on contextual and lexical features.
+SM(a8 a50 a19a95a8a35a167 ) denotes that a8 a167 follows a8 a50 in the sequential model.
+Table 2 summarizes the results of the main experiment in this part.
+It exhibits the advantage of using the SM (columns 3,4) over a single classifier that makes use of the same features set (column 2).
+In both cases, all features are used.
+In a8a69a142 a141, a classifier is trained on input that consists of all these features and chooses a label from among all class labels.
+In a45a47a46 a83a107a8 a28 a19a95a8 a38 a19a95a8 a141 a89 the same features are used as input, but different classifiers are used sequentially – using only part of the feature space and restricting the set of possible outcomes available to the next classifier in the sequence – a8 a50 chooses only from among those left as candidates.
+It is interesting to note that further improvement can be achieved, as shown in the right most column.
+Given that the last stage in a45a47a46 a83a107a8a58a28a30a19a95a8 a38 a19a80a8a69a142 a141 a89 is identical to the single classifier a8a84a142 a141, this shows the contribution of the filtering done in the first two stages using a8 a28 and a8 a38 . In addition, this result shows that the input spaces of the classifiers need not be disjoint.
+POS Tagging of Known Words Essentially everyone who is learning a POS tagger for known words makes use of a “sequential model” assumption during evaluation – by restricting the set of candidates, as discussed in Sec 4.1).
+The focus of this experiment is thus to investigate the advantage of the SM during training.
+In this case, a single (one-vs-all) classifier trains each tag against all other tags, while a SM classifier trains it only against the effective confusion set (Sec 4.1).
+Table 3 compares the performance of the a8 a141 classifier trained using in a one-vs-all method to the same classifier trained the SM way.
+The results are only for known words and the results of Brill’s tagger (Brill, 1995) are presented for comparison.
+one-vs-all SMa124a32a168a82a169 a50 a24 Brill a147 a163a87a29a164a162a39a162 a147 a163a87a29a164a162a39a163 a147 a163a20a29a93a140 a147 Table 3: POS Tagging of known words using contextual features (accuracy in percent).
+one-vs-all denotes training where example a96 serves as positive example to the true tag and as negative example to all the other tags.
+SMa124a32a168a82a169 a50 a24 denotes training where example a96 serves as positive example to the true tag and as a negative example only to a restricted set of tags in based on a previous classifier – here, a simple baseline restriction.
+While, in principle, (see Sec 5) the SM should do better (an never worse) than the one-vs-all classifier, we believe that in this case SM does not have any performance advantages since the classifiers work in a very high dimensional feature space which allows the one-vs-all classifier to find a separating hyperplane that separates the positive examples many different kinds of negative examples (even irrelevant ones).
+However, the key advantage of the SM in this case is the significant decrease in computation time, both in training and evaluation.
+Table 4 shows that in the pos tagging task, training using the SM is 6 times faster than with a one-vs-all method and 3000 faster than Brill’s learner.
+In addition, the evaluation time of our tagger was about twice faster than that of Brill’s tagger.
+one-vs-all SMa124a31a168a70a169 a50 a24 Brill Train a21a30a162a58a166a7a166a149a29a164a137 a137a155a21a22a137a87a29a170a44 a117a48a21a22a5a6a150 Test a4a87a29a90a137a49a171a49a21a30a5 a100 a141 a140a84a29a164a137a61a171a49a21a30a5 a100 a141 Table 4: Processing time for POS tagging of known words using contextual features (In CPU seconds).
+Train: training time over a21a22a5 a43 sentences.
+Brill’s learner was interrupted after 12 days of training (default threshold was used).
+Test: average number of seconds to evaluate a single sentence.
+All runs were done on the same machine.
+5 The
+Sequential model: Theoretical Justification In this section, we discuss some of the theoretical aspects of the SM and explain some of its advantages.
+In particular, we discuss the following issues: 1.
+Domain Decomposition: When the input feature space can be decomposed, we show that it is advantageous to do it and learn several classifiers, each on a smaller domain.
+2. Range Decomposition: Reducing confusion set size is advantageous both in training and testing the classifiers.
+(a) Test: Smaller confusion set is shown to yield a smaller expected error.
+(b) Training: Under the assumptions that a small confusion set (determined dynamically by previous classifiers in the sequence) is used when a classifier is evaluated, it is shown that training the classifiers this way is advantageous.
+3. Expressivity: SM can be viewed as a way to generate an expressive classifier by building on a number of simpler ones.
+We argue that the SM way of generating an expressive classifier has advantages over other ways of doing it, such as decision tree.
+(Sec 5.3).
+In addition, SM has several significant computational advantages both in training and in test, since it only needs to consider a subset of the set of candidate class labels.
+We will not discuss these issues in detail here.
+5.1 Decomposing
+the Domain Decomposing the domain is not an essential part of the SM; it is possible that all the classifiers used actually use the same domain.
+As we shown below, though, when a decomposition is possible, it is advantageous to use it.
+It is shown in Eq.
+2-7 that when it is possible to decompose the domain to subsets that are conditionally independent given the class label, the SM with classifiers defined on these subsets is as accurate as the optimal single classifier.
+(In fact, this is shown for a pure product of simpler classifiers; the SM uses a selective product.) In the following we assume that a11 a28 a19a22a29a30a29a22a29a30a19a82a11a115a65 provide a decomposition of the domain a11 (Sec.
+3) and that a83a85a96 a28 a19a22a29a22a29a30a29a22a19a70a96 a65 a89a172a97a76a83a85a11 a28 a19a30a29a22a29a22a29a30a19a70a11 a65 a89 . By conditional independence we mean that a67a69a68 a19a107a173a174a102a138a83a85a96a69a50a136a19a22a29a32a29a31a29a31a19a70a96 a167 a104 a26a22a89a47a25 a167 a175 a176 a66a177a50 a102a138a83a85a96 a176 a104 a26a75a89a35a19 where a96 a176 is the input for the a178 th classifier.
+a179a18a180a33a181a118a182a125a179a18a183 a153a70a184 a88 a102a185a83a103a26a58a104 a96a105a89a47a25 a179a18a180a33a181a118a182a125a179a18a183 a153a70a184 a88 a102a185a83a108a26a53a104 a96 a28 a19a22a29a32a29a31a29a32a19a82a96 a65 a89 (2) a25 a179a6a180a82a181a133a182a125a179a27a183 a153a70a184 a88 a102a185a83a108a96 a28 a19a22a29a32a29a31a29a32a19a82a96a69a65a186a104 a26a75a89a188a187a82a102a185a83a103a26a22a89 a102a185a83a85a96 a28 a19a30a29a31a29a32a29a31a19a82a96 a65 a89 (3) a25 a179a6a180a82a181a133a182a125a179a27a183 a153a70a184 a88 a102a185a83a108a96 a28 a19a22a29a32a29a31a29a32a19a82a96 a65 a104 a26a75a89a188a187a82a102a185a83a103a26a22a89 (4) a25 a179a6a180a82a181a133a182a125a179a27a183 a153a70a184 a88 a102a185a83a108a96 a28 a104 a26a22a89a105a187a30a187a22a187a108a102a185a83a108a96 a65 a104 a26a75a89a188a187a82a102a138a83a108a26a75a89 (5) a25 a179a6a180a82a181a133a182a125a179a27a183 a153a70a184 a88 a102a185a83a103a26a58a104 a96 a28 a89a108a102a185a83a108a96 a28 a89 a102a138a83a108a26a75a89 a187a22a187a30a187 a102a185a83a103a26a58a104 a96a69a65a49a89a85a102a138a83a85a96a177a65a61a89 a102a185a83a103a26a22a89 a187a33a102a185a83a108a26a75a89 (6) a25 a179a6a180a82a181a133a182a125a179a27a183 a153a70a184 a88 a102a185a83a103a26a58a104 a96 a28 a89a105a187a22a187a30a187a103a102a185a83a103a26a58a104 a96 a65 a89a54a187 a21 a102a138a83a108a26a75a89 a65 a100 a28 (7) a102a185a83a108a96 a28 a19a22a29a32a29a31a29a32a19a82a96 a65 a89 in Eq.
+3 is identical a67 a26a122a97a51a14 and therefore can be treated as a constant.
+Eq. 5 is derived by applying the independence assumption.
+Eq. 6 is derived by using the Bayes rule for each term a102a185a83a103a26a58a104 a96 a50 a89 separately.
+We note that although the conditional independence assumption is a strong one, it is a reasonable assumption in many NLP applications; in particular, when cross modality information is used, this assumption typically holds for decomposition that is done across modalities.
+For example, in POS tagging, lexical information is often conditionally independent of contextual information, given the true POS.
+(E.g., assume that word is a gerund; then the context is independent of the “ing” word ending.) In addition, decomposing the domain has significant advantages from the learning theory point of view (Roth, 1999).
+Learning over domains of lower dimensionality implies better generalization bounds or, equivalently, more accurate classifiers for a fixed size training set.
+5.2 Decomposing
+the range The SM attempts to reduce the size of the candidates set.
+We justify this by considering two cases: (i) Test: we will argue that prediction among a smaller set of classes has advantages over predicting among a large set of classes; (ii) Training: we will argue that it is advantageous to ignore irrelevant examples.
+5.2.1 Decomposing
+the range during Test The following discussion formalizes the intuition that a smaller confusion set in preferred.
+Let a8a161a9 a11a189a13a77a14 be the true target function and a102a185a83a103a26 a167 a104 a96a110a89 the probability assigned by the final classifier to class a26a82a167a190a97a10a14 given example a96a191a97a112a11 . Assuming that the prediction is done, naturally, by choosing the most likely class label, we see that the expected error when using a confusion set of size a178 is: a192a41a193a18a193 a74 a193 a176 a25 a192a195a194 a91a196a83 a157 a193a18a197 a37 a157 a96 a28a33a198 a167 a198 a176 a102a138a83a108a26 a167 a104 a96a110a89a82a89a61a199a25a200a8a188a83a108a96a105a89a52a94 a25a158a102a138a83a82a83 a157 a193a18a197 a37 a157 a96 a28a33a198 a167 a198 a176 a102a138a83a108a26 a167 a104 a96a110a89a82a89a61a199a25a200a8a188a83a108a96a105a89a33a89 (8) Now we have: Claim 1 Let a201a202a25a42a16a75a26a18a28a22a19a22a29a32a29a31a29a31a19a82a26 a176 a23a53a19a80a201a203a142a177a25a42a16a75a26a18a28a22a19a22a29a32a29a31a29a32a19a33a26 a176 a129 a168 a23 be two sets of class labels and assume a8a54a83a85a96a110a89a116a97a48a201 for example a96 . Then a192a36a193a6a193 a74 a193 a176a154a204 a192a41a193a18a193 a74 a193 a176a95a205 . Proof.
+Denote: a102a84a206a53a83 a157 a19a80a207a18a19a80a8a110a89a54a25a158a102a138a83a82a83 a157 a193a18a197 a37 a157 a96 a169a22a198 a167 a198a69a208 a102a138a83a108a26 a167 a104 a96a105a89a33a89a61a199a25a200a8a188a83a108a96a105a89a33a89 Then, a192a36a193a6a193 a74 a193a75a209 a205 a25 a25 a192a195a194 a91a32a83 a157 a193a27a197 a37 a157 a96 a28a33a198 a167 a198 a176 a129 a168 a102a185a83a103a26 a167 a104 a96a110a89a82a89a61a199a25a210a8a54a83a85a96a110a89a123a94 a25a211a102a84a206a53a83a33a21a39a19a80a178a36a212 a193 a19a80a8a110a89 a25a211a102a84a206a53a83a33a21a39a19a80a178a105a19a80a8a110a89a32a212a213a83a33a21a70a40a203a102a84a206a53a83a33a21a6a19a95a178a177a19a95a8a105a89a33a89a108a102a84a206a53a83a107a178a49a212a114a21a39a19a80a178a36a212 a193 a19a80a8a110a89 a25 a192a41a193a18a193 a74 a193 a209 a212a114a83a33a21a136a40 a192a41a193a18a193 a74 a193 a209 a89a108a102a84a206a53a83a107a178a36a212a114a21a39a19a80a178a41a212 a193 a19a80a8a110a89 a214 a192a41a193a18a193 a74 a193 a209 Claim 1 shows that reducing the size of the confusion set can only help; this holds under the assumption that the true class label is not eliminated from consideration by down stream classifiers, that is, under the one-sided error assumption.
+Moreover, it is easy to see that the proof of Claim 1 allows us to relax the one sided error assumption and assume instead that the previous classifiers err with a probability which is smaller than: a83a82a21a139a40 a192a36a193a6a193 a74 a193 a209 a89a54a187a82a102a84a206a53a83a123a178a36a212a114a21a39a19a80a178a36a212 a193 a19a80a8a54a83a85a96a110a89a82a89a106a29 5.2.2 Decomposing the range during training We will assume now, as suggested by the previous discussion, that in the evaluation stage the smallest possible set of candidates will be considered by each classifier.
+Based on this assumption, Claim 2 shows that training this way is advantageous.
+That is, that utilizing the SM in training yields a better classifier.
+Let a215 be a learning algorithm that is trained to minimize: a216 a194 a184a27a217a219a218 a83a108a220a12a187a75a221a185a83a108a96a105a89a33a89a85a102a138a83a85a96a110a89a136a222a58a96a188a19 where a96 is an example, a220a114a97a223a16a7a40a145a21a6a19a95a212a109a21a27a23 is the true class, a221 is the hypothesis, a218 is a loss function and a102a185a83a108a96a105a89 is the probability of seeing example a96 when a96a115a224 a101 (see (Allwein et al., 2000)).
+(Notice that in this section we are using general loss function a218 ; we could use, in particular, binary loss function used in Sec 5.2).
+We phrase and prove the next claim, w.l.o.g, the case of a4 vs.
+a137 class labels.
+Claim 2 Let a14a48a25a48a16a75a26a18a28a22a19a82a26 a38 a19a33a26a106a141a27a23 be the set of class labels, let a45 a50 be the set of examples for class a68 . Assume a sequential model in which class a26a27a28 does not compete with class a26 a141 . That is, whenever a96a225a97 a45 a28 the SM filters out a26a30a141 such that the final classifier (a8 a65 ) considers only a26a27a28 and a26 a38 . Then, the error of the hypothesis produced by algorithm a215 (for a8 a65 ) when trained on examples in a16 a45 a28a22a19 a45 a38 a23 is no larger than the error produced by the hypothesis it produces when trained on examples in a16 a45 a28 a19 a45 a38 a19 a45 a141 a23 . Proof.
+Assume that the algorithm a215, when trained on a sample a45, produces a hypothesis that minimizes the empirical error over a45 . Denote a96a219a224 a101 a88 when a96 is sampled according to a distribution that supports only examples with label in a14 . Let a45 be a sample set of size a37, according to a101 a28a33a226 a38, and a221a20a142 the hypothesis produced by a215 . Then, for all a221a219a199a25a210a221 a142, a21 a37a228a227 a194 a184a6a229 a218 a83a108a220a155a221 a142 a83a85a96a110a89a82a89 a204 a21 a37a112a227 a194 a184a6a229 a218 a83a108a220a20a221a185a83a108a96a105a89a33a89 (9) In the limit, as a37a230a13a113a231 a216 a194a75a232a105a233 a79a123a234 a81 a218 a83a85a220a155a221 a142 a83a108a96a105a89a33a89a85a102a185a83a108a96a105a89a70a222a58a96 a204 a216 a194a75a232a105a233 a79a123a234 a81 a218 a83a108a220a20a221a185a83a108a96a105a89a33a89a85a102a138a83a85a96a110a89a136a222a58a96a188a29 In particular this holds if a221 is a hypothesis produced by a215 when trained on a45 a142, that is sampled according to a96a235a224 a101 a28a82a226 a38 a226 a141 . 5.3 Expressivity The SM is a decision process that is conceptually similar to a decision tree processes (Rasoul and Landgrebe, 1991; Mitchell, 1997), especially if one allows more general classifiers in the decision tree nodes.
+In this section we show that (i) the SM can express any DT.
+(ii) the SM is more compact than a decision tree even when the DT makes used of more expressive internal nodes (Murthy et al., 1994).
+The next theorem shows that for a fixed set of functions (queries) over the input features, any binary decision tree can be represented as a SM.
+Extending the proof beyond binary decision trees is straight-forward.
+Theorem 3 Let a236 be a binary decision tree with a159 internal nodes.
+Then, there exist a sequential model a45 such that a45 and a236 have the same size, and they produce the same predictions.
+Proof (Sketch): Given a decision tree a236 on a159 nodes we show how to construct a SM that produces equivalent predictions.
+1. Generate a confusion set a14 the consists of a159 classes, each representing an internal node in a236 . 2.
+For each internal node in a222a116a97a51a236, assign a classifier: a8 a50 a9a39a11a238a237a51a14a200a13a92a91a93a5a20a19a22a21a35a94 a34 a100 a28 a129a110a239 . 3.
+Order the classifiers a8a7a28a75a19a30a29a31a29a31a29a164a8 a65 such that a classifier that is assigned to node a222 is processed before any classifier that was assigned to any of the children of a222 . 4.
+Define each classifier a8 a50 that was assigned to node a222a17a97 a236 to have an influence on the outcome iff node a222a240a97 a236 lies in the path (a207a95a151a39a19a33a207a75a28a22a19a22a29a31a29a32a29a31a19a33a207 a176 a100 a28 ) from the root to the predicted class.
+5. Show that using steps 1-4, the predicted target of a236 and a45 are identical.
+This completes that proof and shows that the resulting SM is of equivalent size to the original decision tree.
+We note that given a SM, it is also relatively easy (details omitted) to construct a decision tree that produces the same decisions as the final classifier of the SM.
+However, the simple construction results in a decision tree that is exponentially larger than the original SM.
+Theorem 4 shows that this difference in expressivity is inherent.
+Theorem 4 Let a159 be the number of classifiers in a sequential model a45 and the number of internal nodes a in decision tree a236 . Let a37 be the set of classes in the output of a45 and also the maximum degree of the internal nodes in a236 . Denote by a241 a83a108a236a61a89a106a19 a241 a83 a45 a89 the number of functions representable by a236a146a19 a45 respectively.
+Then, when a37a242a117a41a117 a159, a241 a83 a45 a89 is exponentially larger than a241 a83a108a236a61a89 . Proof (Sketch): The proof follows by counting the number of functions that can be represented using a decision tree with a159 internal nodes(Wilf, 1994), and the number of functions that can be represented using a sequential model on a159 intermediate classifier.
+Given the exponential gap, it follows that one may need exponentially large decision trees to represent an equivalent predictor to an a159 size SM.
+6 Conclusion
+A wide range and a large number of classification tasks will have to be used in order to perform any high level natural language inference such as speech recognition, machine translation or question answering.
+Although in each instantiation the real conflict could be only to choose among a small set of candidates, the original set of candidates could be very large; deriving the small set of candidates that are relevant to the task at hand may not be immediate.
+This paper addressed this problem by developing a general paradigm for multi-class classification that sequentially restricts the set of candidate classes to a small set, in a way that is driven by the data observed.
+We have described the method and provided some justifications for its advantages, especially in NLP-like domains.
+Preliminary experiments also show promise.
+Several issues are still missing from this work.
+In our experimental study the decomposition of the feature space was done manually; it would be nice to develop methods to do this automatically.
+Better understanding of methods for thresholding the probability distributions that the classifiers output, as well as principled ways to order them are also among the future directions of this research.
+References L.
+E. Allwein, R.
+E. Schapire, and Y.
+Singer. 2000.
+Reducing multiclass to binary: a unifying approach for margin classifiers.
+In Proceedings of the 17th International Workshop on Machine Learning, pages 9–16.
+E. Brill.
+1995. Transformation-based error-driven learning and natural language processing: A case study in part of speech tagging.
+Computational Linguistics, 21(4):543–565.
+E. Charniak.
+1993. Statistical Language Learning.
+MIT Press.
+I. Dagan, L.
+Lee, and F.
+Pereira. 1999.
+Similarity-based models of word cooccurrence probabilities.
+Machine Learning, 34(1-3):43–69.
+E. Dermatas and G.
+Kokkinakis. 1995.
+Automatic stochastic tagging of natural language texts.
+Computational Linguistics, 21(2):137–164.
+T. G.
+Dietterich and G.
+Bakiri. 1995.
+Solving multi-class learning problems via error-correcting output codes.
+Journal of Artificial Intelligence Research, 2:263–286.
+Y. Even-Zohar and D.
+Roth. 2000.
+A classification approach to word prediction.
+In NAALP 2000, pages 124–131.
+W. A.
+Gale, K.
+W. Church, and D.
+Yarowsky. 1993.
+A method for disambiguating word senses in a large corpus.
+Computers and the Humanities, 26:415–439.
+A. R.
+Golding and D.
+Roth. 1999.
+A Winnow based approach to context-sensitive spelling correction.
+Machine Learning, 34(1-3):107–130.
+Special Issue on Machine Learning and Natural Language.
+A. R.
+Golding. 1995.
+A Bayesian hybrid method for context-sensitive spelling correction.
+In Proceedings of the 3rd workshop on very large corpora, ACL-95.
+T. Hastie and R.
+Tibshirani. 1998.
+Classification by pairwise coupling.
+In Michael I.
+Jordan, Michael J.
+Kearns, and Sara A.
+Solla, editors, Advances in Neural Information Processing Systems, volume 10.
+The MIT Press.
+G. Hinton.
+2000. Training products of experts by minimizing contrastive divergence.
+Technical Report GCNU TR 2000-004, University College London.
+T. Kudoh and Y.
+Matsumoto. 2000.
+Use of support vector machines for chunk identification.
+In CoNLL, pages 142–147, Lisbon, Protugal.
+L. Lee and F.
+Pereira. 1999.
+Distributional similarity models: Clustering vs.
+nearest neighbors.
+In ACL 99, pages 33–40.
+L. Lee.
+1999. Measure of distributional similarity.
+In ACL 99, pages 25–32.
+V.I. Levenshtein.
+1966. Binary codes capable of correcting deletions, insertions and reversals.
+In Sov.
+Phys-Dokl, volume 10, pages 707–710.
+S.E. Levinson, A.
+Ljolje, and L.G.
+Miller. 1990.
+Continuous speech recognition from phonetic transcription.
+In Speech and Natural Language Workshop, pages 190–199.
+L. Mangu and E.
+Brill. 1997.
+Automatic rule acquisition for spelling correction.
+In Proc.
+of the International Conference on Machine Learning, pages 734–741.
+A. Mikheev.
+1997. Automatic rule induction for unknown word guessing.
+In Computational Linguistic, volume 23(3), pages 405–423.
+T. M.
+Mitchell. 1997.
+Machine Learning.
+Mcgraw-Hill. S.
+Murthy, S.
+Kasif, and S.
+Salzberg. 1994.
+A system for induction of oblique decision trees.
+Journal of Artificial Intelligence Research, 2:1:1–33.
+V. Punyakanok and D.
+Roth. 2001.
+The use of classifiers in sequential inference.
+In NIPS-13; The 2000 Conference on Advances in Neural Information Processing Systems.
+S. S.
+Rasoul and D.
+A. Landgrebe.
+1991. A survey of decision tree classifier methodology.
+IEEE Transactions on Systems, Man, and Cybernetics, 21 (3):660–674.
+D. Roth and D.
+Zelenko. 1998.
+Part of speech tagging using a network of linear separators.
+In COLING-ACL 98, The 17th International Conference on Computational Linguistics, pages 1136–1142.
+D. Roth.
+1998. Learning to resolve natural language ambiguities: A unified approach.
+In Proc.
+National Conference on Artificial Intelligence, pages 806–813.
+D. Roth.
+1999. Learning in natural language.
+In Proc.
+Int’l Joint Conference on Artificial Intelligence, pages 898–904.
+L-W. Teow and K-F.
+Loe. 2000.
+Handwritten digit recognition with a novel vision model that extracts linearly separable features.
+In CVPR’00, The IEEE Conference on Computer Vision and Pattern Recognition, pages 76–81.
+H. S.
+Wilf. 1994.
+generatingfunctionology. Academic Press Inc., Boston, MA, second edition.
+D. Yarowsky.
+1994. Decision lists for lexical ambiguity resolution: application to accent restoration in Spanish and French.
+In Proc.
+of the Annual Meeting of the ACL, pages 88–95.
+J. Zavrel, W.
+Daelemans, and J.
+Veenstra. 1997.
+Resolving pp attachment ambiguities with memory based learning.
+In Computational Natural Language Learning, Madrid, Spain, July.
+J. M.
+Zelle and R.
+J. Mooney.
+1996. Learning to parse database queries using inductive logic programming.
+In Proc.
+National Conference on Artificial Intelligence, pages 1050–1055 .
+

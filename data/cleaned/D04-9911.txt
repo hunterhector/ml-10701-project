@@ -1,0 +1,220 @@
+1:220	Automatic Paragraph Identification: A Study across Languages and Domains Caroline Sporleder School of Informatics University of Edinburgh 2 Buccleuch Place Edinburgh EH8 9LW, UK csporled@inf.ed.ac.uk Mirella Lapata Department of Computer Science University of Sheffield Regent Court, 211 Portobello Street Sheffield S1 4DP, UK mlap@dcs.shef.ac.uk Abstract In this paper we investigate whether paragraphs can be identified automatically in different languages and domains.
+2:220	We propose a machine learning approach which exploits textual and discourse cues and we assess how well humans perform on this task.
+3:220	Our best models achieve an accuracy that is significantly higher than the best baseline and, for most data sets, comes to within 6% of human performance.
+4:220	1 Introduction Written texts are usually broken up into sentences and paragraphs.
+5:220	Sentence splitting is a necessary pre-processing step for a number of Natural Language Processing (NLP) tasks including part-ofspeech tagging and parsing.
+6:220	Since sentence-final punctuation can be ambiguous (e.g. , a period can also be used in an abbreviation as well as to mark the end of a sentence), the task is not trivial and has consequently attracted a lot of attention (e.g. , Reynar and Ratnaparkhi (1997)).
+7:220	In contrast, there has been virtually no previous research on inferring paragraph boundaries automatically.
+8:220	One reason for this is that paragraph boundaries are usually marked unambiguously by a new line and extra white space.
+9:220	However, a number of applications could benefit from a paragraph detection mechanism.
+10:220	Textto-text generation applications such as singleand multidocument summarisation as well as text simplification usually take naturally occurring texts as input and transform them into new texts satisfying specific constraints (e.g. , length, style, language).
+11:220	The output texts do not always preserve the structure and editing conventions of the original text.
+12:220	In summarisation, for example, sentences are typically extracted verbatim and concatenated to form a summary.
+13:220	Insertion of paragraph breaks could improve the readability of the summaries by indicating topic shifts and providing visual targets to the reader (Stark, 1988).
+14:220	Machine translation is another application for which automatic paragraph detection is relevant.
+15:220	Current systems deal with paragraph boundary insertion in the target language simply by preserving the boundaries from the source language.
+16:220	However, there is evidence for cross-linguistic variation in paragraph formation and placement, particularly for languages that are not closely related such as English and Chinese (Zhu, 1999).
+17:220	So, a paragraph insertion mechanism that is specific to the target language, instead of one that relies solely on the source language, may yield more readable texts.
+18:220	Paragraph boundary detection is also relevant for speech-to-text applications.
+19:220	The output of automatic speech recognition systems is usually raw text without any punctuation or paragraph breaks.
+20:220	This naturally makes the text very hard to read, which can cause processing difficulties, especially if speech recognition is used to provide deaf students with real-time transcripts of lectures.
+21:220	Furthermore, sometimes the output of a speech recogniser needs to be processed automatically by applications such as information extraction or summarisation.
+22:220	Most of these applications (e.g. , Christensen et al. , (2004)) port techniques developed for written texts to spoken texts and therefore require input that is punctuated and broken into paragraphs.
+23:220	While there has been some research on finding sentence boundaries in spoken text (Stevenson and Gaizauskas, 2000), there has been little research on determining paragraph boundaries.1 If paragraph boundaries were mainly an aesthetic device for visually breaking up long texts into smaller chunks, as has previously been suggested (see Longacre (1979)), paragraph boundaries could be easily inserted by splitting a text into several equal-size segments.
+24:220	Psycho-linguistic research, however, indicates that paragraph boundaries are not purely aesthetic.
+25:220	For example, Stark (1988) 1There has been research on using phonetic cues to segment speech into acoustic paragraphs (Hauptmann and Smith, 1995).
+26:220	However, these do not necessarily correspond to written paragraphs.
+27:220	But even if they did, textual cues could complement phonetic information to identify paragraphs.
+28:220	asked her subjects to reinstate paragraph boundaries into fiction texts from which all boundaries had been removed and found that humans are able to do so with an accuracy that is higher than would be expected by chance.
+29:220	Crucially, she also found that (a) individual subjects did not make all their paragraphs the same length and (b) paragraphs in the original text whose length deviated significantly from the average paragraph length were still identified correctly by a large proportion of subjects.
+30:220	These results show that people are often able to identify paragraphs correctly even if they are exceptionally short or long without defaulting to a simple template of average paragraph length.
+31:220	Human agreement on the task suggests that the text itself provides cues for paragraph insertion, even though there is some disagreement over which specific cues are used by humans (see Stark (1988)).
+32:220	Possible cues include repeated content words, pronoun coreference, paragraph length, and local semantic connectedness.
+33:220	In this paper, we investigate whether it is possible to exploit some of these textual cues together with syntactic and discourse related information to determine paragraph boundaries automatically.
+34:220	We treat paragraph boundary identification as a classification task and examine whether the difficulty of the task and the utility of individual textual cues varies across languages and across domains.
+35:220	We also assess human performance on the same task and whether it differs across domains.
+36:220	2 Related Work Previous work has focused extensively on the task of automatic text segmentation whose primary goal is to divide individual texts into sub-topics.
+37:220	Despite their differences, most methods are unsupervised and typically rely on the distribution of words in a given text to provide cues for topic segmentation.2 Hearsts (1997) TextTiling algorithm, for example, determines sub-topic boundaries on the basis of term overlap in adjacent text blocks.
+38:220	In more recent work, Utiyama and Isahara (2001) combine a statistical segmentation model with a graph search algorithm to find the segmentation with the maximum probability.
+39:220	Beeferman et al.40:220	(1999) use supervised learning methods to infer boundaries between texts.
+41:220	They employ language models to detect topic shifts and combine them with cue word features.
+42:220	2Due to lack of space we do not describe previous work in text segmentation here in detail; we refer the reader to Utiyama and Isahara (2001) and Pevzener and Hearst (2002) for a comprehensive overview.
+43:220	Our work differs from these previous approaches in that paragraphs do not always correspond to subtopics.
+44:220	While topic shifts often correspond to paragraph breaks, not all paragraph breaks indicate a topic change.
+45:220	Breaks between paragraphs are often inserted for other (not very well understood) reasons (see Stark (1988)).
+46:220	Therefore, the segment granularity is more fine-grained for paragraphs than for topics.
+47:220	An important advantage for methods developed for paragraph detection (as opposed to those developed for text-segmentation) is that training data is readily available, since paragraph boundaries are usually unambiguously marked in texts.
+48:220	Hence, supervised methods are cheap for this task.
+49:220	3 Our Approach 3.1 Corpora Our study focused on three languages: English, German, and Greek.
+50:220	These languages differ in terms of word order (fixed in English, semi-free in German, fairly flexible in Greek).
+51:220	Greek and German also have richer morphology than English.
+52:220	Additionally, Greek has a non-Latin writing system.
+53:220	For each language we created corpora representative of three domains: fiction, news, and parliamentary proceedings.
+54:220	Previous work on the role of paragraph markings (Stark, 1988) has focused exclusively on fiction texts, and has shown that humans can identify paragraph boundaries in this domain reliably.
+55:220	It therefore seemed natural to test our automatic method on a domain for which the task has been shown to be feasible.
+56:220	We selected news texts since most summarisation methods today focus on this domain and we can therefore explore the relevance of our approach for this application.
+57:220	Finally, parliamentary proceedings are transcripts of speech, and we can examine whether a method that relies solely on textual cues is also useful for spoken texts.
+58:220	For English, we used the whole Hansard section of the BNC, as our corpus of parliamentary proceedings.
+59:220	We then created a fiction corpus of similar size by randomly selecting prose files from the fiction part of the BNC.
+60:220	In the same way a news corpus was created from the Penn Treebank.
+61:220	For German, we used the prose part of Project Gutenbergs e-book collection3 as our fiction corpus and the complete Frankfurter Rundschau part of the ECI corpus4 as our news corpus.
+62:220	The corpus of parliamentary proceedings was obtained by randomly 3http://www.gutenberg.net/ For copyright reasons, this web site mainly contains books published before 1923.
+63:220	4http://www.elsnet.org/eci.html fiction news parliament English 1,140,000 1,156,000 1,156,000 German 2,500,000 4,100,000 3,400,000 Greek 563,000 1,500,000 1,500,000 Table 1: Number of words per corpus selecting a subset of the German section from the Europarl corpus (Koehn, 2002).
+64:220	For Greek, a fiction corpus was compiled from the ECI corpus by selecting all prose files that contained paragraph markings.
+65:220	Our news corpus was downloaded from the WWW site of the Modern Greek newspaper Eleftherotypia and consists of financial news from the period of 20012002.
+66:220	A corpus of parliamentary proceedings was again created by randomly selecting a subset of the Greek section of the Europarl corpus (Koehn, 2002).
+67:220	Parts of the data were further pre-processed to insert sentence boundaries.
+68:220	We trained a publicly available sentence splitter (Reynar and Ratnaparkhi, 1997) on a small manually annotated sample (1,000 sentences per domain per language) and applied it to our corpora.
+69:220	Table 1 shows the corpus sizes.
+70:220	All corpora were split into training (72%), development (24%) and test set (4%).
+71:220	3.2 Machine Learning We used BoosTexter (Schapire and Singer, 2000) as our machine learning system.
+72:220	BoosTexter was originally developed for text categorisation and combines a boosting algorithm with simple decision rules.
+73:220	For all domains and languages our training examples were sentences.
+74:220	Class labels encoded for each sentence whether it was starting a paragraph or not.
+75:220	The features we used fall broadly into three different areas: non-syntactic features, language modelling features and syntactic features.
+76:220	The latter were only applied to English as we did not have suitable parsers for German and Greek.
+77:220	The values of our features are numeric, boolean or text.
+78:220	BoosTexter applies unigram models when forming classification hypotheses for features with text values.
+79:220	These can be simply words or annotations such as part-of-speech tags.
+80:220	We deliberately did not include anaphora-based features.
+81:220	While anaphors can help determine paragraph boundaries (paragraph initial sentences tend to contain few or no anaphors), anaphora structure is dependent on paragraph structure rather than the other way round.
+82:220	Hence, in applications which manipulate texts and thereby potentially mess-up the anaphora structure (e.g. , multi-document summarisation), anaphors are not a reliable cue for paragraph identification.5 3.2.1 Non-syntactic Features Distance (Ds, Dw): These features encode the distance of the current sentence from the previous paragraph break.
+83:220	We measured distance in terms of the number of intervening sentences (Ds) as well as in terms of the number of intervening words (Dw).
+84:220	If paragraph breaks were driven purely by aesthetics one would expect this feature to be among the most successful ones.6 Sentence Length (Length): This feature encodes the number of words in the current sentence.
+85:220	Average sentence length is known to vary with text position (Genzel and Charniak, 2003) and it is possible that it also varies with paragraph position.
+86:220	Relative Position (Pos): The relative position of a sentence in the text is calculated by dividing the current sentence number by the number of sentences in the text.
+87:220	The motivation for this feature is that paragraph length may vary with text position.
+88:220	For example, it is possible that paragraphs at the beginning and end of a text are shorter than paragraphs in the middle and hence a paragraph break is more likely at the two former text positions.
+89:220	Quotes (Quotep, Quotec, Quotei): These features encode whether the previous or current sentence contain a quotation (Quotep and Quotec, respectively) and whether the current sentence continues a quotation that started in a preceding sentence (Quotei).
+90:220	The presence of quotations can provide cues for speaker turns, which are often signalled by paragraph breaks.
+91:220	Final Punctuation (FinPun): This feature keeps track of the final punctuation mark of the previous sentence.
+92:220	Some punctuation marks may provide hints as to whether a break should be introduced.
+93:220	For example, in the news domain, where there is hardly any dialogue, if the previous sentence ended in a question mark, it is likely that the current sentence supplies an answer to this question, thus making a paragraph break improbable.
+94:220	Words (W1, W2, W3, Wall ): These text-valued features encode the words in the sentence.
+95:220	Wall takes the complete sentence as its value.
+96:220	W1, W2 and W3 encode the first word, the first two words and the first three words, respectively.
+97:220	5This is also true for some of the other features we use (e.g. , sentence length) but not quite to the same extent.
+98:220	6One could also use the history of class labels assigned to previous sentences as a feature (as in part-of-speech tagging); however, we leave this to future research.
+99:220	3.2.2 Language Modelling Features Our motivation for including language modelling features stems from Genzel and Charniaks (2003) work where they show that the word entropy rate is lower for paragraph initial sentences than for nonparagraph initial ones.
+100:220	We therefore decided to examine whether word entropy rate is a useful feature for the paragraph prediction task.
+101:220	Using the training set for each language and domain, we created language models with the CMU language modelling toolkit (Clarkson and Rosenfeld, 1997).
+102:220	We experimented with language models of variable length (i.e. , 15) and estimated two features: the probability of a given sentence according to the language model (LMp) and the per-word entropy rate (LMpwe).
+103:220	The latter was estimated by dividing the sentence probability as assigned by the language model by the number of sentence words (see Genzel and Charniak (2003)).
+104:220	We additionally experimented with character level n-gram models.
+105:220	Such models are defined over a relatively small vocabulary and can be easily constructed for any language without pre-processing.
+106:220	Character level n-gram models have been applied to the problem of authorship attribution and obtained state-of-the art results (Peng et al. , 2003).
+107:220	If some characters are more often attested in paragraph starting sentences (e.g. , A or T), then we expect these sentences to have a higher probability compared to non-paragraph starting ones.
+108:220	Again, we used the CMU toolkit for building the character level n-gram models.
+109:220	We experimented with models whose length varied from 2 to 8 and estimated the probability assigned to a sentence according to the character level model (CMp).
+110:220	3.2.3 Syntactic Features For the English data we also used several features encoding syntactic complexity.
+111:220	Genzel and Charniak (2003) suggested that the syntactic complexity of sentences varies with their position in a paragraph.
+112:220	Roughly speaking, paragraph initial sentences are less complex.
+113:220	Hence, complexity measures may be a good indicator of paragraph boundaries.
+114:220	To estimate complexity, we parsed the texts with Charniaks (2001) parser and implemented the following features: Parsed: This feature states whether the current sentence could be parsed.
+115:220	While this is not a real measure of syntactic complexity it is probably correlated with it.
+116:220	Number of phrases (nums, numvp, numnp, numpp): These features measure syntactic complexity in terms of the number of S, VP, NP, and PP constituents in the parse tree.
+117:220	Signature (Sign, Signp): These text-valued features encode the sequence of part-of-speech tags in the current sentence.
+118:220	Sign only encodes word tags, while Signp also includes punctuation tags.
+119:220	Children of Top-Level Nodes (Childrs1, Childrs): These text-valued features encode the top-level complexity of a parse tree: Childrs1 takes as its value the sequence of syntactic labels of the children of the S1-node (i.e. , the root of the parse tree), while Childrs encodes the syntactic labels of the children of the highest S-node(s).
+120:220	For example, Childrs1 may encode that the sentence consists of one clause and Childrs may encode that this clause consists of an NP, a VP, and a PP.
+121:220	Branching Factor (Branchs, Branchvp, Branchnp, Branchpp): These features express the average number of children of a given non-terminal constituent (cf.
+122:220	Genzel and Charniak (2003)).
+123:220	We compute the branching factor for S, VP, NP, and PP constituents.
+124:220	Tree Depth: We define tree depth as the average length of a path (from root node to leaf node).
+125:220	Cue Words (Cues, Cuem, Cuee): These features are not strictly syntactic but rather discourse-based.
+126:220	They encode discourse cues (such as because) at the start (Cues), in the middle (Cuem) and at the end (Cuee) of the sentence, where start is the first word, end the last one, and everything else is middle.
+127:220	We keep track of all cue word occurrences, without attempting to distinguish between their syntactic and discourse usages.
+128:220	For English, there are extensive lists of discourse cues (we used Knott (1996)), but such lists are not widely available for German and Greek.
+129:220	Hence, we only used this feature on the English data.
+130:220	4 Experiments BoosTexter is parametrised with respect to the number of training iterations.
+131:220	In all our experiments, this parameter was optimised on the development set; BoosTexter was initially trained for 500 iterations, and then re-trained with the number of iterations that led to the lowest error rate on the development set.
+132:220	Throughout this paper all results are reported on the unseen test set and were obtained using models optimised on the development set.
+133:220	We report the models accuracy at predicting the right label (i.e. , paragraph starting or not) for each sentence.
+134:220	English German Greek feature fiction news parl.
+135:220	fiction news parl.
+136:220	fiction news parl.
+137:220	Bd 60.16 51.73 59.50 65.44 59.03 58.26 59.00 52.85 66.48 Bm 71.04 51.44 69.38 75.75 68.24 66.17 67.57 53.99 76.25 Dists 71.07 57.74 54.02 75.80 68.25 66.23 67.69 57.94 76.30 Distw 71.02 63.08 65.64 75.80 67.70 67.20 68.31 59.76 76.30 Length 72.08 56.11 68.45 75.75 72.55 67.10 67.52 60.84 76.55 Position 71.04 49.18 38.71 75.68 68.05 66.35 67.57 56.52 76.35 Quotep 80.84 56.25 30.62 72.97 68.24 66.23 72.80 58.00 76.30 Quotec 80.64 54.95 31.00 72.35 68.24 66.17 71.03 53.99 76.25 Quotei 71.04 51.44 30.62 75.75 68.24 66.17 67.57 53.99 76.25 FinPun 72.08 54.18 71.75 73.15 76.36 69.53 73.33 59.86 76.55 W1 72.96 57.74 82.05 75.43 73.87 75.25 67.05 67.41 76.81 W2 73.47 58.51 80.62 75.80 74.77 76.74 66.37 68.22 78.48 W3 73.68 59.90 80.73 75.60 74.50 76.79 67.63 67.88 78.43 Wall 73.99 61.78 75.40 75.60 73.03 76.20 67.78 67.88 77.26 BestLMp 72.83 55.96 69.66 75.93 71.39 67.40 67.57 61.64 76.50 BestLMpwe 72.16 52.21 69.88 75.90 69.24 66.98 67.83 56.29 76.40 BestCMp 72.70 57.36 69.49 75.88 73.37 67.53 67.68 61.68 76.51 allns lcm 82.45 a0 70.77 a0 82.71 a0 76.55a1 a0 79.28 a0 79.17 a0 78.03 a0 76.31 a0 79.35 a0 Table 2: Accuracy of non-syntactic and language modelling features on test set 4.1 The Influence of Non-syntactic Features In the first set of experiments, we ran BoosTexter on all 9 corpora using non-syntactic and language modelling features.
+138:220	To evaluate the contribution of individual features to the classification task, we built one-feature classifiers in addition to a classifier that combined all features.
+139:220	Table 2 shows the test set classification accuracy of the individual features and their combination (allns lcms).
+140:220	The length of the language and character models was optimised on the development set.
+141:220	The test set accuracy of the optimised models is shown as BestLMp and BestLMpwe (language models) and BestCMp (character models).7 The results for the three best performing onefeature classifiers and the combined classifier are shown in boldface.
+142:220	BoosTexters classification accuracy was further compared against two baselines.
+143:220	A distance-based baseline (Bd) was obtained by hypothesising a paragraph break after every d sentences.
+144:220	We estimated d in the training data by counting the average number of sentences between two paragraphs.
+145:220	Our second baseline, Bm, defaults to the majority class, i.e., assumes that the text does not have paragraph breaks.
+146:220	For all languages and domains, the combined models perform better than the best baseline.
+147:220	In order to determine whether this difference is significant, we applied 2 tests.
+148:220	The diacritic a0 (a1 a0 ) in Ta7Which language and character models perform best varies slightly across corpora but no clear trends emerge.
+149:220	ble 2 indicates whether a given model is (not) significantly different from the best baseline.
+150:220	Significant results are achieved across the board with the exception of German fiction.
+151:220	We believe the reason for this lies in the corpus itself, as it is very heterogeneous, containing texts whose publication date ranges from 1766 to 1999 and which exhibit a wide variation in style and orthography.
+152:220	This makes it difficult for any given model to reliably identify paragraph boundaries in all texts.
+153:220	In general, the best performing features vary across domains but not languages.
+154:220	Word features (W1W3, Wall) yield the best classification accuracies for news and parliamentary domains, whereas for fiction, quotes and punctuation seem more useful.
+155:220	The only exception is the German fiction corpus, which consists mainly of 19th century texts.
+156:220	These contain less direct speech than the two fiction corpora for English and Greek (which contain contemporary texts).
+157:220	Furthermore, while examples of direct speech in the English corpus often involve short dialogues, where a paragraph boundary is introduced after each speaker turn, the German corpus contains virtually no dialogues and examples of direct speech are usually embedded in a longer narrative and not surrounded by paragraph breaks.
+158:220	Note that the distance in words from the previous paragraph boundary (Distw) is a good indicator for a paragraph break in the English news domain.
+159:220	However, this feature is less useful for the other two languages.
+160:220	An explanation might be that the English news corpus is very homogeneous (i.e. , it contains articles that not only have similar content but are also structurally alike).
+161:220	The Greek news corpus is relatively homogeneous; it mainly contains financial news articles but also some interviews, so there is greater variation in paragraph length, which means that the distance feature is overtaken by the word-based features.
+162:220	Finally, the German news corpus is highly heterogeneous, containing not only news stories but also weather forecasts, sports results and cinema listings.
+163:220	This leads to a large variation in paragraph length, which in turn means that the distance feature performs worse than the best baseline.
+164:220	The heterogeneity of the German news corpus may also explain another difference: while the final punctuation of the previous sentence (FinPun) is among the less useful features for English and Greek (albeit still outperforming the baseline), it is the best performing feature for German.
+165:220	The German news corpus contains many sentences that end in atypical end-of-sentence markers such as semi-colons (which are found often in cinema listings).
+166:220	Atypical markers will often not occur before paragraph breaks, whereas typical markers will.
+167:220	This fact renders final punctuation a better predictor of paragraph breaks in the German corpus than in the other two corpora.
+168:220	The language models behave similarly across domains and languages.
+169:220	With the exception of the news domain, they do not seem to be able to outperform the majority baseline by more than 1%.
+170:220	The word entropy rate yields the worst performance, whereas character-based models perform as well as word-based models.
+171:220	In general, our results show that language modelling features are not particularly useful for this task.
+172:220	4.2 The Influence of Syntactic Features Our second set of experiments concentrated solely on the English data and investigated the usefulness of the syntactic features (see Table 3).
+173:220	Again, we created one-feature classifiers and a classifier that combined all features, i.e., language and character models, non-syntactic, and syntactic features (allns lcm syn).
+174:220	Table 3 also repeats the performance of the two baselines (Bd and Bm) and the combined non-syntactic models (allns lcm).
+175:220	The accuracies of the three best performing one-feature models and the combined model are again shown in boldface.
+176:220	As can be seen, syntactic features do not contribute very much to the overall performance.
+177:220	They only increase the accuracy by about 1%.
+178:220	A 2 test English feature fiction news parl.
+179:220	Bd 60.16 51.73 59.50 Bm 71.04 51.44 69.38 Cues 71.48 51.49 40.64 Cuem 70.97 54.28 59.03 Cuee 71.04 51.78 31.61 Parse 71.04 51.88 30.62 Nums 71.04 53.56 69.05 Numvp 71.04 54.18 70.59 Numnp 71.77 56.11 68.94 Numpp 71.04 53.61 64.98 Numad jp 71.04 51.11 42.62 Numadvp 71.04 52.40 47.96 Sign 75.39 57.02 67.95 Signp 75.49 59.18 70.76 Childrs1 71.69 55.87 79.35 Childrs 75.34 55.53 79.52 Branchs 71.35 55.82 69.11 Branchvp 71.33 53.46 70.48 Branchnp 71.77 56.11 33.09 Branchpp 71.04 51.44 30.62 TreeDepth 72.57 54.04 69.00 allns lcm 82.45 70.77 82.71 allns lcm syn 82.91a0 a1 71.83 a0 a1 83.92 a0 a1 Table 3: Syntactic features on English test data revealed that the difference between allns lcm and allns lcm syn is not statistically significant (indicated by a1 in Table 3) for any of the three domains.
+180:220	The syntactic features seem to be less domain dependent than the non-syntactic ones.
+181:220	In general, the part-of-speech signature features (Sign, Signp) are a good predictor, followed by the syntactic labels of the children of the top nodes (Childrs, Childrs1).
+182:220	The number of NPs (Numnp) and their branching factor (Branchnp) are also good indicators for some domains, particularly the news domain.
+183:220	This is plausible since paragraph initial sentences in the Wall Street Journal often contain named entities, such as company names, which are parsed as flat NPs, i.e., have a relatively high branching factor.
+184:220	4.3 The Effect of Training Size Finally, we examined the effect of the size of the training data on the learners classification accuracy.
+185:220	We conducted our experiments solely on the English data, however we expect the results to generalise to German and Greek.
+186:220	From each English training set we created ten progressively smaller data sets, the first being identical to the original set, the second containing 9/10 of sentences in the original train6.8 13.6 20.4 27.2 33.9 40.8 47.6 54.4 61.1 67.970 80 90 100 Accuracy (%) Fiction 3.9 7.8 11.7 15.6 19.5 23.4 27.3 31.20 35.1 39.360 70 80 90 100 Accuracy (%) News 4.5 9.1 13.6 18.1 22.6 27.2 31.7 36.2 40.7 45.4 Thousand instances of training data 70 80 90 100 Accuracy (%) Parliament Figure 1: Learning Curves for English Kappa % Agr fiction.72 88.58 news .47 77.45 parl.
+187:220	.76 88.50 Table 4: Human agreement on the paragraph identification task ing set, the third containing 8/10, etc. The training instances in each data set were selected randomly.
+188:220	BoosTexter was trained on each of these sets (using all features), as described previously, and tested on the test set.
+189:220	Figure 1 shows the learning curves obtained this way.
+190:220	The curves are more or less flat, i.e., increasing the amount of training data does not have a large effect on the performance of the model.
+191:220	Furthermore, even the smallest of our training sets is big enough to outperform the best baseline.
+192:220	Hence, it is possible to do well on this task even with less training data.
+193:220	This is important, given that for spoken texts, paragraph boundaries may have to be obtained by manual annotation.
+194:220	The learning curves indicate that relatively modest effort would be required to obtain training data were it not freely available.
+195:220	4.4 Human Evaluation We established an upper bound against which our automatic methods could be compared by conducting an experiment that assessed how well humans agree on identifying paragraph boundaries.
+196:220	Five participants were given three English texts (one from each domain), selected randomly from the test corpus.
+197:220	Each text consisted of approximately a tenth of the original test set (i.e. , 200400 sentences).
+198:220	The participants were asked to insert paragraph breaks wherever it seemed appropriate to them.
+199:220	No other instructions were given, as we wanted to see whether they could independently perform the task without any specific knowledge regarding the domains and their paragraphing conventions.
+200:220	We measured the agreement of the judges using the Kappa coefficient (Siegel and Castellan, 1988) but also report percentage agreement to facilitate comparison with our models.
+201:220	In all cases, we compute pairwise agreements and report the mean.
+202:220	Our results are shown in Table 4.
+203:220	As can be seen, participants tend to agree with each other on the task.
+204:220	The least agreement is observed for the news domain.
+205:220	This is somewhat expected as the Wall Street Journal texts are rather difficult to process for non-experts.
+206:220	Also remember, that our subjects were given no instructions or training.
+207:220	In all cases our models yield an accuracy lower than the human agreement.
+208:220	For the fiction domain the best model is 5.67% lower than the upper bound, for the news domain it is 5.62% and for the parliament domain it is 5.42% (see Tables 4 and 3).
+209:220	5 Conclusion In this paper, we investigated whether it is possible to predict paragraph boundaries automatically using a supervised approach which exploits textual, syntactic and discourse cues.
+210:220	We achieved accuracies between 71.83% and 83.92%.
+211:220	These were in all but one case significantly higher than the best baseline.
+212:220	We conducted our study in three different domains and languages and found that the best features for the news and parliamentary proceedings domains are based on word co-occurrence, whereas features that exploit punctuation are better predictors for the fiction domain.
+213:220	Models which incorporate syntactic and discourse cue features do not lead to significant improvements over models that do not.
+214:220	This means that paragraph boundaries can be predicted by relying on low-level, language independent features.
+215:220	The task is therefore feasible even for languages for which parsers or cue word lists are not readily available.
+216:220	We also experimented with training sets of different sizes and found that more training data does not necessarily lead to significantly better results and that it is possible to beat the best baseline comfortably even with a relatively small training set.
+217:220	Finally, we examined how well humans do on this task.
+218:220	Our results indicate that humans achieve an average accuracy of about 77.45% to 88.58%, where some domains seem to be easier than others.
+219:220	Our models achieved accuracies of within 6% of human performance.
+220:220	In the future, we plan to apply our model to new domains (e.g. , broadcast news or scientific papers), to non-Indo-European languages such as Arabic and Chinese, and to machine generated texts.
+

@@ -1,0 +1,598 @@
+Locating noun phrases with finite state transducers. 
+Jean Senellart 
+LADL (Laboratoire d'automatique documentaire et linguistique.) 
+Universitd Paris VII 
+2, place Jussieu 
+75251 PARIS Cedex 05 
+emaih senella@ladl.j ussieu.fr 
+Abstract 
+We present a method for constructing, main
+taining and consulting a database of proper 
+nouns. We describe noun phrases composed of 
+a proper noun and/or a description of a hu
+man occupation. They are formalized by finite 
+state transducers (FST) and large coverage dic
+tionaries and are applied to a corpus of news
+papers. We take into account synonymy and 
+hyperonymy. This first stage of our parsing pro
+cedure has a high degree of accuracy. Wc show 
+how we can handle requests such as: 'Find all 
+newspaper articles in a general corl)us mention
+ing the French prime minister', or 'How is Mr. X 
+referred to in the corpus; what have been his dif
+ferent occupations through out the period over 
+which our corpus extends?' In the first case, non 
+trivial occurrences of noun phrases are located, 
+that is phrases not containing words present 
+in the request, but either synonyms, or proper 
+nouns relevant to request. The results of the 
+search is far better than than those obtained by 
+a key-word based engine. Most answers are cor
+rect: except some cases of honmnymy (where a 
+human reader would also fail without more con
+text). Also, the treatment of people having sev
+eral different occupations is not frilly resolved. 
+Wc have built for Prenctl, a library of about one 
+thousand such FSTs, and English FSTs are un
+der construction. The same method can bc used 
+to locate and propose new proper nouns, sin> 
+ply by replacing given proper names in the same 
+FSTs by variables. 
+1 Introduction
+
+Information Retrieval in full tcxts is one of the 
+challenges of the next years. Web engines at
+tempt to select among the millions of existing 
+Web Sites, those corresponding to some input 
+request. Newspaper archives is another exam
+1212 
+ple: there are several gigabytcs of news on elec
+tronic support, and the size is increasing ev
+cry day. Different approaches have been pro
+posed to retrieve precise information in a large 
+database of natural texts: 
+1. Key-words algorithms (e.g. Yahoo): co
+occurrences of the different words of tile 
+request are searched for in one same doc
+mnent. Generally, slight variations of 
+spelling are allowed to take into account 
+grammatical endings and typing errors. 
+2. Exact pattern algorithms (e.g. OED): se
+quences containing occurrences described 
+by a regular expression on characters are 
+located. 
+3. Statistical algorithms (e.g. LiveTopic): 
+they offer to the user documents containing 
+words of the request and also words that 
+are statistically and semantically close with 
+respect of clustering or factorial analysis. 
+The first method is the simplest one: it 
+generally provides results with an important 
+noise (documents containing homographs of the 
+words of the request, not in relation with the re
+quest, or documents containing words that have 
+a form very close to that of the request, but with 
+a different meaning). 
+The second method yields excellent results, to 
+the extent that the pattern of the request is suf
+ficiently complex, and thus allows specification 
+of synonymous forms. Also, the different grain
+matical endings can be described precisely. The 
+drawback of such precision is the difficulty to 
+build and handle complex requests. 
+The third approach can provide good results 
+for a very simple request. But, as any statis
+tical method, it needs docmnents of a huge size, 
+and thus, cannot take into account words occur
+ring a limited mtmber of times in the database, 
+which is the case of roughly one word out of two, 
+according Zipf's law I (Zipf, 1932). 
+We are particularly interested in finding noun 
+phrases containing or referring to proper nouus, 
+in order to answer the following requests: 
+1. Who is John Major? 
+2. Find all document referring to John Major. 
+3. Find all people, who have been French min
+isters of culture. 
+With the key-word method, texts containing the 
+sequence 'John Major 'are found, but also, texts 
+containing 'a UN PTvtection Force, Major Rob 
+Anninck', 'P. Major', 'a former Long Islander, 
+John Jacques' and 'Mr. Major'. 
+The statistical approach will probably succeed 
+(supposing the text is large enough) in associ
+ating the words John Major, with tim words 
+Britain, prime and minister. Therefore, it 
+would provide documents containing the se
+quence 'the prime minister, John Major', but 
+also 'the French prime minister' or 'Timothy 
+Eggar, Britain's energy minister' which have 
+exactly the same number of correctly associ
+ated words. Such answers are an inevitable 
+consequence of any method not grammatically 
+founded. 
+M. Gross and J. Senellart (1998) have proposed 
+a preprocessing step of the text which groups up 
+to 50 % of the words of the text into compound 
+utterances. By hiding irrelevant meanings of 
+simple words which are part of compounds, they 
+obtain more relevant tokens. In the preceding 
+example, the minimal tokens would be the cons
+pound nouns 'prime minister' or 'energy minis
+ter', thus, tile statistical engine could slot have 
+misinterpreted the word 'minister' in 'energy 
+minister' and in 'prime minister'. 
+We propose here a new method based on a for
+real and full description of the specific phrases 
+actually used to describe occupations. We also 
+use large coverage dictionaries, and libraries of 
+general purpose finite state transducers. Our 
+algorithm finds answers to questions of types 1, 
+2 and 3, with nearly no errors disc to silence, 
+or to noise. The few cases of remaining errors 
+are treated in section 5 and we show, that in 
+order to avoid them by a general method, one 
+must i)erfo,'m a complete syntactic analysis of 
+1 This
+is true whatever the size of the database is. 
+tile sentence. 
+Our algorithIn has three different applications. 
+First, by using dictionaries of proper nouns and 
+local grammars describing occupations, it an
+swers requests. Synonylns and hyponyms are 
+formally treated, as well as the chronological 
+evolution of the corpus. By consulting a pre
+processed index of the database, it provides re
+sults in real time. The second application of the 
+algorithm consists in replacing proper nouns in 
+FSTs by variables, and use them to locate and 
+propose to tile user new proper nouns slot listed 
+in dictionaries. In this way, tile construction of 
+the library of FSTs and of tile dictionaries can 
+be automated at least in part. The third ap
+plication is automatic translation of such noun 
+phrases, by constructing the equivalent trans
+ducers in the different languages. 
+In section 2, wc provide the formal description 
+of the problem, and we show how we can use au
+tonmton representations. Ill section 3, we show 
+how we can handlc requests. In section 4, we 
+give some examples. In section 5, we analyze 
+failed answers. In section 6, we show how we 
+use transducers to enrich a dictionary. 
+2 Formal
+Description 
+We deal with noun phrases containing a de
+scription of all occupation, a proper noun, or 
+both combined. For example, 'a senior RAF 
+officer', 'Peter Lilley, the Shadow Chancellor', 
+'Sir 7~renee Burns, the 75"easury Permanent 
+Secretary' or 'a former Haitian prime minister, 
+Rosny Smarth'. For our purl)ose, we must have 
+a formal way of describing and identifying such 
+sequences. 
+2.1 Description
+of occupations 
+We describe occupations by means of local 
+grammars, which are directly written in the 
+form of FS graphs. These graphs are equivalent 
+to FSTs with inverted representation (FST) 
+(Roche and Sehabes, 1997) as in figure 1, where 
+each box rel)resents a transition of the automa
+ton (inl)ut of the transducer), and the label 
+under a box is an output of the transducer. The 
+initial state is the left arrow, the final state is 
+the double square. The optional grey boxes, (cf 
+figure 2), represent sub-transducers: in other 
+words, by 'zoonfing' on all sub-transducers, 
+we view a given FST as a simple graph, with 
+no parts singled out. However, we insist on 
+1213 
+Figure 2: MinisterOccupation.graph 
+ab 
+Figure 1: Formal example 
+keeping sub-FST automata; as they will be 
+computed independently, and as they allow 
+us to keep a simple representation of complex 
+constructions. The output of a grey box: is 
+the output of the sub-transducer. The symbol 
+labeled <E> represents the void transition, 
+and the different lines inside arc parallel 
+transitions. Such a representation is convenient 
+to formulate linguistic constraints. A graph 
+editor (Silberztein, 1993) is available to directly 
+construct FSTs. In theory, such FSTs are more 
+powerful than traditional FSTs 2. 
+In figure 1, the transducer recognizcs thc 
+sequences a, b, ca, eb. To each of these 
+input sequences, it associates an output noted 
+val(input). Here, val(a) = {ab}, val(b) = {b}, 
+2 If
+a sub-automaton refers to a parent automaton, 
+we will be able to express context dependent words such 
+as anb n . 
+val(c) is not defined as c is not recognized 
+by the automaton, val(ca) = {d}, and 
+val(cb) = {b}. 
+Wc define an ordering relation on the set of 
+recognized sequences by a transducer T, that 
+is: x <_7 y ¢* VeEval(x), eCval(y). In our 
+example, b <_7a and b =7cb with derived 
+equality relation. 
+We construct our transducer describing occu
+pations in such a way that with this ordering 3 
+relation: 
+Two sequences x, y are synonyms if and only 
+if x ---7y 
+The sequence y is an hyponym of x (i.e. y 
+is a x) if and only if x <_7y. 
+The transducer in figure 2 describes 4 diffcrent 
+sequences referring to the word minister. 
+Sub-parts of the transducers Country and 
+Nationality are given in figure 3 and 4. 
+By construction, all the sequences recognized 
+are grammatically correct. For example, the 
+variant of minister o/European affairs: minis
+ter/or European affairs is recognized, but not 
+3 The
+equality relation =T and the strict comparison 
+are directly deduced from _<T definition. ,i For tile sake of clarity, it is not complete, for exam
+ple it doesn't take into account regional ministries as in 
+USA or in India. It doesn't represent either the sequence 
+deputy prime minister. Moreover, a large part could be 
+factorized in a sub-automaton. 
+1214 
+Chine~ 
+Figure 3: Country.graph 
+Chillc.~ 
+Figure 4: Nationality.graph 
+French minister for agriculture. The output of 
+the transducer is compatible with our definition 
+of order: 
+• val(France's culture minister) 
+=T {French, minister, Culture} 
+=7val(culture minister of France) 
+>>_T val(15"ench minister) 
+• 'chancellor of the Exchequer'=T'finance 
+minister' 
+• 'prime minister'>_T'minister' i.e. a 
+primc minister is a minister but 'deputy 
+minister'~_T'minister' i.e. a deputy minister is 
+not a minister. 
+Reciprocally, given an output, it easy to find 
+all paths corresponding to this output (by 
+inverting the inputs and the outputs in the 
+transducer). This will be very usefifl to formu
+late answers to requests, or to translate noun 
+phrases: the ':natural language" sequences 
+corresponding to the set {minister, French} 
+are : "French minister" or "minister of France". 
+We will note val-l({minister, French}) = 
+{'french minister', 'minister of France' }. 
+2.2 Full
+Name description 
+The full name description is based on the 
+same methodology (cf. figure 5), except 
+that the boxes containing <PN:FirstName> and 
+<PN:SurName> represent words of the proper 
+nouns dictionaries. The output of this trans
+ducer is computed in a different way: the out
+put is the surname, the firstname if available, 
+and the gender implied either by the firstname, 
+or by the short title: Mr., Sir, princess, etc .... 
+3 Handling
+requests: a dynamic 
+dictionary 
+In order to instantly obtain answers for all re
+quests, we build an incremental index of all 
+lnatehes described by the FST library. At 
+this stage, the program proposes new possible 
+proper nouns not yet listed, they complete the 
+dictionary. Our index has the following prop
+erty: when an FST is modified, it is not the 
+whole library wtfich is recompiled, but only the 
+FSTs affected by the modification. We now de
+scribe this stage and show how the program con
+sults the index and the FST library to construct 
+the answer. 
+3.1 Constructing
+the database 
+In (Senellart, 1998), a fast algorithm that 
+parses regular expressions on flfil inverted text 
+is presented. We use such an algorithm for 
+locating occurrences of the FSTs in the text. 
+For each FST, and for each of its occurrences 
+in the text, wc compute the position, the 
+length, and the FST associated output of the 
+occurrence. 
+This type of index is compressed in the same 
+way entries of the flfll inverted text are. This 
+choice of structure has the following features: 
+1. There is no difference of parsing between 
+a 'grey (autonomous) box' and a 'nor
+real one'. Once sub-transducers have been 
+comt)iled, they behave like normal words. 
+Thus, the parsing algorithms are exactly 
+the same. 
+2. A makefile including dependencies be
+tween the different graphs is built, and 
+modifications of one graph triggers the 
+re-compilation of the graphs directly or 
+indirectly del)endent. 
+. This structure is incremental: adding new 
+texts to the database is easy, we only need 
+to index them and to merge the previous 
+index with the new one by a trivial pointer 
+operation. 
+A description of a whole noun phrase is given 
+made by the graph of figure 6. 
+1215 
+.... 
+f 
+Figure 5: FullNanle.graph 
+\] OcCUpation D \[ |:ullNmne l~ / 
+Figure 6: NounPhrases.graph, the <A> label stands for any adjective. 
+(Information of the general purpose dictionary) 
+We use a second structure: a dynamic pTvper 
+noun dictionary 79 that relies on the indexes of 
+Occupation.graph and FullName.graph. 7) 
+is called 'dynamic' dictionary, because the infor
+mation associated to the entries depend on the 
+locations in the text we are looking for. The 
+algorithm that constructs D is the following: 
+1. For each recognized occurrence we asso
+ciate Ol which is the output of Full
+Name.graph and the output 02 of the 
+Occupation.graph (see section 4 for ex
+amples). 
+2. If O1 is not empty, find 01 in D: that is, 
+find the last e in 7) such that O1 _<7e. 
+If there is none, create one : i.e. associate 
+this FullName with the occupation 02 and 
+with the current location in the text. 
+If there exists one, and its occupation is 
+compatible with 02 then add the current 
+location to this entry. Or else, create a new 
+entry for O1 (eventually completed by the 
+information from e) with its new occupa
+tion 02, and pointing to the current loca
+tion in the text. 
+3. If O1 is empty: the noun phrase is limited 
+to the occupation part. Find the last entry 
+in D compatible with 02, and then add the 
+1216 
+current location to the entry. 
+A detailed run of this algorithm is given in sec
+tion 4. 
+3.2 Consulting
+the database 
+Given a request of type 1: Who is P. We first 
+apply the NounPhrases.graph to P. If P is 
+not recognized, the research fails. It it is rec
+ognized, we obtain two outputs O1 and 02 as 
+previously mentioned. For this type of request 
+O1 cannot be empty. So we look in 79 for the 
+entries that match O1 (there can be several, of
+ten when the first name is not given, or given 
+by its initial). Then, we print the different oc
+cupations associated to these entries. 
+Given a request of type 2: the result is just an 
+extc~sion of the previous case: once we have 
+found the entries in D, we print all positions as
+sociated in the text. 
+Given a request of type 3, the method is 
+different: we begin by applying the Noun
+Phrases.graph to P. In this case, O1 is empty. 
+Then we look up the entries of 7), and check if 
+at some location of the text, its occupation is 
+compatible with thc occupation of the request. 
+4 Examples
+of use 
+Consider the following chronological extract of 
+Prench newspaper : 
+1M. Jack Lang, ministre de 1'4ducation nationale et de la cuhure, 
+2Charg4 le 7 avril 1992 par M. Lang de rdfldchir aux conditions de 
+3M. Jack Lang a lane4 dimanche soir h \]a tdldvision l'id4e d'impliquer 
+4Commeatant Faction du ministre de la culture, le premier adjoint 
+5En d4finitive l'idde de M. Lang apparMt comme un r~ve ! 
+6Le directeur de l'American Ballet Theater, Kevin McKenzie : 
+7M. Lang prdsente son pro jet de r4forme des lycdes prdvoyant 
+8Tous, sotltenez la loi Lang, par distraction, de temps en temps, icl 
+9M. Jack Lang, maire de Blois, a oHiciellement d4posd sa 
+i0Sortants : Michel Fromet, suppldant de Jack Lang, se reprdsente 
+IiDe son cotd. Carl Lang, secrdtaire gdn4ral du Front national, a 
+12et Jack Lang, ancien ministre de l'dducation nationale et de la culture, 
+13l'ancien ministre, Jack Lang, et son successeur, Jacques Toubon, 
+ldJack l,ang, maire de Blois et an<'ien minlstre, 
+15.,,, le nouveau ministre de \]'4ducatlon nationale, Jacques Touboll, 
+At the beginning 7) is empty. 
+We read the sentence 1: 
+01 = {Tn, Jack, Lang}, 
+02 = {minister, education, culture}. There is 
+no entry in D corresponding to O1, thus we 
+create in 79 the following entry : 
+SurName=Lang, Fir stName=Jack, Gender=m, 
+(Line 1 0ccupatlon-mlnlster,education,culture) 
+We read the sentence 2:O1 = {m, Lang}. 01 
+matches the only entry in 79, and moreover as 
+O2 is empty: it also matchcs the entry. Thus 
+we add the line 2, as a reference to this first 
+entry. 
+SurName=Lang, Fir stName=Jack, Gender=m, 
+(Line 1,20¢cupatlon~minlster,education,culture) 
+At the end of the processing, 79 equals to: 
+SurName=Lang, F irstName= Jack, gender=m, 
+(Line 1,2,3.4,5.70ccupationmminister,education,culture) 
+(Line 9,12,13,14 Occupation=mayor,Blois) 
+SurName=Fromet, FirstName=M± chel, Gender=m, 
+(Line 10 Occupation=nainister..deputy.education,cuhure) 
+SurN ame=Lang, F irstName=Carl, Gender=m, 
+(Line 11 0ccupation-head~party,F~) 
+SurName=Toubon, Fir stName=Jacques, Gender=m, 
+(Line 13,15 Occupation=n, inister,education) 
+Now if we search all parts of the text men
+tioning the minister of culture, wc apply 
+NounPhrases.graph to this request and we 
+find O1 = {}, 02 = {minister, culture}. The 
+only entries in 79 matching 02 correspond to 
+the lines 1,2,3,4,5,7,13,15. This was expected, 
+lines referring to the homonym of Jack Lang 
+have not be considered, nor line referring Jack 
+Lang designated as the mayor of Blois. 
+5 Remaining
+errors 
+Some cases are difficult to solve, as we can sec 
+in the sentence: In China, the first minister has 
+.... The first phrase of the sentence: In China is 
+an adverbial, and could be located everywhere 
+in the sentence. It could even be implicit, that 
+is, implied by the rest of the text. In such a 
+case, a human reader will need the context, to 
+identify the person designated. Wc are not able, 
+to extract the information we need, thus the re
+sult is not false, but imprecise. 
+Another situation leads to wrong results: when 
+one santo person has several occupations, and 
+is designated sometimes by one, sometinms by 
+another. To resolve such a case, we nmst repre
+sent the set of occupations that are compatible. 
+This is a rather large project on the 'semantics' 
+of occupation. 
+Finally, as we can see if figure 6, a determiner 
+and an adjective can be found between the Full
+name part, and the Occupation part. In most 
+case, it is something 'this', or 'the', or 'the well
+known', or 'our great', and can be easily de
+scribed by a FST. But in very exceptional case, 
+we can find also COml)lex sequences between the 
+Fullnmne part, and the Occupation part. For 
+example: 'M. X, who is since 1976, the prime 
+minister of ...'. In this case, it is not possible, 
+in the current state of the developpment of out 
+FST library, to provide a complete description. 
+6 Building
+the dictionaries and the 
+database 
+The results of our apl)roach is in prot)ortion the 
+size of the database we use. We show that us
+ing variables in FSTs, and the bootstrapping 
+method, this constraint is not as huge it seems. 
+One can start with a minimal database and im
+prove the database, when testing it on a new 
+corpus. Suppose for example, that the database 
+is empty (we only have general purpose dictio
+naries). We ask the system to find all occur
+rences of the word 'minister', the result has the 
+following form of concordance: 
+Th. Israeli foreign minimter, Shimon Perch, said %he intern 
+the Rulsian foreign minlster, Andrei V. Kozyrgvj vas likliy 
+Berlusconi as prime minilter, but ty issue ought to be the 
+courl, am the Greek minigtor of culture, thought up the ide 
+1217 
+firi~ dopu~y priml mlnistor, Oleg $osko~eta; Molcov has pl 
+On this small sample, we see that it is in
+teresting to search the different occurrences of 
+"(<A>+<N>) <minister>" and we obtain the 
+list: prime, foreign, Greek, finance, trade, 
+interior, Cambodian .... 
+We separate automatically in this list, words 
+with uppercase first letter and lowercase words. 
+This provide a first draft for a Nationality dic
+tionary (on a 1Mo corpus, we obtain 234 entries 
+(only with this simple rule). The list is then 
+manually checked to extract noise as 'Trade 
+minister of ...'. We then sort the lowercase 
+adjective and begin to construct the minister 
+graph. We find directly 23 words in the sub
+graph "SpecialityMinisterLeft", plus the special 
+compounds "prime minister" and %hief nfin
+ister'. We then apply this graph to the cor
+pus and attempt to extend occurrences to the 
+left and to the right. We notice that we can 
+find a name of country with an "'s"just to 
+the left of the occupation, and thus we catch 
+potential names of country with the following 
+request: "\[A-Z\]\[a-z\]*'s :MinisterOccupation", 
+where \[A-Z\] \[a-z\] * is any word beginning with 
+an uppercase letter. This is an example of vari
+able in the automaton. Pursuing this text-based 
+method and starting from scratch, in roughly 
+10 minutes, we build a first version of the dic
+tionaries: Country (87 entries) and Nationality 
+(255 entries), Firstname (50 entries), Surname 
+(47 entries), plus a first version of the Minis
+terOccupation and the FullName FSTs... The 
+graphical tools and the real-time parsing algo
+rithms we use are crucial in this construction. 
+Remark that the strict domain of proper noun 
+cannot be bounded: when we describe occupa
+tions in companies, we must catch the company 
+names. When we describe the medical occupa
+tion, we are lead to catch the hospital names... 
+Very quickly the coverage of the database en
+larges, and dictionaries of names of companies, 
+of towns must be constructed. Concerning the 
+French, in a newspaper corpus, one word out of 
+twenty is included in a occupation sequence: i.e. 
+one sentence out of two in our corpus contained 
+such noun phrase. 
+7 Conclusion
+
+In conclusion, we have developed this system 
+first for the l~'ench language, with very good 
+results. It partially solves the problem of 
+Information Retrieval for this precise domain. 
+In fact the "occupation" domain is not closed: 
+is a "thief" an occupation ? To avoid such 
+difficulties, and in order to reach a good 
+coverage of the domain, we have described 
+essentially institutional occupations. We know 
+full well that if we want to be precise, a very 
+deep semantic description should be done: 
+for example, it is not sure that we can say a 
+"prime minister" of France is comparable with 
+a "prime minister" of UK ? One of strength 
+of the described system is that it enables us 
+to gather information present in different loca
+tions of the corpus, which improves punctual 
+descril)tions. Another interest of having such 
+representations for different languages is a 
+possibly automatic translation for such noun 
+phrases. The output of the source language 
+will be used in the target language of FSTs to 
+identify paths having the same output, hence 
+the same meaning. We are working to adapt 
+the representation to other languages, such as 
+English and the challenge is not only to repeat 
+the same work on another language, but to keep 
+the same outl)ut for two synonyms in French 
+and English, which is not easy, because some 
+occupations are totally specific to a language. 
+Our method is totally text-based, and the ap
+propriate tools allow us to enrich the database 
+progressively. We strongly believe that the 
+complete description of such noun phrases is 
+needed (for all needs: IR, translation, syntactic 
+analysis...), and our interactive method which 
+is quite efficient to this aim. 
+
+References 
+
+M. Gross and J. Senellart. 1998. Nouvclles 
+bases pour une approche statistique. In 
+JADT98, Nice, France. 
+
+E. Roche and Y. Schabcs, eds. 1997. Finite 
+state language processing. MIT Press. 
+
+Jean Senellart. 1998. Fast pattern matching in 
+indexed texts. Being published in TCS. 
+
+M. Silberztein. 1993. Dictionnaires 
+dlectroniques et analyse automatique de 
+textes. Masson. 
+
+Zipf. 1932. Selected Studies of the Principle 
+of Relative Frequencies in Language. Cam
+bridge. 
+

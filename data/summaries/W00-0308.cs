@@ -1,0 +1,4 @@
+As conversational systems move from the realm of science fiction and research labs into people's everyday life, and as they evolve from the plain, systemdirected interactions ~ la press or say one of socalled interactive voice response systems based on isolated-word recognizers and fixed-menu navigation, to the more open, mixed-initiative dialogues carried out in spoken dialogue systems based on large-vocabulary continuous speech recognizers and flexible dialogue managers (see, e.g., (Allen et al., 1996; Denecke, 1997; Walker et al., 1998; Rudnicky et al., 1999; Zue et al., 2000)), the overall experiential quality of the human-computer interaction becomes increasingly important.
+P98-2219
+Walker, Marilyn, et al.(1998). Learning Optimal Dialogue Strategies: A Case Study of a Spoken Dialogue Agent for Email.
+P98-2219

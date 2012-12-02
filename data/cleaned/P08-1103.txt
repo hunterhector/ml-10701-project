@@ -1,0 +1,797 @@
+Proceedings of ACL-08: HLT, pages 905–913,
+Columbus, Ohio, USA, June 2008. c©2008 Association for Computational Linguistics
+Joint Processing and Discriminative Training for
+Letter-to-Phoneme Conversion
+Sittichai Jiampojamarn† Colin Cherry‡ Grzegorz Kondrak†
+†Department of Computing Science ‡Microsoft Research
+University of Alberta One Microsoft Way
+Edmonton, AB, T6G 2E8, Canada Redmond, WA, 98052
+{sj,kondrak}@cs.ualberta.ca colinc@microsoft.com
+Abstract
+We present a discriminative structure-
+prediction model for the letter-to-phoneme
+task, a crucial step in text-to-speech process-
+ing. Our method encompasses three tasks
+that have been previously handled separately:
+input segmentation, phoneme prediction,
+and sequence modeling. The key idea is
+online discriminative training, which updates
+parameters according to a comparison of the
+current system output to the desired output,
+allowing us to train all of our components
+together. By folding the three steps of a
+pipeline approach into a unified dynamic
+programming framework, we are able to
+achieve substantial performance gains. Our
+results surpass the current state-of-the-art on
+six publicly available data sets representing
+four different languages.
+1 Introduction
+Letter-to-phoneme (L2P) conversion is the task
+of predicting the pronunciation of a word, repre-
+sented as a sequence of phonemes, from its or-
+thographic form, represented as a sequence of let-
+ters. The L2P task plays a crucial role in speech
+synthesis systems (Schroeter et al., 2002), and is
+an important part of other applications, including
+spelling correction (Toutanova and Moore, 2001)
+and speech-to-speech machine translation (Engel-
+brecht and Schultz, 2005).
+Converting a word into its phoneme represen-
+tation is not a trivial task. Dictionary-based ap-
+proaches cannot achieve this goal reliably, due to
+unseen words and proper names. Furthermore, the
+construction of even a modestly-sized pronunciation
+dictionary requires substantial human effort for each
+new language. Effective rule-based approaches can
+be designed for some languages such as Spanish.
+However, Kominek and Black (2006) show that in
+languages with a less transparent relationship be-
+tween spelling and pronunciation, such as English,
+Dutch, or German, the number of letter-to-sound
+rules grows almost linearly with the lexicon size.
+Therefore, most recent work in this area has focused
+on machine-learning approaches.
+In this paper, we present a joint framework for
+letter-to-phoneme conversion, powered by online
+discriminative training. By updating our model pa-
+rameters online, considering only the current system
+output and its feature representation, we are able to
+not only incorporate overlapping features, but also to
+use the same learning framework with increasingly
+complex search techniques. We investigate two on-
+line updates: averaged perceptron and Margin In-
+fused Relaxed Algorithm (MIRA). We evaluate our
+system on L2P data sets covering English, French,
+Dutch and German. In all cases, our system outper-
+forms the current state of the art, reducing the best
+observed error rate by as much as 46%.
+2 Previous
+work
+Letter-to-phoneme conversion is a complex task, for
+which a number of diverse solutions have been pro-
+posed. It is a structure prediction task; both the input
+and output are structured, consisting of sequences of
+letters and phonemes, respectively. This makes L2P
+a poor fit for many machine-learning techniques that
+are formulated for binary classification.
+905
+The L2P task is also characterized by the exis-
+tence of a hidden structure connecting input to out-
+put. The training data consists of letter strings paired
+with phoneme strings, without explicit links con-
+necting individual letters to phonemes. The subtask
+of inserting these links, called letter-to-phoneme
+alignment, is not always straightforward. For ex-
+ample, consider the word “phoenix” and its corre-
+sponding phoneme sequence [f i n I k s], where
+we encounter cases of two letters generating a sin-
+gle phoneme (ph→f), and a single letter generat-
+ing two phonemes (x→k s). Fortunately, align-
+ments between letters and phonemes can be discov-
+ered reliably with unsupervised generative models.
+Originally, L2P systems assumed one-to-one align-
+ment (Black et al., 1998; Damper et al., 2005), but
+recently many-to-many alignment has been shown
+to perform better (Bisani and Ney, 2002; Jiampoja-
+marn et al., 2007). Given such an alignment, L2P
+can be viewed either as a sequence of classification
+problems, or as a sequence modeling problem.
+In the classification approach, each phoneme is
+predicted independently using a multi-class classi-
+fier such as decision trees (Daelemans and Bosch,
+1997; Black et al., 1998) or instance-based learn-
+ing (Bosch and Daelemans, 1998). These systems
+predict a phoneme for each input letter, using the
+letter and its context as features. They leverage the
+structure of the input but ignore any structure in the
+output.
+L2P can also be viewed as a sequence model-
+ing, or tagging problem. These approaches model
+the structure of the output, allowing previously pre-
+dicted phonemes to inform future decisions. The
+supervised Hidden Markov Model (HMM) applied
+by Taylor (2005) achieved poor results, mostly be-
+cause its maximum-likelihood emission probabili-
+ties cannot be informed by the emitted letter’s con-
+text. Other approaches, such as those of Bisani and
+Ney (2002) and Marchand and Damper (2000), have
+shown that better performance can be achieved by
+pairing letter substrings with phoneme substrings,
+allowing context to be captured implicitly by these
+groupings.
+Recently, two hybrid methods have attempted
+to capture the flexible context handling of
+classification-based methods, while also mod-
+eling the sequential nature of the output. The
+constraint satisfaction inference (CSInf) ap-
+proach (Bosch and Canisius, 2006) improves the
+performance of instance-based classification (Bosch
+and Daelemans, 1998) by predicting for each letter
+a trigram of phonemes consisting of the previous,
+current and next phonemes in the sequence. The
+final output sequence is the sequence of predicted
+phonemes that satisfies the most unigram, bigram
+and trigram agreement constraints. The second
+hybrid approach (Jiampojamarn et al., 2007) also
+extends instance-based classification. It employs a
+many-to-many letter-to-phoneme alignment model,
+allowing substrings of letters to be classified into
+substrings of phonemes, and introducing an input
+segmentation step before prediction begins. The
+method accounts for sequence information with
+post-processing: the numerical scores of possible
+outputs from an instance-based phoneme predictor
+are combined with phoneme transition probabili-
+ties in order to identify the most likely phoneme
+sequence.
+3 A
+joint approach
+By observing the strengths and weaknesses of previ-
+ous approaches, we can create the following priori-
+tized desiderata for any L2P system:
+1. The phoneme predicted for a letter should be
+informed by the letter’s context in the input
+word.
+2. In addition to single letters, letter substrings
+should also be able to generate phonemes.
+3. Phoneme sequence information should be in-
+cluded in the model.
+Each of the previous approaches focuses on one
+or more of these items. Classification-based ap-
+proaches such as the decision tree system (Black
+et al., 1998) and instance-based learning sys-
+tem (Bosch and Daelemans, 1998) take into ac-
+count the letter’s context (#1). By pairing letter sub-
+strings with phoneme substrings, the joint n-gram
+approach (Bisani and Ney, 2002) accounts for all
+three desiderata, but each operation is informed only
+by a limited amount of left context. The many-
+to-many classifier of Jiampojamarn et al. (2007)
+also attempts to account for all three, but it adheres
+906
+a0a1a2a2a1a3
+a4
+a5a6
+a7a8
+a1a9a1
+a4
+a10a1a11
+a12
+a1
+a8a13
+a1
+a9
+a7a14
+a1a15
+a5a6
+a7a8
+a1a9a1
+a13
+a15a16
+a4a4a17a18a17
+a1a3
+a0a1a2a2a1a3
+a4
+a1a19a9a1
+a8
+a2a1a3
+a20a16a21
+a0a1a2a2a1a3
+a4
+a5a6
+a7a8
+a1a9a1
+a4
+a22
+a17a4a13
+a3
+a17
+a9a23
+a24a25a25
+a0a1a2a2a1a3
+a4
+a1a19a9a1
+a8
+a2a1a3
+a20a26a21
+a0a1a2a2a1a3
+a4
+a5a6
+a7a8
+a1a9a1
+a4
+a22
+a17a4a13
+a3
+a17
+a9a23
+a5a6a3a16
+a4
+a16a15
+a22a1
+a13a7a14
+a1a3
+a20
+a13
+a21
+Figure 1: Collapsing the pipeline.
+strictly to the pipeline approach illustrated in Fig-
+ure 1a. It applies in succession three separately
+trained modules for input segmentation, phoneme
+prediction, and sequence modeling. Similarly, the
+CSInf approach modifies independent phoneme pre-
+dictions (#1) in order to assemble them into a cohe-
+sive sequence (#3) in post-processing.
+The pipeline approaches are undesirable for two
+reasons. First, when decisions are made in sequence,
+errors made early in the sequence can propagate for-
+ward and throw off later processing. Second, each
+module is trained independently, and the training
+methods are not aware of the tasks performed later
+in the pipeline. For example, optimal parameters for
+a phoneme prediction module may vary depending
+on whether or not the module will be used in con-
+junction with a phoneme sequence model.
+We propose a joint approach to L2P conversion,
+grounded in dynamic programming and online dis-
+criminative training. We view L2P as a tagging task
+that can be performed with a discriminative learn-
+ing method, such as the Perceptron HMM (Collins,
+2002). The Perceptron HMM naturally handles
+phoneme prediction (#1) and sequence modeling
+(#3) simultaneously, as shown in Figure 1b. Fur-
+thermore, unlike a generative HMM, it can incor-
+porate many overlapping source n-gram features to
+represent context. In order to complete the conver-
+sion from a pipeline approach to a joint approach,
+we fold our input segmentation step into the ex-
+act search framework by replacing a separate seg-
+mentation module (#2) with a monotone phrasal de-
+coder (Zens and Ney, 2004). At this point all three of
+our desiderata are incorporated into a single module,
+Algorithm 1 Online discriminative training.
+1: α =vector0
+2: for K iterations over training set do
+3: for all letter-phoneme sequence pairs (x,y)
+in the training set do
+4: ˆy = argmaxyprime∈Y [α·Φ(x,yprime)]
+5: update weights α according to ˆy and y
+6: end for
+7: end for
+8: return α
+as shown in Figure 1c.
+Our joint approach to L2P lends itself to several
+refinements. We address an underfitting problem of
+the perceptron by replacing it with a more robust
+Margin Infused Relaxed Algorithm (MIRA), which
+adds an explicit notion of margin and takes into ac-
+count the system’s current n-best outputs. In addi-
+tion, with all of our features collected under a unified
+framework, we are free to conjoin context features
+with sequence features to create a powerful linear-
+chain model (Sutton and McCallum, 2006).
+4 Online
+discriminative training
+In this section, we describe our entire L2P system.
+An outline of our discriminative training process is
+presented in Algorithm 1. An online process re-
+peatedly finds the best output(s) given the current
+weights, and then updates those weights to make the
+model favor the correct answer over the incorrect
+ones.
+The system consists of the following three main
+components, which we describe in detail in Sections
+4.1, 4.2 and 4.3, respectively.
+1. A scoring model, represented by a weighted
+linear combination of features (α·Φ(x,y)).
+2. A search for the highest scoring phoneme se-
+quence for a given input word (Step 4).
+3. An online update equation to move the model
+away from incorrect outputs and toward the
+correct output (Step 5).
+4.1 Model
+Given an input word x and an output phoneme se-
+quence y, we define Φ(x,y) to be a feature vector
+907
+representing the evidence for the sequence y found
+in x, and α to be a feature weight vector provid-
+ing a weight for each component of Φ(x,y). We
+assume that both the input and output consist of m
+substrings, such that xi generates yi, 0 ≤ i < m.
+At training time, these substrings are taken from a
+many-to-many letter-to-phoneme alignment. At test
+time, input segmentation is handled by either a seg-
+mentation module or a phrasal decoder.
+Table 1 shows our feature template that we in-
+clude in Φ(x,y). We use only indicator features;
+each feature takes on a binary value indicating
+whether or not it is present in the current (x,y)
+pair. The context features express letter evidence
+found in the input string x, centered around the
+generator xi of each yi. The parameter c estab-
+lishes the size of the context window. Note that
+we consider not only letter unigrams but all n-grams
+that fit within the window, which enables the model
+to assign phoneme preferences to contexts contain-
+ing specific sequences, such as ing and tion. The
+transition features are HMM-like sequence features,
+which enforce cohesion on the output side. We in-
+clude only first-order transition features, which look
+back to the previous phoneme substring generated
+by the system, because our early development exper-
+iments indicated that larger histories had little im-
+pact on performance; however, the number of previ-
+ous substrings that are taken into account could be
+extended at a polynomial cost. Finally, the linear-
+chain features (Sutton and McCallum, 2006) asso-
+ciate the phoneme transitions between yi−1 and yi
+with each n-gram surrounding xi. This combina-
+tion of sequence and context data provides the model
+with an additional degree of control.
+4.2 Search
+Given the current feature weight vector α, we are in-
+terested in finding the highest-scoring phoneme se-
+quence ˆy in the set Y of all possible phoneme se-
+quences. In the pipeline approach (Figure 1b), the
+input word is segmented into letter substrings by an
+instance-based classifier (Aha et al., 1991), which
+learns a letter segmentation model from many-to-
+many alignments (Jiampojamarn et al., 2007). The
+search for the best output sequence is then effec-
+tively a substring tagging problem, and we can com-
+pute the argmax operation in line 4 of Algorithm 1
+context xi−c, yi
+. . .
+xi+c, yi
+xi−cxi−c+1, yi
+. . .
+xi+c−1xi+c, yi
+. . . . . .
+xi−c ...xi+c, yi
+transition yi−1, yi
+linear xi−c, yi−1, yi
+chain . . .
+xi+c, yi−1, yi
+xi−cxi−c+1, yi−1, yi
+. . .
+xi+c−1xi+c, yi−1, yi
+. . . . . .
+xi−c ...xi+c, yi−1, yi
+Table 1: Feature template.
+with the standard HMM Viterbi search algorithm.
+In the joint approach (Figure 1c), we perform seg-
+mentation and L2P prediction simultaneously by ap-
+plying the monotone search algorithm developed for
+statistical machine translation (Zens and Ney, 2004).
+Thanks to its ability to translate phrases (in our case,
+letter substrings), we can accomplish the argmax
+operation without specifying an input segmentation
+in advance; the search enumerates all possible seg-
+mentations. Furthermore, the language model func-
+tionality of the decoder allows us to keep benefiting
+from the transition and linear-chain features, which
+are explicit in the previous HMM approach.
+The search can be efficiently performed by the
+dynamic programming recurrence shown below.
+We define Q(j,p) as the maximum score of the
+phoneme sequence ending with the phoneme p gen-
+erated by the letter sequence x1 ...xj. Since we
+are no longer provided an input segmentation in ad-
+vance, in this framework we view x as a sequence of
+J letters, as opposed to substrings. The phoneme pprime
+is the phoneme produced in the previous step. The
+expression φ(xjjprime+1,pprime,p) is a convenient way to ex-
+press the subvector of our complete feature vector
+Φ(x,y) that describes the substring pair (xi,yii−1),
+where xi = xjjprime+1, yi−1 = pprime and yi = p. The
+value N limits the size of the dynamically created
+908
+substrings. We use N = 2, which reflects a simi-
+lar limit in our many-to-many aligner. The special
+symbol $ represents a starting phoneme or ending
+phoneme. The value in Q(I + 1,$) is the score of
+highest scoring phoneme sequence corresponding to
+the input word. The actual sequence can be retrieved
+by backtracking through the table Q.
+Q(0,$) = 0
+Q(j,p) = max
+pprime,p,
+j−N≤jprime<j
+{α·φ(xjjprime+1,pprime,p)+Q(jprime,pprime)}
+Q(J +1,$) = max
+pprime
+{α·φ($,pprime,$)+Q(J,pprime)}
+4.3 Online
+update
+We investigate two model updates to drive our online
+discriminative learning. The simple perceptron up-
+date requires only the system’s current output, while
+MIRA allows us to take advantage of the system’s
+current n-best outputs.
+Perceptron
+Learning a discriminative structure prediction
+model with a perceptron update was first proposed
+by Collins (2002). The perceptron update process
+is relatively simple, involving only vector addition.
+In line 5 of Algorithm 1, the weight vector α is up-
+dated according to the best output ˆy under the cur-
+rent weights and the true output y in the training
+data. If ˆy = y, there is no update to the weights;
+otherwise, the weights are updated as follows:
+α = α+Φ(x,y)−Φ(x, ˆy) (1)
+We iterate through the training data until the system
+performance drops on a held-out set. In a separable
+case, the perceptron will find an α such that:
+∀ˆy ∈ Y −{y} : α·Φ(x,y) > α·Φ(x, ˆy) (2)
+Since real-world data is not often separable, the av-
+erage of all α values seen throughout training is used
+in place of the final α, as the average generalizes bet-
+ter to unseen data.
+MIRA
+In the perceptron training algorithm, no update is
+derived from a particular training example so long
+as the system is predicting the correct phoneme se-
+quence. The perceptron has no notion of margin: a
+slim preference for the correct sequence is just as
+good as a clear preference. During development, we
+observed that this lead to underfitting the training ex-
+amples; useful and consistent evidence was ignored
+because of the presence of stronger evidence in the
+same example. The MIRA update provides a princi-
+pled method to resolve this problem.
+The Margin Infused Relaxed Algorithm or
+MIRA (Crammer and Singer, 2003) updates the
+model based on the system’s n-best output. It em-
+ploys a margin update which can induce an update
+even when the 1-best answer is correct. It does so by
+finding a weight vector that separates incorrect se-
+quences in the n-best list from the correct sequence
+by a variable width margin.
+The update process finds the smallest change in
+the current weights so that the new weights will sep-
+arate the correct answer from each incorrect answer
+by a margin determined by a structured loss func-
+tion. The loss function describes the distance be-
+tween an incorrect prediction and the correct one;
+that is, it quantifies just how wrong the proposed se-
+quence is. This update process can be described as
+an optimization problem:
+minαn bardbl αn −αo bardbl
+subject to ∀ˆy ∈ Yn :
+αn ·(Φ(x,y)−Φ(x, ˆy)) ≥ lscript(y, ˆy)
+(3)
+where Yn is a set of n-best outputs found under the
+current model, y is the correct answer, αo is the cur-
+rent weight vector, αn is the new weight vector, and
+lscript(y, ˆy) is the loss function.
+Since our direct objective is to produce the cor-
+rect phoneme sequence for a given word, the most
+intuitive way to define the loss function lscript(y, ˆy) is
+binary: 0 if ˆy = y, and 1 otherwise. We refer to
+this as 0-1 loss. Another possibility is to base the
+loss function on the phoneme error rate, calculated
+as the Levenshtein distance between y and ˆy. We
+can also compute a combined loss function as an
+equally-weighted linear combination of the 0-1 and
+phoneme loss functions.
+MIRA training is similar to averaged perceptron
+training, but instead of finding the single best an-
+swer, we find the n-best answers (Yn) and update
+weights according to Equation 3. To find the n-best
+answers, we modify the HMM and monotone search
+algorithms to keep track of the n-best phonemes at
+909
+0.010.020.0
+30.040.050.0
+60.070.080.0
+90.0
+0 1 2 3 4 5 6 7 8Context size
+Word a
+ccurac
+y (%)
+Figure 2: Perceptron update with different context size.
+each cell of the dynamic programming matrix. The
+optimization in Equation 3 is a standard quadratic
+programming problem that can be solved by us-
+ing Hildreth’s algorithm (Censor and Zenios, 1997).
+The details of our implementation of MIRA within
+the SVMlight framework (Joachims, 1999) are given
+in the Appendix A. Like the perceptron algorithm,
+MIRA returns the average of all weight vectors pro-
+duced during learning.
+5 Evaluation
+We evaluated our approach on English, German and
+Dutch CELEX (Baayen et al., 1996), French Brulex,
+English Nettalk and English CMUDict data sets.
+Except for English CELEX, we used the data sets
+from the PRONALSYL letter-to-phoneme conver-
+sion challenge1. Each data set is divided into 10
+folds: we used the first one for testing, and the rest
+for training. In all cases, we hold out 5% of our
+training data to determine when to stop perceptron
+or MIRA training. We ignored one-to-one align-
+ments included in the PRONALSYL data sets, and
+instead induced many-to-many alignments using the
+method of Jiampojamarn et al. (2007).
+Our English CELEX data set was extracted di-
+rectly from the CELEX database. After removing
+duplicate words, phrases, and abbreviations, the data
+set contained 66,189 word-phoneme pairs, of which
+10% was designated as the final test set, and the rest
+as the training set. We performed our development
+experiments on the latter part, and then used the final
+1Available at http://www.pascal-network.org/
+Challenges/PRONALSYL/. The results have not been an-
+nounced.
+83.084.0
+85.086.0
+87.088.0
+89.0
+0 1020304050n-best list size
+Word a
+ccurac
+y (%)
+Figure 3: MIRA update with different size of n-best list.
+test set to compare the performance of our system to
+other results reported in the literature.
+We report the system performance in terms of
+word accuracy, which rewards only completely cor-
+rect phoneme sequences. Word accuracy is more
+demanding than phoneme accuracy, which consid-
+ers the number of correct phonemes. We feel that
+word accuracy is a more appropriate error metric,
+given the quality of current L2P systems. Phoneme
+accuracy is not sensitive enough to detect improve-
+ments in highly accurate L2P systems: Black et al.(1998) report 90% phoneme accuracy is equivalent
+to approximately 60% word accuracy, while 99%
+phoneme accuracy corresponds to only 90% word
+accuracy.
+5.1 Development
+Experiments
+We began development with a zero-order Perceptron
+HMM with an external segmenter, which uses only
+the context features from Table 1. The zero-order
+Perceptron HMM is equivalent to training a multi-
+class perceptron to make independent substring-to-
+phoneme predictions; however, this framework al-
+lows us to easily extend to structured models. We in-
+vestigate the effect of augmenting this baseline sys-
+tem in turn with larger context sizes, the MIRA up-
+date, joint segmentation, and finally sequence fea-
+tures. We report the impact of each contribution on
+our English CELEX development set.
+Figure 2 shows the performance of our baseline
+L2P system with different context size values (c).
+Increasing the context size has a dramatic effect on
+accuracy, but the effect begins to level off for con-
+text sizes greater than 5. Henceforth, we report the
+910
+Perceptron MIRA
+Separate segmentation 84.5% 85.8%
+Phrasal decoding 86.6% 88.0%
+Table 2: Separate segmentation versus phrasal decoding
+in terms of word accuracy.
+results with context size c = 5.
+Figure 3 illustrates the effect of varying the size of
+n-best list in the MIRA update. n = 1 is equivalent
+to taking into account only the best answer, which
+does not address the underfitting problem. A large
+n-best list makes it difficult for the optimizer to sep-
+arate the correct and incorrect answers, resulting in
+large updates at each step. We settle on n = 10 for
+the subsequent experiments.
+The choice of MIRA’s loss function has a min-
+imal impact on performance, probably because our
+baseline system already has a very high phoneme ac-
+curacy. We employ the loss function that combines
+0-1 and phoneme error rate, due to its marginal im-
+provement over 0-1 loss on the development set.
+Looking across columns in Table 2, we observe
+over 8% reduction in word error rate when the per-
+ceptron update is replaced with the MIRA update.
+Since the perceptron is a considerably simpler algo-
+rithm, we continue to report the results of both vari-
+ants throughout this section.
+Table 2 also shows the word accuracy of our sys-
+tem after adding the option to conduct joint segmen-
+tation through phrasal decoding. The 15% relative
+reduction in error rate in the second row demon-
+strates the utility of folding the segmentation step
+into the search. It also shows that the joint frame-
+work enables the system to reduce and compensate
+for errors that occur in a pipeline. This is particu-
+larly interesting because our separate instance-based
+segmenter is highly accurate, achieving 98% seg-
+mentation accuracy. Our experiments indicate that
+the application of joint segmentation recovers more
+than 60% of the available improvements, according
+to an upper bound determined by utilizing perfect
+segmentation.2
+Table 3 illustrates the effect of our sequence fea-
+tures on both the perceptron and MIRA systems.
+2Perfect with respect to our many-to-many alignment (Ji-
+ampojamarn et al., 2007), but not necessarily in any linguistic
+sense.
+Feature Perceptron MIRA
+zero order 86.6% 88.0%
++ 1st order HMM 87.1% 88.3%
++ linear-chain 87.5% 89.3%
+All features 87.8% 89.4%
+Table 3: The effect of sequence features on the joint sys-
+tem in terms of word accuracy.
+Replacing the zero-order HMM with the first-order
+HMM makes little difference by itself, but com-
+bined with the more powerful linear-chain features,
+it results in a relative error reduction of about 12%.
+In general, the linear-chain features make a much
+larger difference than the relatively simple transition
+features, which underscores the importance of us-
+ing source-side context when assessing sequences of
+phonemes.
+The results reported in Tables 2 and 3 were cal-
+culated using cross validation on the training part of
+the CELEX data set. With the exception of adding
+the 1st order HMM, the differences between ver-
+sions are statistically significant according to McNe-
+mar’s test at 95% confidence level. On one CPU of
+AMD Opteron 2.2GHz with 6GB of installed mem-
+ory, it takes approximately 32 hours to train the
+MIRA model with all features, compared to 12 hours
+for the zero-order model.
+5.2 System
+Comparison
+Table 4 shows the comparison between our approach
+and other systems on the evaluation data sets. We
+trained our system using n-gram context, transition,
+and linear-chain features. All parameters, includ-
+ing the size of n-best list, size of letter context, and
+the choice of loss functions, were established on
+the English CELEX development set, as presented
+in our previous experiments. With the exception of
+the system described in (Jiampojamarn et al., 2007),
+which we re-ran on our current test sets, the results
+of other systems are taken from the original papers.
+Although these comparisons are necessarily indirect
+due to different experimental settings, they strongly
+suggest that our system outperforms all previous
+published results on all data sets, in some case by
+large margins. When compared to the current state-
+of-the-art performance of each data set, the relative
+reductions in error rate range from 7% to 46%.
+911
+Corpus MIRA Perceptron M-M HMM Joint n-gram∗ CSInf∗ PbA∗ CART∗
+Eng. CELEX 90.51% 88.44% 84.81% 76.3% 84.5% -
+Dutch CELEX 95.32% 95.13% 91.69% 94.5% -
+German CELEX 93.61% 92.84% 90.31% 92.5% 89.38%
+Nettalk 67.82% 64.87% 59.32% 64.6% 65.35% -
+CMUDict 71.99% 71.03% 65.38% 57.80%
+Brulex 94.51% 93.89% 89.77% 89.1% -
+Table 4: Word accuracy on the evaluated data sets. MIRA, Perceptron: our systems. M-M HMM: Many-to-Many
+HMM system (Jiampojamarn et al., 2007). Joint n-gram: Joint n-gram model (Demberg et al., 2007). CSInf: Con-
+straint satisfaction inference (Bosch and Canisius, 2006). PbA: Pronunciation by Analogy (Marchand and Damper,
+2006). CART: CART decision tree system (Black et al., 1998). The columns marked with * contain results reported
+in the literature. “-” indicates no reported results. We have underlined the best previously reported results.
+6 Conclusion
+We have presented a joint framework for letter-to-
+phoneme conversion, powered by online discrimi-
+native training. We introduced two methods to con-
+vert multi-letter substrings into phonemes: one rely-
+ing on a separate segmenter, and the other incorpo-
+rating a unified search that finds the best input seg-
+mentation while generating the output sequence. We
+investigated two online update algorithms: the per-
+ceptron, which is straightforward to implement, and
+MIRA, which boosts performance by avoiding un-
+derfitting. Our systems employ source n-gram fea-
+tures and linear-chain features, which substantially
+increase L2P accuracy. Our experimental results
+demonstrate the power of a joint approach based on
+online discriminative training with large feature sets.
+In all cases, our MIRA-based system advances the
+current state of the art by reducing the best reported
+error rate.
+Appendix A. MIRA Implementation
+We optimize the objective shown in Equation 3
+using the SVMlight framework (Joachims, 1999),
+which provides the quadratic program solver shown
+in Equation 4.
+minw,ξ 12 bardbl w bardbl2 +Csummationtexti ξi
+subject to ∀i,
+w·ti ≥ rhsi −ξi
+(4)
+In order to approximate a hard margin using the
+soft-margin optimizer of SVMlight, we assign a very
+large penalty value to C, thus making the use of any
+slack variables (ξi) prohibitively expensive. We de-
+fine the vector w as the difference between the new
+and previous weights: w = αn −αo. We constrain
+w to mirror the constraints in Equation 3. Since each
+ˆy in the n-best list (Yn) needs a constraint based on
+its feature difference vector, we define a ti for each:
+∀ˆy ∈ Yn : ti = Φ(x,y)−Φ(x, ˆy)
+Substituting that equation along with the inferred
+equation an = ao + w into our original MIRA con-
+straints yields:
+(αo +w)·ti ≥ lscript(y, ˆy)
+Moving αo to the right-hand-side to isolate w·ti on
+the left, we get a set of mappings that implement
+MIRA in SVMlight’s optimizer:
+w αn −αo
+ti Φ(x,y)−Φ(x, ˆy)
+rhsi lscript(y, ˆy)−αo ·ti
+The output of the SVMlight optimizer is an update
+vector w to be added to the current αo.
+Acknowledgements
+This research was supported by the Alberta Ingenu-
+ity Fund, and the Natural Sciences and Engineering
+Research Council of Canada.
+
+References
+
+David W. Aha, Dennis Kibler, and Marc K. Albert. 1991. Instance-based learning algorithms. Machine Learning, 6(1):37–66.
+
+Harald Baayen, Richard Piepenbrock, and Leon Gulikers. 1996. The CELEX2 lexical database. LDC96L14. 912
+
+Maximilian Bisani and Hermann Ney. 2002. Investigations on joint-multigram models for grapheme-to-phoneme conversion. In Proceedings of the 7th International Conference on Spoken Language Processing, pages 105–108.
+
+Alan W. Black, Kevin Lenzo, and Vincent Pagel. 1998. Issues in building general letter to sound rules. In The Third ESCA Workshop in Speech Synthesis, pages 77–80.
+
+Antal Van Den Bosch and Sander Canisius. 2006. Improved morpho-phonological sequence processing with constraint satisfaction inference. Proceedings of the Eighth Meeting of the ACL Special Interest Group in Computational Phonology, SIGPHON ’06, pages 41–49.
+
+Antal Van Den Bosch and Walter Daelemans. 1998. Do not forget: Full memory in memory-based learning of word pronunciation. In Proceedings of NeMLaP3/CoNLL98, pages 195–204, Sydney, Australia.
+
+Yair Censor and Stavros A. Zenios. 1997. Parallel Optimization: Theory, Algorithms, and Applications. Oxford University Press.
+
+Michael Collins. 2002. Discriminative training methods for Hidden Markov Models: theory and experiments with perceptron algorithms. In EMNLP ’02: Proceedings of the ACL-02 conference on Empirical methods in natural language processing, pages 1–8, Morristown, NJ, USA.
+
+Koby Crammer and Yoram Singer. 2003. Ultraconservative online algorithms for multiclass problems. The Journal of Machine Learning Research, 3:951–991.
+
+Walter Daelemans and Antal Van Den Bosch. 1997. Language-independent data-oriented grapheme-to-phoneme conversion. In Progress in Speech Synthesis, pages 77–89. New York, USA.
+
+Robert I. Damper, Yannick Marchand, John DS. Marsters, and Alexander I. Bazin. 2005. Aligning text and phonemes for speech technology applications using an EM-like algorithm. International Journal of Speech Technology, 8(2):147–160.
+
+Vera Demberg, Helmut Schmid, and Gregor M¨ohler. 2007. Phonological constraints and morphological preprocessing for grapheme-to-phoneme conversion. In Proceedings of the 45th Annual Meeting of the Association of Computational Linguistics, pages 96–103, Prague, Czech Republic.
+
+Herman Engelbrecht and Tanja Schultz. 2005. Rapid development of an afrikaans-english speech-to-speech translator. In International Workshop of Spoken Language Translation (IWSLT), Pittsburgh, PA, USA.
+
+Sittichai Jiampojamarn, Grzegorz Kondrak, and Tarek Sherif. 2007. Applying many-to-many alignments and hidden markov models to letter-to-phoneme conversion. In Human Language Technologies 2007: The Conference of the North American Chapter of the Association for Computational Linguistics; Proceedings of the Main Conference, pages 372–379, Rochester, New York, USA.
+
+Thorsten Joachims. 1999. Making large-scale support vector machine learning practical. pages 169–184. MIT Press, Cambridge, MA, USA.
+
+John Kominek and Alan W Black. 2006. Learning pronunciation dictionaries: Language complexity and word selection strategies. In Proceedings of the Human Language Technology Conference of the NAACL, Main Conference, pages 232–239, New York City, USA.
+
+Yannick Marchand and Robert I. Damper. 2000. A multistrategy approach to improving pronunciation by analogy. Computational Linguistics, 26(2):195–219.
+
+Yannick Marchand and Robert I. Damper. 2006. Can syllabification improve pronunciation by analogy of English? Natural Language Engineering, 13(1):1–24.
+
+Juergen Schroeter, Alistair Conkie, Ann Syrdal, Mark Beutnagel, Matthias Jilka, Volker Strom, Yeon-Jun Kim, Hong-Goo Kang, and David Kapilow. 2002. A perspective on the next challenges for TTS research. In IEEE 2002 Workshop on Speech Synthesis.
+
+Charles Sutton and Andrew McCallum. 2006. An introduction to conditional random fields for relational learning. In Lise Getoor and Ben Taskar, editors, Introduction to Statistical Relational Learning. MIT Press.
+
+Paul Taylor. 2005. Hidden Markov Models for grapheme to phoneme conversion. In Proceedings of the 9th European Conference on Speech Communication and Technology.
+
+Kristina Toutanova and Robert C. Moore. 2001. Pronunciation modeling for improved spelling correction. In ACL ’02: Proceedings of the 40th Annual Meeting on Association for Computational Linguistics, pages 144–151, Morristown, NJ, USA.
+
+Richard Zens and Hermann Ney. 2004. Improvements in phrase-based statistical machine translation. In HLT-NAACL 2004: Main Proceedings, pages 257–264, Boston, Massachusetts, USA. 
+

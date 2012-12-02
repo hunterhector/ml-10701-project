@@ -1,0 +1,2 @@
+(total of 40 values); no nodes are added that are not in the surface shape of the sentence (except for the root of the tree, carrying the identification number of the sentence); the sentences from CNC are preprocessed by a dependency-based modification of Collins et al.'s (1999) automatic parser (with a success rate of about 80%), followed by a manual tagging procedure that is supported by a special user-friendly software tool that enables the annotators to work with (i.e.
+P99-1065

@@ -1,0 +1,2 @@
+Examples of projects adopting the latter approach are numerous (among many Sekigushi and Yammoto, 2004; Emirkanian et al.2004). It is also the goal of the WaCky Project for instance which aims at developing tools “that will allow linguists to crawl a section of the web, process the data, index them and search them” 2. So we have the Internet: it is immense, free, easily accessible and can be used for all manner of language research (Kilgarriff and Grefenstette, 2003).
+J03-3001

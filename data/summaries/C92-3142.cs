@@ -1,0 +1,2 @@
+Knowledge-based systems using large kuowlcdgc bases organized on the basis of ontological principles have been prnt~Jse.d in Artificial Intelligence (Nirenburg & Moltarch, 1987; Lena( & Gnha, 1990; Onyshkevych & Nireubarg, 1991) Briefly, efiin ts have been devotexl to finding out criteria for structurinp the world by individuatiug both general tylms of coucepts iull)osiug goueral constraints oil subtypes and types of properties which are i)ertiueut to specific types of conceilts.
+W91-0221

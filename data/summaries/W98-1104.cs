@@ -1,0 +1,4 @@
+l(x;y) = log (P(x,y) / e(x)e(y) ) MI has been used to identify a variety of interesting linguistic phenomena, ranging from semantic relations of the doctor/nurse type to lexico-syntactic co-occurrence preferences of the save/from type (Church and Hanks, 1990).
+J90-1003
+int suffix_compare(char **a, char **b){ return strcmp(*a, *b); } /* The input is a string, terminated with a null */ char **suffix_array(char *corpus){ int i, N = strten(corpus); char **result=(char **)rnalloc(N*sizeof(char *)); /* initialize result\[i\] with the ith suffix */ for(i=0; i < N; i++) result\[il = corpus + i; ClSOr't(result, N, sizeof(char *), suffix_compare); return result; } Nagao and Mori (1994) describe this procedure, and report that it works well on their corpus, and that it requires O(NlogN)time, assuming that the sort step requires O(NlogN) comparisons, and that each comparison requires 0(1) time.
+C94-1101

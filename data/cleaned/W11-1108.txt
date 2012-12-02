@@ -1,0 +1,962 @@
+Proceedings of the TextGraphs-6 Workshop, pages 51–59,
+Portland, Oregon, USA, 19-24 June 2011. c©2011 Association for Computational Linguistics
+Unrestricted Quantifier Scope Disambiguation 
+ 
+ 
+Mehdi Manshadi  and James Allen 
+Department of Computer Science, University of Rochester 
+Rochester, NY, 14627, USA 
+{mehdih,james}@cs.rochester.edu 
+ 
+ 
+ 
+ 
+ 
+ 
+Abstract 
+We present the first work on aplying sta-
+tistical techniques to unrestricted Quanti-
+fier Scope Disambiguation (QSD), where 
+there is no restriction on the type or the 
+number of quantifiers in the sentence. We 
+formulate unrestricted QSD as learning to 
+build a Directed Acyclic Graph (DAG) and 
+define evaluation metrics based on the 
+properties of DAGs. Previous work on sta-
+tistical scope disambiguation is very lim-
+ited, only considering sentences with two 
+explicitly quantified noun phrases (NPs). In 
+adition, they only handle a restricted list 
+of quantifiers. In our system, al NPs, ex-
+plicitly quantified or not (e.g. definites, 
+bare singulars/plurals, etc.), are considered 
+for posible scope interactions. We present 
+early results on aplying a simple model to 
+a smal corpus. The preliminary results are 
+encouraging, and we hope wil motivate 
+further research in this area. 
+1 Introduction
+
+There are at least two interpretations for the fol-
+lowing sentence: 
+(1) Every line ends with a digit. 
+In one reading, there is a unique digit (say 2) at the 
+end of al lines. This is the case where the quanti-
+fier A outscopes (aka having wide-scope over) the 
+quantifier Every. The other case is the one in which 
+Every has wide-scope (or alternatively A has nar-
+row-scope), and represents the reading in which 
+diferent lines could posibly end with distinct dig-
+its. This phenomenon is known as quantifier scope 
+ambiguity.  
+Shortly after the first eforts to build natural lan-
+guage understanding systems, Quantifier Scope 
+Disambiguation (QSD) was realized to be very 
+dificult. Wods (1978) was one of the first to sug-
+gest a way to get around this problem. He pre-
+sented a framework for scope-underspecified 
+semantic representation. He sugests representing 
+the Logical Form (LF) of the above sentence as: 
+(2) <Every x Line> 
+<A y Digit> 
+Ends-with(x, y) 
+in which, the relative scope of the quantifiers is 
+underspecified. Since then scope underspecifica-
+tion has ben the most popular way to deal with 
+quantifier scope ambiguity in dep language 
+understanding systems (e.g. Boxer (Bos 204), 
+TRAINS (Alen et al. 207), BLUE (Clark and 
+Harison 208), and DELPH-IN
+1
+). Scope under-
+specification works in practice, only because many 
+NLP aplications (e.g. machine translation) could 
+be achieved without quantifier scope disambigua-
+tion. QSD on the other hand, is critical for many 
+other NLP tasks such as question answering sys-
+tems, dialogue systems and computing entailment. 
+Almost al eforts in the 80s and 90s on QSD 
+adopt heuristics based on the lexical properties of 
+the quantifiers, syntactic/semantic properties of the 
+sentences, and discourse/pragmatic cues (VanLehn 
+                                                             
+1
+ htp:/ww.delph-in.net/ 
+51
+1978, Moran 198, Alshawi 192). For example, it 
+is widely known that in English, the quantifier 
+each tends to have the widest scope. Also, the sub-
+ject of a sentence often outscopes the direct ob-
+ject.
+2
+ In cases where these heuristics conflict, 
+(manualy) weighted preference rules are adopted 
+to resolve the conflict (Hurum 198, , Pafel 197). 
+In the last decade there has ben some efort to 
+aply statistical and machine learning (ML) tech-
+niques to QSD. Al the previous eforts, however, 
+sufer from the folowing two limitations (se sec-
+tion 2 for details): 
+• They only alow scoping two NPs per sentence. 
+• The NPs must be explicitly quantified (e.g. they 
+ignore definites or bare singulars/plurals), and 
+the quantifiers are restricted to a predefined list. 
+In this paper, we present the first work on aplying 
+statistical techniques to unrestricted QSD, where 
+we put no restriction on the type or the number of 
+NPs to be scoped in a sentence. In fact, every two 
+NPs, explicitly quantified or not (including defi-
+nites, indefinites, bare singulars/plurals, pronouns, 
+etc.), are examined for posible scope interactions. 
+Scoping only two quantifiers per sentence, the pre-
+vious work defines QSD as a single clasification 
+task (e.g. 0 where the first quantifier has wide-
+scope, and 1 otherwise). As a result standard met-
+rics for clasification tasks are used for evaluation 
+purposes. We formalize the unrestricted form of 
+QSD as learning to build a DAG over the set of NP 
+chunks in the sentence. We define acuracy, preci-
+sion and recal metrics based on the properties of 
+DAGs for evaluation purposes. 
+We report the aplication of our model to a 
+smal corpus. As sen later, the early results are 
+promising and shal motivate further research on 
+aplying ML techniques to unrestricted QSD. In 
+fact, they set a baseline for future work in this area. 
+The structure of this paper is as folows. Section 
+(2) reviews the related work. In (3) we briefly de-
+scribe our corpus. We formalize the problem of 
+quantifier scope disambiguation for multiple quan-
+tifiers in section (4) and define some evaluation 
+metrics in (5). (6) presents our model including the 
+kinds of features we have used. We present our 
+experiments in (7) and give a discusion of the re-
+sults in (8). (9) sumarizes the curent work and 
+gives some directions for the future work. 
+                                                             
+2
+ Alen (195) discuses some of these heuristics and gives an 
+algorithm to incorporate those for scoping while parsing. 
+2 Related
+work 
+Earlier we mentioned that a standard aproach to 
+deal with quantifier scope ambiguity is scope un-
+derspecification. More recent underspecification 
+formalisms such as Hole Semantics (Bos 196), 
+Minimal Recursion Semantics (Copestake et al. 
+201), and Dominance Constraints (Eg et al. 
+201), present constraint-based frameworks. Every 
+constraint forces one term to be in the scope of 
+another, hence filters out some of the posible 
+readings. For example, one may ad a constraint to 
+an underspecified representation (UR) to force is-
+land constraints. Constraints can be aded incre-
+mentaly to the UR as the sentence procesing goes 
+deper (e.g. at the discourse and/or pragmatic 
+level). The main drawback with these formalisms 
+is that they only alow for hard constraints; that is 
+every scope-resolved representation must satisfy 
+al the constraints in order to be a valid interpreta-
+tion of the sentence.  In practice, however, most 
+constraints that can be drawn from discourse or 
+pragmatic knowledge have a soft nature; that is, 
+they describe a scope preference that is alowed to 
+be violated, though at a cost. 
+Motivated by the above problem, Koler et al. 
+(208) define an underspecified scope representa-
+tion based on regular tre gramars, which alows 
+for both hard constraints and weighted soft con-
+straints. They present a PCFG-style algorithm that 
+computes the reading, which satisfies al the hard 
+constraints and has the maximum product of the 
+weights. However, they asume that the weights 
+are already given. Their algorithm, for example, 
+can be used in traditional QSD aproaches with 
+weighted heuristics to systematicaly compute the 
+best reading. The main question though is how to 
+automaticaly learn those weights. One solution is 
+using corpus-based methods to learn soft con-
+straints and the cost asociated with their violation, 
+in terms of features and their weights. 
+To the best of our knowledge, there have ben 
+thre major eforts on statistical scope disambigua-
+tion for English. Higins and Sadock (203), hence 
+HS03, is the first work among these systems. They 
+define a list of quantifiers that they consider for 
+scope disambiguation. This list does not include 
+definites, indefinites, and many other chalenging 
+scope phenomena. They extract al sentences from 
+the Wal Stret journal section of the Pen Tree-
+bank, containing exactly two quantifiers from this 
+52
+list. This forms a corpus of 890 sentences, each 
+labeled with the relative scope of the two quantifi-
+ers, with the posibility of no scope interaction. 
+The no scope interaction case hapens to be the 
+majority clas in their corpus and includes more 
+than 61% of the sentences, defining a baseline for 
+their QSD system. They achieve the inter-
+anotator agrement of only 52% on this task. 
+They treat QSD as a clasification task with 
+thre posible clases (wide scope, narow scope, 
+and no scope interaction). Thre forms of feature 
+are incorporated into the clasifier: part-of-spech 
+(POS) tags, lexical features, and syntactic proper-
+ties. Several clasification models including naïve 
+Bayes clasifier, maximum entropy clasifier, and 
+single-layer perceptron are tested, among which 
+the single-layer perceptron performs the best, with 
+the acuracy of 7%. 
+Galen and MacCartney (204), hence GM04, 
+build a corpus of 305 sentences from LSAT and 
+GRE logic games, each containing exactly two 
+quantifiers from an even more restricted list of 
+quantifiers. They use an aditional label for the 
+case where the two scopings are equivalent (as in 
+the case of two existentials). In around 70% of the 
+sentences in their corpus, the first quantifier has 
+wide scope, defining a majority clas baseline of 
+70% for their QSD system.
+3
+ Thre clasifiers are 
+tried: naïve Bayes, logistics regresion, and suport 
+vector machine (SVM), among which SVM per-
+forms the best and achieves the acuracy of 94%. 
+In a recent work, Srinivasan and Yates (209) 
+study the usage of pragmatic knowledge in finding 
+the prefered scoping of natural language sen-
+tences. The sentences are al extracted from 5-
+grams in Web1Tgram (from Gogle, Inc) and 
+share the same syntactic structure: an active voice 
+English sentence of the form (S (NP (V (NP | 
+P)). For the task of finding the most prefered 
+reading, they anotate 46 sentences, each contain-
+ing two quantifiers: Every and A, where the first 
+quantifier is always A. Each sentence is anotated 
+with one of the two labels (Every has wide scope 
+or not). They use a totaly diferent aproach for 
+finding the prefered reading. The n-grams in 
+Web1Tgram are used to extract relations such as 
+Live(Person, City), and to estimate the expected 
+cardinality of the two clases, which form the ar-
+guments of the relation, that is Person and City. 
+                                                             
+3
+ They do not report any inter-anotator agrement. 
+They decide on the prefered scoping by compar-
+ing the size of the two clases, achieving the acu-
+racy of 74% on their test set. The main advantage 
+of this work is that it is open domain. 
+3 Our
+corpus 
+The fact that HS03, in spite of ignoring chaleng-
+ing scope phenomena and scoping only two quanti-
+fiers per sentence, achieve the IA of 52% shows 
+how hard scope disambiguation could be for hu-
+mans. It becomes enormously more chalenging 
+when there is no restriction on the type or the 
+number of quantifiers in the sentence, especialy 
+when NPs without explicit quantifiers such as de-
+finites, indefinites, and bare singulars/plurals are 
+taken into acount. As a mater of fact, our own 
+early efort to anotate part of the Pen Trebank 
+with ful scope information son proved to be to 
+ambitious. Instead, we picked a domain that covers 
+most chalenging phenomena in scope disambigua-
+tion, while keping the scope disambiguation fairly 
+intuitive. This made building the first corpus of 
+English text with ful quantifier scope information 
+feasible. Our domain of choice is the description of 
+tasks about editing plain text files, in other words, 
+a natural language interface for text editors such as 
+SED, AWK, or EMACS. Figure (1) gives some 
+sentences from the corpus. The reason behind 
+scoping in this domain being fairly intuitive is that 
+given any of these sentences, a conscious knowl-
+edge of scoping is critical in order to be able to 
+acomplish the explained task. 
+Our corpus consists of 50 sentences manualy 
+extracted from the web. The sentences have ben 
+labeled with gold standard NP chunks, where each 
+NP chunk has ben indexed with a number 1 
+through n (n is the number of chunks in the sen-
+tence). The anotators are asked to use outscoping 
+relations represented by ‘>’ to specify the relative 
+scope of every pair 1≤i,j≤n, with an option to leave 
+1. Print [1/ every line] of [2/ the file] that starts 
+with [3/ a digit] folowed by [4/ punctuation]. 
+QSD: {2>1, 2>3, 1>3, 2>4, 1>4} 
+2. Delete [1/ the first character] of [2/ every word] 
+and [3/ the first word] of  [4/ every line] in [5/ 
+the file]. 
+QSD: {5>4, 5>3, 4>3, 5>2, 5>1, 2>1} 
+Figure 1. Two NP-chunked sentences with QSDs 
+53
+the pair unscoped. For example a relation (2>3) 
+states that the second NP in the sentence outscopes 
+(aka dominates) the third NP. Since outscoping 
+relation is transitive, for the convenience of the 
+anotation, the outscoping relations are alowed to 
+be cascaded forming dominance chains. For exam-
+ple, the scoping for the sentence 2 in figure (1) can 
+alternatively be represented as shown in (3). 
+(3) (5>2>1 ; 5>4>3) 
+As a result, every pair <i,j> (1≤i<j≤n) is implicitly 
+labeled with one of the thre labels: 
+i. Wide scope: either explicitly given by the 
+anotator as i>j or implied using the transi-
+tive property of outscoping
+4
+ 
+ii. Narow scope: either explicitly given by the 
+anotator as j>i or implied using the transi-
+tive property of outscoping 
+iii. No interaction: where neither wide scope nor 
+narow scope could be infered from the 
+given scoping.
+5
+ 
+We achieved the IA of 75% (based on Cohen’s 
+kapa score) on this corpus, significantly beter 
+than the 52% IA of HS03, especialy considering 
+the fact that we put no restriction on the type of the 
+quantification. Our sentence-level IA is around 
+6%. The details of the corpus, and the anotation 
+scheme are beyond the scope of this paper and can 
+be found in Manshadi et al. (201). 
+4 Formalization
+ 
+Outscoping is an anti-symetric transitive relation, 
+so it defines an order over the chunks. Since we do 
+not force every two chunks to be involved in an 
+outscoping relation, QSD defines a partial order 
+over the NP chunks. Formaly, 
+Definition 1: Given a sentence S with NP chunks 
+1.n, a relation P over {1.n} is caled a QSD for S, 
+if and only if P is a partial order. 
+Definition 2: Given a sentence S with NP chunks 
+1.n, and the QSD P, we say (chunk) i outscopes 
+(chunk) j if and only if (i>j) ∈ P. 
+                                                             
+4
+ That is if i outscopes j and j outscopes k then i outscopes k. 
+5
+ The no interaction clas includes two cases: no scope interac-
+tion and logical equivalence which means we folow the thre-
+label scheme of HS03 as oposed to the four-label scheme of 
+GM04. This is because when there is a logical equivalence, 
+except for trivial cases, there are no clear criteria based on 
+which one can decide whether there is a scope interaction or 
+not. Furthermore, distinguishing these two cases does not 
+make much diference in practice. 
+Definition 3: Given a sentence S with NP chunks 
+1.n, and the QSD P, chunk i is said to be disjoint 
+with chunk j if and only if  
+(i>j) ∉ P � (j>i) ∉ P. 
+4.1 QSD
+and directed acyclic graphs 
+Partial orders can be represented using Directed 
+Acyclic Graphs (DAGs) in which dominance (aka 
+reachability) determines the order. More precisely, 
+every DAG G over n nodes v
+1
+..v
+n
+ defines a partial 
+order P
+G
+ over the set {v
+1
+..v
+n
+} in which, v
+i
+ precedes 
+v
+j
+ in P
+G
+ if and only if v
+i
+ dominates
+6
+ v
+j
+ in G.  
+Definition 4: Given a sentence S with NP chunks 
+1.n, every DAG G over n nodes (labeled 1…n) 
+defines a QSD P
+G
+ for S, such that 
+(i>j) ∈ P
+G
+ ⇔ i dominates j in G 
+For example figure (2a,b) represent the DAGs cor-
+responding to the QSD of sentence 2 in figure (1) 
+and the QSD in (3) respectively. Folowing defini-
+tion 3 and 4, the no interaction relation defined in 
+section (3) translates to coresponding nodes in the 
+DAG being disjoint
+7
+. Therefore the thre types of 
+scope interaction defined in i, ii, and iii (section 3), 
+translate to the folowing relations in a DAG. 
+(4) Wide Scope (WS): i dominates j 
+Narow Scope (NS): j dominates i 
+No Interaction (NI): i
+ 
+and j are disjoint. 
+5 Evaluation
+metrics  
+Intuitively the similarity of two QSDs, given for a 
+sentence S, can be defined as the ratio of the chunk 
+pairs that have the same label in both QSDs to the 
+total number of pairs. For example, consider the 
+                                                             
+6
+ Given a DAG G=(V, E), node u is said to imediately 
+dominate node v if and only if (u,v) ∈ E. “dominates” is the 
+reflexive transitive closure of “imediately dominates”. 
+7
+ The nodes u and v of the DAG G are said to be disjoint if 
+neither u dominates v nor v dominates u. 
+                      
+    (a)        (b) 
+Figure 2. Scopings represented as DAGs 
+ 
+54
+two DAGs in figure (2). Although loking difer-
+ent, both DAGs define the same partial order (i.e. 
+QSD). This is because the partial order represented 
+by a DAG G coresponds to the transitive closure 
+(TC) of G. 
+5.1 Transitive
+closure 
+The transitive closure of G, shown as G
++, is de-
+fined as folows: 
+(5) G
++
+= {(i,j) | i dominates j in G} 
+For example, figure (2a) is the transitive closure of 
+the DAG in figure (2b). Given this, the similarity 
+metric mentioned above can be formaly defined as 
+the number of (unordered) pairs of node that match 
+betwen G
+1
++
+ and G
+2
++
+ divided by the total number 
+of (unordered) pairs. 
+Definition 5: Similarity measure or σ. 
+Given sentence S with n NP chunks and two scop-
+ings represented by DAGs G
+1
+ and G
+2, we define: 
+M(G
+1, G
+2
+)= { {i,j} |    
+((i,j) ∈ G
+1
++
+ ∧ (i,j) ∈ G
+2
++
+) ∨ 
+((j,i) ∈ G
+1
++
+ ∧ (j,i) ∈ G
+2
++
+) ∨   
+(i,j),(j,i) ∉ G
+1
++
+ ∧ (i,j),(j,i) ∉ G
+2
++
+) } 
+σ(G
+1, G
+2
+) = 2|M(G
+1, G
+2
+)|/ [n(n-1)] 
+Where |.| represents the cardinality of a set. σ is a 
+value betwen 0 and 1 (inclusive) where 1 means 
+that the QSDs are equivalent and 0 means that they 
+do not agre on the label of any pair. σ is useful for 
+measuring the similarity of two scope anotations 
+when calculating IA. It can also be used as an 
+acuracy metric for evaluating an automatic scope 
+disambiguation system where the similarity of a 
+predicted QSD is calculated respect to a gold stan-
+dard QSD. In fact, if n =2, σ is equivalent to the 
+metric that HS03 use to evaluate their system.  
+The similarity metric defined above has some 
+disadvantages. For example, HS03 report that more 
+than 61% of the scope relations in their corpus are 
+of type no interaction. Using this metric, a model 
+that leaves everything unscoped has more than 
+61% percent acuracy on their corpus! In fact, the 
+output of a QSD system on pairs with no interac-
+tion is not practicaly important.
+ 8
+ What is more 
+                                                             
+8
+ In practice the target language is often first order logic or a 
+variant of that. When a pair is labeled NI in gold standard data, 
+if there exist valid interpretations (satisfying hard constraints) 
+in which either of the two quantifiers can be in the scope of 
+important is to recover the pairs with scope interac-
+tion corectly. The standard way to adres this is 
+to define precision/recal metrics. 
+Definition 6: Precision and Recal (TC version) 
+Given the gold standard DAG G
+g
+ and the predicted 
+DAG G
+p, we define the precision (P) and the recal 
+(R) as folows: 
+TP = | { (i,j) | (i,j) ∈ G
+p
++
+ ∧ (i,j) ∈ G
+g
++
+} | 
+N = | { (i,j) | (i,j) ∈ G
+p
++
+} | 
+M = | { (i,j) | (i,j) ∈ G
+g
++
+} | 
+P = TP / N 
+R = TP / M 
+5.2 Transitive
+reduction 
+The TC-based metrics implicitly count some 
+matching pairs more than once. For example, if in 
+both QSDs we have 1>2 and 2>3, then 1>3 is im-
+plied, so counting it as another match is redundant 
+and favors toward higher acuracies. Naturaly, 
+there are so many redundancies in TC. To adres 
+this isue, we define another set of metrics based 
+on the concept of transitive reduction (TR). Given 
+a directed graph G, the transitive reduction of G, 
+represented as G 
+-, is intuitively a graph with the 
+same reachability (i.e. dominance) relation but 
+with no redundant edges. More formaly, the tran-
+sitive reduction of G is a graph G 
+-
+ such that 
+• (G 
+-
+)
++
+ = G
++
+ 
+• ∀ G′,    (G′)
++
+ = G
++  
+⇒  
+ 
+|G 
+-
+| ≤ |G′ | 
+For example, figure (2b) represents the transitive 
+reduction of the DAG in figure (2a). Fortunately if 
+a directed graph is acyclic, its transitive reduction 
+is unique (Aho et al., 1972). Therefore, defining 
+TR-based precision/recal metrics is valid. 
+Definition 7: Precision and Recal (TR version) 
+Simply replace every ‘+’ in definition 6 with a ‘-‘. 
+6 The
+model 
+We extend HS03’s aproach for scoping two NPs 
+per sentence to the general case of n NPs. Every 
+pair of chunks <i,j> (where 1≤i<j≤n) is treated as 
+an independent sample to be clasified as one of 
+the thre clases defined in (3), that is WS, NS, or 
+NI. Therefore a sentence with n NP chunks con-
+sists of C(n, 2)=n(n-1)/2 samples. The average 
+                                                                                                
+the other, then the ordering of this pair does not mater; that is 
+switching the order of such pairs result in equivalent formulas. 
+55
+number of NPs per sentence in the corpus is 3.7, so 
+the corpus provides 1850 samples. Since the scop-
+ing of each pair is predicted independent of the 
+other pairs in the sentence, it may result in an il-
+formed scoping, i.e. a scoping with cycles. As ex-
+plained later, this case did not hapen in our cor-
+pus. A MultiClas SVM (Cramer et al. 201), 
+refered to as SVM-MC in the rest of the paper, is 
+used as the clasifier. We provide more supervision 
+by anotating data with the folowing labels. 
+I. Determiner features 
+For every NP chunk, we tag pre-determiner (/PD), 
+determiner (/D), posesive determiner (/POS), and 
+number (/CD) (if they exist) as part of the deter-
+miner (se figure 3). Given the pair <i,j>, for ei-
+ther of the chunks i and j, and every tag mentioned 
+above, we use a binary feature, which shows 
+whether this tag exists in that chunk or not. For 
+tags that do exist (except /CD) the lexical word is 
+also used as a feature. 
+II. Semantic head features 
+We tag the semantic head of the NP and use its 
+lexical word as feature. Also the plurality of the 
+NP (/S tag for plurals) is used as a binary feature. 
+III. 3. Dependency features 
+The above two sets of feature are about the indi-
+vidual properties of the chunks. But this last cate-
+gory represents how each NP contributes to the 
+semantics of the whole sentence. We borow from 
+Manshadi et al. (209) the concept of Dependency 
+Graph (DG), which encodes this information in a 
+compact way. DG represents the argument struc-
+ture of the predicates that form the logical form of 
+a sentence. The DG of a sentence with n NP 
+chunks contains n+1 nodes labeled 0..n. Node i 
+(i>0) represents the predicate or the conjunction of 
+the predicates that describes the NP chunk i, and 
+node 0 represents the main predicate (or conjunc-
+tion of predicates) of the sentence. An edge from i 
+to j shows that chunk i is an argument of a predi-
+cate represented by node j. 
+For example, in sentence (1) of figure (3), 
+chunk 1 is clearly the argument of the verb Print 
+(the main predicate of the sentence), therefore 
+there is an edge from 1 to 0 in the DG of this sen-
+tence as shown in figure (4a). Also, chunks 2.4 are 
+part of the description of chunk 1, so they are the 
+arguments of the predicate(s) describing chunk 1. 
+This means that there must be edges from nodes 
+2.4 to node 1 in the DG. Similarly for sentence 2 
+in figure (3), chunk 5 is part of the description 
+(hence an argument of the predicates) of chunks 2 
+and 4; chunks 2 and 4 are part of the description of 
+1 and 3 respectively; and 1 and 3 are both argu-
+ments of the verb Delete, the main predicate of the 
+sentence, resulting in the DG given in figure (4b). 
+The folowing features are extracted from the 
+DG for every sample <i,j>(1≤i<j≤n): 
+Does i (or j) imediately dominate 0? 
+Does i (or j) imediately dominate j (or i)? 
+Does i (or j) dominate j (or i)? 
+Are i,j siblings ? 
+Do i,j share the same child? 
+Note that DG has a close relationship with the de-
+pendency tre of a sentence; for example, it shows 
+the dependency relation(s) betwen a noun or verb 
+and their modifier(s). Therefore it actualy encodes 
+some syntactic properties of a sentence. 
+7 Experiments
+
+100 sentences from the corpus were picked at ran-
+dom as the development set, in order to study the 
+relevant features and their contribution to QSD. 
+The rest of the corpus (40 sentences) was then 
+used to do a 5 fold cros validation. We used 
+SVM
+Multiclas
+ from SVM-light tolkit (Joachims 
+1999) as the clasifier. 
+            
+  (a)         (b) 
+Figure 4. Dependency Graphs for figure (3) sentences 
+ 
+1. Print [1/ every/D line/H] of [2/ the/D file/H] that 
+starts with [3/ two/CD digits/H/S] folowed by [4/ 
+punctuation/H]. 
+2. Delete [1/ the/D first character/H] of [2/ every/D 
+word/H] and [3/ the/D first word/H] of  [4/ 
+every/D line/H] in [5/ the/D file/H]. 
+Figure 3. Labeling determiners and head nouns 
+56
+Before giving the results, we define a baseline. 
+HS03 use the most frequent label as the baseline 
+and the similarity metric given in definition (5) to 
+evaluate the performance. Since more than 61% of 
+the labels in their corpus is NI, the baseline system 
+(that leaves every sentence unscoped) has the acu-
+racy above 61%. In our corpus, the majority clas 
+is WS containing around 35% of the samples. NS 
+and NI each contain 34% and 31% of the samples 
+respectively. This means that there is a slight ten-
+dency for having scope preference in chronological 
+order. Therefore, the linear order of the chunks (i.e. 
+from left to right) defines a reasonable baseline. 
+The results of our experiments are shown in table 
+1. The table lists the parameters P, R, and F-score
+9
+ 
+for our SVM-MC model vs. the baseline system. 
+For each system, two sets of metrics have ben 
+reported: TC-based and TR-based. 
+Table 2 lists the sentence-level acuracy of the 
+system. We computed two metrics for sentence-
+level acuracy: Ac and Ac-EZ. In calculating Ac, 
+a sentence is considered corect if al the labels 
+(including NI) exactly match the gold standard la-
+bels. However, this is an unecesarily tough met-
+ric. As mentioned before (fotnote 8), in practice 
+the output of the system for the samples labeled NI 
+is not important; al we care is that al outscoping 
+(i.e. WS/NS) relations are recovered corectly. In 
+other words, in practice, the system’s recal is the 
+most important parameter. Regarding this fact, we 
+define Ac-EZ as the percentage of sentences with 
+10% recal (ignoring the value of precision). 
+In order to compare our system with that of 
+HS03, we aplied our model unmodified to their 
+corpus using the same set-up, a 10-fold cros vali-
+dation. However, since their corpus is not ano-
+tated with DG, we translated our dependency 
+features to the properties of the Pen Trebank’s 
+phrase structure tres. Table (3) lists the acuracy 
+                                                             
+9
+ F-score is defined as F=2PR/(P+R). 
+of their best model, their baseline, and our SVM-
+MC model. As sen in this table, their model out-
+performs ours. This, however, is not surprising. 
+First, although we trained our model on their cor-
+pus, the feature enginering of our model was done 
+based on our own development set. Second, since 
+our corpus is not anotated with phrase structure 
+tres, our model does not use any of their features 
+that can only be extracted from phrase structure 
+tres. It remains for future work to incorporate the 
+features extracted from phrase structure tres 
+(which is not already encoded in DG) and evaluate 
+the performance of the model on either corpus. 
+8 Discussion
+
+As sen in tables 1 and 2, for a first efort at ful 
+quantifier scope disambiguation, the results are 
+promising. The constraint-based F-score of 78% is 
+already higher than the inter-anotator agrement, 
+which is 75% (measured using the TC-based simi-
+larity metric; se definition 5). Furthermore, our 
+system outperforms the baseline, by more than 
+40% (judging by the constraint-based F-score). 
+This is significant, comparing to the work of HS03, 
+which outperforms the baseline by 16%. 
+We mentioned before that in our corpus in aver-
+age there are around 4 NPs per sentence resulting 
+in 6 samples per sentence. Therefore the chance of 
+predicting al the labels corectly is very slim. 
+However, the baseline (i.e. the left to right order) 
+does a god job and predicts the corect QSD for 
+27% of the sentences. At the sentence level, our 
+model does not reach the IA, but the performance 
+(62%) is not much lower than the IA (6%). 
+A question may arise that since the model treats 
+ σ 
+Baseline 61.1% 
+HS04 
+7.0% 
+Our Model 73.3% 
+Table 3. Comparison with HS04 system on their dataset 
+ P R F 
+Baseline (TC) 31.8% 49.7% 38.8% 
+Baseline (TR) 27.4% 33.9% 30.3% 
+SVM-MC (TC) 73.0% 84.7% 78.4% 
+SVM-MC (TR) 70.6% 76.2% 73.2% 
+Table 1. Constraint-level results 
+ Ac Ac-EZ 
+Baseline 27.0% 43.8% 
+SVM-MC 62.3% 78.0% 
+Table 2. Sentence level acuracy 
+57
+the pairs of NP independently, what guarantes 
+that the scopings are valid; that is the predicted 
+directed graphs are in fact DAGs. For example, for 
+a sentence with 3 NP chunks, the clasifier may 
+predict that 1>2, 2>3, and 3>1, which results in a 
+lop! As a mater of fact, there is nothing in the 
+model that guarantes the validnes of the pre-
+dicted scopings. In spite of that, surprisingly al 
+generated graphs in our tests were in fact DAGs! 
+In order to explain this fact, we run two experi-
+ments. In the first experiment, coresponding to 
+every sentence S in the corpus with n chunks, we 
+generated a random directed graph over n nodes. 
+Only 10% of the graphs had cycles. It means that 
+more than 90% of randomly generated directed 
+graphs with n nodes (where the distribution of n is 
+its distribution in our corpus) are acyclic. In the 
+second experiment, for every sentence with n 
+chunks, we created the samples <i,j> by randomly 
+selecting values for al the features. We then tested 
+the clasifier in our original set-up, a 5-fold cros 
+validation. In this case, only 4% of the sentences 
+were asigned inconsistent labeling. This means 
+that chances of having a lop in the scoping are 
+smal even when the clasifier is trained on sam-
+ples with randomly valued features, therefore it is 
+not surprising that a clasifier trained on the actual 
+data learns some useful structures which make the 
+chance of asigning inconsistent labels very slim. 
+In general, if the clasifier predicts such incon-
+sistent scopings, the PCFG-style algorithm of 
+Koler et al. (208) comes handy in order to find a 
+valid scoping with the highest weight. 
+9 Summary
+and future work 
+We presented the first work on unrestricted statis-
+tical scope disambiguation in which al NP chunks 
+in a sentence are considered for posible scope in-
+teractions. We defined the task of ful scope dis-
+ambiguation as asigning a directed acyclic graph 
+over n nodes to a sentence with n NP chunks. We 
+then defined some metrics for evaluation purposes 
+based on the two wel-known concepts for DAGs: 
+transitive closure and transitive reduction. 
+We use a simple model for automatic QSD. Our 
+model treats QSD as a ternary clasification task 
+on every pair of NP chunks. A multiclas SVM 
+together with some POS, lexical and dependency 
+features is used to do the clasification. We aply 
+this model to a corpus of English text in the do-
+main of editing plain text files, which has ben 
+anotated with ful scope information. The pre-
+liminary results reach the F-score of 73% (based 
+on transitive reduction metrics) at the constraint 
+level and the acuracy of 62% at the sentence 
+level. The system outperforms the baseline by a 
+high margin (43% at the constraint level and 35% 
+at the sentence level). 
+Our ternary SVM-based clasification model is 
+a preliminary model, used for justification of our 
+theoretical framework. Many improvements are 
+posible, for example, directly predicting the whole 
+DAG as a structured output. Also, the features that 
+we use are rather basic. There are other linguisti-
+caly motivated features that can be incorporated, 
+e.g. some properties of the phrase structure tres, 
+not already encoded in dependency graphs. 
+Another problem with the curent system is that 
+the extra supervision has ben provided by manu-
+aly labeling the data (e.g. with dependency 
+graphs). This could be done automaticaly by ap-
+plying of the shelf parsers or POS tagers, posi-
+bly by adapting them to our domain. 
+Although we consider al NPs for scope resolu-
+tion, scopal operators such as negation, mo-
+dal/logical operators have ben ignored in this 
+work. We also do not distinguish distributive vs. 
+colective reading of plurals in the curent sys-
+tem.
+10
+ Incorporating scopal operators and handling 
+distributivity vs. colectivity would be the next step 
+in expanding this work. 
+Finaly, since hand anotation of scope infor-
+mation is very chalenging, aplying semi-
+supervised or even unsupervised techniques to 
+QSD is very demanding. In fact, leveraging unla-
+beled data to do QSD sems quite promising. This 
+is because domain dependent knowledge plays a 
+critical role in scope disambiguation and this 
+knowledge can be learned from unlabeled data us-
+ing unsupervised methods. 
+Acknowledgement 
+We would like to thank Derick Higins for pro-
+viding us with the HS03’s corpus. This work was 
+suported in part by grants from the National Sci-
+ence Foundation (IS-101205) and The Ofice of 
+Naval Research (N0014110417). 
+                                                             
+10
+ The corpus has already ben anotated with al this informa-
+tion, but our QSD model is not designed for such a compre-
+hensive scope disambiguation. 
+58
+References  
+Aho, A., Garey, M., Ulman, J. (1972). The Transitive 
+Reduction of a Directed Graph. SIAM Journal on 
+Computing 1 (2): 131–137. 
+Alen, J. (195) Natural Langue Understanding, Ben-
+jamin-Cumings Publishing Co., Inc. 
+Alen, J., Dzikovska, M., Manshadi, M., Swift, M. 
+(207) Dep linguistic procesing for spoken dia-
+logue systems. Procedings of the ACL-07 Workshop 
+on Dep Linguistic Procesing, p. 49-56. 
+Alshawi, H.  (ed.)  (192) The core language Engine. 
+Cambridge, MA, MIT Pres.  
+Bos, J., S. Clark, M. Stedman, J. R. Curan, and J. 
+Hockenmaier (204). Wide-coverage semantic repre-
+sentations from a CG parser. In Procedings of 
+COLING 204, Geneva, Switzerland, p. 1240– 
+1246. 
+Bos, J. (196) Predicate logic unpluged. In Proc. 10th 
+Amsterdam Coloquium, pages 13–143. 
+Clark P., Harison, P. (208) Boeing's NLP system and 
+the chalenges of semantic representation, Semantics 
+in Text Procesing. STEP 208. 
+Copestake, A., Lascarides, A. and Flickinger, D. (201) 
+An Algebra for Semantic Construction in Constraint-
+Based Gramars. ACL-01. Toulouse, France. 
+Cramer, K., Y. Singer, N. Cristianini , J. Shawe-
+taylor, B. Wiliamson (201). On the Algorithmic 
+Implementation of Multi-clas SVMs, Journal of Ma-
+chine Learning Research. 
+Eg M., Koler A., and Niehren J. (201) The constraint 
+language for lambda structures. Journal of Logic, 
+Language, and Information, 10:457–485. 
+Galen, A. and MacCartney, B. (2004). Statistical resolu-
+tion of scope ambiguity in Natural language. 
+htp:/nlp.stanford.edu/nlkr/scoper.pdf. 
+Higins, D. and Sadock, J. (2003). A machine learning 
+aproach to modeling scope preferences. Computa-
+tional Linguistics, 29(1). 
+Hurum, S. O. (198) Handling scope ambiguities in 
+English. In Proceding of the second conference on 
+Aplied Natural Language Procesing (ANLC '8). 
+Koler, A., Michaela, R., Thater, S. (208) Regular Tre 
+Gramars as a Formalism for Scope Underspecifi-
+cation. ACL-08, Columbus, USA. 
+Joachims, T. (199) Making Large-Scale SVM Learning 
+Practical. Advances in Kernel Methods Suport 
+Vector Learning, B. Schölkopf and C. Burges and A. 
+Smola (ed.), MIT Pres. 
+Manshadi, M., Alen J., and Swift, M. (209) An Efi-
+cient Enumeration Algorithm for Canonical Form 
+Underspecified Semantic Representations. Proced-
+ings of the 14th Conference on Formal Gramar (FG 
+209), Bordeaux, France July 25-26. 
+Moran, D. B. (198). Quantifier scoping in the SRI core 
+language engine. In Procedings of the 26th Anual 
+Meting of the Asociation for Computational Lin-
+guistics. 
+Pafel, J. (197). Skopus und logische Struktur. Studien 
+zum Quantorenskopus im Deutschen. PHD thesis, 
+University of Tübingen. 
+Srinivasan, P., and Yates, A. (2009). Quantifier scope 
+disambiguation using extracted pragmatic knowl-
+edge: Preliminary results. In Procedings of the Con-
+ference on Empirical Methods in Natural Language 
+Procesing (EMNLP). 
+VanLehn, K. (198) Determining the scope of English 
+quantifiers, TR AI-TR-483, AI Lab, MIT. 
+Wods, W. A.  (1978) Semantics and quantification in 
+natural language question answering, Advances in. 
+Computers, vol. 17, p 1-87. 
+ 
+59
+

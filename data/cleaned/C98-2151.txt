@@ -1,0 +1,661 @@
+An alternative LR algorithm for TAGs 
+Mark-Jan Nederhof 
+DFKI 
+Stuhlsatzenhausweg 3 
+D-66123 Saarbriicken, Germany 
+E-mail: nederhof@dfki.de 
+Abstract 
+We present a new LR algorithm for tree
+adjoining grammars. It is an alternative to an 
+existing algorithm that is shown to be incorrect. 
+Furthermore, the new algorithm is much sim
+pler, being very close to traditional LR parsing 
+for context-free grammars. The construction of 
+derived trees and the computation of features 
+also become straightforward. 
+1 Introduction
+
+The efficiency of LR(k) parsing techniques 
+(Sippu and Soisalon-Soininen, 1990) appears 
+to be very attractive from the perspective of 
+natural language processing. This has stim
+ulated the computational linguistics commu
+nity to develop extensions of these techniques 
+to general context-free grammar parsing. The 
+best-known example is generalized LR parsing 
+(Tomita, 1986). 
+A first attempt to adapt LR parsing to tree
+adjoining grammars (TAGs) was made by Scha
+bes and Vijay-Shanker (1990). The description 
+was very complicated however, and not surpris
+ingly, no implementation of the algorithm seems 
+to have been made up to now. Apart from pre
+sentational difficulties, the algorithm as it was 
+published is also incorrect. Brief indications of 
+the nature of the incorrectness have been given 
+before by Kinyon (1997). There seems to be no 
+straightforward way to correct the algorithm. 
+We therefore developed an alternative to 
+the algorithm from Schabes and Vijay-Shanker 
+(1990). This alternative is novel in presenta
+tional aspects, and is fundamentally different in 
+that it incorporates reductions of subtrees. 
+The new algorithm has the benefit that many 
+theoretically and practically useful properties 
+carry over from the context-free case. For ex
+ample, by making a straightforward translation 
+from TAGs to linear indexed grammars, one 
+may identify computations of the parser with 
+rightmost derivations in reverse. Also the ex
+tensions needed for construction of parse trees 
+(or "derived trees" as they are often called for 
+TAGs) and the computation of features are al
+most identical to the corresponding extensions 
+for context-free LR parsing. 
+Section 2 discusses our notation. The algo
+rithm for constructing the LR table is given in 
+Section 3, and the automaton that operates on 
+these tables is given in Section 4. Section 5 
+first explains why the algorithm from Schabes 
+and Vijay-Shanker (1990) is incorrect, and then 
+provides an example of how our new algorithm 
+works. Some extensions are discussed in Sec
+tion 6, and the implementation in Section 7. 
+2 Notation
+
+For a good introduction to TAGs, the reader 
+is referred to Joshi (1987). In this section we 
+merely summarize our notation. 
+A tree-adjoining grammar is a 4-tuple 
+(~, NT, I, A), where Z is a finite set of termi
+nals, I is a finite set of initial trees and A is 
+a finite set of auxiliary trees. We refer to the 
+trees in IU A as elementary trees. The set NT, 
+a finite set of nonterminals, does not play any 
+role in this paper. 
+Each auxiliary tree has a distinguished leaf, 
+call the foot. We refer to the foot of an aux
+iliary tree t as Ft. We refer to the root of an 
+elementary tree t as Rt. The set of all nodes 
+of an elementary tree t is denoted by Af(t), and 
+we define the set of all nodes in the grammar by 
+.Af = UtEIun JV'(t). 
+For each non-leaf node N we define 
+children(N) as the list of children nodes. For 
+other nodes, the function children is undefined. 
+The dominance relation <~* is the reflexive and 
+946 
+transitive closure of the l)arent relation <1 de
+lined t)y N <l M if and only if children(N) = 
+(~M(3, for some ,z,/3 C N'*. 
+Each leaf N in an elementary tree, except 
+when it; is a foot, is labelled by either a termi
+nal from )3 or the empty string e. We identify 
+such a node N labelled by a terminal with that 
+terminal. Thus, we consider L' to be a subset 
+of Af.* 
+l, br now, we will disallow labels to be g, since 
+this causes a slight technical problem. We will 
+return to this issue in Section 6. 
+l?or ea(:h node N that is not a leaf or that 
+is a foot, we define Adjunct(N) as the set of 
+auxiliary trees that can l)e adjoined at N. This 
+set may contain the element nil to indicate that 
+adjunction at that node is not obligatory. 
+An example of a TAG is given in Figure 1. 
+There are two initial trees, o~1 and (~2, and one 
+auxiliary tree \[3. For each node N, Adjunct(N) 
+has been indicated to the right of that node, 
+unless Adjunct(N) {nil}, in which case that 
+information is onfitted from the picture. 
+3 Construction
+of the LR table 
+For technical reasons, we assume an additional 
+node for each elementary tree t, which we de
+note by V. This node has only one child, viz. 
+the actual root node t~t. We also assume an 
+additional node for each auxiliary tree t, which 
+we denotc by _L. This is the unique child of the 
+actual fool; node Ft. The domain of the func
+tion children is extended to im:lude foot nodes, 
+by defining children(Ft) -±, for each t E A. 
+For the algorithm, two kinds of tree need to 
+t)e distinguished: elementary trees and subtrees 
+of elementary trees. A subtree can be identified 
+|)y a pair (t, N), where t is an elementary tree 
+and N is a node in that tree; the pair indicates 
+the subtree of t rooted at N. The set of all trees 
+needed by our algorithm is given by: 
+T-IUAtO{(t,N) I tEIUA,NEAf(t)} 
+From here on, we will use the symbol t exclu
+sively to range over I U A, and r to range over 
+5/' in general. 
+1With this convention, we can no longer distinguish 
+between different leaves in the grammar with the same 
+terminal label. This merging of leaves with identical la
+1)els is not an inherent part of our algorithm, but it sim
+plifies the notation considerably. 
+For each r E T, we may consider a part of the 
+tree consisting of a node N in r and tile list of its 
+children nodes 7. Analogously to the notation 
+for context-free parsing, we separate the list; of 
+children nodes into two lists, separated by a (tot, 
+and write N -+ a • fl, where aft = 7, to indicate 
+that the children nodes in a have already been 
+matched against a part of the input string, and 
+those in/3 have as yet not been processed. 
+The set of such objects for an elementary tree 
+-t is given by: 
+= {(T -+ • I = u 
+{(N -+ a • fl) I N E N'(t), children(N) = a(~} 
+For subtrees (t, M) we define: 
+/'(ty) = 
+Such objects are attached to the trees r E T to 
+which they pertain, to form the set of items: 
+{ \[ r , N --~ a o ¢~ \] I r E T , ( N ~ o~ , fJ ) ~ I-# } 
+A completed item is an item that indicates a 
+comt)letely recognized elementary tree or sub
+tree. FormMly, items arc completed if they 
+arc of the form \[t,T --~ Rt °\] or of the form 
+\[(t, N),N--~ a °\]. 
+The main concept needed for the construction 
+of the LR table is that of LR states. These 
+are particular elements from 2 lt~m~ to t)e defined 
+shortly. 
+First, we introduce the flmetion closure from 
+2 Items
+to 2 Items and the flmetions goto and 9oto± 
+from 2 Items x iV" to 2 Items. For any q C_ Items, 
+closure(q) is the smallest set such that: 
+1. q C closure(q); 
+2. • c clo 'ure(q), ,,,il < 
+Adjunct(M) and children(M) = q' implies 
+\[% • e clos,.'e(q); 
+3. \[%N • Mp\] e eto.  ,'e(q)and 
+t E Adj'anct(M) implies It, T -~ • I~.t\] e 
+closure (q); 
+4. \[r, Ft -+ ° ±\] E closure(q), t E Adjunct(N), 
+N E Af(t') and children(N) = 7 implies 
+\[(t',U),N -~ • 7\] E closure(q); and 
+5. \[% M ~ 7 "\] E elosu,~(q) and \[% N ~ ,~M • 
+fl\]E Items implies \[%N -~ aM ° fl\] C 
+closure (q). 
+The clauses 1 thru 4 are reminiscent of the clo
+947 
+(al) a@ 
+b 
+(a~) a@ 
+b I 
+d e 
+Figure 1: A tree-adjoining grammar. 
+d N2~ e 
+b I 
+Figure 2: An incorrect 
+"parse tree" (Section 5). 
+sure function for traditional LR parsing. Note 
+that in clause 4 we set out to recognize a sub
+tree (t I, N) of elementary tree t I. Clause 5 is 
+unconventional: we traverse the tree 7upwards 
+when the dot indicates that all children nodes 
+of M have been recognized. 
+Next we define the function goto, for any 
+q C_ Items, and any M E ~' or M E N" such 
+that Adjunct(M) includes at least one auxiliary 
+tree. 
+goto(q,M) = {\[7, N-4aM-/3\] I 
+N -4 • C closure(q)} 
+The function goto± is similar in that it shifts 
+the dot over a node, in this case the imaginary 
+node _1_ which is the unique child of an actual 
+foot node Ft. However, it only does this if t is a 
+tree which can be adjoined at the node that is 
+given as the second argmnent. 
+goto±(q,M) = {\[%Ft -4 _1_ .\] \] 
+\[% Ft --+ " _L\] E closure(q) At E Adjunct(M)} 
+The initial LR state is the set 
+= (It, T -4 • I t e I} 
+We construct the set Q of all LR states as the 
+smallest collection of sets satisfying the condi
+tions: 
+1. qin E Q; 
+2. q E Q, M E A/" and q' = goto(q,M) 7 ~ ¢ 
+imply ql E Q; and 
+3. q E Q, M E iV'and q' = goto±(q,M) 7~ 
+imply ql E Q. 
+An LR state is final if its closure includes a 
+completed item corresponding to an initial tree: 
+Q~n = {q E Q I 
+closure(q) CI {\[t, T --4 Rt .\] I t E I} ¢ O} 
+Final LR states indicate recognition of the in
+put. Other completed items give rise to a re
+duction, a type of stack manipulation by the 
+LR automaton to be defined ill the next sec
+tion. As defined below, reductions are uniquely 
+identified by either auxiliary trees t or by nodes 
+N obtained from the corresponding completed 
+items. 
+reductions (q) = 
+{t E A \[ \[t,T -+ Rt ,,\] E closure(q)} U 
+{N e H I \[(t, N), N .4 .\] e closure(q)} 
+For each node N in a tree, we consider the 
+set CS(N) of strings that represent horizontal 
+cross-sections through the subtree rooted at N. 
+If we do not want to include the cross-section 
+through N itself, we write CS(N) +. A cross
+section can also be seen as the yield of the sub
+tree after removal of a certain number of its sub
+trees. 
+For convenience, each node of an auxiliary 
+tree (or subtree thereof) that dominates a foot 
+node is paired with a stack of nodes. The intu
+ition behind such a stack of nodes \[N1,..., Nm\] 
+is that it indicates a path, the so called spine, 
+through the derived tree in the direction of the 
+foot nodes, where each Ni, with 1 < i < m, 
+is a node at which adjunction has taken place. 
+Such stacks correspond to the stacks of linear 
+indexed grammars. 
+The set of all stacks of nodes is denoted by 
+N'*. The empty stack is denoted by \[\], and 
+stacks consisting of head H and tail T are de
+noted by \[HIT \] . We define: 
+34 = 3/u(N×2(*) 
+and we simultaneously define the functions CS 
+and CS + from Af to 2 ~" as the least functions 
+948 
+satisfying: 
+• US(N) + C CS(N), for each N; 
+• (N, L) E CS(N), for each N such that N <3* 
+±, and each L EAf*; 
+• N E CS(N), for each N such that -~(N<I*_L); 
+and 
+• tbr each N, children(N) = MI'"M,~ and 
+a:L E CS(M1),...,Xm E CS(Mm) implies 
+xl""xm E CS+(N). 
+4 The
+recognizer 
+Relying on the functions defined in the previous 
+section, we now explore the steps of the LR au
+tomaton, which as usual reads input fi'om left 
+to right and manipulates a stack. 
+We can divide the stack elements into two 
+(:lasses. One class contains the LR states from 
+(2, the other contains elements of A4. A stack 
+consists of an alternation of elements fi'om these 
+two classes. More precisely, each stack is an 
+element from the following set of strings, given 
+by a regular expression: 
+S = qi,,(.AdQ)* 
+Note that the bottom element of the stack is 
+always qin. We will use the symbol A to range 
+over stacks and substrings of stacks, and the 
+symbol X to range over elements from 3.4. 
+A configuration (A, w) of the automaton con
+sists of a stack A E $ and a remaining input w. 
+The steps of the automaton are given by the bi
+nary relation ~on pairs of configurations. There 
+are three kinds of step: 
+shift (Aq, aw) ~(Aqaq',w), provided q' = 
+ soto(q, ) ¢ O. 
+reduce subtree (AqoX~qlX2q2'" Xmqm, w) t
+( Aqo(-l-, \[NIL\])q', w), provided N E 
+reductions(qm), X1... Xm E CS+(N) and q'= 
+gotol_(qo, N) ¢ O, where L is determined by the 
+following. If for some j (1 < j _< m) Xj is of 
+the form (M, L) then this provides the value of 
+L, otherwise we set L = \[\]2 
+reduce aux tree (AqoXlqlX2q2"-Xmqm, W) 
+t(AqoXq',w), provided t E reductions(qm), 
+Xl'" Xm E CS(Rt) and q' = 9oto(qo, g) ¢ O, 
+where we obtain node N from the (unique) Xj 
+(1 < j <_ m) which is of the form (M,\[NIL\]), 
+2Exactly in the case that N dominates a footnote will 
+(e, xactly) one of the Xj be of the form (M, L), some M. 
+and set X = N if L = \[\] and X = (N,L) 
+otherwise. 3 
+Tile shift step is identical to that for context
+fi'ee LR parsing. There are two reduce steps 
+that must be distinguished. The first takes 
+place when a subtree of an elementary tree 
+t has been recognized. We then remove the 
+stack symbols corresponding to a cross-section 
+through that subtree, together with the associ
+ated LR states. We replace these by 2 other 
+symbols, the first of which corresponds to the 
+tbot of an auxiliary tree, and the second is the 
+associated LR state. In the case that some node 
+M of tile cross-section dominates the foot of t, 
+then we must copy the associated list L to the 
+first of the new stack elements, after pushing N 
+onto that list to reflect that the spine has grown 
+one segment upwards. 
+The second type of reduction deals with 
+recognition of an auxiliary tree. Here, the head 
+of the list \[NIL\], which indicates the node at 
+which the auxiliary tree t has been adjoined 
+according to previous bottom-up calculations, 
+must match a node that occurs directly above 
+the root node of the auxiliary tree; this is 
+checked by the test q' = goto(qo, N) ¢ ~. 
+Input v is recognized if (qin,V) ~-* (qinAq, e) 
+for some A and q E Q//,. Then A will be of the 
+form XlqlX2q2 ''' qm_lXm, where X1 ... Xm E 
+CS(Rt), for some t E I. 
+Up to now, it has been tacitly assumed that 
+the recognizer has some mechanism to its dis
+posal to find the strings X1..'X,, E CS(t~,t) 
+and X1 ... Xm E CS+(N) in the stack. We will 
+now explain how this is done. 
+For each N, we construct a deterministic fi
+nite automaton that recognizes the strings from 
+CS+(N) from right to left. There is only one 
+final state, which has no outgoing transitions. 
+This is related to the fact that CS + (N) is sutfix~ 
+closed. A consequence is that, given any stack 
+that may occur and any N, there is at most one 
+string X1""Xm E CS+(N) that can be tbund 
+from the top of the stack downwards, and this 
+string is tbund in linear time. For each t E 1 U A 
+we also construct a deterministic finite automa
+ton for CS(Rt). The procedure for t E I is given 
+in Figure 3, and an example of its application 
+is given in Figure 4. The procedure for t E A is 
+aExactly in the case that N dominates a footnote will L¢\[\]. 
+949 
+let K= 0, T=0; 
+let s = fresh_state, f = fresh_state; 
+make_f a ( f , Rt , s ) . 
+procedure make_fa(ql, M, q0): 
+let 7" = TU {(qo, M, ql)}; 
+if children(M) is defined 
+then make_fa_list(ql, children (M), qo) 
+endproc. 
+procedure make_fa_list(ql , Ma, q0): 
+ifa=c 
+then make_fa(ql, M, qo) 
+else let q = fresh_state; 
+make_fa_list(q, o~, q0); make_fa(ql, M, q) 
+endproc. 
+procedure fresh_state (): 
+create some fresh object q; 
+let K=K\[2{q}; returnq 
+endproc. 
+Figure 3: Producing a finite automaton 
+(K, N, T, s, {f}) that recognizes CS(Rt), given 
+some t G I. K is the set of states, N acts as 
+alphabet here, 7" is the set of transitions, s is 
+the initial state and f is the (only) final state. 
+similar except that it also has to introduce tran
+sitions labelled with pairs (N, L), where N dom
+inates a foot and L is a stack in Af*; it is obvious 
+that we should not actually construct different 
+transitions for different L EAf*, but rather one 
+single transition (N, _), with the placeholder " " 
+representing all possible L EAf*. 
+The procedure for CS +(N) can easily be ex
+pressed in terms of those for CS(Rt). 
+5 Extended
+example 
+For the TAG presented in Figure 1, the algo
+rithm fl'om Schabes and Vijay-Shanker (1990) 
+does not work correctly. The language de
+scribed by the grammar contains exactly the 
+strings abe, a~b~ c ~, adbee, and a~db~ ec~. The al
+gorithm from Schabes and Vijay-Shanker (1990) 
+however also accepts adb~ec ~ and aPdbec. In the 
+former string, it acts as if it were recognizing 
+the (ill-formed) tree in Figure 2: it correctly 
+matches the part to the "south" of the adjunc
+tion to the part to the "north-east". Then, after 
+reading c ~, the information that would indicate 
+f 
+Figure 4: Example of the construction for 
+CS(R1), where R1 is the root node of al (Fig
+ure 1). 
+whether a or a p was read is retrieved from the 
+stack, but this information is merely popped 
+without investigation. Thereby, the algorithm 
+fails to perform the necessary matching of the 
+elementary tree with regard to the part to the 
+"north-west" of the adjunction. 
+Our new algorithm recognizes exactly the 
+strings in the language. For the running ex
+ample, the set of LR states and some opera
+tions on them are shown in Figure 5. Arrows 
+labelled with nodes N represent the goto flmc
+tion and those labelled with ±(N) represent the 
+goto± function. The initial state is 0. The thin 
+lines separate the items resulting from the goto 
+and goto± functions from those induced by the 
+closure function. (This corresponds with the 
+distinction between kernel and nonkernel items 
+as known from context-free LR parsing.) 
+That correct input is recognized is illustrated 
+by the following: 
+Stack Input Step 
+0 adbec shift a 
+O a 1 dbec shift d 
+O a 1 d5 bec shift b 
+O a 1d 5 b 7 ec reduce N1 
+0a ld5 (_I_,\[N1\]) 9 ec shifte 
+0a 1 d5 (_t_,\[N\]\]) 9e 10 c reducefl 
+0alN13 c shift c 
+0 a 1 N1 3 c6 accept 
+Note that as soon as all the terminals in the aux
+iliary tree have been read, the "south" section of 
+the initial tree is matched to the "north-west" 
+section through the goto function. Through 
+subsequent shifts this is then matched to the 
+"north-east" section. 
+This is in contrast to the situation when in
+correct input, such as adblec p, is provided to the 
+950 
+2 0 
+\[a2,R2 ~ a' • N2c'\] . \[\[a\].,T -e. • RI\] 
+\[A T -~ • .a~\] \[~1, R~ -+ • aN~c\] 
+\[A R~ -~ • dre\] \[~2, R2 -~ • a'N#\] 
+~b'. \[fl, n~ -4 d • Fe\] 12 
+~, N~-~ ~,' .\] ~ \[AF -~ • -q 
+a, 2--,-,~2-~a'N2°c'\] \[(al, N1), N, --~ ° b\] 
+11 \[(a2, N2), 
+c'\] 
+\[~2, T -~ R2 ,\] J 
+s Z 
+\[\[(~, N~), N2 + b'. 
+/ 10 . _e 
+• I 
+I\[~,~ -~ dr° .\] 
+\[\[fl, T +/~ ,\]... 
+1 
+\[0~1, /~1 ---} a II, Nlc\] 
+\[OL1, N; --} • b\] 
+\[A T -, • Re\] 
+\[A Re -~ • dr4 
+4 1 
+I\[c~I,N1 -+ bo\] 
+\[\[at, R1 ~ aN1 • c\] 
+ibl, ~1 -~ ,~N, • c\] I 
+le ie b 6 ,, 
+\ \[ioq,R1 -+ aNleo 
+\[\[Oq,-\[--)" /{1 "\] \ 
+\[(a,, N~), ~ -~ ~ "\]l 
+Figure 5: The set of LR states. 
+automaton: 
+Stack 
+0 
+0al 
+0ald5 
+OaldSb'8 
+Oa 1 d5 (A_,\[N2\]) 9 
+0a ld5 (_L,\[N2\]) 9 e 10 
+Input 
+adb ~ ed 
+db' ec' 
+bfec I 
+ec ! 
+cc ! 
+c t 
+Step 
+shift a 
+shift d 
+shift b' 
+reduce N2 
+shift e 
+Here, the comt)utation is stuck. In particular, a 
+reduction with auxiliary tree /3 fails due to the 
+fact that goto(1, N2) = O. 
+6 Extensions
+
+The recognizer can be turned into a parser 
+by attaching information to the stack elements 
+fi:om 3d. At reductions, such information is 
+gathered and combined, and the resulting data 
+is; attached to the new element fl'om A// that 
+is pushed onto the stack. This can be used 
+for computation of derived trees or derivation 
+trees, and for computation of features. Since 
+this technique is ahnost identical to that for the 
+context-free case, it suffices to refer to existing 
+literature, e.g. Aho et al. (1986, Section 5.3). 
+We have treated a classical type of TAG, 
+which has adjunction as the only operation ibr 
+composing trees. Many modern types of TAG 
+also allow tree substitution next to adjunc
+tion. Our algorithm can be straightforwardly 
+extended to handle tree substitution. The main 
+changes that are required lie in the closure 
+flmction, which needs an extra case (much like 
+the corresponding operation in context-fl'ee LR 
+parsing), in adding a third type of goto time
+tion, and in adding a fourth step, consisting of 
+reduction of initial trees, which is ahnost iden
+tical to the reduction of auxiliary trees. The 
+main difference is that all Xj are elements fl'om 
+N'; the X that is pushed (:an be a substitution 
+node or a nonterminal (see also Section 7). 
+Up to now we have assumed that the gram
+mar does not assign the empty string as label 
+to any of the leaves of the elementary trees. 
+Tile problem introduced by allowing the empty 
+string is that it does not leave any trace on 
+the stack, and therefore CS(Rt) and CS+(N) 
+are no longer suffix-closed. We have solved this 
+by extending items with a third component E, 
+which is a set of nodes labelled with e that have 
+been traversed by the closure function. Upon 
+encountering a completed item \[% N ~ a o, El, 
+a reduction is performed according to the sets 
+CS(Rt, E) or CS+(N,E), which are subsets of 
+US(Rt) and CS+(N), respectively, containing 
+only those cross-sections in which the nodes la
+951 
+belled with e are exactly those in E. An au
+tomaton for such a set is deterministic and has 
+one final state, without outgoing transitions. 
+7 Implementation
+
+We have implemented the parser generator, 
+with the extensions from the previous section. 
+We have assumed that each set Adjunct(N), if 
+it is not {nil}, depends only on the nonterminal 
+label of N. This allows more compact storage 
+of the entries goto±(q,M): for a fixed state q 
+and nonterminal B, several such entries where 
+M has B as label can be collapsed into a single 
+entry goto~ (q, B). The goto function for tree 
+substitution is represented similarly. 
+We have constructed the LR table for the En
+glish grammar developed by the XTAG project 
+at the University of Pennsylvania. This gram
+mar contains 286 initial trees and 316 auxiliary 
+trees, which together have 5950 nodes. There 
+are 9 nonterminals that allow adjunetion, and 
+10 that allow substitution. There are 21 sym
+bols that fimction as terminals. 
+Our findings are that for a grammar of this 
+size, the size of the LR table is prohibitively 
+large. The table represented as a collection of 
+unit clauses in Prolog takes over 46 MB for stor
+age. The majority of this is needed to represent 
+the three goto functions, which together require 
+over 2.5 million entries, almost 99% of which is 
+consumed by goto, and the remainder by gotoj_ 
+and the goto function for tree substitution. The 
+reduction functions require almost 80 thousand 
+entries. There are 5610 LR states. The size of 
+the automata for recognizing the sets CS(Rt, E) 
+and CS + (N, E) is negligible: together they con
+tain just over 15 thousand transitions. 
+The time requirements for generation of the 
+table were acceptable: approximately 25 min
+utes were needed on a standard main frame with 
+moderate load. 
+Another obstacle to practical use is the equiv
+alent of hidden left recursion known from tradi
+tional LR parsing (Nederhof and Sarbo, 1996), 
+which we have shown to be present in the 
+grammar for English. This phenomenon pre
+cludes realization of nondeterminism by means 
+of backtracking. Tabular realization was inves
+tigated by Nederhof (1998) and will be the sub
+ject of further research. 
+Acknowledgments 
+Anoop Sarkar provided generous help with mak
+ing the XTAG available for testing purposes. 
+Parts of this research were carried out within 
+the framework of the Priority Programme Lan
+guage and Speech Technology (TST), while 
+the author was employed at the University of 
+Groningen. The TST-Programme is sponsored 
+by NWO (Dutch Organization for Scientific Re
+search). This work was further funded by the 
+German Federal Ministry of Education, Science, 
+Research and Technology (BMBF) in the frame
+work of the VERBMOBIL Project under Grant 01 
+IV 701 V0. 
+
+References 
+
+A.V. Aho, R. Sethi, and J.D. Ullman. 1986. 
+Compilers: Principles, Techniques, and 
+Tools. Addison-Wesley. 
+
+A.K. Joshi. 1987. An introduction to tree ad
+joining grammars. In A. Manaster-Ramer, 
+editor, Mathematics of Language, pages 87
+114. John Benjamins Publishing Company. 
+
+A. Kinyon. 1997. Un algorithme d'analyse 
+LR(0) pour les grammaires d'arbres adjoints 
+lexicalis5es. In D. Genthial, editor, Qua
+tri~me confdrence annuelle sur Le Traitement 
+Automatique du Langage Naturel, Actes, 
+pages 93-102, Grenoble, June. 
+
+M.-J. Nederhof and J.J. Sarbo. 1996. In
+creasing the applicability of LR parsing. In 
+H. Bunt and M. Tomita, editors, Recent 
+Advances in Parsing Technology, chapter 3, 
+pages 35-57. Kluwer Academic Publishers. 
+
+M.-J. Nederhof. 1998. Linear indexed automata 
+and tabulation of TAG parsing. In Actes des 
+premieres journdes sur la Tabulation en Ana
+lyse Syntaxique et Ddduction (Tabulation in 
+Parsing and Deduction), pages 1-9, Paris, 
+France, April. 
+
+Y. Schabes and K. Vijay-Shanker. 1990. Deter
+ministic left to right parsing of tree adjoin
+ing languages. In 28th Annual Meeting of the 
+A CL, pages 276-283. 
+
+S. Sippu and E. Soisalon-Soininen. 1990. 
+Parsing Theory, Vol. II: LR(k) and LL(k) 
+Parsing, volume 20 of EATCS Monographs 
+on Theoretical Computer Science. Springer
+Verlag. 
+
+M. Tomita. 1986. Efficient Parsing for Natural 
+Language. Kluwer Academic Publishers. 
+

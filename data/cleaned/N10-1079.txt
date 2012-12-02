@@ -1,0 +1,876 @@
+Human Language Technologies: The 2010 Annual Conference of the North American Chapter of the ACL, pages 546–554,
+Los Angeles, California, June 2010. c©2010 Association for Computational Linguistics
+Online Learning for Interactive Statistical Machine Translation
+Daniel Ortiz-Mart´ınez
+Dpto. deSist. Inf. yComp.
+Univ. Polit´ec. deValencia
+46071Valencia,Spain
+dortiz@dsic.upv.es
+Ismael Garc´ıa-Varea
+Dpto. deInform´atica
+Univ. deCastilla-LaMancha
+02071Albacete,Spain
+ivarea@info-ab.uclm.es
+Francisco Casacuberta
+Dpto. deSist. Inf. yComp.
+Univ. Polit´ec. deValencia
+46071Valencia,Spain
+fcn@dsic.upv.es
+Abstract
+State-of-the-art Machine Translation (MT)
+systemsarestillfarfrombeingperfect. Anal-
+ternative is the so-called Interactive Machine
+Translation (IMT) framework. In this frame-
+work, the knowledge of a human translator is
+combined with a MT system. The vast ma-
+jority of the existing work on IMT makes use
+of the well-known batch learning paradigm.
+Inthebatchlearningparadigm,thetrainingof
+theIMTsystemandtheinteractivetranslation
+processarecarriedoutinseparatestages. This
+paradigm is not able to take advantage of the
+new knowledge produced by the user of the
+IMT system. In this paper, we present an ap-
+plication of the online learning paradigm to
+the IMT framework. In the online learning
+paradigm, the training and prediction stages
+are no longer separated. This feature is par-
+ticularlyusefulinIMTsinceitallowstheuser
+feedbacktobetakenintoaccount. Theonline
+learning techniques proposed here incremen-
+tally update the statistical models involved in
+thetranslationprocess. Empiricalresultsshow
+the great potential of online learning in the
+IMTframework.
+1 Introduction
+Information technology advances have led to the
+needformoreefficienttranslationmethods. Current
+MT systems are not able to produce ready-to-use
+texts. Indeed, MT systems usually require human
+post-editingtoachievehigh-qualitytranslations.
+OnewayoftakingadvantageofMTsystemsisto
+combinethemwiththeknowledgeofahumantrans-
+latorintheIMTparadigm,whichisaspecialtypeof
+thecomputer-assistedtranslationparadigm(Isabelle
+and Church, 1997). An important contribution to
+IMT technology was pioneered by the TransType
+project (Foster et al., 1997; Langlais et al., 2002)
+where data driven MT techniques were adapted for
+theiruseinaninteractivetranslationenvironment.
+Following the TransType ideas, Barrachina et
+al.(2009)proposedanewapproachtoIMT,inwhich
+fully-fledgedstatisticalMT(SMT)systemsareused
+to produce full target sentence hypotheses, or por-
+tions thereof, which can be partially or completely
+accepted and amended by a human translator. Each
+partial, correct text segment is then used by the
+SMT system as additional information to achieve
+improved suggestions. Figure 1 illustrates a typical
+IMTsession.
+source(f): Paraverlalistaderecursos
+reference(ˆe): Toviewalistingofresources
+inter.-0 epe
+s To view the resources list
+inter.-1
+ep To view
+k a
+es list of resources
+inter.-2
+ep To view a list
+k list i
+es list i ng resources
+inter.-3
+ep To view a listing
+k o
+es o f resources
+accept ep To view a listing of resources
+Figure 1: IMT session to translate a Spanish sen-
+tenceintoEnglish. Ininteraction-0,thesystemsug-
+gests a translation (es). In interaction-1, the user
+movesthemousetoacceptthefirsteightcharacters
+”Toview”andpressesthe a key(k),thenthesys-
+tem suggests completing the sentence with ”list of
+resources”(anew es). Interactions2and3aresim-
+ilar. Inthefinalinteraction,theuseracceptsthecur-
+rentsuggestion.
+In this paper, we also focus on the IMT frame-
+work. Specifically,wepresentanIMTsystemthatis
+able to learn from user feedback. For this purpose,
+we apply the online learning paradigm to the IMT
+framework. The online learning techniques that we
+proposehereallowthestatisticalmodelsinvolvedin
+the translation process to be incrementally updated.
+546
+Figure 2 (inspired from (Vidal et al., 2007)) shows
+a schematic view of these ideas. Here, f is the in-
+putsentenceand e istheoutputderivedbytheIMT
+systemfrom f. Byobserving f and e,theuserinter-
+actswiththeIMTsystemuntilthedesiredoutputˆeis
+produced. Theinputsentencef anditsdesiredtrans-
+lation ˆe canbeusedtorefinethemodelsusedbythe
+system. In general, the model is initially obtained
+throughaclassicalbatchtrainingprocessfromapre-
+viouslygiventrainingsequenceofpairs(fi,ei)from
+the task being considered. Now, the models can be
+extendedwiththeuseofvaluableuserfeedback.
+e
+f
+e
+k
+f
+       Interactive 
+     SMT System
+ Batch
+Learning
+ Online
+Learning
+ . . .
+ f  , e 2    2
+ f  , e 1    1
+feedback/interactions
+e
+f ^
+^
+Incremental
+Models
+Figure2: AnOnlineInteractiveSMTsystem
+2 Interactive
+machine translation
+IMTcanbeseenasanevolutionoftheSMTframe-
+work. Given a sentence f from a source lan-
+guage F to be translated into a target sentence e
+of a target languageE, the fundamental equation of
+SMT(Brownetal.,1993)isthefollowing:
+ˆe = argmax
+e
+{Pr(e|f)} (1)
+= argmax
+e
+{Pr(f|e)Pr(e)} (2)
+where Pr(f|e) is approximated by a translation
+model that represents the correlation between the
+source and the target sentence and where Pr(e) is
+approximatedbya language model representingthe
+well-formednessofthecandidatetranslation e.
+State-of-the-art statistical machine translation
+systems follow a loglinear approach (Och and Ney,
+2002),wheredirectmodellingoftheposteriorprob-
+abilityPr(e|f)ofEquation(1)isused. Inthiscase,
+thedecisionruleisgivenbytheexpression:
+ˆe = argmax
+e
+braceleftBigg Msummationdisplay
+m=1
+λmhm(e,f)
+bracerightBigg
+(3)
+whereeach hm(e,f) isafeaturefunctionrepresent-
+ingastatisticalmodeland λm itsweight.
+Current MT systems are based on the use of
+phrase-basedmodels(Koehnetal.,2003)astransla-
+tion models. The basic idea of Phrase-based Trans-
+lation (PBT) is to segment the source sentence into
+phrases, then to translate each source phrase into a
+target phrase, and finally to reorder the translated
+target phrases in order to compose the target sen-
+tence. If we summarize all the decisions made dur-
+ingthephrase-basedtranslationprocessbymeansof
+thehiddenvariable ˜aK1 ,weobtaintheexpression:
+Pr(f|e) =
+summationdisplay
+K,˜aK1
+Pr( ˜fK1 ,˜aK1 |˜eK1 ) (4)
+whereeach ˜ak ∈{1...K}denotestheindexofthe
+target phrase ˜e that is aligned with the k-th source
+phrase ˜fk,assumingasegmentationoflength K.
+According to Equation(4), and followinga max-
+imum approximation, the problem stated in Equa-
+tion(2)canbereframedas:
+ˆe≈argmaxe,a braceleftbigp(e)·p(f,a|e)bracerightbig (5)
+IntheIMTscenario,wehavetofindanextension
+es for a given prefix ep. To do this we reformulate
+Equation(5)asfollows:
+ˆes ≈argmaxe
+s,a
+braceleftbigp(e
+s|ep)·p(f,a|ep,es)
+bracerightbig (6)
+wherethetermp(ep)hasbeendroppedsinceitdoes
+dependneitheron es noron a.
+Thus,thesearchisrestrictedtothosesentences e
+whichcontain ep asprefix. Itisalsoworthmention-
+ing that the similarities between Equation (6) and
+Equation (5) (note that epes ≡ e) allow us to use
+thesamemodelswheneverthesearchproceduresare
+adequatelymodified(Barrachinaetal.,2009).
+Following the loglinear approach stated in Equa-
+tion(3),Equation(6)canberewritenas:
+ˆes = argmax
+es,a
+braceleftBigg Msummationdisplay
+m=1
+λmhm(e,a,f)
+bracerightBigg
+(7)
+547
+whichistheapproachthatwefollowinthiswork.
+A common problem in IMT arises when the user
+sets a prefix (ep) which cannot be found in the
+phrase-based statistical translation model. Differ-
+ent solutions have been proposed to deal with this
+problem. The use of word translation graphs, as a
+compact representation of all possible translations
+of a source sentence, is proposed in (Barrachina
+et al., 2009). In (Ortiz-Mart´ınez et al., 2009), a
+techniquebasedonthegenerationofpartialphrase-
+basedalignmentsisdescribed. Thislastproposalhas
+alsobeenadoptedinthiswork.
+3 Related
+work
+Inthispaperwepresentanapplicationoftheonline
+learningparadigmtotheIMTframework. Intheon-
+line learning setting, models are trained sample by
+sample. Our work is also related to model adapta-
+tion,althoughmodeladaptationandonlinelearning
+arenotexactlythesamething.
+The online learning paradigm has been previ-
+ously applied to train discriminative models in
+SMT (Liang et al., 2006; Arun and Koehn, 2007;
+Watanabe et al., 2007; Chiang et al., 2008). These
+works differ from the one presented here in that we
+apply online learning techniques to train generative
+modelsinsteadofdiscriminativemodels.
+In (Nepveu et al., 2004), dynamic adaptation of
+anIMTsystemviacache-basedmodelextensionsto
+language and translation models is proposed. The
+work by Nepveu et al. (2004) constitutes a domain
+adaptation technique and not an online learning
+technique,sincetheproposedcachecomponentsre-
+quire pre-existent models estimated in batch mode.
+In addition to this, their IMT system does not use
+state-of-the-artmodels.
+Toourknowledge,theonlypreviousworkonon-
+linelearningforIMTis(Cesa-Bianchietal.,2008),
+where a very constrained version of online learn-
+ing is presented. This constrained version of online
+learningisnotabletoextendthetranslationmodels
+due to technical problems with the efficiency of the
+learning process. In this paper, we present a purely
+statisticalIMTsystemwhichisabletoincrementally
+update the parameters of all of the different models
+that are used in the system, including the transla-
+tionmodel,breakingwiththeabovementionedcon-
+straints. What is more, our system is able to learn
+fromscratch, thatis, withoutanypreexistingmodel
+stored in the system. This is demonstrated empiri-
+callyinsection5.
+4 Online
+IMT
+In this section we propose an online IMT system.
+First, we describe the basic IMT system involved
+in the interactive translation process. Then we in-
+troducetherequiredtechniquestoincrementallyup-
+datethestatisticalmodelsusedbythesystem.
+4.1 Basic
+IMT system
+The basic IMT system that we propose uses a log-
+linear model to generate its translations. According
+to Equation (7), we introduce a set of seven feature
+functions(from h1 to h7):
+• n-gram language model (h1)
+h1(e) = log(producttext|e|+1i=1 p(ei|ei−1i−n+1)), 1 where
+p(ei|ei−1i−n+1) isdefinedasfollows:
+p(ei|ei−1i−n+1) = max{cX(e
+ii−n+1)−Dn,0}
+cX(ei−1i−n+1) +
+Dn
+cX(ei−1i−n+1)N1+(e
+i−1
+i−n+1•)·p(ei|e
+i−1
+i−n+2) (8)
+where Dn = cn,1cn,1+2cn,2 is a fixed discount (cn,1
+and cn,2 are the number of n-grams with one
+andtwocountsrespectively),N1+(ei−1i−n+1•)isthe
+number of unique words that follows the history
+ei−1i−n+1 andcX(eii−n+1)isthecountofthen-gram
+eii−n+1, where cX(·) can represent true counts
+cT(·) or modified counts cM(·). True counts are
+used for the higher order n-grams and modified
+counts for the lower order n-grams. Given a cer-
+tain n-gram, its modified count consists in the
+number of different words that precede this n-
+graminthetrainingcorpus.
+Equation (8) corresponds to the probability given
+byann-gramlanguagemodelwithaninterpolated
+version of the Kneser-Ney smoothing (Chen and
+Goodman,1996).
+1|e|isthelengthofe, e0 denotesthe begin-of-sentence sym-
+bol, e|e|+1 denotesthe end-of-sentence symbol, eji ≡ ei...ej
+548
+• target sentence-length model (h2)
+h2(e,f) = log(p(|f|||e|)) = log(φ|e|(|f|+0.5)−
+φ|e|(|f|−0.5)),whereφ|e|(·)denotesthecumula-
+tive distribution function (cdf) for the normal dis-
+tribution(thecdfisusedheretointegratethenor-
+maldensityfunctionoveranintervaloflength 1).
+We use a specific normal distribution with mean
+µ|e| and standard deviation σ|e| for each possible
+targetsentencelength|e|.
+• inverse and direct phrase-based models (h3,h4)
+h3(e,a,f) = log(producttextKk=1 p( ˜fk|˜e˜ak)), where
+p( ˜fk|˜e˜ak) isdefinedasfollows:
+p( ˜fk|˜e˜ak) = β·pphr( ˜fk|˜e˜ak) +
+(1−β).phmm( ˜fk|˜e˜ak) (9)
+In Equation (9), pphr( ˜fk|˜e˜ak) denotes the proba-
+bilitygivenbyastatisticalphrase-baseddictionary
+used in regular phrase-based models (see (Koehn
+et al., 2003) for more details). phmm( ˜fk|˜e˜ak) is
+the probability given by an HMM-based (intra-
+phrase)alignmentmodel(see(Vogeletal.,1996)):
+phmm( ˜f|˜e) = ǫ
+summationdisplay
+a|˜f|1
+|˜f|productdisplay
+j=1
+p( ˜fj|˜eaj)·p(aj|aj−1,|˜e|)
+(10)
+The HMM-based alignment model probability is
+used here for smoothing purposes as described
+in(Ortiz-Mart´ınezetal.,2009).
+Analogously h4 isdefinedas:
+h4(e,a,f) = log(producttextKk=1 p(˜e˜ak|˜fk))
+• target phrase-length model (h5)
+h5(e,a,f) = log(producttextKk=1 p(|˜ek|)),where p(|˜ek|) =
+δ(1−δ)|˜ek|. h5 implementsatargetphrase-length
+model by means of a geometric distribution with
+probabilityofsuccessoneachtrialδ. Theuseofa
+geometric distribution penalizes the length of tar-
+getphrases.
+• source phrase-length model (h6)
+h6(e,a,f) = log(producttextKk=1 p(|˜fk|||˜e˜ak|)),
+where p(|˜fk|||˜e˜ak|) = δ(1−δ)abs(|˜fk|−|˜e˜ak|) and
+abs(·) istheabsolutevaluefunction. Ageometric
+distributionisusedtomodelthisfeature(itpenal-
+izes the difference between the source and target
+phraselengths).
+• distortion model (h7)
+h7(a) = log(producttextKk=1 p(˜ak|˜ak−1)), where
+p(˜ak|˜ak−1) = δ(1 − δ)abs(b˜ak−l˜ak−1), b˜ak
+denotes the beginning position of the source
+phrase covered by ˜ak and l˜ak−1 denotes the last
+position of the source phrase covered by ˜ak−1.
+A geometric distribution is used to model this
+feature(itpenalizesthereorderings).
+The log-linear model, which includes the above
+described feature functions, is used to generate the
+suffix es given the user-validated prefix ep. Specif-
+ically, the IMT system generates a partial phrase-
+based alignment between the user prefix ep and a
+portionofthesourcesentencef,andreturnsthesuf-
+fix es as the translation of the remaining portion of
+f (see(Ortiz-Mart´ınezetal.,2009)).
+4.2 Extending
+the IMT system from user
+feedback
+After translating a source sentence f, a new sen-
+tencepair (f,e) isavailabletofeedtheIMTsystem
+(see Figure 1). In this section we describe how the
+log-linearmodeldescribedinsection4.1isupdated
+giventhenewsentencepair. Todothis,asetof suf-
+ficient statistics thatcanbeincrementallyupdatedis
+maintained for each feature function hi(·). A suffi-
+cientstatisticforastatisticalmodelisastatisticthat
+captures all the information that is relevant to esti-
+matethismodel.
+Regarding feature function h1 and according to
+equation(8),weneedtomaintainthefollowingdata:
+ck,1 and ck,2 given any order k, N1+(·), and cX(·)
+(see section 4.1 for the meaning of each symbol).
+Givenanewsentencee,andforeachk-grameii−k+1
+ofewhere1≤k ≤nand1≤i≤|e|+1,wemod-
+ifythesetofsufficientstatisticsasitisshowninAl-
+gorithm1. Thealgorithmchecksthechangesinthe
+countsofthe k-gramstoupdatethesetofsufficient
+statistics. SufficientstatisticsforDk areupdatedfol-
+lowingtheauxiliarprocedureshowninAlgorithm2.
+Feature function h2 requires the incremental cal-
+culationofthemean µ|e| andthestandarddeviation
+σ|e| of the normal distribution associated to a target
+sentence length|e|. For this purpose the procedure
+describedin(Knuth,1981)canbeused. Inthispro-
+cedure, two quantities are maintained for each nor-
+maldistribution: µ|e|andS|e|. Givenanewsentence
+549
+input : n (higherorder), eii−k+1 (k-gram),
+S ={∀j(cj,1,cj,2),N1+(·),cX(·)}
+(currentsetofsufficientstatistics)
+output :S(updatedsetofsufficientstatistics)
+begin
+if cT(eii−k+1) = 0 then
+if k−1≥1 then
+updD(S,k-1,cM(ei−1i−k+2),cM(ei−1i−k+2)+1)
+if cM(ei−1i−k+2) = 0 then
+N1+(ei−1i−k+2) = N1+(ei−1i−k+2) + 1
+cM(ei−1i−k+2) = cM(ei−1i−k+2) + 1
+cM(eii−k+2) = cM(eii−k+2) + 1
+if k = n then
+N1+(ei−1i−k+1) = N1+(ei−1i−k+1) + 1
+if k = n then
+updD(S,k,cT(eii−k+1),cT(eii−k+1) + 1)
+cT(ei−1i−k+1)=cT(ei−1i−k+1) + 1
+cT(eii−k+1)=cT(eii−k+1) + 1
+end
+Algorithm 1: Pseudocode for updating the suf-
+ficientstatisticsofagiven k-gram
+input :S(currentsetofsufficientstatistics),k
+(order), c (currentcount), c′ (newcount)
+output : (ck,1,ck,2) (updatedsufficientstatistics)
+begin
+if c = 0 then
+if c′ = 1 then ck,1 = ck,1 + 1
+if c′ = 2 then ck,2 = ck,2 + 1
+if c = 1 then
+ck,1 = ck,1−1
+if c′ = 2 then ck,2 = ck,2 + 1
+if c = 2 then ck,2 = ck,2−1
+end
+Algorithm 2: Pseudocode for the updD proce-
+dure
+pair(f,e),thetwoquantitiesareupdatedusingare-
+currencerelation:
+µ|e| = µ′|e| + (|f|−µ′|e|)/c(|e|) (11)
+S|e| = S′|e| + (|f|−µ′|e|)(|f|−µ|e|) (12)
+wherec(|e|)isthecountofthenumberofsentences
+oflength|e|thathavebeenseensofar,and µ′|e| and
+S′|e| are the quantities previously stored (µ|e| is ini-
+tializedtothesourcesentencelengthofthefirstsam-
+ple and S|e| is initialized to zero). Finally, the stan-
+dard deviation can be obtained from S as follows:
+σ|e| =
+radicalBig
+S|e|/(c(|e|)−1).
+Feature functions h3 and h4 implement inverse
+and direct smoothed phrase-based models respec-
+tively. Since phrase-based models are symmetric
+models,onlyaninversephrase-basedmodelismain-
+tained (direct probabilities can be efficiently ob-
+tained using appropriate data structures, see (Ortiz-
+Mart´ınez et al., 2008)). The inverse phrase model
+probabilitiesareestimatedfromthephrasecounts:
+p( ˜f|˜e) = c(
+˜f,˜e)
+summationtext
+˜f′ c( ˜f′,˜e)
+(13)
+According to Equation (13), the set of suffi-
+cient statistics to be stored for the inverse phrase
+modelconsistsofasetofphrasecounts(c( ˜f,˜e)andsummationtext
+˜f′ c( ˜f′,˜e) must be stored separately). Given a
+new sentence pair (f,e), the standard phrase-based
+modelestimationmethodusesawordalignmentma-
+trixbetweenf andetoextractthesetofphrasepairs
+that are consistent with the word alignment ma-
+trix(see(Koehnetal.,2003)formoredetails). Once
+the consistent phrase pairs have been extracted, the
+phrasecountsareupdated. Thewordalignmentma-
+trices required for the extraction of phrase pairs are
+generatedbymeansoftheHMM-basedmodelsused
+inthefeaturefunctions h3 and h4.
+Inverse and direct HMM-based models are used
+here for two purposes: to smooth the phrase-based
+modelsvialinearinterpolationandtogenerateword
+alignment matrices. The weights of the interpola-
+tion can be estimated from a development corpus.
+Equation(10)showstheexpressionoftheprobabil-
+ity given by an inverse HMM-based model. The
+probability includes lexical probabilities p(fj|ei)
+andalignmentprobabilities p(aj|aj−1,l). Sincethe
+alignment in the HMM-based model is determined
+by a hidden variable, the EM algorithm is required
+to estimate the parameters of the model (see (Och
+and Ney, 2003)). However, the standard EM algo-
+rithmisnotappropriatetoincrementallyextendour
+HMM-based models because it is designed to work
+in batch training scenarios. To solve this problem,
+weapplytheincrementalviewoftheEMalgorithm
+described in (Neal and Hinton, 1998). According
+to(OchandNey,2003),thelexicalprobabilityfora
+550
+pairofwordsisgivenbytheexpression:
+p(f|e) = c(f|e)summationtext
+f′ c(f′|e)
+(14)
+where c(f|e) is the expected number of times that
+the word e is aligned to the word f. The alignment
+probabilityisdefinedinasimilarway:
+p(aj|aj−1,l) = c(aj|aj−1,l)summationtext
+a′j c(a′j|aj−1,l)
+(15)
+where c(aj|aj−1,l) denotestheexpectednumberof
+times that the alignment aj has been seen after the
+previous alignment aj−1 given a source sentence
+composedof l words.
+Given the equations (14) and (15), the set of suf-
+ficient statistics for the inverse HMM-based model
+consists of a set of expected counts (numerator and
+denominator values are stored separately). Given a
+newsentencepair (f,e),weexecuteanewiteration
+oftheincrementalEMalgorithmonthenewsample
+andcollectthecontributionstotheexpectedcounts.
+The parameters of the direct HMM-based model
+are estimated analogously to those of the inverse
+HMM-basedmodel. Oncethedirectandtheinverse
+HMM-based model parameters have been modified
+duetothepresentationofanewsentencepairtothe
+IMT system, both models are used to obtain word
+alignments for the new sentence pair. The resulting
+directandinversewordalignmentmatricesarecom-
+binedbymeansofthe symmetrization alignmentop-
+eration (Och and Ney, 2003) before extracting the
+setofconsistentphrasepairs.
+HMM-based alignment models are used here
+because, according to (Och and Ney, 2003)
+and(Toutanovaetal.,2002),theyoutperformIBM1
+to IBM 4 alignment models while still allowing the
+exact calculation of the likelihood for a given sen-
+tencepair.
+The δ parameters of the geometric distributions
+associatedtothefeaturefunctions h5, h6 and h7 are
+left fixed. Because of this, there are no sufficient
+statisticstostoreforthesefeaturefunctions.
+Finally,theweightsofthelog-linearcombination
+are not modified due to the presentation of a new
+sentence pair to the system. These weights can be
+adjustedoff-linebymeansofadevelopmentcorpus
+andwell-knownoptimizationtechniques.
+5 Experiments
+This section describes the experiments that we car-
+riedouttotestouronlineIMTsystem.
+5.1 Experimental
+setup
+The experiments were performed using the XE-
+ROX XRCE corpus (SchlumbergerSema S.A. et
+al., 2001), which consists of translations of Xe-
+rox printer manuals involving three different pairs
+oflanguages: French-English,Spanish-English,and
+German-English. The main features of these cor-
+pora are shown in Table 1. Partitions into training,
+development and test were performed. This corpus
+is used here because it has been extensively used in
+theliteratureonIMTtoreportresults.
+IMT experiments were carried out from English
+totheotherthreelanguages.
+5.2 Assessment
+criteria
+The evaluation of the techniques presented in this
+paper were carried out using the Key-stroke and
+mouse-action ratio (KSMR) measure (Barrachina
+et al., 2009). This is calculated as the number of
+keystrokes plus the number of mouse movements
+plusonemorecountpersentence(aimedatsimulat-
+ingtheuseractionneededtoacceptthefinaltransla-
+tion), thesumofwhichisdividedbythetotalnum-
+ber of reference characters. In addition to this, we
+also used the well-known BLEU score (Papineni et
+al., 2001) to measure the translation quality of the
+firsttranslationhypothesisproducedbytheIMTsys-
+temforeachsourcesentence(whichisautomatically
+generatedwithoutuserintervention).
+5.3 Online
+IMT results
+To test the techniques proposed in this work, we
+carried out experiments in two different scenarios.
+In the first one, the first 10000 sentences extracted
+from the training corpora were interactively trans-
+lated by means of an IMT system without any pre-
+existent model stored in memory. Each time a new
+sentencepairwasvalidated,itwasusedtoincremen-
+tallytrainthesystem. Figures3a,3band3cshowthe
+evolution of the KSMR with respect to the number
+of sentence pairs processed by the IMT system; the
+resultscorrespondtothetranslationfromEnglishto
+Spanish, French and German, respectively. In addi-
+551
+En Sp En Fr En Ge
+Train
+Sent. pairs 55761 52844 49376
+Runningwords 571960 657172 542762 573170 506877 440682
+Vocabulary 25627 29565 24958 27399 24899 37338
+Dev.
+Sent. pairs 1012 994 964
+Runningwords 12111 13808 9480 9801 9162 8283
+Perplexity(3-grams) 46.2 34.0 96.2 74.1 68.4 124.3
+Sent. pairs 1125 984 996
+Test
+Runningwords 7634 9358 9572 9805 10792 9823
+Perplexity(3-grams) 107.0 59.6 192.6 135.4 92.8 169.2
+Table 1: XEROX corpus statistics for three different language pairs (from English (En) to Spanish (Sp),
+French(Fr)andGerman(Ge))
+tion, for each language pair we interactively trans-
+lated the original portion of the training corpus and
+the same portion of the original corpus after being
+randomlyshuffled.
+As these figures show, the results clearly demon-
+strate that the IMT system is able to learn from
+scratch. The results were similar for the three lan-
+guages. It is also worthy of note that the obtained
+results were better in all cases for the original cor-
+pora than for the shuffled ones. This is because,
+in the original corpora, similar sentences appear
+moreorlesscontiguosly(duetotheorganizationof
+the contents of the printer manuals). This circum-
+stanceincreasestheaccuracyoftheonlinelearning,
+since with the original corpora the number of lat-
+eral effects ocurred between the translation of sim-
+ilar sentences is decreased. The online learning of
+a new sentence pair produces a lateral effect when
+the changes in the probability given by the models
+not only affect the newly trained sentence pair but
+also other sentence pairs. A lateral effect can cause
+that the system generates a wrong translation for a
+given source sentence due to undesired changes in
+thestatisticalmodels.
+The accuracy were worse for shuffled corpora,
+since shuffling increases the number of lateral ef-
+fectsthatmayoccurbetweenthetranslationofsim-
+ilar sentences (because they no longer appear con-
+tiguously). A good way to compare the quality of
+different online IMT systems is to determine their
+robustness in relation to sentence ordering. How-
+ever, itcangenerallybeexpectedthatthesentences
+to be translated in an interactive translation session
+willbeinanon-randomorder.
+Alternatively,wecarriedoutexperimentsinadif-
+ferent learning scenario. Specifically, the XEROX
+ 30
+ 40
+ 50
+ 60
+ 70
+ 80
+ 90
+ 100
+ 0  1000  2000  3000  4000  5000  6000  7000  8000  9000 10000
+KSMR
+#Sentences
+original
+shuffled
+(a)English-Spanish
+ 40
+ 50
+ 60
+ 70
+ 80
+ 90
+ 100
+ 0  1000  2000  3000  4000  5000  6000  7000  8000  9000 10000
+KSMR
+#Sentences
+original
+shuffled
+(b)English-French
+ 40
+ 50
+ 60
+ 70
+ 80
+ 90
+ 100
+ 0  1000  2000  3000  4000  5000  6000  7000  8000  9000 10000
+KSMR
+#Sentences
+original
+shuffled
+(c)English-German
+Figure 3: KSMR evolution translating a portion of
+thetrainingcorpora
+test corpora were interactively translated from the
+Englishlanguagetotheotherthreelanguages,com-
+paringtheperformanceofabatchIMTsystemwith
+552
+that of an online IMT system. The batch IMT sys-
+temisaconventionalIMTsystemwhichisnotable
+totakeadvantageofuserfeedbackaftereachtransla-
+tionwhiletheonlineIMTsystemusesthenewsen-
+tence pairs provided by the user to revise the sta-
+tistical models. Both systems were initialized with
+a log-linear model trained in batch mode by means
+of the XEROX training corpora. The weights of the
+log-linear combination were adjusted for the devel-
+opment corpora by means of the downhill-simplex
+algorithm. Table 2 shows the obtained results. The
+table shows the BLEU score and the KSMR for the
+batch and the online IMT systems (95% confidence
+intervals are shown). The BLEU score was calcu-
+lated from the first translation hypothesis produced
+bytheIMTsystemforeachsourcesentence. Theta-
+blealsoshowstheaverageonlinelearningtime(LT)
+for each new sample presented to the system2. All
+theimprovementsobtainedwiththeonlineIMTsys-
+tem were statistically significant. Also, the average
+learningtimesclearlyallowthesystemtobeusedin
+areal-timescenario.
+IMT system BLEU KSMR LT (s)
+En-Sp batch 55.1±2.3 18.2±1.1 -online 60.6±2.3 15.8±1.0 0.04
+En-Fr batch 33.7±2.0 33.9±1.3 -online 42.2±2.2 27.9±1.3 0.09
+En-Ge batch 20.4±1.8 40.3±1.2 -online 28.0±2.0 35.0±1.3 0.07
+Table 2: BLEU and KSMR results for the XEROX
+testcorporausingthebatchandtheonlineIMTsys-
+tems. Theaverageonlinelearningtime(LT)insec-
+ondsisshownfortheonlinesystem
+Finally,inTable3acomparisonoftheKSMRre-
+sults obtained by the online IMT system with state-
+of-the-artIMTsystemsisreported(95%confidence
+intervalsareshown). Wecomparedoursystemwith
+those presented in (Barrachina et al., 2009): the
+alignment templates (AT), the stochastic finite-state
+transducer (SFST), and the phrase-based (PB) ap-
+proaches to IMT. The results were obtained using
+the same Xerox training and test sets (see Table 1)
+forthefourdifferentIMTsystems. Oursystemout-
+performedtheresultsobtainedbythesesystems.
+2AlltheexperimentswereexecutedonaPCwitha2.40Ghz
+IntelXeonprocessorwith1GBofmemory.
+AT PB SFST Online
+En-Sp 23.2±1.3 16.7±1.2 21.8±1.4 15.8±1.0
+En-Fr 40.4±1.4 35.8±1.3 43.8±1.6 27.9±1.3
+En-Ge 44.7±1.2 40.1±1.2 45.7±1.4 35.0±1.3
+Table 3: KSMR results comparison of our system
+andthreedifferentstate-of-the-artbatchsystems
+6 Conclusions
+WehavepresentedanonlineIMTsystem. Thepro-
+posedsystemisabletoincrementallyextendthesta-
+tistical models involved in the translation process,
+breaking technical limitations encountered in other
+works. Empirical results show that our techniques
+allowtheIMTsystemtolearnfromscratchorfrom
+previouslyestimatedmodels.
+Onekeyaspectoftheproposedsystemistheuse
+ofHMM-basedalignmentmodelstrainedbymeans
+oftheincrementalEMalgorithm.
+Theincrementaladjustmentoftheweightsofthe
+log-linear models and other parameters have not
+been tackled here. For the future we plan to incor-
+poratethisfunctionalityintoourIMTsystem.
+The incremental techniques proposed here can
+also be exploited to extend SMT systems (in fact,
+our proposed IMT system is based on an incremen-
+tally updateable SMT system). For the near future
+we plan to study possible aplications of our tech-
+niquesinafullyautomatictranslationscenario.
+Finally, it is worthy of note that the main ideas
+presented here can be used in other interactive ap-
+plications such as Computer Assisted Speech Tran-
+scription, Interactive Image Retrieval, etc (see (Vi-
+dal et al., 2007) for more information). In conclu-
+sion, we think that the online learning techniques
+proposed here can be the starting point for a new
+generationofinteractivepatternrecognitionsystems
+thatareabletotakeadvantageofuserfeedback.
+Acknowledgments
+Work supported by the EC (FEDER/FSE), the
+Spanish Government (MEC, MICINN, MITyC,
+MAEC, ”Plan E”, under grants MIPRCV ”Con-
+solider Ingenio 2010” CSD2007-00018, iTrans2
+TIN2009-14511, erudito.com TSI-020110-2009-
+439), the Generalitat Valenciana (grant Prome-
+teo/2009/014), the Univ. Polit´ecnica de Valencia
+(grant 20091027) and the Spanish JCCM (grant
+PBI08-0210-7127).
+553
+References
+A. Arun and P. Koehn. 2007. Online learning methods
+for discriminative training of phrase based statistical
+machine translation. In Proc. of the MT Summit XI,
+pages15–20,Copenhagen,Denmark,September.
+S. Barrachina, O. Bender, F. Casacuberta, J. Civera,
+E. Cubel, S. Khadivi, A. Lagarda, H. Ney, J. Tom´as,
+and E. Vidal. 2009. Statistical approaches to
+computer-assisted translation. Computational Lin-
+guistics,35(1):3–28.
+PeterF.Brown,StephenA.DellaPietra,VincentJ.Della
+Pietra, and R. L. Mercer. 1993. The mathematics of
+statistical machine translation: Parameter estimation.
+Computational Linguistics,19(2):263–311.
+N. Cesa-Bianchi, G. Reverberi, and S. Szedmak. 2008.
+Online learning algorithms for computer-assisted
+translation. Deliverable D4.2, SMART: Stat. Multi-
+lingualAnalysisforRetrievalandTranslation,Mar.
+S.F.ChenandJ.Goodman. 1996. Anempiricalstudyof
+smoothingtechniquesforlanguagemodeling. In Proc.
+of the ACL,pages310–318,SanFrancisco.
+D.Chiang,Y.Marton,andP.Resnik. 2008. Onlinelarge-
+margin training of syntactic and structural translation
+features. In Proc. of EMNLP.
+George Foster, Pierre Isabelle, and Pierre Plamondon.
+1997. Target-text mediated interactive machine trans-
+lation. Machine Translation,12(1):175–194.
+P. Isabelle and K. Church. 1997. Special issue on
+newtoolsforhumantranslators. Machine Translation,
+12(1–2).
+D.E.Knuth. 1981. Seminumerical Algorithms,volume2
+of The Art of Computer Programming. Addison-
+Wesley,Massachusetts,2ndedition.
+P. Koehn, F. J. Och, and D. Marcu. 2003. Statistical
+phrase-basedtranslation. In Proc. of the HLT/NAACL,
+pages48–54,Edmonton,Canada,May.
+P. Langlais, G. Lapalme, and M. Loranger. 2002.
+Transtype: Development-evaluation cycles to boost
+translator’s productivity. Machine Translation,
+15(4):77–98.
+P. Liang, A. Bouchard-Cˆot´e, D. Klein, and B. Taskar.
+2006. An end-to-end discriminative approach to ma-
+chinetranslation. InProc. of the 44th ACL,pages761–
+768,Morristown,NJ,USA.
+R.M. Neal and G.E. Hinton. 1998. A view of the EM
+algorithm that justifies incremental, sparse, and other
+variants. InProceedings of the NATO-ASI on Learning
+in graphical models, pages 355–368, Norwell, MA,
+USA.
+L.Nepveu,G.Lapalme,P.Langlais,andG.Foster. 2004.
+Adaptive language andtranslationmodels forinterac-
+tive machine translation. In Proc. of EMNLP, pages
+190–197,Barcelona,Spain,July.
+Franz Josef Och and Hermann Ney. 2002. Discrimina-
+tive Training and Maximum Entropy Models for Sta-
+tisticalMachineTranslation. In Proc. of the 40th ACL,
+pages295–302,Philadelphia,PA,July.
+Franz Josef Och and Hermann Ney. 2003. A system-
+atic comparison of various statistical alignment mod-
+els. Computational Linguistics,29(1):19–51,March.
+D. Ortiz-Mart´ınez, I. Garc´ıa-Varea, and Casacuberta F.
+2008. The scaling problem in the pattern recognition
+approach to machine translation. Pattern Recognition
+Letters,29:1145–1153.
+Daniel Ortiz-Mart´ınez, Ismael Garc´ıa-Varea, and Fran-
+cisco Casacuberta. 2009. Interactive machine trans-
+lation based on partial statistical phrase-based align-
+ments. In Proc. of RANLP,Borovets,Bulgaria,sep.
+Kishore A. Papineni, Salim Roukos, Todd Ward, and
+Wei-Jing Zhu. 2001. Bleu: a method for auto-
+matic evaluation of machine translation. Technical
+Report RC22176 (W0109-022), IBM Research Divi-
+sion, Thomas J. Watson Research Center, Yorktown
+Heights,NY,September.
+SchlumbergerSema S.A., ITI Valencia, RWTH Aachen,
+RALI Montreal, Celer Soluciones, Soci´et´e Gamma,
+and XRCE. 2001. TT2. TransType2 computer as-
+sistedtranslation.ProjectTech.Rep.
+Kristina Toutanova, H. Tolga Ilhan, and Christopher
+Manning. 2002. Extensions to hmm-based statistical
+wordalignmentmodels. In Proc. of EMNLP.
+E. Vidal, L. Rodr´ıguez, F. Casacuberta, and I. Garc´ıa-
+Varea. 2007. Interactivepatternrecognition. In Proc.
+of the 4th MLMI,pages60–71.Brno,CzechRepublic,
+28-30June.
+Stephan Vogel, Hermann Ney, and Christoph Tillmann.
+1996. HMM-basedwordalignmentinstatisticaltrans-
+lation. In Proc. of COLING, pages 836–841, Copen-
+hagen,Denmark,August.
+T. Watanabe, J. Suzuki, H. Tsukada, and H. Isozaki.
+2007. Online large-margin training for statistical ma-
+chine translation. In Proc. of EMNLP and CoNLL,
+pages764–733,Prage,CzeckRepublic.
+554
+

@@ -1,0 +1,4 @@
+(Baldwin et al., 2003) use WordNet::Similarity to provide an evaluation tool for multiword expressions that are identified via Latent Semantic Analysis.
+W03-1812
+> similarity.pl --type WordNet::Similarity::lin car#n#2 bus#n#1 car#n#2 bus#n#1 0.530371390319309 # railway car versus motor coach > similarity.pl --type WordNet::Similarity::lin car#n bus#n car#n#1 bus#n#1 0.618486790769613 # automobile versus motor coach > similarity.pl --type WordNet::Similarity::lin --allsenses car#n bus#n#1 car#n#1 bus#n#1 0.618486790769613 # automobile versus motor coach car#n#2 bus#n#1 0.530371390319309 # railway car versus motor coach car#n#3 bus#n#1 0.208796988315133 # cable car versus motor coach Figure 1: Command Line Interface Three similarity measures are based on path lengths between a pair of concepts: lch (Leacock and Chodorow, 1998), wup (Wu and Palmer, 1994), and path.
+P94-1019

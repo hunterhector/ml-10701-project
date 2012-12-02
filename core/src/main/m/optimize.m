@@ -3,18 +3,19 @@ Q = [0.4 0.6;0.2 0.8];
 %attributes = [-0.4 0.2 0.3 0.1 -0.1;0.1 -0.2 0.1 0.3 -0.3;0.6 -0.4 0.2 0.1 -0.5];
 
 %we need to import the Q outside and make it sparse
-if (~issparse(Q))
-    Q = sparse(Q);
-end;
+%if (~issparse(Q))
+%    Q = sparse(Q);
+%end;
 
 n = size(Q,1); %dimension of Q
 maxIter = 100;
 
 alpha = 0.2; %restart probablity 
 
-wx=zeros(n,n);
+wx=zeros(n,n); %weight on the arcs
 w = [0.1 0.2 0.7]; %feature parameters
 numFeature = size(w,2); %length of feature parameters
+
 
 attributes = rand(numFeature,n,n);
 attributes(:,1,1)= [-0.1 0.2 -0.1];
@@ -29,7 +30,7 @@ for k = 1:n
     end
 end
 
-weightMatrix = arrayfun(@fw,wx);
+weightMatrix = arrayfun(@fw,wx)
 wtder = zeros(numFeature,n,n);
 diffwt = arrayfun(@fwDer,wx);
 for j=1:numFeature
@@ -41,10 +42,14 @@ for j=1:numFeature
         end
     end
 end
+
+wtder
+
 %eigen vector for each iterations
 p = ones(maxIter,n);
 p = p/n;
-wtsum= SUM(weightMatrix);
+wtsum= SUM(weightMatrix)
+
 dwtsum=zeros(numFeature,n);
 for i= 1:numFeature
     %k = wtder(i,:,:);
@@ -58,7 +63,9 @@ for i= 1:numFeature
     end
 end
 
-wtsumsq= arrayfun(@sqrr,wtsum);
+dwtsum
+
+wtsumsq= arrayfun(@sqrr,wtsum)
 
 for i=1:numFeature
     for j=1:n
@@ -72,7 +79,9 @@ for i=1:numFeature
         end
     end
 end
-            
+   
+delQ
+
 %derivatives for each iterations
 pdel = zeros(numFeature,maxIter,n);
 
@@ -82,34 +91,55 @@ epsilon = 10^-12;
 t = 1;
 delta = 1;
 
-fprintf('Outputing the iterations of pagerank');
+fprintf('Outputing the iterations of pagerank\n');
 
 while (delta > epsilon && t < maxIter)
    p(t+1,:) = p(t,:)*Q;
-   delta = norm(p(t+1,:) - p(t,:),1);
+   delta = norm(p(t+1,:) - p(t,:),2);
    fprintf('iter = %d, delta=%f\n', t, delta);
    t = t+1;
 end
 
-fprintf('Outputing the iterations of derivatives')
+fprintf('Result of pagerank:');
+for i = 1:n
+    fprintf('%d\t',p(t-1,i));
+end
+fprintf('\n\n');
+
+fprintf('Outputing the iterations of derivatives\n')
 
 t = 1;
 for k = 1:numFeature
+%    fprintf('Doing feature %d\n',k);
     delta = 1;
-
+    
     while (delta > epsilon && t< maxIter)
        for j=1:n
            prod=0;
            for l=1:n
             prod = prod + pdel(k,t,j)*Q(j,l)+p(t,j)*delQ(k,j,l);
+ %           fprintf('Doing %d*%d + %d*%d\n',pdel(k,t,j),Q(j,l),p(t,j),delQ(k,j,l));
            end
            pdel(k,t+1,j) = prod;
-           
+ %          fprintf('Result is %d\n',prod);
        end
-       delta = norm(squeeze(pdel(k,t+1,:)) - squeeze(pdel(k,t,:)),1);
+       
+  %     fprintf('squeeze: t\n')
+  %     squeeze(pdel(k,t,:))
+       
+   %    fprintf('squeeze: t+1\n')
+   %    squeeze(pdel(k,t+1,:))
+       
+       
+       delta = norm(squeeze(pdel(k,t+1,:)) - squeeze(pdel(k,t,:)),2);
+              
+    %   fprintf('\n')
+       
        fprintf('iter = %d, delta * 10^15=%f\n', t, delta*10^15); 
 
        t=t+1;
        
     end
 end
+
+pdel(:,t-1,:)

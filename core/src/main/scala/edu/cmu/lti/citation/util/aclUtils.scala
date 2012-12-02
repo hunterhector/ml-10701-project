@@ -18,7 +18,8 @@ object AclUtils{
         case ((m,s),l)=>
         {
           if (l.startsWith("id")){
-            val id = l.slice(6,14)
+            val pattern = "\\{.*?\\}".r
+            val id = pattern findFirstIn l getOrElse("") replaceAll("\\{|\\}","")
             (m,id)
           }else if (l.startsWith("year")){
             val year = l.slice(8,12)

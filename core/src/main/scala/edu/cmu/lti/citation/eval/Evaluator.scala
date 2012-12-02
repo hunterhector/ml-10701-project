@@ -110,24 +110,27 @@ object Evaluator{
 
   def main(args:Array[String]){
 
-    if(args.length != 1) LOG.error("Please locate AAN data release folder  (2011 release preferable).")
+    if(args.length != 4) LOG.error("Please locate AAN data release folder  (2011 release preferable).")
 
     val aanFolder = args(0)
     val outputFolder = args(1)
+    val modelFile = args(2)
+    val featureFile = args(3)
+
     val e = new Evaluator(new File(aanFolder),new File(outputFolder))
 
     val rwAlphaFile = new File(outputFolder+"/evalRandomWalkAlpha")
     val out = new java.io.FileWriter(rwAlphaFile)
 
     List(0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0).foreach(a => {
-      val rp = new RandomWalkPredictor(a)
-      val ldaWeightRW = new LDAWeightedRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/ldasimilarityfiles/sim_all_3k"),"cosine",e.conv)
-      val ldaPair = new LDAPairwisePredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),"cosine",e.conv)
-      val ldaPreferRW = new LDAPreferredRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),"cosine",e.conv)
-      val weightedRW = new TrainedLDAPreferredRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),"cosine",e.conv)
+//      val rp = new RandomWalkPredictor(a)
+//      val ldaWeightRW = new LDAWeightedRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/ldasimilarityfiles/sim_all_3k"),"cosine",e.conv)
+//      val ldaPair = new LDAPairwisePredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),"cosine",e.conv)
+//      val ldaPreferRW = new LDAPreferredRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),"cosine",e.conv)
+      val weightedRW = new TrainedLDAPreferredRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),new File(modelFile),new File(featureFile),"cosine",e.conv)
       out.write(a.toString+"\t")
-      e.test(List(rp),out)
-      e.test(List(rp,ldaWeightRW,ldaPair,ldaPreferRW,weightedRW),out)
+      //e.test(List(rp),out)
+      e.test(List(weightedRW),out)
     })
   }
 }

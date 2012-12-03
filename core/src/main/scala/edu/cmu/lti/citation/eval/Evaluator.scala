@@ -22,10 +22,11 @@ class Evaluator (rootFolder: File,outputFolder:File) {
 
   private val kTop = 20
 
+  val reader = new AanCitationNetworkReader(rootFolder)
+
   private val sTest = reader.testSource
   private val conv = reader.getConverter
 
-  val reader = new AanCitationNetworkReader(rootFolder)
 
   def test(predictors:List[Predictor],out:FileWriter) {
     var averRKL = 0.0
@@ -73,7 +74,7 @@ class Evaluator (rootFolder: File,outputFolder:File) {
       LOG.info(String.format("For %s papers actually tested. Overall average RKF is %s, overall average RKL is %s",actualTest.toString,averRKF.toString,averRKL.toString))
     })
 
-    out.close()
+    //out.close()
   }
 
   private def calRankMetrics(prediction:List[(Double,Int)],gold:Set[Int]):(Int,Int) = {
@@ -126,11 +127,12 @@ object Evaluator{
 //      val rp = new RandomWalkPredictor(a)
 //      val ldaWeightRW = new LDAWeightedRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/ldasimilarityfiles/sim_all_3k"),"cosine",e.conv)
 //      val ldaPair = new LDAPairwisePredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),"cosine",e.conv)
-//      val ldaPreferRW = new LDAPreferredRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),"cosine",e.conv)
-      val weightedRW = new TrainedLDAPreferredRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),new File(modelFile),new File(featureFile),"cosine",e.conv)
+      //val ldaPreferRW = new LDAPreferredRandomWalkPredictor(new File("../data/simpairwise_3k"),"cosine",e.conv)
+      val weightedRW = new TrainedLDAPreferredRandomWalkPredictor(new File("/usr0/home/kartikgo/Desktop/ML_project/ml-10701-project/data/simpairwise_3k"),new File(modelFile),new File(featureFile),"cosine",e.conv)
       out.write(a.toString+"\t")
       //e.test(List(rp),out)
       e.test(List(weightedRW),out)
+      out.close()
     })
   }
 }

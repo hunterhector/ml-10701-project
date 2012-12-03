@@ -132,8 +132,8 @@ object Evaluator{
       out.write(a.toString+"\t")
       //e.test(List(rp),out)
       e.test(List(weightedRW),out)
-      out.close()
     })
+  out.close()
   }
 }
 

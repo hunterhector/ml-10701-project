@@ -47,7 +47,7 @@ class LDAPreferredRandomWalkPredictor (ldaPairwiseFile:File,measure:String,conv:
   var alpha = 0.2
   var beta = 0.8
 
-  def setParameters(a:Int,b:Int){
+  def setParameters(a:Double,b:Double){
     alpha = a
     beta = b
   }

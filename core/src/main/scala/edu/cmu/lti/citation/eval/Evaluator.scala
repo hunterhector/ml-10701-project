@@ -74,7 +74,6 @@ class Evaluator (rootFolder: File,outputFolder:File) {
       LOG.info(String.format("For %s papers actually tested. Overall average RKF is %s, overall average RKL is %s",actualTest.toString,averRKF.toString,averRKL.toString))
     })
 
-    //out.close()
   }
 
   private def calRankMetrics(prediction:List[(Double,Int)],gold:Set[Int]):(Int,Int) = {
@@ -120,20 +119,22 @@ object Evaluator{
 
     val e = new Evaluator(new File(aanFolder),new File(outputFolder))
 
-    val rwAlphaFile = new File(outputFolder+"/evalRandomWalkAlpha")
+    val rwAlphaFile = new File(outputFolder+"/evalRandomWalkBeta")
     val out = new java.io.FileWriter(rwAlphaFile)
 
-    List(0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0).foreach(a => {
+    List(0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0).foreach(b => {
 //      val rp = new RandomWalkPredictor(a)
 //      val ldaWeightRW = new LDAWeightedRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/ldasimilarityfiles/sim_all_3k"),"cosine",e.conv)
 //      val ldaPair = new LDAPairwisePredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),"cosine",e.conv)
-      //val ldaPreferRW = new LDAPreferredRandomWalkPredictor(new File("../data/simpairwise_3k"),"cosine",e.conv)
-      val weightedRW = new TrainedLDAPreferredRandomWalkPredictor(new File("/usr0/home/kartikgo/Desktop/ML_project/ml-10701-project/data/simpairwise_3k"),new File(modelFile),new File(featureFile),"cosine",e.conv)
-      out.write(a.toString+"\t")
+      val ldaPreferRW = new LDAPreferredRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),"cosine",e.conv)
+      ldaPreferRW.setParameters(0.2,b)
+      //val weightedRW = new TrainedLDAPreferredRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),new File(modelFile),new File(featureFile),"cosine",e.conv)
+      out.write(b.toString+"\t")
       //e.test(List(rp),out)
-      e.test(List(weightedRW),out)
+      e.test(List(ldaPreferRW),out)
     })
-  out.close()
+    
+    out.close
   }
 }
 

@@ -74,7 +74,6 @@ class Evaluator (rootFolder: File,outputFolder:File) {
       LOG.info(String.format("For %s papers actually tested. Overall average RKF is %s, overall average RKL is %s",actualTest.toString,averRKF.toString,averRKL.toString))
     })
 
-    out.close()
   }
 
   private def calRankMetrics(prediction:List[(Double,Int)],gold:Set[Int]):(Int,Int) = {
@@ -120,7 +119,7 @@ object Evaluator{
 
     val e = new Evaluator(new File(aanFolder),new File(outputFolder))
 
-    val rwAlphaFile = new File(outputFolder+"/evalRandomWalkAlpha")
+    val rwAlphaFile = new File(outputFolder+"/evalRandomWalkBeta")
     val out = new java.io.FileWriter(rwAlphaFile)
 
     List(0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0).foreach(b => {
@@ -134,6 +133,8 @@ object Evaluator{
       //e.test(List(rp),out)
       e.test(List(ldaPreferRW),out)
     })
+    
+    out.close
   }
 }
 

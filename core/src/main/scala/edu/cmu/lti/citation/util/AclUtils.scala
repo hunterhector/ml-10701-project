@@ -14,7 +14,7 @@ object AclUtils{
 
   //actually papers we got is from 1965 2011
   def getIdYearMapping(aclMetaDatFile:File):HashMap[String,Int] = {
-      val idYearMap = Source.fromFile(aclMetaDatFile).getLines().foldLeft((HashMap[String,Int](),"")){
+      val idYearMap = Source.fromFile(aclMetaDatFile)(io.Codec("UTF-8")).getLines().foldLeft((HashMap[String,Int](),"")){
         case ((m,s),l)=>
         {
           if (l.startsWith("id")){
@@ -27,6 +27,7 @@ object AclUtils{
           }else (m,s)
         }
       }._1
+      //}._1.filter{case(id,year)=>year<=1990}
 
     idYearMap
   }

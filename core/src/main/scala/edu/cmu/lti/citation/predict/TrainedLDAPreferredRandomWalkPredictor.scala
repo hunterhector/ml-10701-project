@@ -30,11 +30,16 @@ class TrainedLDAPreferredRandomWalkPredictor(ldaPairwiseFile:File,modelFile:File
 
   val featureMap = featuresLines.slice(1,numSamples+1).foldLeft(HashMap[(Int,Int),DenseVector[Double]]()){
     case (m,l) =>{
+
       val fields = l.split(",")
-      val from = conv.toGraphIndex(fields(0))
-      val to = conv.toGraphIndex(fields(1))
-      val features = new DenseVector(fields.slice(2,fields.length).map(_.toDouble).toArray)
-      m + ((from,to)->features)
+      if (conv.containsPaper(fields(0)) && conv.containsPaper(fields(1))){
+        val from = conv.toGraphIndex(fields(0))
+        val to = conv.toGraphIndex(fields(1))
+        val features = new DenseVector(fields.slice(2,fields.length).map(_.toDouble).toArray)
+        m + ((from,to)->features)
+      }else{
+        m
+      }
     }
   }
 
@@ -87,7 +92,8 @@ class TrainedLDAPreferredRandomWalkPredictor(ldaPairwiseFile:File,modelFile:File
       featureMap((from,to))
     }else{
       LOG.error(String.format("Feature between %s -> %s not found!",conv.fromGraphIndex(from),conv.fromGraphIndex(to)))
-      throw new Exception("Feature not found!")      // now i want to make sure everything matches, in real experiment we'd better comment it.
+      DenseVector.zeros[Double](numFeatures)
+      //throw new Exception("Feature not found!")      // now i want to make sure everything matches, in real experiment we'd better comment it.
     }
   }
 
@@ -96,6 +102,7 @@ class TrainedLDAPreferredRandomWalkPredictor(ldaPairwiseFile:File,modelFile:File
   }
 
   def predict(t: List[(Int, Int, Float)], s: Int, k: Int) = {
+    LOG.debug(String.format("Predicting %s : %s.",s.toString,conv.fromGraphIndex(s)))
     val simWithSource = simMapAll(s)
 
     val weightedTriples = t.map{case (curr,succ,weight)=>{

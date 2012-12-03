@@ -22,10 +22,11 @@ class Evaluator (rootFolder: File,outputFolder:File) {
 
   private val kTop = 20
 
+  val reader = new AanCitationNetworkReader(rootFolder)
+
   private val sTest = reader.testSource
   private val conv = reader.getConverter
 
-  val reader = new AanCitationNetworkReader(rootFolder)
 
   def test(predictors:List[Predictor],out:FileWriter) {
     var averRKL = 0.0

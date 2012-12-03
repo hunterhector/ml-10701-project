@@ -66,8 +66,8 @@ class AanCitationNetworkReader (rootFolder: File) {
 
   def getConverter = conv
 
-  if (!conv.containsPaper("P87-1009")) throw new Exception("Shit 1")
-  if (!conv.containsPaper("J79-1033c")) throw new Exception("Oh shit 2!")
+ // if (!conv.containsPaper("P87-1009")) throw new Exception("Shit 1")
+ // if (!conv.containsPaper("J79-1033c")) throw new Exception("Oh shit 2!")
 
   private def splitData():(Set[Int],Set[Int],Set[Int],Set[Int]) = {
     LOG.info("Preparing training and testing data")
@@ -80,19 +80,25 @@ class AanCitationNetworkReader (rootFolder: File) {
 
     val paperPoolForTraining = new mutable.HashSet[Int]()
 
+   // val testyear = 1990
+    val testyear = 2011
+   // val trainyear = 1989
+    val trainyear = 2010
+
     id2YearMap.foreach{
       case (id,year) =>{
         if (conv.containsPaper(id)) //some paper exists in meta data are not in network, currently omitted
         {
-          if (year == 2011)  {
+          if (year == testyear)  {
+            //LOG.debug("Adding paper "+id)
             sourcePapersForTest += conv.toGraphIndex(id)
-          }else{
+          }else if(year < testyear){
             paperPoolForTest += conv.toGraphIndex(id)
           }
 
-          if (year == 2010) {
+          if (year == trainyear) {
             sourcePapersForTraining += conv.toGraphIndex(id)
-          }else if (year < 2010){
+          }else if (year < trainyear){
             paperPoolForTraining += conv.toGraphIndex(id)
           }
         }
@@ -100,8 +106,8 @@ class AanCitationNetworkReader (rootFolder: File) {
     }
 
 
-    LOG.info(String.format("From acl meta data. Totally %s papers, %s from year 2011 (some will be chosen for test), %s from year 2010 (some will be chosen for training), %s from the rest",
-      id2YearMap.size.toString,sourcePapersForTest.size.toString,sourcePapersForTraining.size.toString, paperPoolForTraining.size.toString))
+    LOG.info(String.format("From acl meta data. Totally %s papers, %s from year %s (some will be chosen for test), %s from year %s (some will be chosen for training), %s from the rest",
+      id2YearMap.size.toString,sourcePapersForTest.size.toString,testyear.toString,sourcePapersForTraining.size.toString, trainyear.toString, paperPoolForTraining.size.toString))
 
     val trainingSource = sourcePapersForTraining.toSet
     val testingSource = sourcePapersForTest.toSet

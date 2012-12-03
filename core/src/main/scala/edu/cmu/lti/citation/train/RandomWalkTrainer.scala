@@ -24,7 +24,7 @@ class RandomWalkTrainer (rootFolder:File, featureFile:File) {
   private val trainRatio = 50  //the ratio of L/D, this is tunable
   private val restartAlpha = 0.2 //restart probability to the source node
   private val restartBeta = 0.8 //restart probability for the jumping to topical groups
-  private val maxIter = 100; //iteration for calculating derivative \partial p/ \partial w
+  private val maxIter = 1000; //iteration for calculating derivative \partial p/ \partial w
   private val lambda = 1; //lambda for regulization
   private val wmwLossB = 0.5;//a parameter for WMW loss
 
@@ -49,10 +49,14 @@ class RandomWalkTrainer (rootFolder:File, featureFile:File) {
   private val featureMap = featuresLines.slice(1,numSamples+1).foldLeft(HashMap[(Int,Int),DenseVector[Double]]()){
     case (m,l) =>{
       val fields = l.split(",")
-      val from = conv.toGraphIndex(fields(0))
-      val to = conv.toGraphIndex(fields(1))
-      val features = new DenseVector(fields.slice(2,fields.length).map(_.toDouble).toArray)
-      m + ((from,to)->features)
+      if (conv.containsPaper(fields(0)) && conv.containsPaper(fields(1))){
+        val from = conv.toGraphIndex(fields(0))
+        val to = conv.toGraphIndex(fields(1))
+        val features = new DenseVector(fields.slice(2,fields.length).map(_.toDouble).toArray)
+        m + ((from,to)->features)
+      }else{
+        m
+      }
     }
   }
 
@@ -121,7 +125,7 @@ class RandomWalkTrainer (rootFolder:File, featureFile:File) {
       LOG.debug(String.format("iter = %s, delta = %s",t.toString,delta.toString))
       t += 1
     }
-
+    LOG.debug("Output the eigen vector for this calculation")
     LOG.debug(pt(t-1))
 
     // then start to the derivatives
@@ -201,12 +205,13 @@ class RandomWalkTrainer (rootFolder:File, featureFile:File) {
         val diffV = (pdelt(t+1)(k,::) - pdelt(t)(k,::)).t
    //     LOG.debug(String.format("Diff is: %s",diffV))
         delta = diffV(::,0).norm(2)
-        LOG.debug(String.format("iter = %s, delta*10^15 = %s",t.toString, (delta*10e15).toString))
+        LOG.debug(String.format("iter = %s, delta*10^15 = %s",t.toString, (delta).toString))
         t += 1
       }
     })
 
-  //  LOG.debug(pdelt(t-1))
+    LOG.debug("Output the partial p/w for this calculation")
+    LOG.debug(pdelt(t-1))
     pdelt(t-1)
   }
 
@@ -219,6 +224,7 @@ class RandomWalkTrainer (rootFolder:File, featureFile:File) {
 
         //fwSum for the sum of all F(w) over all s
         //fwDersum for the sum of all /partial F(w) over all s
+        var sourceCount = 1
         val res = reader.trainSource.foldLeft(0.0,DenseVector.zeros[Double](w.length)){case((fwSum,fwDerSum),s)  =>{
           //get an incomplete graph and the golden standard
           val t = reader.buildListWithHiddenLinks(s)
@@ -228,6 +234,8 @@ class RandomWalkTrainer (rootFolder:File, featureFile:File) {
 
           if (gold.size !=0 && numPreservedLinks > 0){ //require there should be some links removed but not all
             LOG.debug("Calculating training statistics from "+conv.fromGraphIndex(s)+" , node number is "+s)
+            LOG.debug(String.format("This is the %s paper of totally %s papers",sourceCount.toString,reader.trainSource.size.toString))
+            sourceCount += 1
 
             val setC = reader.trainCandidates -- gold  //set of all incorrect candidates
             val setD = gold    //set of true desitinations

@@ -48,7 +48,7 @@ class Evaluator (rootFolder: File,outputFolder:File) {
     })
 
     val distribution = new File(outputFolder+"/distribution")
-    val out1= new java.io.FileWriter(distribution)	
+    val out11= new java.io.FileWriter(distribution)
     predictors.foreach(p =>{
       LOG.info(String.format("Evaluating [%s], please wait...",p.getName))
 
@@ -60,7 +60,7 @@ class Evaluator (rootFolder: File,outputFolder:File) {
           val subRkl = result._1
           val subRkf = result._2
           LOG.debug(String.format("For %s: RKL  is %s, RKF is %s",s.toString,subRkl.toString, subRkf.toString))
-	  out1.write(String.format("%s\t%s\n",subRkf.toString,subRkl.toString))
+	  out11.write(String.format("%s\t%s\n",subRkf.toString,subRkl.toString))
           averRKF += subRkf
           averRKL += subRkl
           actualTest += 1

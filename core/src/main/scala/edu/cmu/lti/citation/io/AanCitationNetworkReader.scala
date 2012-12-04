@@ -81,9 +81,9 @@ class AanCitationNetworkReader (rootFolder: File) {
     val paperPoolForTraining = new mutable.HashSet[Int]()
 
    // val testyear = 1990
-    val testyear = 1979
+    val testyear = 2011
    // val trainyear = 1989
-    val trainyear = 1980
+    val trainyear = 2010
 
     id2YearMap.foreach{
       case (id,year) =>{

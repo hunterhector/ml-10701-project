@@ -269,7 +269,7 @@ class RandomWalkTrainer (rootFolder:File, featureFile:File) {
 
           if (gold.size !=0 && numPreservedLinks > 0){ //require there should be some links removed but not all
             LOG.debug("Calculating training statistics from "+conv.fromGraphIndex(s)+" , node number is "+s)
-            LOG.debug(String.format("This is the %s paper of totally %s papers",sourceCount.toString,reader.trainSource.size.toString))
+            LOG.info(String.format("This is the %s paper of totally %s papers",sourceCount.toString,reader.trainSource.size.toString))
             sourceCount += 1
 
             val setC = reader.trainCandidates -- gold  //set of all incorrect candidates
@@ -369,7 +369,7 @@ class RandomWalkTrainer (rootFolder:File, featureFile:File) {
                 val pd = Q(s,d)
                 val dLoss = lossDer(pl - pd)     //\partial h / \partial \sigma
 
-                val dpwDiff =  dpw(::,l) - dpw(::,l)
+                val dpwDiff =  dpw(::,l) - dpw(::,d)
                 dpwDiff.foreachValue(x => x*dLoss)
 
                 dpwDiff
@@ -394,12 +394,19 @@ class RandomWalkTrainer (rootFolder:File, featureFile:File) {
             //maybe free some memory please?
             Q = null
             arcWeights = null
+            wtder = null
 
             currentDerivative
           }else{ //when not fullfilled the requirement, it means this will not be used for training, so simply ignore it
+            LOG.info(String.format("This is the %s paper of totally %s papers, which got skipped.",sourceCount.toString,reader.trainSource.size.toString))
+            sourceCount += 1
+            LOG.info("Current result for F(W): "+fwSum)
+            LOG.info("Current result for dF(W) "+fwDerSum)
             (fwSum,fwDerSum)
           }
         }}
+        LOG.info("Final result for F(W): "+res._1)
+        LOG.info("Final result for dF(W) "+res._2)
         res
       }
     }

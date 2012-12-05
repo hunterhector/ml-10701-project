@@ -32,7 +32,7 @@ object AclUtils{
           }else (m,s)
         }
      // }._1
-      }._1.filter{case(id,year)=>year<=1990}
+      }._1.filter{case(id,year)=>year<=1985}
 
     idYearMap
   }

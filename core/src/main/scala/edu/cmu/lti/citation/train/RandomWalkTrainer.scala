@@ -45,7 +45,8 @@ class RandomWalkTrainer (rootFolder:File, featureFile:File) {
   private val numSamples = featuresLines.length - 1   //first line is table header
   private val numFeatures = featuresLines(0).split(",").length - 2
 
-  private val initialW = DenseVector.zeros[Double](numFeatures)    //initialize by unweighted random walk (so all zero)
+  //private val initialW = DenseVector.zeros[Double](numFeatures)    //initialize by unweighted random walk (so all zero)
+  private val initialW = DenseVector.fill[Double](numFeatures)(1.0/numFeatures)    //initialize by unweighted random walk (so all zero)
 
   private val featureMap = featuresLines.slice(1,numSamples+1).foldLeft(HashMap[(Int,Int),DenseVector[Double]]()){
     case (m,l) =>{
@@ -411,6 +412,8 @@ class RandomWalkTrainer (rootFolder:File, featureFile:File) {
       }
     }
 
+    //reset the tolerance lower so that it can do some calculation
+    //however no matter how low I set the tolerance, it just cannot run for even one iteration.
     val lbfgs = new LBFGS[DenseVector[Double]](maxIter=maxIter,m=3)  //m from 3 to 7, the larger m, the more memory
     val w = initialW
     val trainedW = lbfgs.minimize(f,w)

@@ -30,6 +30,7 @@ class RandomWalkTrainer (rootFolder:File, featureFile:File) {
 
   //The following could be changed, but actually not worth tuning
   private val derStop = 10e-12            //stopping criteria
+  private val ptderStopRatio = 0.1          //the value of those are really small.....so use ratio, but 0.1 could be a little bit high
 
   LOG.info("Reading AAN data...")
   private val reader = new AanCitationNetworkReader(rootFolder)
@@ -136,82 +137,116 @@ class RandomWalkTrainer (rootFolder:File, featureFile:File) {
     val wtsum = DenseVector.zeros[Double](dim)
     val wtsumsq  = DenseVector.zeros[Double](dim)
 
-   // LOG.debug("Doing wtsum")
+    // LOG.debug("Doing wtsum")
     (0 to arcWeights.rows -1).foreach(i => {
       wtsum(i) = arcWeights(i,::).sum
       wtsumsq(i) = wtsum(i)*wtsum(i)
-   //   LOG.debug("wtsum: "+wtsum(i)+" wtsumsq: "+wtsumsq(i))
+      //   LOG.debug("wtsum: "+wtsum(i)+" wtsumsq: "+wtsumsq(i))
     })
 
     val dwtSum = DenseMatrix.zeros[Double](numOfFeatures,dim)
 
 
-   // LOG.debug("Dong wtder")
-//    wtder.foreach{
-//      LOG.debug(_)
-//    }
+    // LOG.debug("Dong wtder")
+    //    wtder.foreach{
+    //      LOG.debug(_)
+    //    }
 
-   // LOG.debug("Doing dwtSum")
+    // LOG.debug("Doing dwtSum")
     (0 to numOfFeatures-1).foreach(i =>{
       (0 to dim-1).foreach(j=>{
         var sm = 0.0
         (0 to dim-1).foreach(l => {
-    //      LOG.debug("Adding "+ sm + " by "+wtder(i)(j,l))
+          //      LOG.debug("Adding "+ sm + " by "+wtder(i)(j,l))
           sm = sm + wtder(i)(j,l)
         })
         dwtSum(i,j) = sm
       })
     })
 
-   // LOG.debug(dwtSum)
+    // LOG.debug(dwtSum)
 
-    val delQ = Array.fill(numOfFeatures){DenseMatrix.zeros[Double](dim,dim)}
+    var delQ = Array.fill(numOfFeatures){DenseMatrix.zeros[Double](dim,dim)}
 
-   // LOG.debug("Doing delQ")
-    (0 to numOfFeatures-1).foreach(i => {
-      (0 to dim-1).foreach(j => {
-        (0 to dim-1).foreach(k => {
-          val sm = wtder(i)(j,k)*wtsum(j)
-          val sm1 = arcWeights(j,k)*dwtSum(i,j)
-          val term1 = sm - sm1
-          delQ(i)(j,k) = (1-restartAlpha)*term1/wtsumsq(j)
-        })
+    // LOG.debug("Doing delQ")
+    (0 to dim-1).foreach(j => {
+      (0 to dim-1).foreach(k => {
+        if (arcWeights(j,k) != 0){
+          (0 to numOfFeatures-1).foreach(i => {
+            val sm = wtder(i)(j,k)*wtsum(j)
+            val sm1 = arcWeights(j,k)*dwtSum(i,j)
+            val term1 = sm - sm1
+            delQ(i)(j,k) = (1-restartAlpha)*term1/wtsumsq(j)
+            if (delQ(i)(j,k).isNaN) {
+              LOG.info("arcWeights(j,k) is "+arcWeights(j,k))
+              LOG.error(String.format("Del Q calcuation by (1-%s)*%s/%s",restartAlpha.toString,term1.toString,wtsumsq(j).toString))
+              throw new Exception("Get a NaN")
+            }
+          })
+        }else{
+          (0 to numOfFeatures-1).foreach(i => {   //so when arcWeights_{j,k} is 0, it is does not depend on w so derivative should also be 0
+            delQ(i)(j,k) = 0
+          })
+        }
       })
     })
 
-//    delQ.foreach(
-//      LOG.debug(_)
-//    )
+    //    delQ.foreach(
+    //      LOG.debug(_)
+    //    )
 
     LOG.debug("Doing derivative iterations:")
 
-    t = 0
-    (0 to numOfFeatures-1).foreach(k =>{
- //     LOG.debug("Doing feature "+k)
-      delta = 1.0
 
-      while (delta > derStop && t < maxIter){
+    (0 to numOfFeatures-1).foreach(k =>{
+      LOG.debug("Doing feature "+k)
+      var ratio = 1.0
+      t = 0
+      while (ratio > ptderStopRatio && t < maxIter){
         (0 to dim-1).foreach(j =>{
           var prod = 0.0
           (0 to dim-1).foreach( l =>{
             prod += pdelt(t)(k,j) * Q(j,l) + pt(t)(0,j)*delQ(k)(j,l)
-  //          LOG.debug(String.format("Doing %s*%s+%s*%s",pdelt(t)(k,j).toString, Q(j,l).toString, pt(t)(0,j).toString,delQ(k)(j,l).toString))
+            if (pdelt(t)(k,j).isNaN)  {
+              LOG.error(String.format("Get a NaN bcuz pdelt(%s)(%s,%s)",t.toString,k.toString,j.toString))
+              throw new Exception("Get a NaN")
+            }
+            if (Q(j,l).isNaN)  {
+              LOG.error(String.format("Get a NaN at Q(%s,%s)",j.toString,l.toString))
+              throw new Exception("Get a NaN")
+            }
+            if (pt(t)(0,j).isNaN)  {
+              LOG.error(String.format("Get a NaN at pt(%s)(%s,%s)",t.toString,0.toString,j.toString))
+              throw new Exception("Get a NaN")
+            }
+            if (delQ(k)(j,l).isNaN)  {
+              LOG.error(String.format("Get a NaN at delQ(%s)(%s,%s)",k.toString,j.toString,l.toString))
+              throw new Exception("Get a NaN")
+            }
+            //LOG.debug(String.format("Doing %s*%s+%s*%s",pdelt(t)(k,j).toString, Q(j,l).toString, pt(t)(0,j).toString,delQ(k)(j,l).toString))
           })
           pdelt(t+1)(k,j) = prod
-   //       LOG.debug("Result is: "+prod)
+          //LOG.debug("Result is: "+prod)
         })
-
-   //     LOG.debug(String.format("Previous derivative: %s, current derivative: %s",pdelt(t)(k,::),pdelt(t+1)(k,::)))
-        val diffV = (pdelt(t+1)(k,::) - pdelt(t)(k,::)).t
-   //     LOG.debug(String.format("Diff is: %s",diffV))
+        //LOG.debug(String.format("So new derivative sums to : %s",pdelt(t+1)(k,::).sum.toString))
+        //LOG.debug(String.format("Previous derivative: %s, current derivative: %s",pdelt(t)(k,::),pdelt(t+1)(k,::)))
+        val lastDer = pdelt(t)(k,::).t
+        val newDer = pdelt(t+1)(k,::).t
+        val diffV = newDer - lastDer
+        //val diffV = (pdelt(t+1)(k,::) - pdelt(t)(k,::)).t
+        //LOG.debug(String.format("Diff is: %s",diffV))
         delta = diffV(::,0).norm(2)
-        LOG.debug(String.format("iter = %s, delta*10^15 = %s",t.toString, (delta).toString))
+        val lastNorm = lastDer(::,0).norm(2)
+        ratio = if(lastNorm == 0) 1 else delta/lastNorm   //beware of the 1st iteration, previous is zero
+        LOG.debug(String.format("iter = %s, delta = %s, ratio = %s",t.toString, (delta).toString, ratio.toString))
         t += 1
       }
     })
 
-    LOG.debug("Output the partial p/w for this calculation")
-    LOG.debug(pdelt(t-1))
+    //try to free memory
+    delQ = null
+    //LOG.debug("Output the partial p/w for this calculation")
+    //LOG.debug(pdelt(t-1))
     pdelt(t-1)
   }
 
@@ -263,13 +298,13 @@ class RandomWalkTrainer (rootFolder:File, featureFile:File) {
             R(::,s) := DenseVector.fill[Double](nodeNum)(restartAlpha) // R = \alpha 1(v=s)
 
             LOG.debug("Try allocate so many matrices")
-            val Q =  DenseMatrix.zeros[Double](nodeNum,nodeNum)
+            var Q =  DenseMatrix.zeros[Double](nodeNum,nodeNum)
             LOG.debug("Main Trainsition Matrix...")
-            val arcWeights = DenseMatrix.zeros[Double](nodeNum,nodeNum)
+            var arcWeights = DenseMatrix.zeros[Double](nodeNum,nodeNum)
             LOG.debug("Arc Weights")
-            val arcWeightsDer = DenseMatrix.zeros[Double](nodeNum,nodeNum)
-            LOG.debug("Arc Weights Derivatives")
-            val wtder = Array.fill(numFeatures){DenseMatrix.zeros[Double](nodeNum,nodeNum)}
+            //val arcWeightsDer = DenseMatrix.zeros[Double](nodeNum,nodeNum)
+            //LOG.debug("Arc Weights Derivatives")
+            var wtder = Array.fill(numFeatures){DenseMatrix.zeros[Double](nodeNum,nodeNum)}
             LOG.debug("Final Derivatives")
 
             LOG.debug("Wow, we get the matrices")
@@ -283,7 +318,7 @@ class RandomWalkTrainer (rootFolder:File, featureFile:File) {
               val curr = nodeIterator.nextInt
               val out = nodeIterator.outdegree()
               val suc = nodeIterator.successorArray
-              val lab = nodeIterator.labelArray
+              //val lab = nodeIterator.labelArray
               var nor = 0.0
 
               //if (out == 0) throw new Exception(String.format("Got zero outdegree for: %s",conv.fromGraphIndex(curr)))
@@ -301,7 +336,7 @@ class RandomWalkTrainer (rootFolder:File, featureFile:File) {
                 nor += strength
                 Q(curr,suc(i)) = strength
                 arcWeights(curr,suc(i))=strength
-                arcWeightsDer(curr,suc(i))=strengthDer
+                //arcWeightsDer(curr,suc(i))=strengthDer
 
                 var j = 0
                 feature.foreach(v =>{
@@ -353,8 +388,14 @@ class RandomWalkTrainer (rootFolder:File, featureFile:File) {
             val fw = w.norm(2) + lambda*hLoss
 
             //sum the up with the previous derivatives then we are done
-            (fwSum+fw,fwDerSum + w2 + hLossDer)
+            val currentDerivative = (fwSum+fw,fwDerSum + w2 + hLossDer)
 
+            LOG.debug("Done with this paper! Will you free some memory?")
+            //maybe free some memory please?
+            Q = null
+            arcWeights = null
+
+            currentDerivative
           }else{ //when not fullfilled the requirement, it means this will not be used for training, so simply ignore it
             (fwSum,fwDerSum)
           }

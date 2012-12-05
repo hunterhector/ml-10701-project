@@ -28,7 +28,7 @@ class Evaluator (rootFolder: File,outputFolder:File) {
   private val conv = reader.getConverter
 
 
-  def test(predictors:List[Predictor],out:FileWriter) {
+  def test(predictors:List[Predictor],out:FileWriter,out1:FileWriter) {
     var averRKL = 0.0
     var averRKF = 0.0
     var actualTest = 0
@@ -47,6 +47,7 @@ class Evaluator (rootFolder: File,outputFolder:File) {
       }
     })
 
+
     predictors.foreach(p =>{
       LOG.info(String.format("Evaluating [%s], please wait...",p.getName))
 
@@ -58,7 +59,7 @@ class Evaluator (rootFolder: File,outputFolder:File) {
           val subRkl = result._1
           val subRkf = result._2
           LOG.debug(String.format("For %s: RKL  is %s, RKF is %s",s.toString,subRkl.toString, subRkf.toString))
-
+	        out1.write(String.format("%s\t%s\n",subRkf.toString,subRkl.toString))
           averRKF += subRkf
           averRKL += subRkl
           actualTest += 1
@@ -118,23 +119,27 @@ object Evaluator{
     val featureFile = args(3)
 
     val e = new Evaluator(new File(aanFolder),new File(outputFolder))
-
     val rwAlphaFile = new File(outputFolder+"/evalRandomWalkBeta")
     val out = new java.io.FileWriter(rwAlphaFile)
-
-    List(0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0).foreach(b => {
+    val distribution = new File(outputFolder+"/distribution")
+    val out1= new java.io.FileWriter(distribution)
+    List(0.2,0.3,0.4,0.5,0.6).foreach(a => {
+      List(0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0).foreach(b => {
 //      val rp = new RandomWalkPredictor(a)
-//      val ldaWeightRW = new LDAWeightedRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/ldasimilarityfiles/sim_all_3k"),"cosine",e.conv)
+//      val ldaWeightRW = new LDAWeightedRandomWalkPredictor(new File("../data/ldasimilarityfiles/sim_all_3k"),"cosine",e.conv)
 //      val ldaPair = new LDAPairwisePredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),"cosine",e.conv)
-      val ldaPreferRW = new LDAPreferredRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),"cosine",e.conv)
-      ldaPreferRW.setParameters(0.2,b)
-      //val weightedRW = new TrainedLDAPreferredRandomWalkPredictor(new File("/Users/hector/Documents/projects/ml-10701-project/data/simpairwise_3k"),new File(modelFile),new File(featureFile),"cosine",e.conv)
-      out.write(b.toString+"\t")
-      //e.test(List(rp),out)
-      e.test(List(ldaPreferRW),out)
-    })
+        val ldaPreferRW = new LDAPreferredRandomWalkPredictor(new File("../data/simpairwise_3k"),"cosine",e.conv)
+        ldaPreferRW.setParameters(0.2,b)
+        //val weightedRW = new TrainedLDAPreferredRandomWalkPredictor(new File("../data/simpairwise_3k"),new File(modelFile),new File(featureFile),"cosine",e.conv)
+        out.write(a.toString+"\t"+b.toString+"\t")
+        out1.write(a.toString +"\t"+b.toString+"\tNEWNEWNEWNEW\n")
+        //e.test(List(rp),out)
+         e.test(List(ldaPreferRW),out,out1)
+       })
+      })
     
     out.close
+    out1.close
   }
 }
 

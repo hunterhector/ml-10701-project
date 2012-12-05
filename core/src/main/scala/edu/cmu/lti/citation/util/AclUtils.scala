@@ -31,8 +31,8 @@ object AclUtils{
             (m + (s->year.toInt),year)
           }else (m,s)
         }
-     // }._1
-      }._1.filter{case(id,year)=>year<=1985}
+      }._1
+     // }._1.filter{case(id,year)=>year<=1985}
 
     idYearMap
   }

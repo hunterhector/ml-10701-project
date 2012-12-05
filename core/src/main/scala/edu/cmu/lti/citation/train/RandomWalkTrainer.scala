@@ -442,6 +442,7 @@ object RandomWalkTrainer {
     val w = trainer.train()
 
     w.foreach(v => out.write(v.toString+" "))
+    out.close()
 //
 //    val Q = DenseMatrix.zeros[Double](2,2)
 //    Q(0,0) = 0.4

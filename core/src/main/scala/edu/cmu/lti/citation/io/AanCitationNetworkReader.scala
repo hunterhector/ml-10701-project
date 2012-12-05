@@ -80,8 +80,8 @@ class AanCitationNetworkReader (rootFolder: File) {
 
     val paperPoolForTraining = new mutable.HashSet[Int]()
 
-    val testyear = 1985
-    val trainyear = 1984
+    val testyear = 2011
+    val trainyear = 2000
 
     id2YearMap.foreach{
       case (id,year) =>{
@@ -107,7 +107,6 @@ class AanCitationNetworkReader (rootFolder: File) {
 
     LOG.info(String.format("From acl meta data. Totally %s papers, %s from year %s (some will be chosen for test), %s from year %s (some will be chosen for training), %s from the rest",
       numPapers.toString,sourcePapersForTest.size.toString,testyear.toString,sourcePapersForTraining.size.toString, trainyear.toString, paperPoolForTraining.size.toString))
-    LOG.info(String.format("I guess you need at least %s GB memory, do you have that?",(15*numPapers*numPapers*8/1024/1024/1024).toString))
 
     val trainingSource = sourcePapersForTraining.toSet
     val testingSource = sourcePapersForTest.toSet
